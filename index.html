@@ -1,0 +1,66 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-M">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Builder Bonanza</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        nunito: ['Nunito', 'sans-serif'],
+                    },
+                    transitionTimingFunction: {
+                       'modal-ease': 'cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                    },
+                    keyframes: {
+                        pulseLg: {
+                            '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+                            '50%': { opacity: '.7', transform: 'scale(1.05)' },
+                        }
+                    },
+                    animation: {
+                        'pulse-lg': 'pulseLg 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            touch-action: manipulation; /* From original CSS */
+        }
+        /* Custom scrollbar for charm options if needed */
+        .charm-options-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .charm-options-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1; /* cool-gray-300 */
+            border-radius: 4px;
+        }
+        .charm-options-scrollbar::-webkit-scrollbar-track {
+            background-color: #f1f5f9; /* cool-gray-100 */
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai@^1.5.1",
+    "react": "https://esm.sh/react@^19.1.0",
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-sky-100 text-gray-800 font-nunito">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>
