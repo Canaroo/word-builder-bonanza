@@ -1,66 +1,51 @@
 
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-M">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iI2ZhY2MxNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTUlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iUG9wcGlucywgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMiIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzFlMjkzYiI+VzwvdGV4dD48Y2lyY2xlIGN4PSIyNiIgY3k9IjI2IiByPSI1IiBmaWxsPSIjMjJkM2VlIiBzdHJva2U9IiMxZTI5M2IiIHN0cm9rZS13aWR0aD0iMS41Ii8+PC9zdmc+">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Word Builder Bonanza</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        nunito: ['Nunito', 'sans-serif'],
-                    },
-                    transitionTimingFunction: {
-                       'modal-ease': 'cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                    },
-                    keyframes: {
-                        pulseLg: {
-                            '0%, 100%': { opacity: '1', transform: 'scale(1)' },
-                            '50%': { opacity: '.7', transform: 'scale(1.05)' },
-                        }
-                    },
-                    animation: {
-                        'pulse-lg': 'pulseLg 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    }
-                }
-            }
-        }
-    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Roboto+Mono:wght@700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Nunito', sans-serif;
-            touch-action: manipulation; /* From original CSS */
-        }
-        /* Custom scrollbar for charm options if needed */
-        .charm-options-scrollbar::-webkit-scrollbar {
-            width: 8px;
-        }
-        .charm-options-scrollbar::-webkit-scrollbar-thumb {
-            background-color: #cbd5e1; /* cool-gray-300 */
-            border-radius: 4px;
-        }
-        .charm-options-scrollbar::-webkit-scrollbar-track {
-            background-color: #f1f5f9; /* cool-gray-100 */
-        }
+      body {
+        font-family: 'Poppins', sans-serif;
+      }
+      .font-digital {
+        font-family: 'Roboto Mono', monospace;
+      }
+      .progress-bar {
+        animation: countdown 5s linear forwards;
+        transform-origin: left;
+      }
+      @keyframes countdown {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(0); }
+      }
+      @keyframes low-time-pulse {
+        50% { border-color: #ef4444; } /* Tailwind red-500 */
+      }
+      .low-time-flash {
+        animation: low-time-pulse 1s infinite;
+      }
     </style>
-<script type="importmap">
+  <script type="importmap">
 {
   "imports": {
-    "@google/genai": "https://esm.sh/@google/genai@^1.5.1",
     "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
     "react/": "https://esm.sh/react@^19.1.0/",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.0/"
+    "@google/genai": "https://esm.sh/@google/genai"
   }
 }
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-<body class="bg-sky-100 text-gray-800 font-nunito">
+  <body class="bg-slate-900 text-white overflow-hidden">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
-</body>
+  </body>
 </html>

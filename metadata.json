@@ -1,6 +1,6 @@
 {
   "name": "Word Builder Bonanza",
-  "description": "A fun and engaging word building game where players create words from letter tiles, earn points, and unlock special charms and brainstorm abilities. Features AI-powered hints and kid-friendly definitions.",
+  "description": "A fast-paced, Scrabble-inspired vocabulary challenge. Players race against a 60-second clock to build high-scoring words from a seven-tile rack, enhanced by a system of Charms, PowerPlays, and Milestones.",
   "requestFramePermissions": [],
   "prompt": ""
 }

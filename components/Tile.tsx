@@ -1,46 +1,41 @@
-
 import React from 'react';
-import { TileData, LetterValues } from '../types';
+import { Tile } from '../types';
 
 interface TileProps {
-  tile: TileData;
-  isSelected: boolean;
-  onClick?: (tile: TileData) => void;
-  letterValues: LetterValues;
-  isSmall?: boolean; // For contexts where a smaller tile is needed (e.g. brainstorm choices)
+  tile: Tile;
+  onClick: () => void;
 }
 
-const Tile: React.FC<TileProps> = ({ tile, isSelected, onClick, letterValues, isSmall = false }) => {
-  const sizeClasses = isSmall ? "w-9 h-9 text-lg" : "w-10 h-10 sm:w-12 sm:h-12 text-xl sm:text-2xl";
-  const pointsSizeClasses = isSmall ? "text-[0.6rem]" : "text-xs";
-  
+const TileComponent: React.FC<TileProps> = ({ tile, onClick }) => {
+  const hasMultiplier = tile.multiplier && tile.multiplier > 1;
+  const hasTempPoints = tile.tempPoints && tile.tempPoints > 0;
+
   return (
-    <div
-      id={tile.id}
-      className={`
-        ${sizeClasses} flex flex-col items-center justify-center font-bold cursor-pointer select-none
-        shadow-md transition-all duration-200 ease-in-out relative rounded-md
-        bg-amber-100 text-gray-700 border-b-4 
-        ${tile.isDouble ? 'border-amber-500' : 'border-amber-400'}
-        ${isSelected ? 'transform -translate-y-1 scale-110 shadow-xl !border-blue-500 ring-2 ring-blue-500 z-10' : 'hover:opacity-80'}
-      `}
-      onClick={() => onClick?.(tile)}
-      aria-label={`Tile ${tile.letter}, points ${letterValues[tile.letter]}`}
+    <button
+      onClick={onClick}
+      onTouchStart={onClick}
+      className={`relative w-12 h-14 font-bold text-2xl rounded-lg shadow-md flex items-center justify-center cursor-pointer transform hover:scale-110 hover:-translate-y-1 transition-all duration-200
+        ${tile.isSuper 
+            ? 'bg-red-600 text-white ring-4 ring-red-400 shadow-lg shadow-red-500/50 animate-pulse' 
+            : (hasMultiplier 
+                ? 'bg-purple-600 text-white' 
+                : (hasTempPoints 
+                    ? 'bg-amber-400 text-slate-900 animate-pulse' 
+                    : 'bg-amber-200 text-slate-800'))}`}
+      aria-label={`Tile ${tile.letter} with ${tile.points} points`}
     >
-      {tile.isDouble && (
-        <span className="absolute top-0 left-1 text-[0.6rem] sm:text-xs font-black text-amber-600 z-10">2X</span>
+      <span className="z-10">{tile.letter}</span>
+      <span className="absolute bottom-0 right-1 text-xs font-bold z-10">{tile.tempPoints ?? tile.points}</span>
+      {hasMultiplier && !tile.isSuper && (
+        <span className="absolute top-0 right-1 text-xs font-extrabold z-10 text-white bg-purple-700 rounded-full px-1 py-0.5 leading-none">
+          x{tile.multiplier}
+        </span>
       )}
-      <span className="flex-grow flex items-center justify-center">{tile.letter}</span>
-      <span 
-        className={`
-          ${pointsSizeClasses} font-semibold absolute bottom-0.5 right-0.5 px-1 rounded-sm bg-black/10
-          ${tile.isDouble ? 'text-amber-600 font-extrabold' : 'text-gray-600'}
-        `}
-      >
-        {letterValues[tile.letter]}
-      </span>
-    </div>
+      {tile.isDuplicate && (
+        <span className="absolute top-0 left-1 text-xs font-bold text-slate-900 z-10">🪝</span>
+      )}
+    </button>
   );
 };
 
-export default Tile;
+export default TileComponent;

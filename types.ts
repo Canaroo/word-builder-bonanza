@@ -1,120 +1,160 @@
 
-export interface TileData {
+
+export interface Tile {
   id: string;
   letter: string;
-  value: number;
-  isDouble: boolean;
-  isRecycled?: boolean;
-}
-
-export type WordSlot = TileData | null;
-
-export interface Charm {
-  id: string;
-  name: string;
-  description: string;
-  apply: (gameState: GameState) => GameState; // Function to apply charm effect
-  selected?: boolean; // For UI indication if needed
-}
-
-export interface BrainstormAction {
-  id: string;
-  name: string;
-  description: string;
-  needsInteraction: boolean; // Does it require user input (e.g., choosing a tile)
-  cost?: number; // Optional: if brainstorms have a cost (e.g., score)
-  activate?: (gameState: GameState, selectedTile?: TileData) => GameState; // Function to activate brainstorm effect
-}
-
-export interface LetterValues {
-  [key: string]: number;
+  points: number;
+  multiplier?: number; // For charms/powerplays like 'Letter Upgrade'
+  tempPoints?: number; // For charms like 'One Tile to Rule Them All'
+  isDuplicate?: boolean; // For Hookshot powerplay
+  isSuper?: boolean; // For Mutation Protocol
 }
 
 export interface GameConfig {
-  TILE_COUNT: number;
-  WORD_SLOTS_COUNT: number;
-  MAX_STRIKES: number;
-  ROUND_TIME_SECONDS: number;
-  DOUBLE_SCORE_CHANCE: number;
-  REPLENISH_DIVISOR: number;
-  INITIAL_HINTS: number;
-  INITIAL_SHUFFLES: number;
-  POINTS_FOR_BRAINSTORM: number;
-  WORDS_FOR_CHARM: number;
-}
-export interface GameState {
-  score: number;
-  shufflesLeft: number;
-  strikes: number;
-  hintsLeft: number;
-  playerHand: TileData[];
-  wordSlots: WordSlot[];
-  playerName: string;
-  bestWord: string;
-  selectedTileId: string | null;
-  timeLeft: number; // in seconds
-  wordsSubmitted: number; // Total words submitted in the game
-  activeCharms: Charm[];
-  hasBrainstormCharge: boolean; // True if player earned a brainstorm charge but hasn't picked one yet
-  heldBrainstorm: BrainstormAction | null; // The specific brainstorm action chosen by the player
-  milestonesAchieved: string[]; // e.g., ['score_100', 'word_5_letters']
-  letterValues: LetterValues;
-  gameConfig: GameConfig;
-  isTimerActive: boolean;
-  currentMessage: { text: string; type: MessageType; definition?: string } | null;
-  polishedLetters: string[]; // For "Polish" brainstorm
-  anticipatedScore: number; // For live score preview
-  wordsSubmittedSinceLastCharm: number; // Tracks words for charm offering
-  nextCharmOfferThreshold: number; // Threshold for next charm offer
+  timerDuration: number;
+  minWordLength: number;
 }
 
-export enum GameScreenState {
-  START,
-  PLAYING,
-  GAME_OVER,
+export interface Charm {
+  id:string;
+  instanceId?: string;
+  name:string;
+  description:string;
+  flavorText:string;
+  icon:string;
+  maxUses?: number;
+  effectType?: 'passive' | 'selection' | 'triggered' | 'immediate';
+  selectionType?: 'tile_transform';
+  activate: (gameState: GameState, options?: any) => Partial<GameState>;
 }
 
-export enum MessageType {
-  INFO = 'info',
-  SUCCESS = 'success',
-  ERROR = 'error',
-  LOADING = 'loading',
+
+export interface PowerPlay {
+  id: string;
+  instanceId?: string;
+  name: string;
+  description: string;
+  flavorText: string;
+  icon: string;
+  effectType: 'immediate' | 'passive' | 'next_word' | 'selection';
+  selectionType?: 'letter' | 'tile_swap' | 'custom';
+  swapConfig?: { min: number, max: number };
+  activate: (gameState: GameState, options?: any) => Partial<GameState>;
 }
 
-export interface DictionaryEntry {
-  word: string;
-  phonetic?: string;
-  phonetics?: { text?: string; audio?: string }[];
-  origin?: string;
-  meanings: {
-    partOfSpeech: string;
-    definitions: {
-      definition: string;
-      example?: string;
-      synonyms?: string[];
-      antonyms?: string[];
-    }[];
-  }[];
-}
-
-// For grounding metadata from Gemini Search
-export interface GroundingChunkWeb {
-  uri: string;
-  title: string;
-}
-export interface GroundingChunk {
-  web?: GroundingChunkWeb;
-  // other types of chunks could be defined here
-}
-export interface GroundingMetadata {
-  groundingChunks?: GroundingChunk[];
-  // other grounding metadata fields
-}
 
 export interface Milestone {
   id: string;
   name: string;
-  description: string;
+  icon: string;
   scoreThreshold: number;
-  apply: (gameState: GameState) => GameState;
+  reward: {
+    points?: number;
+  };
+  configChange?: Partial<GameConfig>;
+  flavorText: string;
+}
+
+export interface EasterEgg {
+  id: string;
+  name: string;
+  description: string;
+  trigger: (word: string, score: number, gameState: GameState) => boolean;
+  reward: {
+    points?: number;
+    shuffle?: number;
+    message: string;
+  };
+}
+
+export interface WordBonus {
+    id: string;
+    title: string;
+    description: string;
+    wordCount: number;
+    reward: {
+        points: number;
+    };
+}
+
+export interface WordData {
+  word: string;
+  score: number;
+  baseScore?: number;
+  bonuses?: ScoreBonusInfo[];
+  cumulativeScore?: number;
+  definition?: string;
+  status: 'valid' | 'invalid';
+}
+
+export interface GameState {
+  score: number;
+  words: WordData[];
+  longestWord: string;
+  foundEasterEggs: EasterEgg[];
+  gameConfig: GameConfig;
+  strikes: number;
+  shuffleCount: number;
+  challengeCount: number;
+  challengeActive: boolean;
+  
+  wordMilestoneProgress: {
+    count: number;
+    nextUnlock: number;
+  };
+  
+  powerPlayProgress: {
+    targetDigit: number | null;
+    streak: number;
+    turnsSinceLastOffer: number;
+    cooldown: number;
+  };
+
+  powerSurgeProgress: number;
+
+  activeCharms: Charm[];
+  availablePowerPlays: PowerPlay[];
+  unlockedMilestoneIds: string[];
+  unlockedWordBonusIds: string[];
+  
+  // Charm and PowerPlay states
+  charmUses: { [charmId: string]: number };
+  activePowerPlays: { [powerPlayId: string]: any }; // To store temporary effects
+  powerPlayToActivate: PowerPlay | null;
+  availableCharms: Charm[];
+  charmToActivate: Charm | null;
+  powerPlayOffer: PowerPlay[];
+  lastPowerPlayResult?: { message: string; scoreChange: number; } | null;
+  highestScoringWord: WordData | null;
+  activeBuffs: (Charm | PowerPlay)[];
+
+  letterMultipliers: { [letter: string]: number };
+  wordMultipliersByLetter: { [letter: string]: number };
+
+  // Specific Charm States
+  flawlessScore: number;
+  pianoManEncoreActive: boolean;
+  glitchActive: boolean;
+  wordsThisRound: number;
+  lastSubmissionTime: number; 
+  consecutiveSuccesses: number;
+  multiverseTimeBonus: number;
+}
+
+export interface LeaderboardEntry {
+  name: string;
+  score: number;
+  rank: number;
+  date: string;
+}
+
+export interface ScoreBonusInfo {
+  name: string;
+  description: string;
+}
+
+export interface ScoreCalculationResult {
+  totalScore: number;
+  baseScore: number;
+  bonuses: ScoreBonusInfo[];
 }
