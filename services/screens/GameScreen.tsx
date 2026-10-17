@@ -240,7 +240,18 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
         case 'UPDATE_GAME_STATE': return { ...state, gameState: { ...state.gameState, ...action.payload } };
         case 'SET_CHALLENGE_WORD_DATA': return { ...state, challengeWordData: action.payload };
         case 'SELECT_TILE_FOR_SELECTION': return { ...state, tileForSelection: action.payload };
-        case 'STORE_LAST_TURN': return state;
+        case 'STORE_LAST_TURN':
+            // Snapshot for the Sliders PowerPlay, which rewinds to just before the last word.
+            return {
+                ...state,
+                lastTurnState: {
+                    gameState: state.gameState,
+                    hand: state.hand,
+                    buildRow: state.buildRow,
+                    time: state.time,
+                    tileBag: state.tileBag,
+                },
+            };
         case 'SET_HIGHLIGHTED_TILES': return { ...state, highlightedTileIds: action.payload };
         case 'SET_LONG_WORD_BONUS_NOTIFIED': return { ...state, longWordBonusNotified: action.payload };
         case 'RESTORE_LAST_TURN': {
@@ -1791,6 +1802,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   const isChallengeLock = gameState.challengeActive;
   // The clock stops while the app is in the background so switching apps never costs a run.
   const isVisible = useDocumentVisible();
+
+  // LEX coin milestones: report every new high score, whatever raised it (words, PowerPlays,
+  // bonuses). Tracking the run's highest score means undoing a turn can't earn a coin twice.
+  const highestScoreRef = React.useRef(gameState.score);
+  useEffect(() => {
+      if (gameState.score > highestScoreRef.current) {
+          onScoreUpdate(highestScoreRef.current, gameState.score);
+          highestScoreRef.current = gameState.score;
+      }
+  }, [gameState.score, onScoreUpdate]);
   const [isMuted, setIsMuted] = useState(soundService.getMuteState());
   
   const wordFromBuildRow = useMemo(() => (buildRow ?? []).filter(i => i).map(item => item!.tile.letter).join(''), [buildRow]);
@@ -2773,7 +2794,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       newState.score = Math.round(runningScore);
 
       // --- Handle Coin Award ---
-      onScoreUpdate(oldScore, newState.score);
       const turnScore = newState.score - oldScore;
       
       // --- 8. OTHER STATE UPDATES ---

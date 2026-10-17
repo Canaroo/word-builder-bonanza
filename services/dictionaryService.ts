@@ -5,6 +5,7 @@
 // from data/internalWords.ts, then a small on-device cache, then dictionaryapi.dev,
 // which is never used to decide whether a word is valid.
 import { internalWords } from '../data/internalWords';
+import { curatedWords, isBlocked } from './curatedWords';
 import { canBeMadeFromLetters } from './rackMatch';
 import type { FindWordOptions } from './wordIndex';
 import type { DictionaryRequest, DictionaryResponse } from './dictionary.worker';
@@ -131,13 +132,13 @@ async function lookupDefinition(wordLower: string): Promise<string | null> {
 /** Checks a word against the word list and returns its definition when one is known. */
 async function lookupWord(word: string): Promise<WordDataResult> {
     const wordLower = word.trim().toLowerCase();
-    if (!wordLower) return { isValid: false };
+    if (!wordLower || isBlocked(wordLower)) return { isValid: false };
 
     const inList = await ask<boolean>({ type: 'has', word: wordLower });
 
     if (inList === undefined) {
         // Word list unavailable (e.g. first launch while offline): use the old online check.
-        if (internalWords.has(wordLower)) return { isValid: true, definition: internalWords.get(wordLower) };
+        if (curatedWords.has(wordLower)) return { isValid: true, definition: curatedWords.get(wordLower) };
         const definition = await fetchFromApi(wordLower);
         if (definition) rememberDefinition(wordLower, definition);
         return { isValid: !!definition, definition };
@@ -166,7 +167,7 @@ async function findPlayableWord(letters: string[], options: FindWordOptions = {}
     if (fromList !== undefined) return fromList;
 
     let best: string | null = null;
-    for (const w of internalWords.keys()) {
+    for (const w of curatedWords.keys()) {
         if (w.length >= minLength && canBeMadeFromLetters(w, letters)) {
             if (!longest) return w;
             if (!best || w.length > best.length) best = w;
@@ -180,7 +181,7 @@ async function findPlayableWord(letters: string[], options: FindWordOptions = {}
  * such as finding 3-letter words when balancing a rack.
  */
 function getDictionaryWords(): IterableIterator<string> {
-    return internalWords.keys();
+    return curatedWords.keys();
 }
 
 export const dictionaryService = {

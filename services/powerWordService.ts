@@ -1,5 +1,5 @@
 import { PowerWordData } from '../types';
-import { internalWords } from '../data/internalWords';
+import { curatedWords } from './curatedWords';
 
 import { storage, STORAGE_KEYS } from './storage';
 
@@ -71,7 +71,7 @@ const getCooldownMessage = (): string => {
 
 
 const getEligiblePowerWords = (): [string, string][] => {
-    return Array.from(internalWords.entries()).filter(([word]) => word.length === 4);
+    return Array.from(curatedWords.entries()).filter(([word]) => word.length === 4);
 };
 
 const spin = (): PowerWordData | null => {
