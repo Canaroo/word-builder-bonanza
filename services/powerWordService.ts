@@ -1,11 +1,13 @@
 import { PowerWordData } from '../types';
 import { internalWords } from '../data/internalWords';
 
-const POWER_WORD_KEY = 'wordBuilderPowerWord';
+import { storage, STORAGE_KEYS } from './storage';
+
+const POWER_WORD_KEY = STORAGE_KEYS.powerWord;
 
 const getPowerWordData = (): PowerWordData | null => {
     try {
-        const dataJson = localStorage.getItem(POWER_WORD_KEY);
+        const dataJson = storage.getString(POWER_WORD_KEY);
         return dataJson ? JSON.parse(dataJson) : null;
     } catch (e) {
         console.error("Failed to parse Power Word data from localStorage", e);
@@ -19,7 +21,7 @@ const setPowerWordData = (powerWord: string, definition: string): PowerWordData 
         definition,
         spinTimestamp: Date.now(),
     };
-    localStorage.setItem(POWER_WORD_KEY, JSON.stringify(data));
+    storage.setJSON(POWER_WORD_KEY, data);
     return data;
 };
 

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { describe, it, test, expect, beforeEach, vi } from 'vitest';
 import { CHARMS_LIST } from '../charms';
 import { GameState, Charm, EventLogEntry } from '../../types';
 

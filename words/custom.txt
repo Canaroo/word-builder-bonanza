@@ -1,0 +1,19 @@
+# Custom allowed words
+# ---------------------
+# Words listed here are accepted even if they're not in the base Scrabble-style
+# word list. One word per line, letters only, case doesn't matter.
+# Lines starting with # are comments.
+#
+# Every word in data/internalWords.ts is also allowed automatically, so you only
+# need to add words here that don't need a custom definition.
+#
+# After editing, restart `npm run dev` (or run `npm run words`) to rebuild the list.
+
+# Easter egg words the base list filters out
+sex
+poop
+
+# Newer official additions missing from the base list
+ew
+ok
+zen

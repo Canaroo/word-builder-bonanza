@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { describe, it, test, expect, beforeEach, vi, onTestFinished } from 'vitest';
 import { POWER_PLAYS_LIST } from '../powerPlays';
 import { GameState, Tile, WordLogEntry, EventLogEntry, PowerPlay } from '../../types';
 import { RACK_SIZE, TILE_DISTRIBUTION } from '../../constants';
@@ -66,6 +67,10 @@ describe('Nuclear Option PowerPlay', () => {
     const nuclearOption = POWER_PLAYS_LIST.find(p => p.id === 'nuclearOption') as PowerPlay;
 
     test('should replace hand and apply a x4 multiplier to the next word only', () => {
+        // Math.random() just below 1 makes the shuffle a no-op and skips combo tiles,
+        // so the hand is dealt from the bag in order as the assertions below expect.
+        const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.999);
+        onTestFinished(() => randomSpy.mockRestore());
         // 1. Setup: deterministic bag and rack
         let gameState = createInitialState();
         const initialHand: Tile[] = [ 'A', 'B', 'C', 'D', 'E', 'F', 'G' ].map(createTile);

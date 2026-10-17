@@ -3,9 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { FinalGameState, WordLogEntry } from '../../types';
 import { soundService } from '../soundService';
 import EventLogDisplay from '../../components/EventLogDisplay';
+import { showToast } from '../toast';
 
-// Declare the global function so TypeScript doesn't complain
-declare function showToast(message: string): void;
 
 interface GameOverScreenProps {
   playerName: string;

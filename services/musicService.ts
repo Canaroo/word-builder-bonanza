@@ -14,7 +14,7 @@ const musicService = (() => {
         if (!audioCtx || musicBuffer || isLoading) return;
         isLoading = true;
         try {
-            const response = await fetch('/Mindscape.mp3');
+            const response = await fetch(`${import.meta.env.BASE_URL}audio/mindscape.mp3`);
             const arrayBuffer = await response.arrayBuffer();
             musicBuffer = await audioCtx.decodeAudioData(arrayBuffer);
         } catch (error) {

@@ -1,0 +1,7 @@
+# Blocked words
+# -------------
+# Words listed here are always rejected, even if they appear in the base list,
+# custom.txt, or data/internalWords.ts. One word per line, letters only.
+# Lines starting with # are comments.
+#
+# After editing, restart `npm run dev` (or run `npm run words`) to rebuild the list.

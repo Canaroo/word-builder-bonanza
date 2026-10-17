@@ -1,186 +1,186 @@
-// A service to validate words using an internal list, a persistent cache, and an external API.
+// Word validation and definitions.
+//
+// Validity comes from the bundled word list (public/words/wordlist.txt, built by
+// scripts/build-wordlist.mjs), loaded once in a background worker. Definitions come
+// from data/internalWords.ts, then a small on-device cache, then dictionaryapi.dev,
+// which is never used to decide whether a word is valid.
 import { internalWords } from '../data/internalWords';
-
-// In-memory cache for the current session for rapid lookups
-const sessionCache = new Map<string, string | null>();
-
-// Function to get the persisted cache from localStorage
-const getPersistentCache = (): Map<string, string> => {
-    try {
-        const cached = localStorage.getItem('wordBuilderBonanzaCache');
-        if (cached) {
-            // The stored value is an array of [key, value] pairs
-            return new Map(JSON.parse(cached));
-        }
-    } catch (e) {
-        console.error("Failed to parse word cache from localStorage", e);
-        // If parsing fails, clear the corrupted cache
-        localStorage.removeItem('wordBuilderBonanzaCache');
-    }
-    return new Map();
-};
-
-// Load the persistent cache once on startup
-const persistentCache = getPersistentCache();
-
-// Function to save a new valid word to the persistent cache
-const updatePersistentCache = (word: string, definition: string) => {
-    persistentCache.set(word, definition);
-    try {
-        // Store as an array of [key, value] pairs, which is JSON-serializable
-        localStorage.setItem('wordBuilderBonanzaCache', JSON.stringify(Array.from(persistentCache.entries())));
-    } catch (e) {
-        console.error("Failed to save word cache to localStorage", e);
-    }
-};
+import { canBeMadeFromLetters } from './rackMatch';
+import type { FindWordOptions } from './wordIndex';
+import type { DictionaryRequest, DictionaryResponse } from './dictionary.worker';
+import { storage, STORAGE_KEYS } from './storage';
 
 export interface WordDataResult {
     isValid: boolean;
     definition?: string | null;
 }
 
-/**
- * Fetches word definition from the Dictionary API with a retry mechanism.
- * @param {string} word - The word to fetch.
- * @returns {Promise<string | null | undefined>} - The definition, null if not found (404), or undefined on network/server error after retries.
- */
-async function fetchFromApi(word: string): Promise<string | null | undefined> {
-    const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${word}`;
-    const maxRetries = 2; // Will try a total of 3 times (1 initial + 2 retries)
-    let delay = 500; // Start with 500ms
+const WORD_LIST_URL = `${import.meta.env.BASE_URL}words/wordlist.txt`;
+const DEFINITION_TIMEOUT_MS = 1200;
+const MAX_CACHED_DEFINITIONS = 500;
 
-    for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+// --- Word list worker ---------------------------------------------------------
+
+type WorkerRequest = DictionaryRequest extends infer R ? R extends { id: number } ? Omit<R, 'id'> : never : never;
+
+let worker: Worker | null = null;
+let readyPromise: Promise<boolean> | null = null;
+let nextRequestId = 1;
+const pending = new Map<number, (result: boolean | string | null) => void>();
+
+/** Starts loading the word list. Resolves true when ready, false if it couldn't load. */
+const preload = (): Promise<boolean> => {
+    if (readyPromise) return readyPromise;
+    readyPromise = new Promise<boolean>((resolve) => {
         try {
-            const response = await fetch(url);
-
-            if (response.ok) { // Status 200-299
-                const data = await response.json();
-                const definition = data[0]?.meanings[0]?.definitions[0]?.definition;
-                return definition || "Definition not available.";
-            }
-
-            if (response.status === 404) {
-                // Word not found, this is a definitive answer, no need to retry.
-                return null;
-            }
-            
-            // For other server errors (5xx), we will retry.
-            console.error(`API server error for "${word}" (attempt ${attempt}):`, response.status);
-
+            worker = new Worker(new URL('./dictionary.worker.ts', import.meta.url), { type: 'module' });
         } catch (error) {
-            // This catches network errors like "Failed to fetch"
-            console.error(`Network error fetching word "${word}" (attempt ${attempt}):`, error);
+            console.error('Could not start the dictionary worker.', error);
+            resolve(false);
+            return;
         }
+        worker.onmessage = (event: MessageEvent<DictionaryResponse>) => {
+            const msg = event.data;
+            if (msg.type === 'ready') {
+                resolve(true);
+            } else if (msg.type === 'error') {
+                console.error('Word list failed to load; falling back to the online dictionary.', msg.message);
+                resolve(false);
+            } else {
+                pending.get(msg.id)?.(msg.result);
+                pending.delete(msg.id);
+            }
+        };
+        worker.onerror = (event) => {
+            console.error('Dictionary worker crashed.', event);
+            resolve(false);
+        };
+        worker.postMessage({ type: 'load', url: new URL(WORD_LIST_URL, location.href).href });
+    });
+    return readyPromise;
+};
 
-        // If we're here, it means the request failed and it's not a 404.
-        // We'll wait before the next attempt, if there is one.
-        if (attempt <= maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, delay));
-            delay *= 2; // Exponential backoff for the next delay
-        }
+const ask = async <T extends boolean | string | null>(request: WorkerRequest): Promise<T | undefined> => {
+    if (!(await preload()) || !worker) return undefined;
+    const id = nextRequestId++;
+    return new Promise<T>((resolve) => {
+        pending.set(id, resolve as (result: boolean | string | null) => void);
+        worker!.postMessage({ ...request, id });
+    });
+};
+
+// --- Definitions --------------------------------------------------------------
+
+// Word -> definition, most recently used last.
+const definitionCache = new Map<string, string>(
+    (() => {
+        const saved = storage.getJSON<unknown>(STORAGE_KEYS.definitionCache, []);
+        return Array.isArray(saved) ? (saved as [string, string][]).slice(-MAX_CACHED_DEFINITIONS) : [];
+    })()
+);
+
+const rememberDefinition = (word: string, definition: string) => {
+    definitionCache.delete(word);
+    definitionCache.set(word, definition);
+    while (definitionCache.size > MAX_CACHED_DEFINITIONS) {
+        definitionCache.delete(definitionCache.keys().next().value!);
     }
-
-    // If all retries fail, return undefined to signify an unknown state.
-    return undefined;
-}
-
+    storage.setJSON(STORAGE_KEYS.definitionCache, Array.from(definitionCache.entries()));
+};
 
 /**
- * Looks up a word, checking the internal list, caches, and then the external API.
- * @param {string} word - The word to look up.
- * @returns {Promise<WordDataResult>}
+ * Asks dictionaryapi.dev about a word.
+ * Returns the definition, null if the API doesn't know the word, or undefined on a network/server error.
  */
-async function lookupWord(word: string): Promise<WordDataResult> {
-    if (!word || word.trim().length === 0) {
-        return { isValid: false };
+async function fetchFromApi(word: string, timeoutMs?: number): Promise<string | null | undefined> {
+    try {
+        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`, {
+            signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
+        });
+        if (response.status === 404) return null;
+        if (!response.ok) return undefined;
+        const data = await response.json();
+        return data[0]?.meanings[0]?.definitions[0]?.definition || 'Definition not available.';
+    } catch {
+        return undefined;
     }
-    const wordLower = word.toLowerCase();
+}
 
-    // 1. Check internal word list (fastest)
-    if (internalWords.has(wordLower)) {
-        return { isValid: true, definition: internalWords.get(wordLower) };
-    }
+const knownDefinition = (wordLower: string): string | undefined =>
+    internalWords.get(wordLower) ?? definitionCache.get(wordLower);
 
-    // 2. Check session (in-memory) cache
-    if (sessionCache.has(wordLower)) {
-        const def = sessionCache.get(wordLower);
-        return { isValid: def !== null, definition: def };
-    }
-
-    // 3. Check persistent (localStorage) cache
-    if (persistentCache.has(wordLower)) {
-        const def = persistentCache.get(wordLower)!;
-        sessionCache.set(wordLower, def); // Add to session cache for faster access next time
-        return { isValid: true, definition: def };
-    }
-
-    // 4. Fetch from API as a last resort
-    const definition = await fetchFromApi(wordLower);
-    
-    // Case 1: Network error or unexpected API issue.
-    // We don't cache this failure, allowing for a retry on next submission.
-    if (definition === undefined) {
-        return { isValid: false };
-    }
-
-    // Case 2: Confirmed invalid (404 from API) or valid word.
-    // Cache this result (null for invalid, string for valid) to prevent future API calls this session.
-    sessionCache.set(wordLower, definition);
-
+/** Fetches a definition for display, waiting at most DEFINITION_TIMEOUT_MS. */
+async function lookupDefinition(wordLower: string): Promise<string | null> {
+    const known = knownDefinition(wordLower);
+    if (known) return known;
+    const definition = await fetchFromApi(wordLower, DEFINITION_TIMEOUT_MS);
     if (definition) {
-        // If it was a valid word, also add to the persistent cache for future sessions.
-        updatePersistentCache(wordLower, definition);
-        return { isValid: true, definition };
+        rememberDefinition(wordLower, definition);
+        return definition;
+    }
+    return null;
+}
+
+// --- Public API ---------------------------------------------------------------
+
+/** Checks a word against the word list and returns its definition when one is known. */
+async function lookupWord(word: string): Promise<WordDataResult> {
+    const wordLower = word.trim().toLowerCase();
+    if (!wordLower) return { isValid: false };
+
+    const inList = await ask<boolean>({ type: 'has', word: wordLower });
+
+    if (inList === undefined) {
+        // Word list unavailable (e.g. first launch while offline): use the old online check.
+        if (internalWords.has(wordLower)) return { isValid: true, definition: internalWords.get(wordLower) };
+        const definition = await fetchFromApi(wordLower);
+        if (definition) rememberDefinition(wordLower, definition);
+        return { isValid: !!definition, definition };
     }
 
-    // This path is now only for confirmed invalid words (definition is null).
-    return { isValid: false };
+    if (!inList) return { isValid: false };
+    return { isValid: true, definition: await lookupDefinition(wordLower) };
 }
 
-/**
- * Validates a word.
- * @param {string} word - The word to validate.
- * @returns {Promise<boolean>} - True if the word is valid, false otherwise.
- */
 async function isValidWord(word: string): Promise<boolean> {
-    const result = await lookupWord(word);
-    return result.isValid;
+    return (await lookupWord(word)).isValid;
 }
 
-/**
- * Gets a word's definition.
- * @param {string} word - The word to get the definition for.
- * @returns {Promise<string | null>} - The definition or null if not found.
- */
 async function getDefinition(word: string): Promise<string | null> {
-    const result = await lookupWord(word);
-    return result.definition || null;
+    return lookupDefinition(word.trim().toLowerCase());
 }
 
 /**
- * Returns an iterator for all words in the *internal* dictionary only.
- * This is used for synchronous, non-blocking tasks like initial game setup (e.g., finding 3-letter words for balancing).
- * @returns {IterableIterator<string>}
+ * Finds a word that can be spelled from the given tile letters, or null if none.
+ * Curated internal words are preferred (they have fun definitions); the full list is searched next.
+ */
+async function findPlayableWord(letters: string[], options: FindWordOptions = {}): Promise<string | null> {
+    const { minLength = 3, longest = false } = options;
+    let bestInternal: string | null = null;
+    for (const w of internalWords.keys()) {
+        if (w.length >= minLength && canBeMadeFromLetters(w, letters)) {
+            if (!longest) return w;
+            if (!bestInternal || w.length > bestInternal.length) bestInternal = w;
+        }
+    }
+    const fromList = await ask<string | null>({ type: 'find', letters, options: { minLength, longest } });
+    if (longest && bestInternal && (!fromList || bestInternal.length >= fromList.length)) return bestInternal;
+    return fromList ?? bestInternal;
+}
+
+/**
+ * Words from the curated internal dictionary only. Used for synchronous setup tasks
+ * such as finding 3-letter words when balancing a rack.
  */
 function getDictionaryWords(): IterableIterator<string> {
     return internalWords.keys();
 }
 
-/**
- * Returns an array of all known valid words from both the internal dictionary and the persistent cache.
- * This is used for the Challenge mechanic to check against all words the game has ever validated.
- * @returns {string[]}
- */
-function getAllKnownWords(): string[] {
-    // A Set is used to automatically handle duplicates between the two sources.
-    const combinedKeys = new Set([...internalWords.keys(), ...persistentCache.keys()]);
-    return Array.from(combinedKeys);
-}
-
 export const dictionaryService = {
-  isValidWord,
-  getDefinition,
-  lookupWord,
-  getDictionaryWords,
-  getAllKnownWords,
+    preload,
+    isValidWord,
+    getDefinition,
+    lookupWord,
+    findPlayableWord,
+    getDictionaryWords,
 };

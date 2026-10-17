@@ -12,9 +12,8 @@ import { musicService } from './services/musicService';
 import { powerWordService } from './services/powerWordService';
 import { logService } from './services/logService';
 import { PACKS_LIST } from './data/packs';
-
-// Declare the global function so TypeScript doesn't complain
-declare function showToast(message: string): void;
+import { storage, STORAGE_KEYS } from './services/storage';
+import { showToast } from './services/toast';
 
 export enum Screen {
   Start,
@@ -26,7 +25,7 @@ export enum Screen {
 
 const App: React.FC = () => {
   const [screen, setScreen] = useState<Screen>(Screen.Start);
-  const [playerName, setPlayerName] = useState<string>(() => localStorage.getItem("playerName") || '');
+  const [playerName, setPlayerName] = useState<string>(() => storage.getString(STORAGE_KEYS.playerName) || '');
   const [lastGameResult, setLastGameResult] = useState<FinalGameState | null>(null);
   const [isResuming, setIsResuming] = useState(false);
   const [isTimeLow, setIsTimeLow] = useState(false);
@@ -34,22 +33,15 @@ const App: React.FC = () => {
   const [autoShowLeaderboard, setAutoShowLeaderboard] = useState(false);
   
   // New state for packs and currency
-  const [lexCoins, setLexCoins] = useState<number>(() => parseInt(localStorage.getItem('wordBuilderLexCoins') || '0', 10));
+  const [lexCoins, setLexCoins] = useState<number>(() => parseInt(storage.getString(STORAGE_KEYS.lexCoins) || '0', 10) || 0);
   const [unlockedPackIds, setUnlockedPackIds] = useState<string[]>(() => {
-    const saved = localStorage.getItem('wordBuilderUnlockedPacks');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed;
-        }
-      } catch (e) {
-        console.error("Failed to parse unlocked packs from localStorage", e);
-      }
+    const saved = storage.getJSON<unknown>(STORAGE_KEYS.unlockedPacks, null);
+    if (Array.isArray(saved)) {
+      return saved;
     }
     return ['default']; // Default to only having the 'default' pack unlocked
   });
-  const [selectedPackId, setSelectedPackId] = useState<string>(() => localStorage.getItem('wordBuilderSelectedPack') || 'default');
+  const [selectedPackId, setSelectedPackId] = useState<string>(() => storage.getString(STORAGE_KEYS.selectedPack) || 'default');
   
   // New state for ranking modals
   const [rankingModalData, setRankingModalData] = useState<{ rank: number; name: string; score: number } | null>(null);
@@ -75,15 +67,15 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('wordBuilderLexCoins', String(lexCoins));
+    storage.setString(STORAGE_KEYS.lexCoins, String(lexCoins));
   }, [lexCoins]);
 
   useEffect(() => {
-    localStorage.setItem('wordBuilderUnlockedPacks', JSON.stringify(unlockedPackIds));
+    storage.setJSON(STORAGE_KEYS.unlockedPacks, unlockedPackIds);
   }, [unlockedPackIds]);
 
   useEffect(() => {
-    localStorage.setItem('wordBuilderSelectedPack', selectedPackId);
+    storage.setString(STORAGE_KEYS.selectedPack, selectedPackId);
   }, [selectedPackId]);
 
   const selectedPack = useMemo(() => {
@@ -100,7 +92,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (playerName.trim()) {
-        localStorage.setItem("playerName", playerName.trim());
+        storage.setString(STORAGE_KEYS.playerName, playerName.trim());
     }
   }, [playerName]);
 
@@ -125,9 +117,7 @@ const App: React.FC = () => {
     if (newMilestone > oldMilestone) {
         const coinsEarned = newMilestone - oldMilestone;
         setLexCoins(c => c + coinsEarned);
-        if (typeof showToast === 'function') {
-            showToast(`🪙 +${coinsEarned} LEX Coin(s)!`);
-        }
+        showToast(`🪙 +${coinsEarned} LEX Coin(s)!`);
         soundService.playMilestone();
     }
   }, []);
@@ -135,9 +125,7 @@ const App: React.FC = () => {
   const handleLexCoinChange = useCallback((amount: number) => {
     setLexCoins(c => c + amount);
      if (amount > 0) {
-        if (typeof showToast === 'function') {
-            showToast(`🪙 +${amount} LEX Coin(s)!`);
-        }
+        showToast(`🪙 +${amount} LEX Coin(s)!`);
         soundService.playMilestone();
     }
   }, []);
@@ -146,9 +134,7 @@ const App: React.FC = () => {
     if (lexCoins >= cost && !unlockedPackIds.includes(packId)) {
       setLexCoins(c => c - cost);
       setUnlockedPackIds(ids => [...ids, packId]);
-      if (typeof showToast === 'function') {
-        showToast('Pack Unlocked!');
-      }
+      showToast('Pack Unlocked!');
       soundService.playMilestone();
     }
   }, [lexCoins, unlockedPackIds]);
@@ -160,7 +146,7 @@ const App: React.FC = () => {
   }, [unlockedPackIds]);
 
   const handlePlay = useCallback((name: string) => {
-    localStorage.removeItem('wordBuilderBonanzaSave');
+    storage.remove(STORAGE_KEYS.savedGame);
     setPlayerName(name);
     setScreen(Screen.Game);
     setRankingModalData(null); // Clear any leftover ranking data
@@ -180,14 +166,14 @@ const App: React.FC = () => {
         playerName: playerName,
         gameScreenState: gameScreenState,
     };
-    localStorage.setItem('wordBuilderBonanzaSave', JSON.stringify(saveData));
+    storage.setJSON(STORAGE_KEYS.savedGame, saveData);
     setScreen(Screen.Start);
     musicService.pause();
   }, [playerName]);
 
 
   const handleGameOver = useCallback((gameState: GameState) => {
-    localStorage.removeItem('wordBuilderBonanzaSave');
+    storage.remove(STORAGE_KEYS.savedGame);
     const finalState: FinalGameState = {
       score: gameState.score,
       log: gameState.log,
@@ -217,11 +203,8 @@ const App: React.FC = () => {
   const handleSubmitScore = useCallback(async (name: string) => {
     if (lastGameResult) {
       const score = lastGameResult.score;
-      await leaderboardService.submitScore(name, score);
+      const rank = await leaderboardService.submitScore(name, score);
       setPlayerName(name);
-
-      const board = await leaderboardService.getLeaderboard();
-      const rank = board.findIndex(entry => entry.name === name && entry.score === score) + 1;
 
       if (rank > 0 && rank <= 10) {
         setRankingModalData({ rank, name, score });
@@ -229,9 +212,7 @@ const App: React.FC = () => {
       } else {
         setRankingModalData(null);
         setAutoShowLeaderboard(true);
-        if (typeof showToast === 'function') {
-          showToast("Score submitted successfully!");
-        }
+        showToast("Score saved!");
       }
     }
     setLastGameResult(null);
@@ -265,9 +246,7 @@ const App: React.FC = () => {
       setPowerWordData(newData);
       setCanSpin(false);
       soundService.playMilestone();
-      if (typeof showToast === 'function') {
-        showToast(`Your Power Word is ${newData.powerWord.toUpperCase()}!`);
-      }
+      showToast(`Your Power Word is ${newData.powerWord.toUpperCase()}!`);
     }
   }, [canSpin]);
 

@@ -1,11 +1,13 @@
 import { MissedWord } from '../types';
 
-const MISSED_WORDS_KEY = 'wordBuilderMissedWords';
+import { storage, STORAGE_KEYS } from './storage';
+
+const MISSED_WORDS_KEY = STORAGE_KEYS.missedWords;
 const MAX_WORDS = 10;
 
 const getMissedWords = (): MissedWord[] => {
     try {
-        const wordsJson = localStorage.getItem(MISSED_WORDS_KEY);
+        const wordsJson = storage.getString(MISSED_WORDS_KEY);
         const words: MissedWord[] = wordsJson ? JSON.parse(wordsJson) : [];
         return words; // Already sorted by recency when adding
     } catch (e) {
@@ -38,7 +40,7 @@ const addMissedWord = (word: string, definition: string) => {
     const trimmedWords = updatedWords.slice(0, MAX_WORDS);
 
     try {
-        localStorage.setItem(MISSED_WORDS_KEY, JSON.stringify(trimmedWords));
+        storage.setJSON(MISSED_WORDS_KEY, trimmedWords);
     } catch (e) {
         console.error('Failed to save missed word:', e);
     }

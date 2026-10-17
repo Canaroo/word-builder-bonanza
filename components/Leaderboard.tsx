@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { LeaderboardEntry } from '../types';
 import { soundService } from '../services/soundService';
+import { leaderboardService } from '../services/leaderboardService';
 
 interface LeaderboardProps {
   data: LeaderboardEntry[];
@@ -11,8 +12,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const SCORES_PER_PAGE = 10;
 
-  const lastSubmittedName = localStorage.getItem('lastSubmittedName');
-  const lastSubmittedScore = localStorage.getItem('lastSubmittedScore');
+  const lastSubmitted = leaderboardService.getLastSubmitted();
 
   if (isLoading) {
     return (
@@ -62,7 +62,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading }) => {
             {scoresForPage.map((entry, index) => {
               const rank = (currentPage * SCORES_PER_PAGE) + index + 1;
               const isFirst = rank === 1;
-              const isOwnScore = lastSubmittedScore !== null && entry.name === lastSubmittedName && String(entry.score) === lastSubmittedScore;
+              const isOwnScore = lastSubmitted !== null && entry.date === lastSubmitted.date && entry.score === lastSubmitted.score;
 
               return (
                 <li

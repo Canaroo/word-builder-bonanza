@@ -11,6 +11,8 @@ import { WORD_BONUSES } from '../../data/wordBonuses';
 import { soundService } from '../soundService';
 import { dictionaryService } from '../dictionaryService';
 import { missedWordsService } from '../missedWordsService';
+import { storage, STORAGE_KEYS } from '../storage';
+import { showToast } from '../toast';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 
 
@@ -1773,10 +1775,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
     const [state, dispatch] = useReducer(gameReducer, screenInitialState, (initialArg) => {
     if (isResuming) {
-        const savedGameJson = localStorage.getItem('wordBuilderBonanzaSave');
-        if (savedGameJson) {
+        const savedData = storage.getJSON<any>(STORAGE_KEYS.savedGame, null);
+        if (savedData) {
             try {
-                const savedData = JSON.parse(savedGameJson);
                 // We need to ensure transient state like isLoading is reset on resume.
                 savedData.gameScreenState.isLoading = false;
                 savedData.gameScreenState.loadingMessage = null;
@@ -1796,7 +1797,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 return savedData.gameScreenState;
             } catch (e) {
                 console.error("Error parsing saved game. Starting fresh.", e);
-                localStorage.removeItem('wordBuilderBonanzaSave');
+                storage.remove(STORAGE_KEYS.savedGame);
             }
         }
     }
@@ -1812,9 +1813,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
   useEffect(() => {
     if ((wordFromBuildRow?.length ?? 0) >= 5 && !longWordBonusNotified) {
-        if (typeof (window as any).showToast === 'function') {
-            (window as any).showToast("✨ 5+ Letter Bonus Eligible! (Submit for x2 score) ✨");
-        }
+        showToast("✨ 5+ Letter Bonus Eligible! (Submit for x2 score) ✨");
         dispatch({ type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: true });
     } else if ((wordFromBuildRow?.length ?? 0) < 5 && longWordBonusNotified) {
         dispatch({ type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: false });
@@ -2287,9 +2286,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       );
       
       if (word.length >= 5 && !wordBasedEgg && !isChallengeLock) {
-          if (typeof (window as any).showToast === 'function') {
-              (window as any).showToast("5+ Letter Bonus! (x2 Score)");
-          }
+          showToast("5+ Letter Bonus! (x2 Score)");
       }
       
       // --- Heisenberg PowerPlay ---
@@ -3289,14 +3286,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     let foundWord: string | null = null;
     let challengeLost = false;
 
-    // 1. Search over all known words (internal + cache)
-    const knownWords = dictionaryService.getAllKnownWords();
-    for (const word of knownWords) {
-        if (word.length >= 3 && gameUtils.canBeMadeFromRack(word, availableTiles)) {
-            foundWord = word.toUpperCase();
-            challengeLost = true;
-            break;
-        }
+    // 1. Search the full word list for any playable word
+    const playable = await dictionaryService.findPlayableWord(availableTiles.map(t => t.letter), { minLength: 3 });
+    if (playable) {
+        foundWord = playable.toUpperCase();
+        challengeLost = true;
     }
     
     if (challengeLost && foundWord) {
@@ -3424,16 +3418,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         dispatch({ type: 'SET_LOADING_MESSAGE', payload: "Searching the globe for clues..." });
 
         const availableTiles = (hand ?? []).filter((t): t is Tile => t !== null);
-        const allWords = dictionaryService.getAllKnownWords().sort((a, b) => b.length - a.length);
-
-        let bestWord = '';
-        for (const word of allWords) {
-            if (word.length < 3) continue;
-            if (gameUtils.canBeMadeFromRack(word, availableTiles)) {
-                bestWord = word.toUpperCase();
-                break; // Found the longest one
-            }
-        }
+        const longestWord = await dictionaryService.findPlayableWord(availableTiles.map(t => t.letter), { minLength: 3, longest: true });
+        const bestWord = longestWord ? longestWord.toUpperCase() : '';
         
         if (bestWord) {
             showMessage(`A clue was found: ${bestWord}!`, 4000);

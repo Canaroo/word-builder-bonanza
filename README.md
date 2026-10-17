@@ -1,20 +1,81 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Word Nerd
 
-# Run and deploy your AI Studio app
+A fast-paced, Scrabble-inspired word game packed with 90s and 2000s pop culture bonuses.
+Build high-scoring words from your rack against a 60-second clock, powered up by Charms,
+PowerPlays, Milestones and easter eggs.
 
-This contains everything you need to run your app locally.
+It's an installable web app (PWA): it runs in any modern browser, can be added to a phone's
+home screen, and works offline after the first visit.
 
-View your app in AI Studio: https://ai.studio/apps/6e7ba2ee-ba01-4585-a77b-b507f68c73d2
+## Run it
 
-## Run Locally
+Requires [Node.js](https://nodejs.org/) 20 or newer.
 
-**Prerequisites:**  Node.js
+```sh
+npm install
+npm run dev        # http://localhost:3000 (also reachable from a phone on the same Wi-Fi)
+```
 
+| Command             | What it does                                                     |
+| ------------------- | ---------------------------------------------------------------- |
+| `npm run dev`       | Start the dev server with hot reload                             |
+| `npm run build`     | Typecheck and build the production app into `dist/`              |
+| `npm run preview`   | Serve the production build locally (test offline/install here)   |
+| `npm test`          | Run the test suite                                               |
+| `npm run typecheck` | Typecheck only                                                   |
+| `npm run words`     | Rebuild the word list (runs automatically before dev/build/test) |
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Play on your phone
+
+1. Run `npm run build && npm run preview -- --host`, or deploy `dist/` to any static host
+   (Netlify, GitHub Pages, Cloudflare Pages…). Installing as an app requires HTTPS, except on `localhost`.
+2. Open the URL on your phone.
+3. **iPhone:** Share → *Add to Home Screen*. **Android:** menu → *Install app*.
+
+The installed app opens full-screen and keeps working without a connection.
+New versions are picked up automatically the next time it's opened online.
+
+## Word validation
+
+Words are checked against a bundled list, entirely on the device:
+
+```
+word-list package (~270k Scrabble-style words)
+  + data/internalWords.ts   (curated words with fun definitions)
+  + words/custom.txt        (your extra allowed words)
+  − words/blocked.txt       (words you never want accepted)
+  = public/words/wordlist.txt
+```
+
+- **To allow a word**, add it to `words/custom.txt` (or to `data/internalWords.ts` with a definition).
+- **To reject a word**, add it to `words/blocked.txt`.
+- Restart `npm run dev` (or run `npm run words`) after editing.
+
+The list loads once in a background worker (`services/dictionary.worker.ts`), so lookups are
+instant and work offline. Definitions come from `internalWords.ts` first, then a small on-device
+cache, then [dictionaryapi.dev](https://dictionaryapi.dev/) when online. The online dictionary is
+only used for definitions, never to decide whether a word is valid.
+
+The official NWL/TWL and Collins lists are licensed, so they aren't bundled. The base list here
+([`word-list`](https://github.com/sindresorhus/word-list), MIT) is very close to them, and the
+custom file covers anything missing.
+
+## Saved data
+
+Everything is stored on the device in `localStorage` through `services/storage.ts`: player name,
+LEX coins, unlocked packs, saved game, event logs, missed words, Power Word and the leaderboard.
+The **Top 50** leaderboard is local to each device. To change the shape of saved data, bump
+`STORAGE_VERSION` and add a migration step in that file.
+
+## Project layout
+
+```
+App.tsx, index.tsx       App shell and startup
+components/, ui/         Reusable UI pieces
+services/screens/        Screens (GameScreen = game logic, GameScreenView = its layout)
+services/                Game logic, word validation, sound, storage, leaderboard
+data/                    Charms, PowerPlays, easter eggs, packs, curated words
+words/                   custom.txt and blocked.txt word overrides
+scripts/                 Build-time scripts (word list)
+public/                  Static files: music, icons, favicon
+```

@@ -10,6 +10,7 @@ import { missedWordsService } from '../missedWordsService';
 import { powerWordService } from '../powerWordService';
 import EventLogDisplay from '../../components/EventLogDisplay';
 import RankingModal from '../../components/RankingModal';
+import { storage, STORAGE_KEYS } from '../storage';
 
 
 interface StartScreenProps {
@@ -41,7 +42,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   canSpin,
   onSpin
 }) => {
-  const [name, setName] = useState(() => localStorage.getItem("playerName") || '');
+  const [name, setName] = useState(() => storage.getString(STORAGE_KEYS.playerName) || '');
   const [isMuted, setIsMuted] = useState(soundService.getMuteState());
   const [savedGame, setSavedGame] = useState<{playerName: string} | null>(null);
   
@@ -89,21 +90,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   useEffect(() => {
     // Check for a saved game when component mounts
-    const savedGameJson = localStorage.getItem('wordBuilderBonanzaSave');
-    if (savedGameJson) {
-      try {
-        const gameData = JSON.parse(savedGameJson);
-        if (gameData && gameData.playerName && gameData.gameScreenState) {
-            setSavedGame(gameData);
-            // Pre-fill name from saved game if no general player name is set
-            if (!name) {
-              setName(gameData.playerName);
-            }
+    const gameData = storage.getJSON<any>(STORAGE_KEYS.savedGame, null);
+    if (gameData && gameData.playerName && gameData.gameScreenState) {
+        setSavedGame(gameData);
+        // Pre-fill name from saved game if no general player name is set
+        if (!name) {
+          setName(gameData.playerName);
         }
-      } catch (e) {
-        console.error("Failed to parse saved game data, removing.", e);
-        localStorage.removeItem('wordBuilderBonanzaSave');
-      }
     }
   }, [name]);
   

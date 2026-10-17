@@ -1,97 +1,54 @@
 import { LeaderboardEntry } from '../types';
+import { storage, STORAGE_KEYS } from './storage';
 
-// The firebase global object is loaded from the script tags in index.html
-declare const firebase: any;
+// Scores are kept on this device only.
+export const MAX_LEADERBOARD_ENTRIES = 50;
 
-/**
- * Small helper that keeps your timestamps aligned with Firebase server time.
- * If server time isn't available yet, it falls back to Date.now() so it won't break.
- */
-let serverNow = () => Date.now();
-try {
-  firebase.database().ref('.info/serverTimeOffset').on('value', (snap: any) => {
-    const offset = snap?.val?.() || 0;
-    serverNow = () => Date.now() + offset;
-  });
-} catch { /* ignore init timing */ }
+export interface SubmittedScore {
+    name: string;
+    score: number;
+    date: string;
+}
 
-/**
- * Submits the player's score to the Firebase Realtime Database.
- * Writes EXACTLY the fields your rules allow: { name, score, timestamp }.
- */
-const submitScore = async (name: string, score: number): Promise<void> => {
-  try {
-    const db = firebase.database();
-
-    const entry = {
-      name,                          // string
-      score,                         // number
-      timestamp: serverNow()         // number (milliseconds)
-    };
-
-    // Helpful log so you can verify what's being sent
-    console.log(
-      'Submitting payload →',
-      entry,
-      'ts-length=', String(entry.timestamp).length,
-      'iso=', new Date(entry.timestamp).toISOString()
-    );
-
-    // Create-only write under /leaderboard/{autoId}
-    await db.ref('leaderboard').push(entry);
-
-    // Keep your local highlight behavior
-    localStorage.setItem('lastSubmittedName', name);
-    localStorage.setItem('lastSubmittedScore', String(score));
-
-    console.log(`Score submission for ${name} (${score}) sent to Firebase.`);
-  } catch (error) {
-    console.error('Error submitting score to Firebase:', error);
-    throw error;
-  }
+const readBoard = (): LeaderboardEntry[] => {
+    const rows = storage.getJSON<unknown>(STORAGE_KEYS.leaderboard, []);
+    if (!Array.isArray(rows)) return [];
+    return rows
+        .filter((r): r is LeaderboardEntry =>
+            typeof r?.name === 'string' && typeof r?.score === 'number' && typeof r?.date === 'string')
+        .sort((a, b) => b.score - a.score);
 };
 
 /**
- * Fetches the top 50 scores, normalizing date for display.
- * Accepts both new {timestamp} rows and any legacy rows that used {date}.
+ * Adds a score and returns its 1-based rank, or 0 if it didn't make the board.
  */
-const getLeaderboard = async (): Promise<LeaderboardEntry[]> => {
-  try {
-    const db = firebase.database();
-    const snapshot = await db.ref('leaderboard').once('value');
-    const data = snapshot.val();
-    if (!data) return [];
+const submitScore = async (name: string, score: number): Promise<number> => {
+    const entry: LeaderboardEntry = { name, score, date: new Date().toISOString() };
+    // Ties keep the earlier score ahead.
+    const board = [...readBoard(), entry]
+        .sort((a, b) => b.score - a.score)
+        .slice(0, MAX_LEADERBOARD_ENTRIES);
 
-    const rows: any[] = Object.values(data);
+    storage.setJSON(STORAGE_KEYS.leaderboard, board);
+    storage.setJSON(STORAGE_KEYS.lastSubmittedScore, entry satisfies SubmittedScore);
 
-    // Sort by score descending (client-side)
-    rows.sort((a, b) => (b?.score ?? 0) - (a?.score ?? 0));
+    return board.indexOf(entry) + 1;
+};
 
-    // Take top 50 and normalize date -> ISO string
-    const top50 = rows.slice(0, 50).map((entry: any) => {
-      const ms =
-        typeof entry?.timestamp === 'number'
-          ? entry.timestamp
-          : typeof entry?.date === 'number'
-          ? entry.date
-          : Date.parse(String(entry?.date ?? ''));
-      const iso = isFinite(ms) ? new Date(ms).toISOString() : '';
+const getLeaderboard = async (): Promise<LeaderboardEntry[]> =>
+    readBoard().map((entry, i) => ({ ...entry, rank: i + 1 }));
 
-      return {
-        name: String(entry?.name ?? ''),
-        score: Number(entry?.score ?? 0),
-        date: iso,                    // your UI expects a 'date' field to display
-      } as LeaderboardEntry;
-    });
+const getLastSubmitted = (): SubmittedScore | null =>
+    storage.getJSON<SubmittedScore | null>(STORAGE_KEYS.lastSubmittedScore, null);
 
-    return top50;
-  } catch (error) {
-    console.error('Error fetching leaderboard:', error);
-    return [];
-  }
+const clearLeaderboard = () => {
+    storage.remove(STORAGE_KEYS.leaderboard);
+    storage.remove(STORAGE_KEYS.lastSubmittedScore);
 };
 
 export const leaderboardService = {
-  submitScore,
-  getLeaderboard,
+    submitScore,
+    getLeaderboard,
+    getLastSubmitted,
+    clearLeaderboard,
 };

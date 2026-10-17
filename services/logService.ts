@@ -1,11 +1,13 @@
 import { FinalGameState } from '../types';
 
-const SAVED_LOGS_KEY = 'wordBuilderBonanzaSavedLogs';
+import { storage, STORAGE_KEYS } from './storage';
+
+const SAVED_LOGS_KEY = STORAGE_KEYS.savedLogs;
 const MAX_LOGS = 100;
 
 const getSavedLogs = (): FinalGameState[] => {
     try {
-        const logsJson = localStorage.getItem(SAVED_LOGS_KEY);
+        const logsJson = storage.getString(SAVED_LOGS_KEY);
         // Sort by save timestamp, newest first
         const logs: FinalGameState[] = logsJson ? JSON.parse(logsJson) : [];
         return logs.sort((a, b) => new Date(b.saveTimestamp!).getTime() - new Date(a.saveTimestamp!).getTime());
@@ -40,7 +42,7 @@ const autoSaveLog = (logToSave: FinalGameState): { success: boolean, message: st
     const newLogs = [...savedLogs, newLogWithMetadata];
     
     try {
-        localStorage.setItem(SAVED_LOGS_KEY, JSON.stringify(newLogs));
+        storage.setJSON(SAVED_LOGS_KEY, newLogs);
         return { success: true, message: 'Run auto-saved!' };
     } catch (e) {
         console.error('Failed to save log:', e);
@@ -57,7 +59,7 @@ const deleteLog = (logTimestamp: string): { success: boolean } => {
     }
 
     try {
-        localStorage.setItem(SAVED_LOGS_KEY, JSON.stringify(newLogs));
+        storage.setJSON(SAVED_LOGS_KEY, newLogs);
         return { success: true };
     } catch (e) {
         console.error('Failed to delete log:', e);
@@ -75,7 +77,7 @@ const togglePinLog = (logTimestamp: string): { success: boolean } => {
     });
 
     try {
-        localStorage.setItem(SAVED_LOGS_KEY, JSON.stringify(newLogs));
+        storage.setJSON(SAVED_LOGS_KEY, newLogs);
         return { success: true };
     } catch (e) {
         console.error('Failed to pin log:', e);
@@ -97,7 +99,7 @@ const markLogAsViewed = (logTimestamp: string): { success: boolean } => {
     if (!wasChanged) return { success: true }; // No change needed
 
     try {
-        localStorage.setItem(SAVED_LOGS_KEY, JSON.stringify(newLogs));
+        storage.setJSON(SAVED_LOGS_KEY, newLogs);
         return { success: true };
     } catch (e) {
         console.error('Failed to mark log as viewed:', e);

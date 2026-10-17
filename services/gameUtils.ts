@@ -1,6 +1,7 @@
 import { Tile, Charm, GameState, WordData, ScoreCalculationResult, ScoreBonusInfo, PowerPlay } from '../types';
 import { TILE_DISTRIBUTION, VOWELS, RACK_SIZE, BALANCE_REPLACE_COUNT, COMBO_TILES, COMBO_TILE_CHANCE, OFFER_RECENCY_WINDOW, OFFER_EXPLORATION_BOOST, OFFER_REPEAT_PENALTY, OFFER_MAX_RECENCY_PENALTY } from '../constants';
 import { dictionaryService } from './dictionaryService';
+import { canBeMadeFromLetters } from './rackMatch';
 
 // A simple seeded pseudo-random number generator for reproducible results.
 class SeededRNG {
@@ -111,34 +112,8 @@ export const dealNewHand = (tileBag: string[], tilesToReturn: Tile[] = [], isFor
   return { hand: newTiles, tileBag: remainingBag };
 };
 
-export const canBeMadeFromRack = (word: string, rack: Tile[]): boolean => {
-    let wordToCheck = word.toUpperCase();
-    
-    const rackLetterCounts: { [key: string]: number } = {};
-    rack.forEach(tile => {
-        rackLetterCounts[tile.letter] = (rackLetterCounts[tile.letter] || 0) + 1;
-    });
-
-    // Greedily check for combo tiles first, longest to shortest
-    const comboTileLetters = COMBO_TILES.map(ct => ct.letter).sort((a, b) => b.length - a.length);
-
-    for (const combo of comboTileLetters) {
-        while (wordToCheck.includes(combo) && rackLetterCounts[combo] > 0) {
-            wordToCheck = wordToCheck.replace(combo, '');
-            rackLetterCounts[combo]--;
-        }
-    }
-
-    // Check for remaining single letters
-    for (const char of wordToCheck) {
-        if (!rackLetterCounts[char] || rackLetterCounts[char] === 0) {
-      return false;
-    }
-        rackLetterCounts[char]--;
-    }
-
-    return true;
-};
+export const canBeMadeFromRack = (word: string, rack: Tile[]): boolean =>
+    canBeMadeFromLetters(word, rack.map(tile => tile.letter));
 
 export const handleDuplicateLetters = (hand: (Tile | null)[], tileBag: string[]): { newHand: (Tile | null)[], newBag: string[], wasChanged: boolean } => {
     let wasChanged = false;
