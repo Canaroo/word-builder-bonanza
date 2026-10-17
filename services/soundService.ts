@@ -1,6 +1,6 @@
-
-
 // A service to play procedurally generated sound effects using the Web Audio API.
+import { musicService } from './musicService';
+
 
 let audioCtx: AudioContext | null = null;
 let isMuted = false;
@@ -14,6 +14,12 @@ const initialize = () => {
     try {
         // Create a new AudioContext.
         audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        
+        // Initialize the music service with the shared context
+        musicService.initialize(audioCtx);
+
+        // Sync music mute state on initialization
+        musicService.setMuted(isMuted);
     } catch (e) {
         console.error("Web Audio API is not supported in this browser.");
     }
@@ -25,6 +31,7 @@ const initialize = () => {
  */
 const toggleMute = (): boolean => {
     isMuted = !isMuted;
+    musicService.setMuted(isMuted); // Control music mute state
     // Play a sound on unmute to confirm
     if (!isMuted && audioCtx) {
         playNote(audioCtx, 800, audioCtx.currentTime, 0.05, 0.1, 'square');
@@ -212,5 +219,33 @@ export const soundService = {
         const now = ctx.currentTime;
         playNote(ctx, 250, now, 0.1, 0.2, 'square');
         playNote(ctx, 150, now + 0.1, 0.15, 0.2, 'square');
+    }),
+    
+    playNESFanfare: () => playSound(ctx => {
+        const now = ctx.currentTime;
+        const t: OscillatorType = 'triangle';
+        const v = 0.2;
+        playNote(ctx, 523.25, now, 0.1, v, t); // C5
+        playNote(ctx, 783.99, now + 0.1, 0.1, v, t); // G5
+        playNote(ctx, 1046.50, now + 0.2, 0.2, v, t); // C6
+    }),
+
+    playHeroicChord: () => playSound(ctx => {
+        const now = ctx.currentTime;
+        const t: OscillatorType = 'sawtooth';
+        const v = 0.15;
+        playNote(ctx, 261.63, now, 0.5, v, t); // C4
+        playNote(ctx, 311.13, now, 0.5, v, t); // Eb4
+        playNote(ctx, 392.00, now, 0.5, v, t); // G4
+        playNote(ctx, 523.25, now + 0.2, 0.3, 0.2, t); // C5
+    }),
+
+    playBroadwayRiff: () => playSound(ctx => {
+        const now = ctx.currentTime;
+        const t: OscillatorType = 'square';
+        const v = 0.2;
+        playNote(ctx, 783.99, now, 0.1, v, t); // G5
+        playNote(ctx, 783.99, now + 0.15, 0.1, v, t); // G5
+        playNote(ctx, 880.00, now + 0.3, 0.2, v, t); // A5
     }),
 };

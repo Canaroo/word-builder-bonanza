@@ -1,51 +1,97 @@
-
 import { LeaderboardEntry } from '../types';
 
-// Google Apps Script URL for the leaderboard
-const LEADERBOARD_URL = 'https://script.google.com/macros/s/AKfycbxn1bFURGJpGblzPzb9a0uYWkwLVwCNM688VpjsITpRNAViidVx0RWAML_4Ib_kQ6VYmw/exec';
+// The firebase global object is loaded from the script tags in index.html
+declare const firebase: any;
 
+/**
+ * Small helper that keeps your timestamps aligned with Firebase server time.
+ * If server time isn't available yet, it falls back to Date.now() so it won't break.
+ */
+let serverNow = () => Date.now();
+try {
+  firebase.database().ref('.info/serverTimeOffset').on('value', (snap: any) => {
+    const offset = snap?.val?.() || 0;
+    serverNow = () => Date.now() + offset;
+  });
+} catch { /* ignore init timing */ }
+
+/**
+ * Submits the player's score to the Firebase Realtime Database.
+ * Writes EXACTLY the fields your rules allow: { name, score, timestamp }.
+ */
+const submitScore = async (name: string, score: number): Promise<void> => {
+  try {
+    const db = firebase.database();
+
+    const entry = {
+      name,                          // string
+      score,                         // number
+      timestamp: serverNow()         // number (milliseconds)
+    };
+
+    // Helpful log so you can verify what's being sent
+    console.log(
+      'Submitting payload →',
+      entry,
+      'ts-length=', String(entry.timestamp).length,
+      'iso=', new Date(entry.timestamp).toISOString()
+    );
+
+    // Create-only write under /leaderboard/{autoId}
+    await db.ref('leaderboard').push(entry);
+
+    // Keep your local highlight behavior
+    localStorage.setItem('lastSubmittedName', name);
+    localStorage.setItem('lastSubmittedScore', String(score));
+
+    console.log(`Score submission for ${name} (${score}) sent to Firebase.`);
+  } catch (error) {
+    console.error('Error submitting score to Firebase:', error);
+    throw error;
+  }
+};
+
+/**
+ * Fetches the top 50 scores, normalizing date for display.
+ * Accepts both new {timestamp} rows and any legacy rows that used {date}.
+ */
 const getLeaderboard = async (): Promise<LeaderboardEntry[]> => {
   try {
-    // The Apps Script is configured to handle GET requests for fetching scores.
-    const response = await fetch(LEADERBOARD_URL);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch leaderboard: ${response.statusText}`);
-    }
-    // The script is expected to return a JSON array of top scores.
-    const data: LeaderboardEntry[] = await response.json();
-    return data;
+    const db = firebase.database();
+    const snapshot = await db.ref('leaderboard').once('value');
+    const data = snapshot.val();
+    if (!data) return [];
+
+    const rows: any[] = Object.values(data);
+
+    // Sort by score descending (client-side)
+    rows.sort((a, b) => (b?.score ?? 0) - (a?.score ?? 0));
+
+    // Take top 50 and normalize date -> ISO string
+    const top50 = rows.slice(0, 50).map((entry: any) => {
+      const ms =
+        typeof entry?.timestamp === 'number'
+          ? entry.timestamp
+          : typeof entry?.date === 'number'
+          ? entry.date
+          : Date.parse(String(entry?.date ?? ''));
+      const iso = isFinite(ms) ? new Date(ms).toISOString() : '';
+
+      return {
+        name: String(entry?.name ?? ''),
+        score: Number(entry?.score ?? 0),
+        date: iso,                    // your UI expects a 'date' field to display
+      } as LeaderboardEntry;
+    });
+
+    return top50;
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
-    // Return an empty array for graceful failure so the UI doesn't crash.
     return [];
   }
 };
 
-const submitScore = async (name: string, score: number): Promise<void> => {
-  try {
-    // The Apps Script handles POST requests to submit a score.
-    // By removing the Content-Type header, we use 'text/plain' by default,
-    // which avoids a CORS preflight (OPTIONS) request that can fail.
-    // Google Apps Script can still parse the JSON from the request body.
-    const response = await fetch(LEADERBOARD_URL, {
-      method: 'POST',
-      body: JSON.stringify({ name, score, date: new Date().toISOString() }),
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to submit score: ${response.status} ${response.statusText}. Details: ${errorText}`);
-    }
-    
-    console.log(`Successfully submitted score for ${name}: ${score}`);
-    
-  } catch (error) {
-    console.error('Error submitting score:', error);
-    // The error is logged, but the app continues.
-  }
-};
-
 export const leaderboardService = {
-  getLeaderboard,
   submitScore,
+  getLeaderboard,
 };

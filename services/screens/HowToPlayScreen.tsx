@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { soundService } from '../soundService';
 
@@ -47,6 +45,40 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             </p>
             <p>
               <strong className="text-amber-300">Charms & PowerPlays:</strong> Earn these as you play. Charms give passive buffs and PowerPlays are powerful one-shot abilities. Choose wisely to boost your score!
+            </p>
+          </RuleItem>
+
+          <RuleItem title="Golden Round" icon="🌟" colorClass="text-yellow-400">
+            <p>
+              Chain together valid words to start a <strong className="text-yellow-300">Golden Round!</strong> This is a special, untimed round with huge scoring potential.
+            </p>
+            <ul className="list-disc list-inside mt-1 text-sm space-y-1">
+                <li>All tiles are worth <strong className="text-green-400">2x points</strong>.</li>
+                <li>One special <strong className="text-yellow-300">Golden Tile</strong> is chosen in your hand.</li>
+                <li>Using the Golden Tile in a word multiplies that word's score by <strong className="text-green-400">6x!</strong></li>
+            </ul>
+          </RuleItem>
+
+          <RuleItem title="The Perfect 4-Chain" icon="⛓️" colorClass="text-cyan-400">
+            <p>
+              Playing consecutive 4-letter words triggers a stacking point bonus. The chain builds with each word:
+            </p>
+            <ul className="list-disc list-inside mt-1 text-sm space-y-1">
+              <li>1st Word: <strong className="text-green-400">+20</strong> points</li>
+              <li>2nd Word: <strong className="text-green-400">+40</strong> points</li>
+              <li>3rd Word: <strong className="text-green-400">+60</strong> points</li>
+            </ul>
+            <p className="mt-2">
+              Land a fourth 4-letter word in a row to complete a <strong className="text-amber-300">Perfect 4-Chain</strong> and earn a massive <strong className="text-amber-300">+444 point bonus</strong> on top of the standard +80 streak points! The chain resets after a perfect chain, or if you play a word of a different length.
+            </p>
+          </RuleItem>
+          
+          <RuleItem title="Daily Power Word" icon="💥" colorClass="text-yellow-400">
+            <p>
+              Spin once a day from the main menu to get your unique 4-letter <strong className="text-amber-300">Power Word</strong>.
+            </p>
+            <p>
+              Successfully play this exact word during a game to earn an instant <strong className="text-green-400">500 point bonus!</strong> This bonus can only be claimed <strong className="text-yellow-300">once per game run</strong>. The spin resets daily at 8:00 AM.
             </p>
           </RuleItem>
 

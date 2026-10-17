@@ -1,11 +1,8 @@
-
-
+// 🚫 READ-ONLY UI: Do not modify any JSX structure here. This file must only compose state and render <GameScreenView />.
 import React, { useReducer, useEffect, useCallback, useMemo, useState } from 'react';
-import { GameState, Tile, WordData, Milestone, Charm, PowerPlay, ScoreCalculationResult, EasterEgg, ScoreBonusInfo } from '../../types';
-import { RACK_SIZE, BALANCE_REPLACE_COUNT, VOWELS, REPLENISH_DIVISOR, INITIAL_SHUFFLES, MAX_STRIKES_INITIAL, SUPER_HAND_BONUS, TILE_DISTRIBUTION, INITIAL_CHALLENGES, BASE_RACK_SIZE } from '../../constants';
+import { GameState, Tile, WordData, Milestone, Charm, PowerPlay, ScoreCalculationResult, ScoreBonusInfo, LogEntry, WordLogEntry, EventLogEntry, GameOverLogEntry } from '../../types';
+import { RACK_SIZE, BALANCE_REPLACE_COUNT, VOWELS, REPLENISH_DIVISOR, INITIAL_SHUFFLES, MAX_STRIKES_INITIAL, SUPER_HAND_BONUS, TILE_DISTRIBUTION, INITIAL_CHALLENGES, BASE_RACK_SIZE, COMBO_TILES } from '../../constants';
 import * as gameUtils from '../gameUtils';
-import Timer from '../../components/Timer';
-import TileComponent from '../../components/Tile';
 import { MILESTONES_LIST } from '../../data/milestones';
 import { CHARMS_LIST } from '../../data/charms';
 import { POWER_PLAYS_LIST } from '../../data/powerPlays';
@@ -13,8 +10,8 @@ import { EASTER_EGGS } from '../../data/easterEggs';
 import { WORD_BONUSES } from '../../data/wordBonuses';
 import { soundService } from '../soundService';
 import { dictionaryService } from '../dictionaryService';
-import { geminiService } from '../geminiService';
-import { internalWords } from '../../data/internalWords';
+import { missedWordsService } from '../missedWordsService';
+import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 
 
 interface GameScreenProps {
@@ -23,155 +20,18 @@ interface GameScreenProps {
   onSaveGame: (state: GameScreenState) => void;
   isResuming: boolean;
   onTimeLow: (isLow: boolean) => void;
+  onGoldenRoundChange: (isGolden: boolean) => void;
+  onScoreUpdate: (oldScore: number, newScore: number) => void;
+  onLexCoinChange: (amount: number) => void;
+  tileClass: string;
+  powerWord?: string;
 }
-
-type ModalContent = {
-  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation';
-  title: string;
-  content?: React.ReactNode;
-  data?: any;
-} | null;
-
-const WordLogModalContent: React.FC<{ words: WordData[] }> = ({ words }) => {
-  const [currentPage, setCurrentPage] = useState(0);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-
-  const WORDS_PER_PAGE = 3;
-  const reversedWords = [...words].reverse();
-  const totalPages = Math.ceil(reversedWords.length / WORDS_PER_PAGE);
-
-  const wordsForPage = reversedWords.slice(
-    currentPage * WORDS_PER_PAGE,
-    (currentPage + 1) * WORDS_PER_PAGE
-  );
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages - 1) {
-      soundService.playUIClick();
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (currentPage > 0) {
-      soundService.playUIClick();
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const minSwipeDistance = 50;
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (isLeftSwipe) {
-      handleNextPage();
-    } else if (isRightSwipe) {
-      handlePrevPage();
-    }
-    setTouchStart(null);
-    setTouchEnd(null);
-  };
-
-  if (words.length === 0) {
-    return (
-      <div className="text-left my-4 h-[35vh] flex items-center justify-center bg-slate-900/50 p-3 rounded-lg">
-        <p className="text-slate-400 text-center">No words yet!</p>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div 
-        className="text-left space-y-2 my-4 bg-slate-900/50 p-3 rounded-lg"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        {wordsForPage.length > 0 ? (
-          wordsForPage.map((wd, i) => (
-            <div key={i} className="text-slate-200 py-2 border-b border-slate-700/50 last:border-b-0">
-              {wd.status === 'valid' ? (
-                <>
-                  <div className="flex justify-between items-baseline">
-                    <span className="font-bold text-lg text-white flex-grow pr-4">{wd.word.toUpperCase()}</span>
-                    <div className="text-right flex-shrink-0">
-                      <span className="font-semibold text-xl text-cyan-400">+{wd.score}</span>
-                      {wd.cumulativeScore !== undefined && (
-                          <span className="block text-xs text-amber-400 font-digital">Total: {wd.cumulativeScore}</span>
-                      )}
-                    </div>
-                  </div>
-                  {wd.definition && <p className="text-sm text-slate-400 italic my-1">{wd.definition}</p>}
-                  
-                  {wd.bonuses && wd.bonuses.length > 0 && (
-                      <div className="mt-1.5 text-xs bg-slate-800/60 p-2 rounded">
-                          <h4 className="font-bold text-slate-300 mb-1">Score Breakdown:</h4>
-                          <div className="space-y-0.5">
-                            {wd.baseScore !== undefined && (
-                                <div className="flex justify-between leading-tight">
-                                    <span className="text-slate-400">Base Score</span>
-                                    <span className="font-semibold text-slate-200">{wd.baseScore} pts</span>
-                                </div>
-                            )}
-                            {wd.bonuses.map((bonus, bIndex) => (
-                                <div key={bIndex} className="flex justify-between leading-tight">
-                                    <span className="text-slate-400">{bonus.name}</span>
-                                    <span className="font-semibold text-slate-200">{bonus.description}</span>
-                                </div>
-                            ))}
-                          </div>
-                      </div>
-                  )}
-                </>
-              ) : (
-                <div className="flex justify-between items-baseline opacity-60">
-                  <span className="font-bold text-lg text-red-400 line-through">{wd.word.toUpperCase()}</span>
-                  <span className="font-semibold text-red-500">Invalid</span>
-                </div>
-              )}
-            </div>
-          ))
-        ) : <p className="text-slate-400 text-center m-auto h-[35vh] flex items-center justify-center">No words yet!</p>}
-      </div>
-
-      {totalPages > 1 && (
-        <div className="flex justify-between items-center mt-3">
-          <button onClick={handlePrevPage} disabled={currentPage === 0} className="px-4 py-2 font-bold text-slate-100 bg-slate-600 rounded-lg shadow-lg hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed">
-            &larr; Prev
-          </button>
-          <span className="font-digital text-slate-300">
-            {currentPage + 1} / {totalPages}
-          </span>
-          <button onClick={handleNextPage} disabled={currentPage >= totalPages - 1} className="px-4 py-2 font-bold text-slate-100 bg-slate-600 rounded-lg shadow-lg hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed">
-            Next &rarr;
-          </button>
-        </div>
-      )}
-    </>
-  );
-};
-
 
 const BUILD_ROW_SIZE = 8;
 
 const initialGameState: GameState = {
   score: 0,
-  words: [],
+  log: [],
   longestWord: '',
   foundEasterEggs: [],
   gameConfig: {
@@ -182,40 +42,72 @@ const initialGameState: GameState = {
   shuffleCount: INITIAL_SHUFFLES,
   challengeCount: INITIAL_CHALLENGES,
   challengeActive: false,
+  
   wordMilestoneProgress: {
     count: 0,
     nextUnlock: 10,
   },
+  
   powerPlayProgress: {
       targetDigit: null,
       streak: 0,
       turnsSinceLastOffer: 4, // Allow an early offer
-      cooldown: 0,
   },
+
   powerSurgeProgress: 0,
+
   activeCharms: [],
   availablePowerPlays: [],
-  availableCharms: [],
   unlockedMilestoneIds: [],
   unlockedWordBonusIds: [],
-  activeBuffs: [],
+  
+  // Charm and PowerPlay states
   charmUses: {},
-  activePowerPlays: {},
+  powerPlayUses: {},
+  activePowerPlays: {}, // To store temporary effects
   powerPlayToActivate: null,
+  availableCharms: [],
   charmToActivate: null,
   powerPlayOffer: [],
   lastPowerPlayResult: null,
   highestScoringWord: null,
+  activeBuffs: [],
+
+  powerPlayCooldowns: {},
+  charmCooldowns: {},
+
   letterMultipliers: {},
   wordMultipliersByLetter: {},
-  // Charm states
+
+  // Specific Charm/PowerPlay States
   flawlessScore: 0,
   pianoManEncoreActive: false,
   glitchActive: false,
   wordsThisRound: 0,
-  lastSubmissionTime: 0,
+  lastSubmissionTime: 0, 
   consecutiveSuccesses: 0,
+  longestStreak: 0,
   multiverseTimeBonus: 0,
+  duckHuntComboState: { streakLetters: null, streakCount: 0 },
+  drMarioCureStreak: 0,
+  powerStarResidualActive: false,
+  warioTimeDebt: 0,
+  powerWordUsed: false,
+  perfectChainProgress: 0,
+  groundhogDayCharges: 0,
+
+  // Golden Round State
+  roundType: 'normal',
+  consecutiveValidWords: 0,
+  goldenRoundThreshold: 11,
+  goldenTileId: null,
+
+  // New state for weighted item selection
+  runSeed: Date.now(),
+  offerHistory: [],
+  itemStats: {},
+  sessionOfferCounts: {},
+  totalOffersMade: 0,
 };
 
 type GameScreenState = {
@@ -233,7 +125,10 @@ type GameScreenState = {
   tilesToSwap: { tile: Tile, originalIndex: number }[];
   tileToTransform: { tile: Tile, originalIndex: number } | null;
   challengeWordData: WordData | null;
-  tileForHookshot: { tile: Tile, originalIndex: number } | null;
+  tileForSelection: { tile: Tile, originalIndex: number } | null;
+  lastTurnState: { gameState: GameState; hand: (Tile | null)[]; buildRow: ({tile: Tile, originalIndex: number} | null)[]; time: number; tileBag: string[] } | null;
+  highlightedTileIds: { first: string | null; rest: string[] };
+  longWordBonusNotified: boolean;
 }
 
 const screenInitialState: GameScreenState = {
@@ -251,7 +146,10 @@ const screenInitialState: GameScreenState = {
   tilesToSwap: [],
   tileToTransform: null,
   challengeWordData: null,
-  tileForHookshot: null,
+  tileForSelection: null,
+  lastTurnState: null,
+  highlightedTileIds: { first: null, rest: [] },
+  longWordBonusNotified: false,
 }
 
 type GameAction = 
@@ -264,19 +162,21 @@ type GameAction =
     | { type: 'RESUME_GAME' }
     | { type: 'TICK_TIMER' }
     | { type: 'ADD_TIME', payload: number }
+    | { type: 'SET_TIME', payload: number }
     | { type: 'MOVE_TILE_TO_BUILD', payload: { tile: Tile, fromIndex: number } }
     | { type: 'RETURN_TILE_TO_HAND', payload: { fromBuildIndex: number } }
     | { type: 'HANDLE_SUBMIT_SUCCESS', payload: any }
     | { type: 'ADD_STRIKE', payload?: { source: 'invalid_word' | 'challenge' } }
     | { type: 'HANDLE_SUBMIT_FAIL' }
-    | { type: 'PERFORM_SHUFFLE', payload: { hand: (Tile | null)[], tileBag: string[], isFree: boolean } }
+    | { type: 'PERFORM_SHUFFLE', payload: { hand: (Tile | null)[], tileBag: string[], isFree: boolean, isFromChallengeWin?: boolean } }
+    | { type: 'PERFORM_INSTANT_SHUFFLE', payload: { hand: (Tile | null)[], tileBag: string[] } }
     | { type: 'CHALLENGE_FAILED', payload: { tilesToMove: { tile: Tile, originalIndex: number }[] } }
     | { type: 'HANDLE_CLEAR' }
     | { type: 'SET_MODAL_CONTENT', payload: ModalContent }
     | { type: 'CLOSE_MODAL' }
     | { type: 'UPDATE_GAME_STATE', payload: Partial<GameState> }
-    | { type: 'CHOOSE_CHARM', payload: {charm: Charm, hand: (Tile | null)[]} }
-    | { type: 'CHOOSE_POWER_PLAY', payload: PowerPlay }
+    | { type: 'CHOOSE_CHARM', payload: { charm: Charm; hand: (Tile | null)[]; allOffered: Charm[] } }
+    | { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: PowerPlay; allOffered: PowerPlay[] } }
     | { type: 'ACTIVATE_POWER_PLAY', payload: PowerPlay }
     | { type: 'COMPLETE_POWER_PLAY_ACTIVATION', payload: { powerPlay: PowerPlay, option?: any } }
     | { type: 'ADD_TILE_TO_SWAP', payload: { tile: Tile, originalIndex: number } }
@@ -285,12 +185,17 @@ type GameAction =
     | { type: 'RESET_ROUND', payload: { hand: (Tile | null)[], tileBag: string[] } }
     | { type: 'START_NEXT_ROUND' }
     | { type: 'ACTIVATE_CHARM', payload: Charm }
-    | { type: 'SELECT_TILE_TO_TRANSFORM', payload: { tile: Tile, originalIndex: number } }
+    | { type: 'SELECT_TILE_TO_TRANSFORM', payload: { tile: Tile, originalIndex: number } | null }
     | { type: 'COMPLETE_CHARM_ACTIVATION', payload: { charm: Charm, option?: any } }
     | { type: 'SET_CHALLENGE_WORD_DATA', payload: WordData | null }
-    | { type: 'SELECT_TILE_FOR_HOOKSHOT', payload: { tile: Tile, originalIndex: number } }
     | { type: 'SHOW_SAVE_MODAL' }
-    | { type: 'RESTART_ROUND_GROUNDHOG' };
+    | { type: 'RESTART_ROUND_GROUNDHOG' }
+    | { type: 'GAME_OVER_INITIATED', payload: { reason: 'strikes' | 'time'; word?: string } }
+    | { type: 'SELECT_TILE_FOR_SELECTION', payload: { tile: Tile, originalIndex: number } | null }
+    | { type: 'STORE_LAST_TURN' }
+    | { type: 'RESTORE_LAST_TURN' }
+    | { type: 'SET_HIGHLIGHTED_TILES', payload: { first: string | null; rest: string[] } }
+    | { type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: boolean };
 
 
 function gameReducer(state: GameScreenState, action: GameAction): GameScreenState {
@@ -306,9 +211,56 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
         case 'RESUME_GAME': return { ...state, isPaused: false, time: state.time }; // Prevent timer reset on resume
         case 'TICK_TIMER': return { ...state, time: state.time - 1 };
         case 'ADD_TIME': return {...state, time: state.time + action.payload };
+        case 'SET_TIME': return { ...state, time: action.payload };
         case 'UPDATE_GAME_STATE': return { ...state, gameState: { ...state.gameState, ...action.payload } };
         case 'SET_CHALLENGE_WORD_DATA': return { ...state, challengeWordData: action.payload };
-        
+        case 'SELECT_TILE_FOR_SELECTION': return { ...state, tileForSelection: action.payload };
+        case 'STORE_LAST_TURN': return state;
+        case 'SET_HIGHLIGHTED_TILES': return { ...state, highlightedTileIds: action.payload };
+        case 'SET_LONG_WORD_BONUS_NOTIFIED': return { ...state, longWordBonusNotified: action.payload };
+        case 'RESTORE_LAST_TURN': {
+            if (state.lastTurnState) {
+                const scoreChange = state.lastTurnState.gameState.score - state.gameState.score;
+                const newLogEntry: EventLogEntry = {
+                    type: 'event', id: `pp-sliders-${Date.now()}`, name: 'Sliders',
+                    description: 'Reverted to the state of the previous turn.', icon: '📼',
+                    scoreChange: scoreChange, cumulativeScore: state.lastTurnState.gameState.score
+                };
+
+                // Reconstruct the hand by returning tiles from the saved buildRow to the saved hand.
+                let restoredHand = [...state.lastTurnState.hand];
+                state.lastTurnState.buildRow.forEach(item => {
+                    if (item) {
+                        // Place tile back in its original slot.
+                        restoredHand[item.originalIndex] = item.tile;
+                    }
+                });
+                
+                const restoredGameState = {
+                    ...state.lastTurnState.gameState,
+                    log: [...state.lastTurnState.gameState.log, newLogEntry],
+                    availablePowerPlays: state.gameState.availablePowerPlays.filter(p => p.id !== 'sliders'),
+                    powerPlayUses: { ...state.gameState.powerPlayUses, sliders: 1 }
+                };
+
+                return {
+                    ...state,
+                    // Restore state from last turn
+                    time: state.lastTurnState.time,
+                    tileBag: state.lastTurnState.tileBag,
+                    hand: restoredHand,
+                    buildRow: Array(BUILD_ROW_SIZE).fill(null), // Clear build row for the new-old turn
+                    gameState: restoredGameState,
+
+                    // Clear modal and resume game
+                    modalContent: null,
+                    isPaused: false,
+                    lastTurnState: null, // Sliders is one-time use, so we clear the state
+                };
+            }
+            return state;
+        }
+
         case 'MOVE_TILE_TO_BUILD': {
             const newHand = [...state.hand];
             newHand[action.payload.fromIndex] = null;
@@ -341,8 +293,8 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
         case 'HANDLE_SUBMIT_SUCCESS': {
             const { gameState: newGameState, hand, tileBag, modalQueue } = action.payload;
             const [firstModal = null, ...restOfQueue] = modalQueue || [];
-
-            return {
+            
+            let finalState = {
                 ...state,
                 gameState: newGameState,
                 hand,
@@ -351,20 +303,28 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                 isPaused: firstModal !== null,
                 modalContent: firstModal,
                 modalQueue: restOfQueue,
+                highlightedTileIds: { first: null, rest: [] }, // Reset highlights on success
+                longWordBonusNotified: false,
             };
+
+            return finalState;
         }
         
         case 'ADD_STRIKE': {
-          let { strikes, activePowerPlays, activeBuffs, score, powerPlayProgress, consecutiveSuccesses, flawlessScore, activeCharms, powerSurgeProgress } = gameState;
+          let { strikes, activePowerPlays, activeBuffs, score, powerPlayProgress, consecutiveSuccesses, flawlessScore, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress } = gameState;
           let actuallyGotAStrike = false;
+          let strikeBlockedByShield = false;
           
           if(activePowerPlays.strikeShield) {
             delete activePowerPlays.strikeShield;
             activeBuffs = activeBuffs.filter(b => b.id !== 'strikeShield');
+            lastPowerPlayResult = { message: "🛡️ Strike Shield absorbed the hit!", scoreChange: 0 };
+            strikeBlockedByShield = true;
           } else if(activePowerPlays.plotArmor) {
               delete activePowerPlays.plotArmor;
               activeBuffs = activeBuffs.filter(b => b.id !== 'plotArmor');
               score = Math.max(0, score - 150);
+              lastPowerPlayResult = { message: "💸 Plot Armor was consumed, saving you from a strike for 150 points.", scoreChange: -150 };
           } else {
             strikes++;
             flawlessScore = 0; // Reset flawless score on strike
@@ -379,16 +339,25 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
              activeBuffs = activeBuffs.filter(b => b.id !== 'goldenSnitch');
           }
 
+          if (activePowerPlays.sonicSpeed) {
+              delete activePowerPlays.sonicSpeed;
+              activeBuffs = activeBuffs.filter(b => b.id !== 'sonicSpeed');
+              lastPowerPlayResult = { message: "💨 Sonic Speed challenge failed!", scoreChange: 0 };
+          }
+
           const newPowerPlayProgress = { ...powerPlayProgress, streak: 0, targetDigit: null };
           consecutiveSuccesses = 0; // Reset streaks on any strike
+          consecutiveValidWords = 0; // Reset Golden Round streak
+          perfectChainProgress = 0;
+          duckHuntComboState = { streakLetters: null, streakCount: 0 }; // Reset Duck Hunt Combo streak
 
           let newTime = state.time;
           let newHand = [...state.hand];
           let newTileBag = state.tileBag;
           
-          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress };
+          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress };
           
-          if (actuallyGotAStrike && action.payload?.source === 'invalid_word') {
+          if ((actuallyGotAStrike || strikeBlockedByShield) && action.payload?.source === 'invalid_word') {
               // Reset timer to original value for the round
               let timerDuration = tempGameState.gameConfig.timerDuration;
               if (tempGameState.glitchActive) {
@@ -401,7 +370,12 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
               }
               if (tempGameState.activePowerPlays.timeTurner && tempGameState.activePowerPlays.timeTurner.rounds > 0) {
                   timerDuration += 30;
-                  // Don't decrement round count here, that happens at the start of a new round
+              }
+              if (tempGameState.activePowerPlays.saveByTheBell && tempGameState.activePowerPlays.saveByTheBell.rounds > 0) {
+                  timerDuration += 5;
+              }
+              if (tempGameState.warioTimeDebt > 0) {
+                  timerDuration -= tempGameState.warioTimeDebt;
               }
               if (tempGameState.activePowerPlays.sonicSpeed) {
                   if (tempGameState.activePowerPlays.sonicSpeed.count === 2) timerDuration = 8;
@@ -435,6 +409,10 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                       }
                   }
               }
+              // Enforce duplicate rule after adding tile on strike
+              const dupeCheckResult = gameUtils.handleDuplicateLetters(newHand, newTileBag);
+              newHand = dupeCheckResult.newHand;
+              newTileBag = dupeCheckResult.newBag;
           }
           
           return { 
@@ -442,14 +420,14 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
             time: newTime,
             hand: newHand,
             tileBag: newTileBag,
-            gameState: tempGameState
+            gameState: tempGameState,
           };
         }
 
         case 'HANDLE_SUBMIT_FAIL': {
             let tempHand = [...state.hand];
             state.buildRow.filter(i => i).forEach(item => {
-                if(tempHand[item!.originalIndex] === null){
+                if(item!.originalIndex < tempHand.length && tempHand[item!.originalIndex] === null){
                     tempHand[item!.originalIndex] = item!.tile;
                 } else {
                     const emptyIndex = tempHand.findIndex(t => t === null);
@@ -460,23 +438,51 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
         }
 
         case 'PERFORM_SHUFFLE': {
-            let newPowerSurgeProgress = state.gameState.powerSurgeProgress;
+            let newGameState = { ...gameState };
+            let newPowerSurgeProgress = newGameState.powerSurgeProgress;
             if (!action.payload.isFree && newPowerSurgeProgress > 0) {
                 newPowerSurgeProgress = 0;
             }
+
+            const allTilesInPlay = [...state.hand, ...state.buildRow.map(item => item?.tile)].filter((t): t is Tile => t != null);
+            if (allTilesInPlay.some(tile => tile.tempPoints === 25)) {
+                newGameState.activeCharms = newGameState.activeCharms.filter(c => c.id !== 'oneTileToRuleThemAll');
+                newGameState.activeBuffs = newGameState.activeBuffs.filter(b => b.id !== 'oneTileToRuleThemAll');
+            }
+
+            let newHand = action.payload.hand;
+            
+            const newConsecutiveValidWords = action.payload.isFromChallengeWin 
+                ? state.gameState.consecutiveValidWords 
+                : 0;
+
+            return {
+                ...state,
+                hand: newHand,
+                tileBag: action.payload.tileBag,
+                buildRow: Array(BUILD_ROW_SIZE).fill(null),
+                time: state.gameState.gameConfig.timerDuration,
+                longWordBonusNotified: false,
+                highlightedTileIds: { first: null, rest: [] },
+                gameState: { 
+                  ...newGameState, 
+                  shuffleCount: action.payload.isFree ? state.gameState.shuffleCount : state.gameState.shuffleCount - 1,
+                  powerSurgeProgress: newPowerSurgeProgress,
+                  consecutiveSuccesses: 0,
+                  consecutiveValidWords: newConsecutiveValidWords,
+                  perfectChainProgress: 0,
+                  wordsThisRound: 0,
+                }
+            };
+        }
+
+        case 'PERFORM_INSTANT_SHUFFLE': {
             return {
                 ...state,
                 hand: action.payload.hand,
                 tileBag: action.payload.tileBag,
                 buildRow: Array(BUILD_ROW_SIZE).fill(null),
-                time: state.gameState.gameConfig.timerDuration,
-                gameState: { 
-                  ...state.gameState, 
-                  shuffleCount: action.payload.isFree ? state.gameState.shuffleCount : state.gameState.shuffleCount - 1,
-                  powerSurgeProgress: newPowerSurgeProgress,
-                  consecutiveSuccesses: 0,
-                  wordsThisRound: 0,
-                }
+                longWordBonusNotified: false,
             };
         }
 
@@ -500,6 +506,9 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                     ...state.gameState,
                     challengeActive: true,
                     powerSurgeProgress: 0,
+                    consecutiveSuccesses: 0,
+                    consecutiveValidWords: 0,
+                    perfectChainProgress: 0,
                 }
             };
         }
@@ -507,7 +516,7 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
         case 'HANDLE_CLEAR': {
             let newHand = [...state.hand];
             state.buildRow.filter(i => i).forEach(item => { newHand[item!.originalIndex] = item!.tile; });
-            return { ...state, hand: newHand, buildRow: Array(BUILD_ROW_SIZE).fill(null) };
+            return { ...state, hand: newHand, buildRow: Array(BUILD_ROW_SIZE).fill(null), longWordBonusNotified: false, highlightedTileIds: { first: null, rest: [] } };
         }
         
         case 'SET_MODAL_CONTENT': return { ...state, modalContent: action.payload, isPaused: action.payload !== null };
@@ -523,13 +532,6 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
             };
 
         case 'CLOSE_MODAL': {
-            const previousModalTitle = state.modalContent?.title;
-
-            // Specific handling for Deep Freeze modal
-            if (previousModalTitle && previousModalTitle.includes('Deep Freeze')) {
-                return { ...state, modalContent: null, isPaused: false, time: 2 };
-            }
-
             // After closing a modal, check if there's another one in the queue.
             if (state.modalQueue.length > 0) {
                 const [nextModal, ...rest] = state.modalQueue;
@@ -542,11 +544,11 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                     gameState: {...state.gameState, powerPlayToActivate: null, charmToActivate: null, powerPlayOffer: []},
                     tilesToSwap: [],
                     tileToTransform: null,
-                    tileForHookshot: null,
+                    tileForSelection: null,
                 };
             }
             
-            return { ...state, modalContent: null, isPaused: false, gameState: {...state.gameState, powerPlayToActivate: null, charmToActivate: null, powerPlayOffer: []}, tilesToSwap: [], tileToTransform: null, tileForHookshot: null };
+            return { ...state, modalContent: null, isPaused: false, gameState: {...state.gameState, powerPlayToActivate: null, charmToActivate: null, powerPlayOffer: []}, tilesToSwap: [], tileToTransform: null, tileForSelection: null };
         }
         
         case 'RESTART_ROUND_GROUNDHOG': {
@@ -568,8 +570,10 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                 hand: newHand,
                 buildRow: Array(BUILD_ROW_SIZE).fill(null),
                 time: state.gameState.gameConfig.timerDuration,
+                challengeWordData: null, // Clear challenge state
                 gameState: {
                     ...state.gameState,
+                    challengeActive: false, // Reset challenge lock
                     wordsThisRound: 0, // Reset round-specific counters
                 }
             };
@@ -577,8 +581,12 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
 
         case 'RESET_ROUND': {
             let timerDuration = state.gameState.gameConfig.timerDuration;
-            let newGameState = { ...state.gameState };
+            const newGameState = { ...state.gameState };
+            let { hand, tileBag } = action.payload;
 
+            // The hand from the payload is the final, processed hand.
+            // Do not clear temporary points here, as they may have been applied by an active effect.
+            
             if(newGameState.glitchActive) {
                 timerDuration += 5;
                 newGameState.glitchActive = false;
@@ -589,69 +597,18 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                 newGameState.multiverseTimeBonus = 0; // Consume the bonus
             }
 
+            if(newGameState.warioTimeDebt > 0) {
+                timerDuration -= newGameState.warioTimeDebt;
+                newGameState.warioTimeDebt = 0;
+            }
+
+            // Apply active timer buffs but do not decrement their duration on shuffle
             if (newGameState.activePowerPlays.timeTurner && newGameState.activePowerPlays.timeTurner.rounds > 0) {
                 timerDuration += 30;
-                const newTimeTurnerState = { rounds: newGameState.activePowerPlays.timeTurner.rounds - 1 };
-                if (newTimeTurnerState.rounds > 0) {
-                    newGameState.activePowerPlays = { ...newGameState.activePowerPlays, timeTurner: newTimeTurnerState };
-                } else {
-                    delete newGameState.activePowerPlays.timeTurner;
-                    // Also remove from buffs so the icon disappears
-                    newGameState.activeBuffs = newGameState.activeBuffs.filter(b => b.id !== 'timeTurner');
-                }
             }
 
-            if (newGameState.activePowerPlays.sonicSpeed) {
-                if (newGameState.activePowerPlays.sonicSpeed.count === 2) {
-                    timerDuration = 8;
-                } else if (newGameState.activePowerPlays.sonicSpeed.count === 1) {
-                    timerDuration = 7;
-                }
-            }
-
-            if (newGameState.activePowerPlays.mutationProtocol) {
-                const newMutationState = { rounds: newGameState.activePowerPlays.mutationProtocol.rounds - 1 };
-                if (newMutationState.rounds > 0) {
-                    newGameState.activePowerPlays = { ...newGameState.activePowerPlays, mutationProtocol: newMutationState };
-                    const buffIndex = newGameState.activeBuffs.findIndex(b => b.id === 'mutationProtocol');
-                    if (buffIndex > -1) {
-                        const newBuff = {...newGameState.activeBuffs[buffIndex], description: `For the next ${newMutationState.rounds} rounds, tiles have a 25% chance of becoming Super Tiles (4x value).` };
-                        newGameState.activeBuffs[buffIndex] = newBuff;
-                    }
-                } else {
-                    delete newGameState.activePowerPlays.mutationProtocol;
-                    newGameState.activeBuffs = newGameState.activeBuffs.filter(b => b.id !== 'mutationProtocol');
-                }
-            }
-            
-            const diceRollCharm = newGameState.activeCharms.find(c => c.id === 'diceRollProtocol');
-            let { hand, tileBag } = action.payload;
-
-            if (diceRollCharm && (newGameState.charmUses['diceRollProtocol'] || 0) < (diceRollCharm.maxUses || 3)) {
-                const handTiles = hand.filter((t): t is Tile => t !== null);
-                if (handTiles.length > 0) {
-                    const tileToReplaceIndex = Math.floor(Math.random() * handTiles.length);
-                    const tileToReplace = handTiles[tileToReplaceIndex];
-                    const originalHandIndex = hand.findIndex(t => t?.id === tileToReplace.id);
-                    
-                    const { newTiles, remainingBag } = gameUtils.drawTiles(1, [...tileBag, tileToReplace.letter]);
-                    tileBag = remainingBag;
-                    if(originalHandIndex !== -1) {
-                        const newTile = newTiles[0];
-                        if (newTile) {
-                            newTile.multiplier = 2; // Add the 2x multiplier
-                            hand[originalHandIndex] = newTile;
-                        }
-                    }
-
-                    const newUses = (newGameState.charmUses['diceRollProtocol'] || 0) + 1;
-                    newGameState.charmUses = {...newGameState.charmUses, 'diceRollProtocol': newUses };
-
-                    if (newUses >= (diceRollCharm.maxUses || 3)) {
-                        newGameState.activeCharms = newGameState.activeCharms.filter(c => c.id !== 'diceRollProtocol');
-                        newGameState.activeBuffs = newGameState.activeBuffs.filter(b => b.id !== 'diceRollProtocol');
-                    }
-                }
+            if (newGameState.activePowerPlays.saveByTheBell && newGameState.activePowerPlays.saveByTheBell.rounds > 0) {
+                timerDuration += 5;
             }
 
             return {
@@ -668,6 +625,47 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
             let timerDuration = state.gameState.gameConfig.timerDuration;
             let newGameState = { ...state.gameState };
     
+            // Clean up temporary effects from previous round
+            let hand = [...state.hand].map(tile => {
+                if (!tile) return null;
+                
+                // isLocked, isDuplicate and tempPoints are single-turn effects.
+                // isSuper should persist until the tile is used.
+                const { isLocked, isDuplicate, tempPoints, ...restOfTile } = tile;
+                
+                // Only create a new object if a property was actually removed to be more efficient.
+                if (isLocked || isDuplicate || tempPoints !== undefined) {
+                    // 'restOfTile' now contains the tile object without the temporary properties.
+                    // It will still contain 'isSuper' if it was present.
+                    return restOfTile as Tile;
+                }
+                
+                return tile;
+            });
+            let tileBag = state.tileBag;
+
+            // Rescue Drop return logic
+            if (newGameState.activePowerPlays.rescueDrop) {
+                const rescuedTile = newGameState.activePowerPlays.rescueDrop.tile;
+                const returnedTile = { ...rescuedTile, tempPoints: 20 };
+                const emptySlotIndex = hand.indexOf(null);
+                if (emptySlotIndex !== -1) {
+                    hand[emptySlotIndex] = returnedTile;
+                } else {
+                    // Safeguard if hand is full: replace a random tile.
+                    const randomIndex = Math.floor(Math.random() * hand.length);
+                    const tileToReturn = hand[randomIndex];
+                    if (tileToReturn) {
+                        tileBag = [...tileBag, tileToReturn.letter];
+                    }
+                    hand[randomIndex] = returnedTile;
+                }
+                
+                delete newGameState.activePowerPlays.rescueDrop;
+                newGameState.activeBuffs = newGameState.activeBuffs.filter(b => b.id !== 'rescueDrop');
+            }
+
+
             if(newGameState.glitchActive) {
                 timerDuration += 5;
                 newGameState.glitchActive = false;
@@ -676,6 +674,11 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
             if(newGameState.multiverseTimeBonus > 0) {
                 timerDuration += newGameState.multiverseTimeBonus;
                 newGameState.multiverseTimeBonus = 0; // Consume the bonus
+            }
+
+            if(newGameState.warioTimeDebt > 0) {
+                timerDuration -= newGameState.warioTimeDebt;
+                newGameState.warioTimeDebt = 0;
             }
     
             if (newGameState.activePowerPlays.timeTurner && newGameState.activePowerPlays.timeTurner.rounds > 0) {
@@ -688,19 +691,61 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                     newGameState.activeBuffs = newGameState.activeBuffs.filter(b => b.id !== 'timeTurner');
                 }
             }
+            
+            if (newGameState.activePowerPlays.saveByTheBell && newGameState.activePowerPlays.saveByTheBell.rounds > 0) {
+                timerDuration += 5;
+                const newSaveByTheBellState = { rounds: newGameState.activePowerPlays.saveByTheBell.rounds - 1 };
+                if (newSaveByTheBellState.rounds > 0) {
+                    newGameState.activePowerPlays = { ...newGameState.activePowerPlays, saveByTheBell: newSaveByTheBellState };
+                     const buffIndex = newGameState.activeBuffs.findIndex(b => b.id === 'saveByTheBell');
+                    if (buffIndex > -1) {
+                        const newBuff = {...newGameState.activeBuffs[buffIndex], description: `Adds +5 seconds for ${newSaveByTheBellState.rounds} more turn(s).` };
+                        newGameState.activeBuffs[buffIndex] = newBuff;
+                    }
+                } else {
+                    delete newGameState.activePowerPlays.saveByTheBell;
+                    newGameState.activeBuffs = newGameState.activeBuffs.filter(b => b.id !== 'saveByTheBell');
+                }
+            }
 
             if (newGameState.activePowerPlays.mutationProtocol) {
                 const newMutationState = { rounds: newGameState.activePowerPlays.mutationProtocol.rounds - 1 };
                 if (newMutationState.rounds > 0) {
                     newGameState.activePowerPlays = { ...newGameState.activePowerPlays, mutationProtocol: newMutationState };
-                     const buffIndex = newGameState.activeBuffs.findIndex(b => b.id === 'mutationProtocol');
+                    const buffIndex = newGameState.activeBuffs.findIndex(b => b.id === 'mutationProtocol');
                     if (buffIndex > -1) {
-                        const newBuff = {...newGameState.activeBuffs[buffIndex], description: `For the next ${newMutationState.rounds} rounds, tiles have a 25% chance of becoming Super Tiles (4x value).` };
+                        const newBuff = {...newGameState.activeBuffs[buffIndex], description: `Guaranteed 1 Super Tile for ${newMutationState.rounds} more round(s).` };
                         newGameState.activeBuffs[buffIndex] = newBuff;
                     }
                 } else {
                     delete newGameState.activePowerPlays.mutationProtocol;
                     newGameState.activeBuffs = newGameState.activeBuffs.filter(b => b.id !== 'mutationProtocol');
+                }
+            }
+
+            if (newGameState.activePowerPlays.treehouseOfHorror) {
+                const newTreehouseState = { rounds: newGameState.activePowerPlays.treehouseOfHorror.rounds - 1 };
+                if (newTreehouseState.rounds >= 0) {
+                    // There are still rounds left (including this one, which is the last one if rounds is 0 now).
+                    hand = hand.map(tile => tile ? { ...tile, tempPoints: Math.floor(Math.random() * 10) + 1 } : null);
+                    if (newTreehouseState.rounds > 0) {
+                       newGameState.activePowerPlays = { ...newGameState.activePowerPlays, treehouseOfHorror: newTreehouseState };
+                    } else {
+                        // This was the last round. Remove the effect for the upcoming turn.
+                        delete newGameState.activePowerPlays.treehouseOfHorror;
+                        newGameState.activeBuffs = newGameState.activeBuffs.filter(b => b.id !== 'treehouseOfHorror');
+                    }
+                }
+            }
+
+            if (newGameState.activePowerPlays.duckHunt && !newGameState.activePowerPlays.duckHunt.ready) {
+                const duckHuntState = newGameState.activePowerPlays.duckHunt;
+                newGameState.activePowerPlays.duckHunt = { ...duckHuntState, ready: true };
+
+                const buffIndex = newGameState.activeBuffs.findIndex(b => b.id === 'duckHunt');
+                if (buffIndex > -1) {
+                    const newBuff = { ...newGameState.activeBuffs[buffIndex], description: `🦆 Use a '${duckHuntState.letter}' this round for +50 pts!` };
+                    newGameState.activeBuffs[buffIndex] = newBuff;
                 }
             }
     
@@ -710,10 +755,8 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
             }
             
             const diceRollCharm = newGameState.activeCharms.find(c => c.id === 'diceRollProtocol');
-            let hand = [...state.hand];
-            let tileBag = state.tileBag;
     
-            if (diceRollCharm && (newGameState.charmUses['diceRollProtocol'] || 0) < (newGameState.charmUses['diceRollProtocol'] || 3)) {
+            if (diceRollCharm && (newGameState.charmUses['diceRollProtocol'] || 0) < (diceRollCharm.maxUses || 3)) {
                 const handTiles = hand.filter((t): t is Tile => t !== null);
                 if (handTiles.length > 0) {
                     const tileToReplaceIndex = Math.floor(Math.random() * handTiles.length);
@@ -752,129 +795,478 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
         }
         
         case 'CHOOSE_CHARM': {
-            const { charm, hand } = action.payload;
+            const { charm, hand, allOffered } = action.payload;
             let newHand = hand;
             const stateChanges = charm.activate(state.gameState);
             
             let newGameState = { ...gameState };
 
+            const newCharmCooldowns = {...newGameState.charmCooldowns};
+            allOffered.forEach(offeredCharm => {
+                if (offeredCharm.id === charm.id) {
+                    newCharmCooldowns[offeredCharm.id] = 5; // 5-turn cooldown for the chosen charm
+                } else {
+                    newCharmCooldowns[offeredCharm.id] = 3; // 3-turn cooldown for unchosen charms
+                }
+            });
+            newGameState.charmCooldowns = newCharmCooldowns;
+
             if (charm.id === 'goldenSnitch') {
                 newGameState.consecutiveSuccesses = 0;
             }
+            if (charm.id === 'duckHuntCombo') {
+                newGameState.duckHuntComboState = { streakLetters: null, streakCount: 0 };
+            }
+            if (charm.id === 'drMariosCure') {
+                newGameState.drMarioCureStreak = 0;
+            }
+            if (charm.id === 'powerStarResidual') {
+                newGameState.powerStarResidualActive = false;
+            }
             
-            // Handle one-and-done immediate charms that shouldn't be added to active lists.
             if (charm.id === 'wildcardWake') {
                  return {
                     ...state,
-                    modalContent: null,
-                    isPaused: false,
                     gameState: { ...newGameState, ...stateChanges }
+                };
+            }
+
+            if (charm.id === 'oneTileToRuleThemAll') {
+                const availableTiles = hand.map((tile, index) => ({ tile, index })).filter((item): item is { tile: Tile, index: number } => item.tile !== null);
+                if (availableTiles.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * availableTiles.length);
+                    const chosenItem = availableTiles[randomIndex];
+                    
+                    const updatedTile: Tile = { ...chosenItem.tile, tempPoints: 25 };
+                    
+                    const handCopy = [...hand];
+                    handCopy[chosenItem.index] = updatedTile;
+                    newHand = handCopy;
+
+                    const buff: Charm = { 
+                        ...charm, 
+                        description: `The '${updatedTile.letter}' tile is worth 25 points for one use.` 
+                    };
+                    stateChanges.activeBuffs = [...(stateChanges.activeBuffs || newGameState.activeBuffs), buff];
+                }
+                
+                return {
+                    ...state,
+                    hand: newHand,
+                    gameState: {
+                        ...newGameState,
+                        ...stateChanges,
+                        activeCharms: [...newGameState.activeCharms, charm],
+                    }
                 };
             }
 
             if (charm.effectType === 'selection') {
                 return {
                     ...state,
-                    modalContent: null,
-                    isPaused: false,
-                    gameState: { ...newGameState, availableCharms: [...newGameState.availableCharms, charm]}
+                    gameState: { ...newGameState, availableCharms: [...newGameState.availableCharms, charm] }
                 };
             }
             
-            if (charm.id === 'oneTileToRuleThemAll') {
-                const availableTiles = hand.map((tile, index) => ({ tile, index })).filter(item => item.tile !== null);
-                if (availableTiles.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * availableTiles.length);
-                    const chosenItem = availableTiles[randomIndex];
-                    
-                    const updatedTile: Tile = { ...chosenItem.tile!, tempPoints: 25 };
-                    
-                    const handCopy = [...hand];
-                    handCopy[chosenItem.index] = updatedTile;
-                    newHand = handCopy;
-                }
-            }
-            
+            const charmAlreadyActive = newGameState.activeCharms.some(c => c.id === charm.id);
+            const newActiveCharms = charmAlreadyActive ? newGameState.activeCharms : [...newGameState.activeCharms, charm];
+
             return {
                 ...state,
                 hand: newHand,
-                modalContent: null,
-                isPaused: false,
                 gameState: {
                     ...newGameState,
                     ...stateChanges,
-                    activeCharms: [...newGameState.activeCharms, charm],
+                    activeCharms: newActiveCharms,
+                    activeBuffs: [...(stateChanges.activeBuffs || newGameState.activeBuffs)],
                 }
             }
         }
         
         case 'CHOOSE_POWER_PLAY': {
-            const powerPlay = action.payload;
-            const automaticPowerPlays = new Set(['strikeShield', 'philsosophy', 'plotArmor', 'fluncleIsProud', 'timeTurner', 'mutationProtocol']);
+            const { powerPlay, allOffered } = action.payload;
 
-            // If it's NOT an automatic powerplay, it becomes an activatable ability for the player to use strategically.
-            if (!automaticPowerPlays.has(powerPlay.id)) {
+            const resetProgress = {
+                targetDigit: null,
+                streak: 0,
+                turnsSinceLastOffer: 0,
+            };
+            
+            const newPowerPlayCooldowns = {...gameState.powerPlayCooldowns};
+            allOffered.forEach(offeredPP => {
+                if (offeredPP.id === powerPlay.id) {
+                    newPowerPlayCooldowns[offeredPP.id] = 5; // 5-turn cooldown for the chosen one
+                } else {
+                    newPowerPlayCooldowns[offeredPP.id] = 3; // 3-turn cooldown for unchosen ones
+                }
+            });
+
+            if (powerPlay.id === 'thwomped') {
+                let newGameState = { ...gameState };
+                const newChallengeCount = newGameState.challengeCount <= 0 ? 1 : newGameState.challengeCount + 1;
+                const changes = { challengeCount: newChallengeCount };
+                const newLogEntry: EventLogEntry = {
+                    type: 'event', id: `pp-thwomped-${Date.now()}`, name: powerPlay.name,
+                    description: 'Gained an extra Challenge.', icon: '🧱',
+                    scoreChange: 0, cumulativeScore: newGameState.score
+                };
+                const newLog = [...newGameState.log, newLogEntry];
+                
+                newGameState = {
+                    ...newGameState,
+                    ...changes,
+                    log: newLog,
+                    powerPlayOffer: [],
+                    powerPlayProgress: resetProgress,
+                    powerPlayCooldowns: newPowerPlayCooldowns,
+                };
+                const newModalContent: ModalContent = { type: 'info', title: 'Thwomped!', content: 'You got an extra Challenge!', autoClose: 2000 };
                 return {
                     ...state,
-                    modalContent: null,
-                    isPaused: false,
-                    gameState: {
-                        ...gameState,
-                        availablePowerPlays: [...gameState.availablePowerPlays, powerPlay],
-                        powerPlayOffer: [],
-                        powerPlayProgress: {
-                            ...gameState.powerPlayProgress,
-                             cooldown: 4,
-                             turnsSinceLastOffer: 0,
-                        },
-                    }
+                    gameState: newGameState,
+                    modalQueue: [...state.modalQueue, newModalContent],
                 };
             }
-            
-            // Otherwise, activate it immediately.
-            const changes = powerPlay.activate(state.gameState);
-            let timeChange = 0;
 
+            if (powerPlay.id === 'fluncleIsProud') {
+                let newGameState = { ...gameState };
+                const scoreChange = 300;
+                const newScore = newGameState.score + scoreChange;
+                const changes = { score: newScore };
+
+                const newLogEntry: EventLogEntry = {
+                    type: 'event', id: `pp-fluncleIsProud-${Date.now()}`, name: powerPlay.name,
+                    description: 'Fluncle is proud! +300 points.', icon: '🧓',
+                    scoreChange: scoreChange, cumulativeScore: newScore
+                };
+                const newLog = [...newGameState.log, newLogEntry];
+
+                newGameState = {
+                    ...newGameState,
+                    ...changes,
+                    log: newLog,
+                    powerPlayOffer: [],
+                    powerPlayProgress: resetProgress,
+                    powerPlayCooldowns: newPowerPlayCooldowns,
+                };
+                const newModalContent: ModalContent = { type: 'info', title: 'Fluncle is Proud', content: `Fluncle is very proud of you. You gain 300 points!`, autoClose: 2500 };
+                return {
+                    ...state,
+                    gameState: newGameState,
+                    modalQueue: [...state.modalQueue, newModalContent],
+                };
+            }
+
+            const AUTOMATIC_POWER_PLAYS = new Set([
+                'strikeShield', 'philsosophy', 'plotArmor',
+                'saveByTheBell', 'timeTurner', 'mutationProtocol'
+            ]);
+
+            if (AUTOMATIC_POWER_PLAYS.has(powerPlay.id)) {
+                let newGameState = {
+                    ...gameState,
+                    powerPlayOffer: [],
+                    powerPlayProgress: resetProgress,
+                    powerPlayCooldowns: newPowerPlayCooldowns,
+                };
+                
+                const changes = powerPlay.activate(newGameState);
+                newGameState = { ...newGameState, ...changes };
+                
+                return {
+                    ...state,
+                    gameState: newGameState,
+                };
+            } 
+            
             return {
                 ...state,
-                time: state.time + timeChange,
-                modalContent: null,
-                isPaused: false,
                 gameState: {
                     ...gameState,
-                    ...changes,
+                    availablePowerPlays: [...gameState.availablePowerPlays, powerPlay],
                     powerPlayOffer: [],
-                    powerPlayProgress: {
-                        ...gameState.powerPlayProgress,
-                        cooldown: 4,
-                        turnsSinceLastOffer: 0,
-                    },
+                    powerPlayProgress: resetProgress,
+                    powerPlayCooldowns: newPowerPlayCooldowns,
                 }
             };
         }
         
-        case 'ACTIVATE_CHARM': {
-            const charm = action.payload;
-            if (charm.effectType === 'selection') {
-                 return {
-                    ...state,
-                    modalContent: { type: 'charm-activation', title: `Activate: ${charm.name}`, content: '', data: charm },
-                    isPaused: true,
-                };
-            }
-            return state;
-        }
-
         case 'ACTIVATE_POWER_PLAY': {
             const powerPlay = action.payload;
+            let changes = {};
+            let newLog = [...state.gameState.log];
+            let newModalContent: ModalContent = null;
+            let shouldPause = false;
 
-            // If it's a selection type that requires a modal (e.g., has a selectionType)
-            if (powerPlay.effectType === 'selection' && powerPlay.selectionType) {
+            if (powerPlay.id === 'fortunesFavor') {
+                const rand = Math.random();
+                let scoreChange = 0;
+                let message = '';
+        
+                if (rand < 0.4) { // 40%
+                    scoreChange = -200;
+                    message = 'Outlook not so good... You lost 200 points.';
+                } else if (rand < 0.9) { // 50%
+                    scoreChange = 250;
+                    message = 'It is certain! You gained 250 points.';
+                } else { // 10%
+                    scoreChange = 500;
+                    message = 'As I see it, yes! You gained 500 points!';
+                }
+        
+                const newScore = Math.max(0, state.gameState.score + scoreChange);
+                const actualScoreChange = newScore - state.gameState.score;
+                newLog.push({
+                  type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                  description: message, icon: '🎱',
+                  scoreChange: actualScoreChange, cumulativeScore: newScore
+                });
+                changes = { score: newScore, log: newLog };
+                newModalContent = { type: 'info', title: 'Fortune\'s Favor', content: message, autoClose: 3000 };
+                shouldPause = true;
+            }
+
+            if (powerPlay.id === 'donkeyKongSmash') {
+                const tilesToReturn = [...state.hand, ...state.buildRow.map(item => item?.tile)].filter((t): t is Tile => t != null);
+                const lettersToReturn = tilesToReturn.map(t => t.letter);
+                const newBagForShuffle = gameUtils.shuffleArray([...state.tileBag, ...lettersToReturn]);
+                
+                const { newTiles, remainingBag } = gameUtils.drawTiles(RACK_SIZE, newBagForShuffle, false);
+                
+                const paddedHand = Array(RACK_SIZE).fill(null);
+                newTiles.forEach((tile, i) => { if (i < RACK_SIZE) paddedHand[i] = tile; });
+                
+                const { newHand: finalHand, newBag: finalBag } = gameUtils.postProcessHand(paddedHand, remainingBag, false);
+                
+                const newLogEntry: EventLogEntry = {
+                    type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                    description: 'Your hand was smashed and replaced!', icon: '🐵',
+                    scoreChange: 0, cumulativeScore: state.gameState.score
+                };
+                
                 return {
                     ...state,
-                    modalContent: { type: 'powerplay-activation', title: `Activate: ${powerPlay.name}`, content: '', data: powerPlay },
+                    hand: finalHand,
+                    tileBag: finalBag,
+                    buildRow: Array(BUILD_ROW_SIZE).fill(null),
+                    modalContent: { type: 'info', title: 'Donkey Kong Smash!', content: 'Your hand has been smashed and replaced!', autoClose: 2500 },
                     isPaused: true,
+                    gameState: {
+                        ...state.gameState,
+                        log: [...state.gameState.log, newLogEntry],
+                        availablePowerPlays: state.gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                    }
                 };
+            }
+        
+            if (powerPlay.id === 'bobKelso') {
+                const scoreChange = 100;
+                const newScore = state.gameState.score + scoreChange;
+        
+                const tilesToReturn = [...state.hand, ...state.buildRow.map(item => item?.tile)].filter((t): t is Tile => t != null);
+                const lettersToReturn = tilesToReturn.map(t => t.letter);
+                const newBagForShuffle = gameUtils.shuffleArray([...state.tileBag, ...lettersToReturn]);
+                
+                const { newTiles, remainingBag } = gameUtils.drawTiles(RACK_SIZE, newBagForShuffle, false);
+                
+                const paddedHand = Array(RACK_SIZE).fill(null);
+                newTiles.forEach((tile, i) => { if (i < RACK_SIZE) paddedHand[i] = tile; });
+        
+                const { newHand: finalHand, newBag: finalBag } = gameUtils.postProcessHand(paddedHand, remainingBag, false);
+                
+                const newLogEntry: EventLogEntry = {
+                    type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                    description: 'Gained 100 points and a free hand shuffle.', icon: '👨‍⚕️',
+                    scoreChange: scoreChange, cumulativeScore: newScore
+                };
+                
+                return {
+                    ...state,
+                    hand: finalHand,
+                    tileBag: finalBag,
+                    buildRow: Array(BUILD_ROW_SIZE).fill(null),
+                    modalContent: { type: 'info', title: 'Bob Kelso!', content: '+100 points and a fresh hand.', autoClose: 2500 },
+                    isPaused: true,
+                    gameState: {
+                        ...state.gameState,
+                        score: newScore,
+                        log: [...state.gameState.log, newLogEntry],
+                        availablePowerPlays: state.gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                    }
+                };
+            }
+
+            if (powerPlay.id === 'rescueDrop') {
+                const handTiles = state.hand.filter((t): t is Tile => t !== null);
+                if (handTiles.length === 0) {
+                    // This is handled in the component now, but as a reducer safeguard:
+                    return state; // Do nothing, consume no power play
+                }
+        
+                const randomIndex = Math.floor(Math.random() * handTiles.length);
+                const tileToRescue = handTiles[randomIndex];
+                const originalHandIndex = state.hand.findIndex(t => t?.id === tileToRescue.id);
+        
+                const newHand = [...state.hand];
+                if (originalHandIndex !== -1) {
+                    newHand[originalHandIndex] = null;
+                }
+        
+                const buffDescription = `🐿️ '${tileToRescue.letter}' returns next round worth 20 pts!`;
+                const buff = { 
+                    ...powerPlay, 
+                    description: buffDescription,
+                    instanceId: `rescueDrop_${tileToRescue.id}`
+                };
+        
+                const activationChanges = {
+                    activePowerPlays: { ...state.gameState.activePowerPlays, rescueDrop: { tile: tileToRescue } },
+                    activeBuffs: [...state.gameState.activeBuffs, buff]
+                };
+
+                return {
+                    ...state,
+                    hand: newHand,
+                    gameState: {
+                      ...gameState,
+                      ...activationChanges,
+                      availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                    }
+                  };
+            }
+
+            if (powerPlay.id === 'morphinTime') {
+                const handTilesWithIndices = state.hand
+                    .map((tile, index) => ({ tile, index }))
+                    .filter((item): item is { tile: Tile, index: number } => item.tile !== null);
+                
+                if (handTilesWithIndices.length < 2) {
+                    return { ...state, message: "Not enough tiles to morph!" };
+                }
+        
+                const shuffledItems = gameUtils.shuffleArray(handTilesWithIndices).slice(0, 2);
+                const indicesToReplace = shuffledItems.map(item => item.index);
+                const tilesToReturn = shuffledItems.map(item => item.tile.letter);
+                
+                const newBagForDraw = gameUtils.shuffleArray([...state.tileBag, ...tilesToReturn]);
+                const { newTiles, remainingBag } = gameUtils.drawTiles(2, newBagForDraw);
+        
+                if (newTiles.length < 2) { return state; } // Abort on draw failure
+        
+                const newHand = [...state.hand];
+                
+                const morphedTiles = gameUtils.shuffleArray([
+                    { ...newTiles[0], multiplier: 2 },
+                    { ...newTiles[1], multiplier: 4 }
+                ]);
+                
+                newHand[indicesToReplace[0]] = morphedTiles[0];
+                newHand[indicesToReplace[1]] = morphedTiles[1];
+
+                const { newHand: finalHand, newBag: finalBag, balancingMessage } = gameUtils.postProcessHand(newHand, remainingBag);
+                
+                const newLogEntry: EventLogEntry = {
+                    type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                    description: 'Two tiles morphed into a 2x and 4x multiplier tile!', icon: '⚡️',
+                    scoreChange: 0, cumulativeScore: state.gameState.score
+                };
+                
+                let modalText = 'It\'s Morphin Time!';
+                if (balancingMessage) {
+                    modalText += `\n\n${balancingMessage}`;
+                }
+                
+                return {
+                    ...state,
+                    hand: finalHand,
+                    tileBag: finalBag,
+                    modalContent: { type: 'info', title: '⚡️ Morphin Time!', content: modalText, autoClose: 2500 },
+                    isPaused: true,
+                    gameState: {
+                        ...state.gameState,
+                        log: [...state.gameState.log, newLogEntry],
+                        availablePowerPlays: state.gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                    }
+                };
+            }
+
+            if (powerPlay.id === 'slimShadyShuffle') {
+                const tilesToReturn = [...state.hand, ...state.buildRow.map(item => item?.tile)].filter((t): t is Tile => t != null);
+                const lettersToReturn = tilesToReturn.map(t => t.letter);
+                const newBagForShuffle = gameUtils.shuffleArray([...state.tileBag, ...lettersToReturn]);
+                
+                const { newTiles, remainingBag } = gameUtils.drawTiles(RACK_SIZE, newBagForShuffle, false);
+                
+                const paddedHand = Array(RACK_SIZE).fill(null);
+                newTiles.forEach((tile, i) => { if (i < RACK_SIZE) paddedHand[i] = tile; });
+                
+                const { newHand: finalHand, newBag: finalBag, balancingMessage } = gameUtils.postProcessHand(paddedHand, remainingBag, false);
+                
+                const newLogEntry: EventLogEntry = {
+                    type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                    description: 'Hand replaced. Next word +50 bonus.', icon: '🎤',
+                    scoreChange: 0, cumulativeScore: state.gameState.score
+                };
+                
+                let modalText = `Your hand has been replaced. Your next valid word gets a +50 bonus.`;
+                if (balancingMessage) {
+                    modalText += `\n\n${balancingMessage}`;
+                }
+                
+                const activationChanges = powerPlay.activate(state.gameState);
+
+                return {
+                    ...state,
+                    hand: finalHand,
+                    tileBag: finalBag,
+                    buildRow: Array(BUILD_ROW_SIZE).fill(null),
+                    modalContent: { type: 'info', title: 'Slim Shady Shuffle!', content: modalText, autoClose: 3000 },
+                    isPaused: true,
+                    gameState: {
+                        ...state.gameState,
+                        ...activationChanges,
+                        log: [...state.gameState.log, newLogEntry],
+                        availablePowerPlays: state.gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                    }
+                };
+            }
+
+            if (powerPlay.id === 'pinkyAndTheBrain') {
+                let immediateBonus = 0;
+                if (state.gameState.highestScoringWord) {
+                    immediateBonus = Math.round(state.gameState.highestScoringWord.score / 2);
+                }
+    
+                const newScore = state.gameState.score + immediateBonus;
+                const description = `Gained ${immediateBonus} points (${state.gameState.highestScoringWord ? `half of ${state.gameState.highestScoringWord.score}` : 'no best word yet'}). Next word is doubled.`;
+                
+                const newLogEntry: EventLogEntry = {
+                    type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                    description: description, icon: '🧠',
+                    scoreChange: immediateBonus, cumulativeScore: newScore
+                };
+                newLog.push(newLogEntry);
+                changes = { score: newScore, log: newLog };
+                
+                newModalContent = { type: 'info', title: 'Pinky and the Brain!', content: `Genius! ${description}`, autoClose: 3000 };
+                shouldPause = true;
+            }
+
+
+            // Handle immediate score effects and logging
+            if (powerPlay.id === 'echoesOfThePast') {
+              if (state.gameState.highestScoringWord) {
+                const scoreChange = state.gameState.highestScoringWord.score;
+                const newScore = state.gameState.score + scoreChange;
+                newLog.push({
+                  type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                  description: `Replayed "${state.gameState.highestScoringWord.word.toUpperCase()}"`, icon: '🔁',
+                  scoreChange, cumulativeScore: newScore
+                });
+                changes = { score: newScore, log: newLog };
+                newModalContent = { type: 'info', title: 'Echoes of the Past', content: `Replayed "${state.gameState.highestScoringWord.word.toUpperCase()}" for ${scoreChange} points!` };
+                shouldPause = true;
+              }
             }
 
             let newHand = state.hand;
@@ -900,29 +1292,82 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                 tilesToRemove.forEach(item => { if(item.tile) tempHand[item.index] = null; });
                 newHand = tempHand;
             }
-            
-            if (powerPlay.id === 'thanosGift') {
-                const currentHandTiles = state.hand.filter((t): t is Tile => t !== null);
-                const buildRowTiles = state.buildRow.filter(i => i).map(item => item!.tile);
-                const allPlayerTiles = [...currentHandTiles, ...buildRowTiles];
+            if (powerPlay.id === 'animaniacsMayhem') {
+                const tilesToReturn = [...state.hand, ...state.buildRow.map(item => item?.tile)].filter((t): t is Tile => t != null);
+                const lettersToReturn = tilesToReturn.map(t => t.letter);
+                const newBagForShuffle = gameUtils.shuffleArray([...state.tileBag, ...lettersToReturn]);
+                
+                const letters = Object.keys(TILE_DISTRIBUTION);
+                const randomLetter1 = letters[Math.floor(Math.random() * letters.length)];
+                const multiplierTile1: Tile = {
+                    id: `${randomLetter1}-animaniacs-${Math.random()}`,
+                    letter: randomLetter1,
+                    points: TILE_DISTRIBUTION[randomLetter1]?.points || 0,
+                    multiplier: 2
+                };
 
-                if (allPlayerTiles.length > 0) {
-                    const tilesToRemoveCount = Math.floor(allPlayerTiles.length / 2);
-                    if (tilesToRemoveCount > 0) {
-                        const shuffledTiles = gameUtils.shuffleArray(allPlayerTiles);
-                        const tilesToRemove = shuffledTiles.slice(0, tilesToRemoveCount);
-                        const tileIdsToRemove = new Set(tilesToRemove.map(t => t.id));
+                const randomLetter2 = letters[Math.floor(Math.random() * letters.length)];
+                const multiplierTile2: Tile = {
+                    id: `${randomLetter2}-animaniacs-${Math.random()}`,
+                    letter: randomLetter2,
+                    points: TILE_DISTRIBUTION[randomLetter2]?.points || 0,
+                    multiplier: 2
+                };
+                
+                const { newTiles, remainingBag } = gameUtils.drawTiles(RACK_SIZE - 2, newBagForShuffle, false);
+                
+                const freshHandTiles = gameUtils.shuffleArray([multiplierTile1, multiplierTile2, ...newTiles]);
+                const paddedHand = Array(RACK_SIZE).fill(null);
+                freshHandTiles.forEach((tile, i) => { if (i < RACK_SIZE) paddedHand[i] = tile; });
 
-                        newHand = state.hand.map(t => t && tileIdsToRemove.has(t.id) ? null : t);
-                        newBuildRow = state.buildRow.map(item => item && tileIdsToRemove.has(item.tile.id) ? null : item);
-                    }
+                const { newHand: finalHand, newBag: finalBag, balancingMessage } = gameUtils.postProcessHand(paddedHand, remainingBag, false);
+
+                newHand = finalHand;
+                newBag = finalBag;
+                newBuildRow = Array(BUILD_ROW_SIZE).fill(null);
+                
+                const newLogEntry: EventLogEntry = {
+                    type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                    description: 'Hand reshuffled with two 2x tiles!', icon: '🌪️',
+                    scoreChange: 0, cumulativeScore: state.gameState.score
+                };
+                newLog.push(newLogEntry);
+                changes = { log: newLog };
+                
+                let modalText = 'Total chaos! Your hand has been reshuffled with guaranteed 2x tiles.';
+                if (balancingMessage) {
+                    modalText += `\n\n${balancingMessage}`;
                 }
+                newModalContent = { type: 'info', title: 'Animaniacs Mayhem!', content: modalText, autoClose: 2500 };
+                shouldPause = true;
             }
-
-            const changes = powerPlay.activate(state.gameState);
+            if (powerPlay.id === 'treehouseOfHorror') {
+                newModalContent = { type: 'info', title: '🎃 Treehouse of Horror!', content: 'Things just got weird. Tile values are randomized for 3 turns.', autoClose: 2500 };
+                shouldPause = true;
+            }
+            
+            const activationChanges = powerPlay.activate(state.gameState);
             let timeChange = 0;
             if (powerPlay.id === 'timeBoost') timeChange = 15;
             if (powerPlay.id === 'rewind') timeChange = 10;
+
+            if (powerPlay.id === 'sonicSpeed') {
+                newModalContent = {
+                    type: 'info',
+                    title: 'Sonic Speed Activated!',
+                    content: 'Word 1: 8s timer, 2x score\nWord 2: 7s timer, 4x score'
+                };
+                shouldPause = true;
+            }
+            
+            // If it's a selection type that requires a modal (e.g., has a selectionType)
+            if (powerPlay.effectType === 'selection' && powerPlay.selectionType) {
+                return {
+                    ...state,
+                    modalContent: { type: 'powerplay-activation', title: `Activate: ${powerPlay.name}`, data: powerPlay },
+                    isPaused: true,
+                };
+            }
             
             return {
               ...state,
@@ -930,13 +1375,17 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
               hand: newHand,
               tileBag: newBag,
               buildRow: newBuildRow,
+              modalContent: newModalContent,
+              isPaused: shouldPause,
               gameState: {
                 ...gameState,
+                ...activationChanges,
                 ...changes,
                 availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
                 powerPlayProgress: {
-                    ...gameState.powerPlayProgress,
-                    cooldown: 4,
+                    targetDigit: null,
+                    streak: 0,
+                    turnsSinceLastOffer: 0,
                 },
               }
             }
@@ -944,6 +1393,48 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
         
         case 'COMPLETE_POWER_PLAY_ACTIVATION': {
           const { powerPlay, option } = action.payload;
+          
+          if (powerPlay.id === 'wordionaire' && option?.choice) {
+            let changes: Partial<GameState> = {};
+            let scoreChange = 0;
+            
+            if (option.choice === 'cash') {
+                scoreChange = 100;
+                changes = {
+                    score: gameState.score + scoreChange
+                };
+                const newLogEntry: EventLogEntry = {
+                    type: 'event', id: `pp-wordionaire-cash-${Date.now()}`, name: "Wordionaire: Fast Cash",
+                    description: "Gained 100 points.", icon: '💡',
+                    scoreChange, cumulativeScore: gameState.score + scoreChange
+                };
+                changes.log = [...gameState.log, newLogEntry];
+            } else if (option.choice === 'double') {
+                changes = {
+                    activePowerPlays: { ...gameState.activePowerPlays, wordionaireDouble: true }
+                };
+            }
+            // 'phone' choice is handled by its own async function, this just cleans up the powerplay state
+            
+            // Add the buff to the tray for double
+            if(option.choice === 'double') {
+              const buffDescription = 'Next word gets x2 score.';
+              const buff = { ...powerPlay, description: buffDescription, instanceId: `wordionaire_double` };
+              changes.activeBuffs = [...gameState.activeBuffs, buff];
+            }
+        
+            return {
+                ...state,
+                modalContent: null,
+                isPaused: false,
+                gameState: {
+                    ...gameState,
+                    ...changes,
+                    availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                    powerPlayToActivate: null,
+                }
+            };
+          }
 
           if (powerPlay.id === 'neosChoice' && option?.choice) {
             let changes = {};
@@ -962,37 +1453,149 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                     ...gameState,
                     ...changes,
                     availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                    powerPlayToActivate: null,
                 }
             };
           }
-          if (powerPlay.id === 'hookshot' && state.tileForHookshot) {
-            const { tile } = state.tileForHookshot;
+          if (powerPlay.id === 'hookshot' && state.tileForSelection) {
+            const { tile } = state.tileForSelection;
             const newTile: Tile = {
               ...tile,
               id: `${tile.letter}-hookshot-${Math.random()}`,
               isDuplicate: true,
             };
       
-            const newHand = [...state.hand];
+            let newHand = [...state.hand];
             const emptySlotIndex = newHand.indexOf(null);
-            // Prefer filling an empty slot, otherwise expand the hand
+            
             if (emptySlotIndex !== -1) {
               newHand[emptySlotIndex] = newTile;
-            } else {
-              newHand.push(newTile);
             }
+
+            const { newHand: finalHand, newBag: finalBag } = gameUtils.handleDuplicateLetters(newHand, state.tileBag);
       
             return {
               ...state,
-              hand: newHand,
+              hand: finalHand,
+              tileBag: finalBag,
               modalContent: null,
               isPaused: false,
-              tileForHookshot: null,
+              tileForSelection: null,
               gameState: {
                 ...gameState,
                 availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                powerPlayToActivate: null,
               }
             };
+          }
+          if (powerPlay.id === 'cassiesClue' && option?.tilesToDiscard) {
+            let newHand = [...state.hand];
+            const newTiles = ['C', 'A', 'T'].map(l => gameUtils.createTile(l));
+
+            option.tilesToDiscard.forEach((item: { originalIndex: number}) => {
+                newHand[item.originalIndex] = null;
+            });
+      
+            newTiles.forEach(tile => {
+                const emptyIndex = newHand.findIndex(slot => slot === null);
+                if (emptyIndex !== -1) {
+                    newHand[emptyIndex] = tile;
+                }
+            });
+            const changes = powerPlay.activate(state.gameState);
+            const { newHand: finalHand, newBag: finalBag } = gameUtils.handleDuplicateLetters(newHand, state.tileBag);
+            return {
+              ...state,
+              hand: finalHand,
+              tileBag: finalBag,
+              modalContent: null,
+              isPaused: false,
+              tilesToSwap: [],
+              gameState: {
+                  ...gameState,
+                  ...changes,
+                  availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                  powerPlayToActivate: null,
+              }
+            };
+          }
+
+          if (powerPlay.id === 'captainPlanet' && state.tileForSelection) {
+            let newGameState = { ...state.gameState };
+            const handCopy = [...state.hand];
+            const tileIndex = state.tileForSelection.originalIndex;
+            if (handCopy[tileIndex]) {
+                handCopy[tileIndex] = { ...handCopy[tileIndex]!, tempPoints: 20 };
+            }
+              const changes = powerPlay.activate(state.gameState);
+            return {
+                ...state,
+                hand: handCopy,
+                modalContent: null,
+                isPaused: false,
+                tileForSelection: null,
+                gameState: {
+                    ...newGameState,
+                    ...changes,
+                    availablePowerPlays: newGameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                    powerPlayToActivate: null,
+                }
+            };
+          }
+
+          if (powerPlay.id === 'moreThanMeets' && state.tileForSelection) {
+            const { originalIndex } = state.tileForSelection;
+            
+            const randomComboTileData = gameUtils.shuffleArray(COMBO_TILES)[0];
+            const newTile = gameUtils.createTile(randomComboTileData.letter);
+
+            const newHand = [...state.hand];
+            newHand[originalIndex] = newTile;
+            
+            const { newHand: finalHand, newBag: finalBag } = gameUtils.handleDuplicateLetters(newHand, state.tileBag);
+            
+            return {
+                ...state,
+                hand: finalHand,
+                tileBag: finalBag,
+                modalContent: null,
+                isPaused: false,
+                tileForSelection: null,
+                gameState: {
+                    ...gameState,
+                    availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                    powerPlayToActivate: null,
+                }
+            };
+          }
+
+          if (powerPlay.id === 'duckHunt' && state.tileForSelection) {
+              const { tile, originalIndex } = state.tileForSelection;
+              const newHand = [...state.hand];
+              newHand[originalIndex] = null;
+              const newBag = gameUtils.shuffleArray([...state.tileBag, tile.letter]);
+              const buffDescription = `🦆 '${tile.letter}' sniped. Active next round.`;
+              const buff = { 
+                  ...POWER_PLAYS_LIST.find(p => p.id === 'duckHunt')!, 
+                  description: buffDescription,
+                  instanceId: `duckHunt_${tile.letter}`
+              };
+
+              return {
+                  ...state,
+                  hand: newHand,
+                  tileBag: newBag,
+                  modalContent: null,
+                  isPaused: false,
+                  tileForSelection: null,
+                  gameState: {
+                      ...gameState,
+                      activePowerPlays: { ...gameState.activePowerPlays, duckHunt: { letter: tile.letter, ready: false } },
+                      activeBuffs: [...gameState.activeBuffs, buff],
+                      availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                      powerPlayToActivate: null,
+                  }
+              };
           }
 
           const changes = powerPlay.activate(state.gameState, option);
@@ -1005,10 +1608,6 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                   ...changes, 
                   availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id), 
                   powerPlayToActivate: null,
-                  powerPlayProgress: {
-                    ...gameState.powerPlayProgress,
-                    cooldown: 4,
-                  },
               }
           };
         }
@@ -1016,39 +1615,38 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
         case 'SELECT_TILE_TO_TRANSFORM': {
             return { ...state, tileToTransform: action.payload };
         }
-        case 'SELECT_TILE_FOR_HOOKSHOT': {
-            return { ...state, tileForHookshot: action.payload };
-        }
-        
         case 'COMPLETE_CHARM_ACTIVATION': {
             const { charm, option } = action.payload;
-            if (charm.id === 'shapeshiftersTongue' && state.tileToTransform && option?.newLetter) {
-                const newTile = gameUtils.createTile(option.newLetter);
+            if (charm.id === 'shapeshiftersTongue' && state.tileToTransform && option?.letter) {
+                const { originalIndex } = state.tileToTransform;
+                const newLetter = option.letter;
+
+                const newTile = gameUtils.createTile(newLetter);
+
                 const newHand = [...state.hand];
-                newHand[state.tileToTransform.originalIndex] = newTile;
+                newHand[originalIndex] = newTile;
+
+                const { newHand: finalHand, newBag: finalBag } = gameUtils.handleDuplicateLetters(newHand, state.tileBag);
                 
                 const newCharmUses = { ...gameState.charmUses, [charm.id]: (gameState.charmUses[charm.id] || 0) + 1 };
-                let newAvailableCharms = [...gameState.availableCharms];
-                if(newCharmUses[charm.id] >= (charm.maxUses || 1)) {
-                    newAvailableCharms = newAvailableCharms.filter(c => c.id !== charm.id);
-                }
 
                 return {
                     ...state,
-                    hand: newHand,
-                    gameState: {
-                        ...state.gameState,
-                        availableCharms: newAvailableCharms,
-                        charmUses: newCharmUses,
-                    },
+                    hand: finalHand,
+                    tileBag: finalBag,
                     modalContent: null,
                     isPaused: false,
                     tileToTransform: null,
-                }
+                    gameState: {
+                        ...gameState,
+                        availableCharms: gameState.availableCharms.filter(c => c.id !== charm.id),
+                        charmUses: newCharmUses,
+                    }
+                };
             }
-            return state;
+            // If something went wrong, just close the modal without changes.
+            return { ...state, modalContent: null, isPaused: false, tileToTransform: null };
         }
-
         case 'ADD_TILE_TO_SWAP': {
             const max = state.modalContent?.data?.swapConfig?.max ?? 2;
             if(state.tilesToSwap.length >= max) return state;
@@ -1058,27 +1656,143 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
             return {...state, tilesToSwap: state.tilesToSwap.filter(t => t.originalIndex !== action.payload.originalIndex)};
         }
         case 'EXECUTE_SWAP': {
-            const powerPlayId = state.modalContent?.data?.id;
+            const powerPlay = state.modalContent?.data as PowerPlay | undefined;
+            if (!powerPlay) return state; // Safety check
+
+            const newPowerPlayUses = { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 };
+            
+            let newAvailablePowerPlays = [...gameState.availablePowerPlays];
+            const isConsumed = newPowerPlayUses[powerPlay.id] >= (powerPlay.maxUses || 1);
+
+            if (isConsumed) {
+                newAvailablePowerPlays = gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id);
+            }
+            
             return {
                 ...state,
                 modalContent: null,
                 isPaused: false,
-                gameState: { ...gameState, availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlayId), powerPlayToActivate: null},
+                gameState: { 
+                  ...gameState, 
+                  availablePowerPlays: newAvailablePowerPlays, 
+                  powerPlayToActivate: null,
+                  powerPlayUses: newPowerPlayUses,
+                },
                 tilesToSwap: []
             }
+        }
+
+        case 'GAME_OVER_INITIATED': {
+            const { reason, word } = action.payload;
+            let title = "GAME OVER";
+            let content: React.ReactNode;
+            const finalGameState = { ...state.gameState };
+
+            if (finalGameState.activePowerPlays.sonicSpeed) {
+                delete finalGameState.activePowerPlays.sonicSpeed;
+                finalGameState.activeBuffs = finalGameState.activeBuffs.filter(b => b.id !== 'sonicSpeed');
+            }
+            
+            const finalHandLetters = state.hand.filter((t): t is Tile => t !== null).map(t => t.letter);
+            const gameOverLogEntry: GameOverLogEntry = {
+                type: 'game_over',
+                id: `game-over-${Date.now()}`,
+                reason: reason,
+                finalHand: finalHandLetters,
+                activeBuffs: finalGameState.activeBuffs.map(b => ({ name: b.name, icon: b.icon })),
+                cumulativeScore: finalGameState.score,
+            };
+            finalGameState.log = [...finalGameState.log, gameOverLogEntry];
+            
+            if (reason === 'strikes') {
+                title = "☠️ Three Strikes, You're Out! ☠️";
+                if (word) {
+                    content = (
+                        <>
+                            <p className="my-4 text-slate-200">The oracles found a word you missed, sealing your fate.</p>
+                            <p className="font-bold text-red-400">Final Strike Word: <span className="text-2xl font-digital">{word}</span></p>
+                        </>
+                    );
+                } else {
+                    content = (
+                        <>
+                            <p className="my-4 text-slate-200">"Looks like your luck ran out. The house always wins. Or in this case, the dictionary. Better luck next time, pal."</p>
+                            <p className="font-bold text-red-400">Reason: Final Strike</p>
+                        </>
+                    );
+                }
+            } else { // time
+                title = "⏰ Time's Up! ⏰";
+                content = (
+                    <>
+                        <p className="my-4 text-slate-200">"It seems the clock was not on your side. Like sand through the hourglass, so are the points of our lives. Or something dramatic like that."</p>
+                        <p className="font-bold text-cyan-400">Reason: Out of Time</p>
+                    </>
+                );
+            }
+            
+            return {
+                ...state,
+                gameState: finalGameState,
+                isPaused: true,
+                modalContent: {
+                    type: 'game-over-summary',
+                    title,
+                    content: content,
+                }
+            };
         }
         
         default: return state;
     }
 }
 
-const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveGame, isResuming, onTimeLow }) => {
+export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveGame, isResuming, onTimeLow, onGoldenRoundChange, onScoreUpdate, onLexCoinChange, tileClass, powerWord }) => {
+    
+    /**
+     * A robust safeguard to ensure the hand state is always a valid, renderable array.
+     * Prevents crashes from corrupted data generated by complex game logic.
+     * @param hand The potentially corrupted hand array.
+     * @returns A clean, valid hand array of the correct size.
+     */
+    const sanitizeHand = (hand: (Tile | null)[] | undefined | null): (Tile | null)[] => {
+        const potentiallyCorruptedHand = Array.isArray(hand) ? hand : [];
+        
+        const cleanedHand = potentiallyCorruptedHand.map(tile => 
+            (tile && typeof tile === 'object' && tile.id && tile.letter) ? tile : null
+        );
+
+        const finalHand = Array(RACK_SIZE).fill(null);
+        for (let i = 0; i < RACK_SIZE; i++) {
+            if (i < cleanedHand.length) {
+                finalHand[i] = cleanedHand[i];
+            }
+        }
+        return finalHand;
+    };
+
     const [state, dispatch] = useReducer(gameReducer, screenInitialState, (initialArg) => {
     if (isResuming) {
         const savedGameJson = localStorage.getItem('wordBuilderBonanzaSave');
         if (savedGameJson) {
             try {
                 const savedData = JSON.parse(savedGameJson);
+                // We need to ensure transient state like isLoading is reset on resume.
+                savedData.gameScreenState.isLoading = false;
+                savedData.gameScreenState.loadingMessage = null;
+                savedData.gameScreenState.highlightedTileIds = { first: null, rest: [] }; // Reset this non-persistent state
+                savedData.gameScreenState.longWordBonusNotified = false; // Also reset this
+                // Rehydrate sets
+                if(savedData.gameScreenState.gameState.duckHuntComboState.streakLetters) {
+                    savedData.gameScreenState.gameState.duckHuntComboState.streakLetters = new Set(savedData.gameScreenState.gameState.duckHuntComboState.streakLetters);
+                }
+                // Migration logic for Groundhog's Day
+                if (savedData.gameScreenState.gameState.groundhogDayCharges === undefined) {
+                    const charmIsActiveInList = savedData.gameScreenState.gameState.activeCharms.some((c: Charm) => c.id === 'groundhogsDay');
+                    savedData.gameScreenState.gameState.groundhogDayCharges = charmIsActiveInList ? 1 : 0;
+                }
+                // Sanitize the hand on resume just in case it was saved in a bad state
+                savedData.gameScreenState.hand = sanitizeHand(savedData.gameScreenState.hand);
                 return savedData.gameScreenState;
             } catch (e) {
                 console.error("Error parsing saved game. Starting fresh.", e);
@@ -1088,9 +1802,53 @@ const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveG
     }
     return screenInitialState;
   });
-  const { gameState, time, hand, buildRow, tileBag, message, isPaused, isLoading, modalContent, tilesToSwap } = state;
+  const { gameState, time, hand, buildRow, tileBag, message, isPaused, isLoading, modalContent, tilesToSwap, lastTurnState, longWordBonusNotified, tileToTransform } = state;
   const isChallengeLock = gameState.challengeActive;
   const [isMuted, setIsMuted] = useState(soundService.getMuteState());
+  
+  const wordFromBuildRow = useMemo(() => (buildRow ?? []).filter(i => i).map(item => item!.tile.letter).join(''), [buildRow]);
+  const totalWords = useMemo(() => (gameState?.log ?? []).filter(e => e.type === 'word' && e.status === 'valid').length, [gameState?.log]);
+
+
+  useEffect(() => {
+    if ((wordFromBuildRow?.length ?? 0) >= 5 && !longWordBonusNotified) {
+        if (typeof (window as any).showToast === 'function') {
+            (window as any).showToast("✨ 5+ Letter Bonus Eligible! (Submit for x2 score) ✨");
+        }
+        dispatch({ type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: true });
+    } else if ((wordFromBuildRow?.length ?? 0) < 5 && longWordBonusNotified) {
+        dispatch({ type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: false });
+    }
+  }, [wordFromBuildRow, longWordBonusNotified]);
+
+  useEffect(() => {
+    onGoldenRoundChange(gameState?.roundType === 'golden');
+  }, [gameState?.roundType, onGoldenRoundChange]);
+
+  // Effect to ensure the gameConfig's timer duration is always correct based on score.
+  useEffect(() => {
+    let correctTimerDuration = 60; // Default from initialGameState
+    const sortedMilestones = [...MILESTONES_LIST].sort((a, b) => a.scoreThreshold - b.scoreThreshold);
+
+    for (const milestone of sortedMilestones) {
+        if ((gameState?.score ?? 0) >= milestone.scoreThreshold && milestone.configChange?.timerDuration) {
+            correctTimerDuration = milestone.configChange.timerDuration;
+        }
+    }
+    
+    // This check prevents an infinite loop of dispatches if the state is already correct.
+    if (gameState?.gameConfig?.timerDuration !== correctTimerDuration) {
+        dispatch({ 
+            type: 'UPDATE_GAME_STATE', 
+            payload: { 
+                gameConfig: { 
+                    ...(gameState?.gameConfig ?? initialGameState.gameConfig), 
+                    timerDuration: correctTimerDuration 
+                } 
+            } 
+        });
+    }
+  }, [gameState?.score, gameState?.gameConfig, dispatch]);
 
   const handleMuteToggle = () => {
     soundService.initialize();
@@ -1103,46 +1861,169 @@ const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveG
     setTimeout(() => dispatch({ type: 'CLEAR_MESSAGE' }), duration);
   }, []);
 
+  const applyMutation = useCallback((tiles: Tile[], isForGoldenRound = false): Tile[] => {
+    if (isForGoldenRound) {
+        return tiles;
+    }
+
+    let newTiles = [...tiles]; // Work on a copy
+
+    if (gameState?.activePowerPlays?.treehouseOfHorror) {
+        newTiles = newTiles.map((tile): Tile | null => tile ? { ...tile, tempPoints: Math.floor(Math.random() * 10) + 1 } : null).filter((t): t is Tile => t !== null);
+    }
+
+    const mutationActive = gameState?.activePowerPlays?.mutationProtocol && gameState.activePowerPlays.mutationProtocol.rounds >= 1;
+    
+    if (mutationActive) {
+        // Guarantee one super tile
+        const nonSuperTileIndices = newTiles
+            .map((tile, index) => (tile && !tile.isSuper ? index : -1))
+            .filter(index => index !== -1);
+
+        if (nonSuperTileIndices.length > 0) {
+            const randomIndexToMutate = nonSuperTileIndices[Math.floor(Math.random() * nonSuperTileIndices.length)];
+            newTiles[randomIndexToMutate] = { ...newTiles[randomIndexToMutate]!, isSuper: true };
+            showMessage("✨ Super Tile Guaranteed! ✨", 1500);
+            soundService.playPowerUp();
+        }
+        return newTiles;
+    }
+
+    // Base 1% random mutation if power-up is not active
+    let tileWasMutated = false;
+    const mutatedTiles = newTiles.map(tile => {
+        if (tile && !tile.isSuper && Math.random() < 0.01) { // 1% base chance
+            tileWasMutated = true;
+            return { ...tile, isSuper: true };
+        }
+        return tile;
+    });
+
+    if (tileWasMutated) {
+        showMessage("✨ Super Tile Created! ✨", 1500);
+        soundService.playPowerUp();
+    }
+    
+    return mutatedTiles;
+  }, [gameState?.activePowerPlays?.mutationProtocol, gameState?.activePowerPlays?.treehouseOfHorror, showMessage]);
+
+  useEffect(() => {
+    // This effect is specifically for the Power Surge Ready notification
+    if (gameState?.powerSurgeProgress === 4) {
+      soundService.playPowerSurgeReady();
+      showMessage("⚡ COMBO READY! Next word x2 score!", 2500);
+    }
+  }, [gameState?.powerSurgeProgress, showMessage]);
+
   const handleStartNextRound = useCallback(() => {
     dispatch({ type: 'START_NEXT_ROUND' });
   }, []);
 
-  const handleCloseModal = useCallback(() => {
-      soundService.playUIClick();
-      const lastModalType = state.modalContent?.type;
-      const wasLastInQueue = state.modalQueue.length === 0;
-      const lastModalTitle = state.modalContent?.title;
+  const handleShowMilestoneInfo = useCallback((milestone: Milestone) => {
+    soundService.playModalOpen();
+    dispatch({
+        type: 'SET_MODAL_CONTENT',
+        payload: {
+            type: 'milestone-info',
+            title: milestone.name,
+            data: milestone,
+        }
+    });
+  }, []);
 
-      // Special handling for Groundhog's Day
-      if (lastModalTitle && lastModalTitle.includes('Groundhog’s Day')) {
-          dispatch({ type: 'RESTART_ROUND_GROUNDHOG' });
-          return;
-      }
-  
-      dispatch({ type: 'CLOSE_MODAL' });
-  
-      const postWordModals: (ModalContent['type'])[] = ['milestone', 'easter-egg', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand'];
-      if (wasLastInQueue && lastModalType && postWordModals.includes(lastModalType)) {
-          handleStartNextRound();
-      }
-  }, [state.modalContent, state.modalQueue, handleStartNextRound]);
+  const handleShowEventLog = useCallback(() => {
+      soundService.playModalOpen();
+      dispatch({
+          type: 'SET_MODAL_CONTENT',
+          payload: {
+              type: 'event-log',
+              title: 'Event Log',
+          }
+      });
+  }, []);
 
-  const applyMutation = useCallback((tiles: Tile[]): Tile[] => {
-    if (gameState.activePowerPlays.mutationProtocol) {
-        return tiles.map(tile => {
-            if (tile && !tile.isSuper && Math.random() < 0.25) {
-                showMessage("✨ Super Tile Created! ✨", 1500);
-                soundService.playPowerUp();
-                return {
-                    ...tile,
-                    isSuper: true
-                };
-            }
-            return tile;
-        });
+    const resetRound = useCallback((currentGameState: GameState, currentHand: (Tile | null)[], currentBuildRow: ({tile: Tile, originalIndex: number} | null)[], currentTileBag: string[]) => {
+    const allTiles = [...currentHand.filter((t): t is Tile => t !== null), ...currentBuildRow.filter(i => i).map(item => item!.tile)];
+    let { hand: newHandTiles, tileBag: finalBag } = gameUtils.dealNewHand(currentTileBag, allTiles, currentGameState.roundType === 'golden');
+    
+    newHandTiles = applyMutation(newHandTiles, currentGameState.roundType === 'golden');
+
+    const paddedHand = Array(RACK_SIZE).fill(null);
+    newHandTiles.forEach((tile, i) => paddedHand[i] = tile);
+
+    const { newHand: finalHand, newBag: processedBag, balancingMessage } = gameUtils.postProcessHand(paddedHand, finalBag, currentGameState.roundType === 'golden');
+    if (balancingMessage) {
+        showMessage(balancingMessage, 1500);
     }
-    return tiles;
-  }, [gameState.activePowerPlays.mutationProtocol, showMessage]);
+
+    dispatch({ type: 'RESET_ROUND', payload: { hand: sanitizeHand(finalHand), tileBag: processedBag } });
+  }, [showMessage, applyMutation]);
+
+  const maxStrikes = useMemo(() => {
+    const strikeBankUses = gameState?.charmUses?.['strikeBank'] || 0;
+    if (strikeBankUses >= 2) return 5;
+    if (strikeBankUses >= 1) return 4;
+    return MAX_STRIKES_INITIAL;
+  }, [gameState?.charmUses]);
+
+  const isStrikeChallenge = useMemo(() => (gameState?.challengeCount ?? 0) <= 0, [gameState?.challengeCount]);
+  const strikesRemaining = useMemo(() => maxStrikes - (gameState?.strikes ?? 0), [maxStrikes, gameState?.strikes]);
+
+
+  const handleCloseModal = useCallback(() => {
+    soundService.playUIClick();
+    const lastModalType = state.modalContent?.type;
+    const lastModalTitle = state.modalContent?.title || '';
+
+    if (lastModalType === 'game-over-summary') {
+        onGameOver(state.gameState);
+        return;
+    }
+    
+    const wasLastInQueue = state.modalQueue.length === 0;
+
+    if (lastModalTitle === '❌ Strike Challenge Lost') {
+        dispatch({ type: 'CLOSE_MODAL' });
+        if (state.gameState.strikes < maxStrikes) {
+            // Not game over yet, so reset the round.
+            const allTiles = [...state.hand.filter((t): t is Tile => t !== null)];
+            resetRound(state.gameState, allTiles, [], state.tileBag);
+        }
+        // If it is game over, the main timer useEffect will catch it now that the modal is closed.
+        return;
+    }
+
+    if (lastModalTitle.includes('Groundhog’s Day')) {
+        dispatch({ type: 'RESTART_ROUND_GROUNDHOG' });
+        return;
+    }
+
+    if (lastModalTitle.includes('Deep Freeze')) {
+      dispatch({ type: 'ADD_TIME', payload: 5 });
+      dispatch({ type: 'CLOSE_MODAL' });
+      return;
+    }
+
+    dispatch({ type: 'CLOSE_MODAL' });
+
+    const postWordModals: (ModalContent['type'])[] = ['milestone', 'easter-egg', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info'];
+    if (wasLastInQueue && lastModalType && (postWordModals.includes(lastModalType) || lastModalTitle.includes('Sonic Speed')) && lastModalTitle !== '❌ Strike Challenge Lost') {
+        if (state.gameState.roundType === 'normal') {
+            handleStartNextRound();
+        }
+    }
+  }, [state.modalContent, state.modalQueue, state.gameState, handleStartNextRound, onGameOver, state.hand, state.tileBag, maxStrikes, resetRound]);
+
+
+  useEffect(() => {
+    if (modalContent?.autoClose) {
+        const timer = setTimeout(() => {
+            handleCloseModal();
+        }, modalContent.autoClose);
+        return () => clearTimeout(timer);
+    }
+  }, [modalContent, handleCloseModal]);
+
 
   const initialDeal = useCallback(() => {
     let bag = gameUtils.createTileBag();
@@ -1153,9 +2034,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveG
     const paddedHand = Array(RACK_SIZE).fill(null);
     newHand.forEach((tile, i) => paddedHand[i] = tile);
     
-    const { newHand: finalHand, newBag: finalBag } = gameUtils.postProcessHand(paddedHand, newBag, showMessage);
+    const { newHand: finalHand, newBag: finalBag, balancingMessage } = gameUtils.postProcessHand(paddedHand, newBag);
+    if (balancingMessage) {
+        showMessage(balancingMessage, 1500);
+    }
     
-    dispatch({ type: 'SET_HAND_AND_BAG', payload: { hand: finalHand, tileBag: finalBag } });
+    dispatch({ type: 'SET_HAND_AND_BAG', payload: { hand: sanitizeHand(finalHand), tileBag: finalBag } });
   }, [showMessage, applyMutation]);
 
   useEffect(() => {
@@ -1173,83 +2057,78 @@ const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveG
 
   useEffect(() => {
     // This effect is dedicated to notifying the parent about the time status.
-    const isLow = time > 0 && time <= 3 && !isPaused && !isLoading;
+    const isLow = (time ?? 0) > 0 && (time ?? 0) <= 3 && !isPaused && !isLoading;
     onTimeLow(isLow);
   }, [time, isPaused, isLoading, onTimeLow]);
 
-  const resetRound = useCallback((currentGameState: GameState, currentHand: (Tile | null)[], currentBuildRow: ({tile: Tile, originalIndex: number} | null)[], currentTileBag: string[]) => {
-    const allTiles = [...currentHand.filter((t): t is Tile => t !== null), ...currentBuildRow.filter(i => i).map(item => item!.tile)];
-    let { hand: newHandTiles, tileBag: finalBag } = gameUtils.dealNewHand(currentTileBag, allTiles);
-    
-    newHandTiles = applyMutation(newHandTiles);
-
-    const paddedHand = Array(RACK_SIZE).fill(null);
-    newHandTiles.forEach((tile, i) => paddedHand[i] = tile);
-
-    const { newHand: finalHand, newBag: processedBag } = gameUtils.postProcessHand(paddedHand, finalBag, showMessage);
-
-    dispatch({ type: 'RESET_ROUND', payload: { hand: finalHand, tileBag: processedBag } });
-  }, [showMessage, applyMutation]);
-  
-  const strikeBankUses = useMemo(() => gameState.charmUses['strikeBank'] || 0, [gameState.charmUses]);
-  const maxStrikes = useMemo(() => gameState.activeCharms.some(c => c.id === 'strikeBank') 
-    ? (strikeBankUses === 2 ? 5 : (strikeBankUses === 1 ? 4 : MAX_STRIKES_INITIAL)) 
-    : MAX_STRIKES_INITIAL, [gameState.activeCharms, strikeBankUses]);
-
   useEffect(() => {
-      // First, always check for game-ending strike condition.
-      if (gameState.strikes >= maxStrikes) {
-          onGameOver(gameState);
+    if (state.modalContent?.title === 'Sonic Speed Activated!') {
+      const timerId = setTimeout(() => {
+        if (state.modalContent?.title === 'Sonic Speed Activated!') {
+          dispatch({ type: 'CLOSE_MODAL' });
+        }
+      }, 2000);
+      return () => clearTimeout(timerId);
+    }
+  }, [state.modalContent, dispatch]);
+  
+  useEffect(() => {
+      // Apply guards for pause, load, or special rounds/power-ups that stop time.
+      if (isPaused || isLoading || gameState?.activePowerPlays?.leafOnTheWind || gameState?.roundType === 'golden') return;
+
+      // First, check for game-ending strike condition.
+      if ((gameState?.strikes ?? 0) >= maxStrikes) {
+          soundService.playInvalidWord();
+          dispatch({ type: 'GAME_OVER_INITIATED', payload: { reason: 'strikes' } });
           return;
       }
 
-      // Then, apply guards for pause, load, or special power-ups that stop time.
-      if (isPaused || isLoading || gameState.activePowerPlays.leafOnTheWind) return;
-
       // The rest of the timer logic runs only if time is not paused.
-      if (time <= 0) {
-          // Groundhog's Day Check FIRST
-          const groundhogCharm = gameState.activeCharms.find(c => c.id === 'groundhogsDay');
-          if (groundhogCharm && gameState.wordsThisRound === 0 && (gameState.charmUses['groundhogsDay'] || 0) < (groundhogCharm.maxUses || 1)) {
+      if ((time ?? 0) <= 0) {
+          
+          // Deep Freeze Check FIRST
+          const deepFreezeCharm = (gameState?.activeCharms ?? []).find(c => c.id === 'deepFreeze');
+          if (deepFreezeCharm && ((gameState?.charmUses?.['deepFreeze'] ?? 0) < (deepFreezeCharm.maxUses || 1))) {
               dispatch({ type: 'PAUSE_GAME' });
-              const newCharmUses = { ...gameState.charmUses, 'groundhogsDay': (gameState.charmUses['groundhogsDay'] || 0) + 1 };
+              const newCharmUses = { ...(gameState?.charmUses ?? {}), 'deepFreeze': (gameState?.charmUses?.['deepFreeze'] || 0) + 1 };
               dispatch({ 
                   type: 'UPDATE_GAME_STATE', 
                   payload: { 
                       charmUses: newCharmUses, 
-                      activeBuffs: gameState.activeBuffs.filter(b => b.id !== 'groundhogsDay'),
-                      activeCharms: gameState.activeCharms.filter(c => c.id !== 'groundhogsDay') 
+                      activeBuffs: (gameState?.activeBuffs ?? []).filter(b => b.id !== 'deepFreeze'),
+                      activeCharms: (gameState?.activeCharms ?? []).filter(c => c.id !== 'deepFreeze') 
                   }
               });
-              dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'info', title: '🔄 Groundhog’s Day! 🔄', content: 'Same tiles. Same time. You get one more shot.' }});
+              dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'info', title: '❄️ Deep Freeze! ❄️', content: 'Time has frozen for a moment. You have 5 seconds left. Make it count!' }});
               soundService.playMilestone();
               return;
           }
 
-          // Deep Freeze Check SECOND
-          const deepFreezeCharm = gameState.activeCharms.find(c => c.id === 'deepFreeze');
-          if (deepFreezeCharm && (gameState.charmUses['deepFreeze'] || 0) < (deepFreezeCharm.maxUses || 1)) {
+          // Groundhog's Day Check SECOND
+          if ((gameState?.groundhogDayCharges ?? 0) > 0 && (gameState?.wordsThisRound ?? 0) === 0) {
               dispatch({ type: 'PAUSE_GAME' });
-              const newCharmUses = { ...gameState.charmUses, 'deepFreeze': (gameState.charmUses['deepFreeze'] || 0) + 1 };
-              dispatch({ 
-                  type: 'UPDATE_GAME_STATE', 
-                  payload: { 
-                      charmUses: newCharmUses, 
-                      activeBuffs: gameState.activeBuffs.filter(b => b.id !== 'deepFreeze'),
-                      activeCharms: gameState.activeCharms.filter(c => c.id !== 'deepFreeze') 
-                  }
-              });
-              dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'info', title: '❄️ Deep Freeze! ❄️', content: 'Time has frozen for a moment. You have 2 seconds left. Make it count!' }});
+              
+              const newCharges = gameState.groundhogDayCharges - 1;
+              let payload: Partial<GameState> = { groundhogDayCharges: newCharges };
+              
+              if (newCharges === 0) {
+                  payload.activeBuffs = (gameState.activeBuffs || []).filter(b => b.id !== 'groundhogsDay');
+                  payload.activeCharms = (gameState.activeCharms || []).filter(c => c.id !== 'groundhogsDay');
+              }
+
+              dispatch({ type: 'UPDATE_GAME_STATE', payload });
+
+              dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'info', title: '🔄 Groundhog’s Day! 🔄', content: 'Same tiles. Same time. You get one more shot.' }});
               soundService.playMilestone();
               return;
           }
           
           soundService.playInvalidWord();
-          onGameOver(gameState);
+          dispatch({ type: 'GAME_OVER_INITIATED', payload: { reason: 'time' } });
           return;
       }
       
-      if (time > 0 && time <= 10) {
+      if ((time ?? 0) > 0 && (time ?? 0) <= 10) {
         soundService.playTick();
       }
 
@@ -1261,14 +2140,20 @@ const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveG
   }, [gameState, time, onGameOver, isPaused, isLoading, showMessage, maxStrikes]);
   
   useEffect(() => {
-    if (gameState.lastPowerPlayResult) {
+    if (gameState?.lastPowerPlayResult) {
         showMessage(gameState.lastPowerPlayResult.message, 3000);
         dispatch({ type: 'UPDATE_GAME_STATE', payload: { lastPowerPlayResult: null } });
     }
-  }, [gameState.lastPowerPlayResult, showMessage]);
+  }, [gameState?.lastPowerPlayResult, showMessage]);
 
    const handleMoveToBuild = (tile: Tile, fromIndex: number) => {
-    if (isChallengeLock || buildRow.filter(t => t).length >= BUILD_ROW_SIZE) return;
+    if (tile.isLocked || isChallengeLock || (buildRow?.filter(t => t).length ?? 0) >= BUILD_ROW_SIZE) return;
+    
+    if (gameState?.activePowerPlays?.['wordLock'] && (buildRow?.filter(t => t).length ?? 0) >= 5) {
+        showMessage("Word Lock allows a max of 5 tiles.", 2000);
+        return;
+    }
+
     soundService.playTileClick();
     dispatch({ type: 'MOVE_TILE_TO_BUILD', payload: { tile, fromIndex } });
   };
@@ -1279,81 +2164,1001 @@ const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveG
     dispatch({ type: 'RETURN_TILE_TO_HAND', payload: { fromBuildIndex } });
   };
   
-  const handleShuffle = (isFree = false) => {
-    if((!isFree && gameState.shuffleCount <= 0) || isPaused || isChallengeLock) return;
+  const handleShuffle = (isFree = false, isFromChallengeWin = false) => {
+    if((!isFree && (gameState?.shuffleCount ?? 0) <= 0) || isPaused || isChallengeLock || isLoading || gameState?.roundType === 'golden') return;
+
+
     soundService.playShuffle();
-    
+
+    const allTilesInPlay = [...(hand ?? []), ...(buildRow ?? []).map(item => item?.tile)].filter((t): t is Tile => t != null);
+    if (allTilesInPlay.some(tile => tile && tile.tempPoints === 25)) {
+        showMessage("👑 'One Tile' effect lost on shuffle.", 2000);
+    }
+
     if (!isFree) {
-        if (gameState.powerSurgeProgress === 3 || gameState.powerSurgeProgress === 4) {
+        if ((gameState?.powerSurgeProgress ?? 0) === 3 || (gameState?.powerSurgeProgress ?? 0) === 4) {
             soundService.playComboDrop();
             showMessage("Combo Lost! Don't worry, even Jack couldn’t fix this one.", 3000);
-        } else if (gameState.powerSurgeProgress > 0) {
+        } else if ((gameState?.powerSurgeProgress ?? 0) > 0) {
             soundService.playComboDrop();
             showMessage('😵 Combo Dropped!', 2500);
         }
     }
 
-    const tilesToReturn = [...hand, ...buildRow.map(item => item?.tile)].filter((t): t is Tile => t != null);
-    let { hand: newHandTiles, tileBag: newBagForShuffle } = gameUtils.dealNewHand(tileBag, tilesToReturn);
+    const tilesToReturn = [...(hand ?? []), ...(buildRow ?? []).map(item => item?.tile)].filter((t): t is Tile => t != null);
+    let { hand: newHandTiles, tileBag: newBagForShuffle } = gameUtils.dealNewHand(tileBag, tilesToReturn, gameState?.roundType === 'golden');
     
-    newHandTiles = applyMutation(newHandTiles);
+    newHandTiles = applyMutation(newHandTiles, gameState?.roundType === 'golden');
 
     const paddedHand = Array(RACK_SIZE).fill(null);
     newHandTiles.forEach((tile, i) => { 
         if (i < RACK_SIZE) paddedHand[i] = tile;
     });
 
-    const { newHand: finalHand, newBag: finalBag } = gameUtils.postProcessHand(paddedHand, newBagForShuffle, showMessage);
+    const { newHand: finalHand, newBag: finalBag, balancingMessage } = gameUtils.postProcessHand(paddedHand, newBagForShuffle, gameState?.roundType === 'golden');
+    if (balancingMessage) {
+        showMessage(balancingMessage, 1500);
+    }
     
     dispatch({ 
         type: 'PERFORM_SHUFFLE', 
         payload: { 
-            hand: finalHand, 
+            hand: sanitizeHand(finalHand), 
             tileBag: finalBag,
-            isFree: isFree
+            isFree: isFree,
+            isFromChallengeWin: isFromChallengeWin,
         } 
     });
   };
-  
-   const handleSubmit = async () => {
-    const word = buildRow.filter(i => i).map(item => item!.tile.letter).join('');
-    if(word.length < gameState.gameConfig.minWordLength || isLoading || isPaused) return;
 
-    if (isChallengeLock) {
-        soundService.playValidWord();
-        
-        let strikeLost = false;
-        let newState = { ...gameState, challengeActive: false, consecutiveSuccesses: 0 };
-        
-        // This was a failed Strike Challenge if challenge count was 0
-        if (gameState.challengeCount <= 0) {
-            dispatch({ type: 'ADD_STRIKE', payload: {source: 'challenge'} });
-            strikeLost = true;
+  const completeSubmission = useCallback(async (
+    word: string, 
+    submittedTiles: Tile[],
+    finalWordScore: number, 
+    rawBaseScoreParam: number,
+    baseBonuses: ScoreBonusInfo[],
+    validationDef: string,
+    wordLockActive: boolean,
+    infoMessage?: string
+    ) => {
+      dispatch({ type: 'STORE_LAST_TURN' });
+      let newState = { ...gameState };
+      const willTriggerGoldenRound = (newState.consecutiveValidWords + 1) >= newState.goldenRoundThreshold && newState.roundType === 'normal';
+      let rawBaseScore = rawBaseScoreParam;
+      const now = Date.now();
+      const modalQueue: ModalContent[] = [];
+      if (infoMessage) {
+        modalQueue.push({ type: 'info', title: 'PowerPlay Result', content: infoMessage, autoClose: 2500 });
+      }
+      const eventLogQueue: EventLogEntry[] = [];
+      const oldScore = newState.score;
+      const totalWordsSubmitted = totalWords + 1;
+      const WORD_OVERRIDE_EGG_IDS = new Set(['sex', 'poop', 'kermitWisdom', 'homersDelight', 'dundieAward', 'dangerousAlone', 'totallyBuggin', 'loveBonus', 'timeBonus', 'dieBonus', 'gunBonus', 'joyBonus', 'chandlerBing', 'deadPoetsSociety', 'terminator', 'spiderman', 'nerd', 'flashsFrenzy', 'lionKingsLegacy', 'starshipEnterprise', 'popIdolAudition', 'hogwartsHousePoints', 'bluePillBonus', 'slimShadySnap', 'spaceJamSlam', 'oneUp', 'jamesBond', 'pinkPonyClub', 'flexAppeal', 'getOffMyPlane', 'sixpenceSwoon', 'heroOfHyrule']);
+      let scoreResult: ScoreCalculationResult = { totalScore: finalWordScore, baseScore: rawBaseScoreParam, bonuses: [...baseBonuses] };
+
+      // --- A: GOLDEN ROUND SUBMISSION ---
+        if (newState.roundType === 'golden') {
+            scoreResult = gameUtils.calculateScore(word, submittedTiles, newState);
+            const turnScore = scoreResult.totalScore;
+            
+            newState.score += turnScore;
+            
+            const wordLogEntry: WordLogEntry = { 
+                type: 'word', word, score: turnScore, baseScore: scoreResult.baseScore, bonuses: scoreResult.bonuses,
+                definition: validationDef, status: 'valid', cumulativeScore: newState.score
+            };
+            newState.log = [...newState.log, wordLogEntry];
+            
+            newState.roundType = 'normal';
+            newState.goldenRoundThreshold += 5;
+            newState.goldenTileId = null;
+            newState.consecutiveValidWords = 0; // Reset streak after successful Golden Round
+
+            showMessage(`Golden Word: ${word.toUpperCase()}! +${turnScore}. Hand reshuffled!`, 3000);
+            
+            // Perform a full shuffle after the Golden Round. The next round is normal.
+            const allTilesFromHand = (hand ?? []).filter((t): t is Tile => t !== null);
+            let { hand: newHandTiles, tileBag: finalBag } = gameUtils.dealNewHand(tileBag, allTilesFromHand, false);
+            newHandTiles = applyMutation(newHandTiles, false);
+            const paddedHand = Array(RACK_SIZE).fill(null);
+            newHandTiles.forEach((tile, i) => paddedHand[i] = tile);
+            const { newHand: finalHand, newBag: processedBag, balancingMessage } = gameUtils.postProcessHand(paddedHand, finalBag, false);
+            if (balancingMessage) {
+                showMessage(balancingMessage, 1500);
+            }
+
+            // Dispatch success with the new shuffled hand.
+            dispatch({ type: 'HANDLE_SUBMIT_SUCCESS', payload: { gameState: newState, hand: sanitizeHand(finalHand), tileBag: processedBag, modalQueue } });
+            dispatch({ type: 'SET_IS_LOADING', payload: false });
+            
+            if (modalQueue.length === 0) {
+                // If there are no other modals, reset the timer for the new hand.
+                dispatch({ type: 'RESET_ROUND', payload: { hand: sanitizeHand(finalHand), tileBag: processedBag } });
+            }
+            return;
         }
 
-        const message = strikeLost 
-            ? `Forced to play ${word.toUpperCase()}. Lost 1 Strike.`
-            : `Forced to play ${word.toUpperCase()}. Challenge consumed.`;
+      // --- B: NORMAL ROUND SUBMISSION ---
+      
+      const wordBasedEgg = EASTER_EGGS.find(egg => 
+          WORD_OVERRIDE_EGG_IDS.has(egg.id) && 
+          !newState.foundEasterEggs.some(fe => fe.id === egg.id) &&
+          egg.trigger(word, 0, newState)
+      );
+      
+      if (word.length >= 5 && !wordBasedEgg && !isChallengeLock) {
+          if (typeof (window as any).showToast === 'function') {
+              (window as any).showToast("5+ Letter Bonus! (x2 Score)");
+          }
+      }
+      
+      // --- Heisenberg PowerPlay ---
+      if (newState.activePowerPlays.heisenberg) {
+        const isWin = Math.random() < 0.5;
+        let modalContent = '';
+        if (isWin) {
+            scoreResult.totalScore *= 3;
+            scoreResult.bonuses.push({ name: 'Heisenberg (Win)', description: 'x3 Score' });
+            modalContent = "You are the one who knocks! Triple score!";
+        } else {
+            scoreResult.totalScore = 0;
+            scoreResult.bonuses = [{ name: 'Heisenberg (Loss)', description: 'Score x0' }]; // Overwrite bonuses
+            modalContent = "You broke bad. Your score for this word is zero.";
+        }
+        modalQueue.push({ type: 'info', title: '⚗️ Heisenberg', content: modalContent, autoClose: 2500 });
+      }
+
+      // --- 2. WORD COMBO LOGIC ---
+      if (newState.powerSurgeProgress === 4) { // This is the 5th word in the streak.
+          scoreResult.totalScore *= 2;
+          scoreResult.bonuses.push({ name: "⚡ 5-Word Combo!", description: "x2 Score"});
+          newState.powerSurgeProgress = 0;
+      } else {
+          newState.powerSurgeProgress++;
+      }
+
+      // --- 3. WORD-BASED EASTER EGG OVERRIDE ---
+      if (wordBasedEgg) {
+          const eggScore = wordBasedEgg.reward.points || 0;
+          scoreResult.totalScore = eggScore;
+          rawBaseScore = 0; // Base score is nullified by the Easter Egg override
+          newState.foundEasterEggs = [...newState.foundEasterEggs, wordBasedEgg];
+          modalQueue.push({ type: 'easter-egg', title: wordBasedEgg.name, content: wordBasedEgg.reward.message, data: wordBasedEgg });
+          // Overwrite bonuses to show the Easter Egg as the primary source of points in the log
+          scoreResult.bonuses = [{ name: wordBasedEgg.name, description: `+${eggScore} pts` }];
+      }
+      
+      // --- 4. STATEFUL & RANDOM BONUSES on top of word score ---
+      
+      let runningScore = oldScore;
+      
+      // Power Word Bonus
+      if (powerWord && word.toUpperCase() === powerWord.toUpperCase() && !newState.powerWordUsed) {
+          newState.powerWordUsed = true; // Mark as used for this run
+          const powerWordBonus = 500;
+          scoreResult.totalScore += powerWordBonus;
+          scoreResult.bonuses.push({ name: "Power Word!", description: `+${powerWordBonus} pts`});
+          const tempRunningScore = runningScore + scoreResult.totalScore;
+          eventLogQueue.push({ 
+              type: 'event', 
+              id: `power-word-${Date.now()}`, 
+              name: 'Power Word Bonus!', 
+              icon: '💥', 
+              description: `You played your daily Power Word: ${powerWord.toUpperCase()}`, 
+              scoreChange: powerWordBonus, 
+              cumulativeScore: tempRunningScore
+          });
+          modalQueue.push({ type: 'info', title: '💥 Power Word!', content: `You played your daily Power Word for a +500 point bonus!`, autoClose: 2500 });
+      }
+      
+      // Duck Hunt Bonus
+      if (newState.activePowerPlays.duckHunt?.ready && word.toUpperCase().includes(newState.activePowerPlays.duckHunt.letter)) {
+          const duckHuntBonus = 50;
+          scoreResult.totalScore += duckHuntBonus;
+          scoreResult.bonuses.push({ name: 'Duck Hunt', description: `+${duckHuntBonus} pts`});
+          const tempRunningScore = runningScore + scoreResult.totalScore;
+          eventLogQueue.push({ 
+              type: 'event', 
+              id: `pp-duckHunt-${Date.now()}`, 
+              name: 'Duck Hunt', 
+              icon: '🦆', 
+              description: `Bonus for using the sniped letter '${newState.activePowerPlays.duckHunt.letter}'`, 
+              scoreChange: duckHuntBonus, 
+              cumulativeScore: tempRunningScore
+          });
+          showMessage(`🦆 Duck Hunt! +50 point bonus!`, 2500);
+      }
+
+      const originalWordScore = scoreResult.totalScore;
+      if (newState.activeCharms.some(c => c.id === 'goldenTicket') && Math.random() <= 0.10) {
+        scoreResult.totalScore *= 3;
+        scoreResult.bonuses.push({ name: 'Golden Ticket!', description: "Golden Ticket! x3 Score"});
+        modalQueue.push({ type: 'info', title: '🎟️ Golden Ticket!', content: 'You found it! Your score is tripled!' });
+      }
+      if (newState.activePowerPlays['philsosophy']) {
+          const rand = Math.random();
+          if(rand < 0.20) { 
+              scoreResult.totalScore += 50; 
+              scoreResult.bonuses.push({ name: "Phil's-osophy", description: "+50 pts"}); 
+              modalQueue.push({ type: 'info', title: "🎲 Phil's-osophy", content: "Life's a coin flip. This time, it came up heads. +50 points." });
+          } else if (rand < 0.30) { 
+              scoreResult.totalScore -= 10; 
+              scoreResult.bonuses.push({ name: "Phil's-osophy", description: "-10 pts"}); 
+              modalQueue.push({ type: 'info', title: "🎲 Phil's-osophy", content: "Life's a coin flip. This time, not so good. -10 points." });
+          }
+      }
+
+      // Check Blue Shell Surprise
+      if (newState.activePowerPlays['blueShellSurprise']) {
+          const isWin = Math.random() < 0.5;
+          let modalContent = '';
+          if (isWin) {
+              const bonus = scoreResult.totalScore * 3;
+              scoreResult.totalScore *= 4;
+              scoreResult.bonuses.push({ name: 'Blue Shell (Win)', description: 'x4 Word Score' });
+              modalContent = `It's a direct hit! Your word score was quadrupled! (+${Math.round(bonus)} points)`;
+          } else {
+              scoreResult.totalScore -= 400;
+              scoreResult.bonuses.push({ name: 'Blue Shell (Loss)', description: '-400 pts' });
+              modalContent = `Oh no, it backfired! You lost 400 points from this turn's score.`;
+          }
+          modalQueue.push({ type: 'info', title: 'Blue Shell Surprise', content: modalContent, autoClose: 2500 });
+      }
+
+
+      const isSecondSubmission = newState.log.filter(e => e.type === 'word' && e.word === word).length > 0;
+      if (newState.activeCharms.some(c => c.id === 'doctorStrangesLoop') && isSecondSubmission) {
+          scoreResult.totalScore *= 2;
+          scoreResult.bonuses.push({ name: "Dr. Strange's Loop", description: "Dr. Strange's Loop: x2 Score"});
+          showMessage("🌀 Dr. Strange's Loop! Word replayed for x2 score.", 3000);
+      }
+      const timeSinceLast = now - newState.lastSubmissionTime;
+      if (newState.activeCharms.some(c => c.id === 'momentum') && timeSinceLast < 10000 && newState.consecutiveSuccesses > 0) {
+          scoreResult.totalScore += 20;
+          scoreResult.bonuses.push({ name: "Momentum", description: "Momentum: +20 pts"});
+          showMessage("💨 Momentum! +20 bonus points.", 2000);
+      }
+      const scoreBeforeEncore = scoreResult.totalScore;
+      
+      // Nicole's Grace Check
+      if (newState.activeCharms.some(c => c.id === 'nicolesGrace')) {
+          const endsInVowel = VOWELS.has(word.toUpperCase().slice(-1));
+          if (word.toUpperCase().includes('M') || endsInVowel) {
+              const bonus = Math.round(scoreResult.totalScore * 0.15);
+              scoreResult.totalScore += bonus;
+              scoreResult.bonuses.push({ name: "Nicole's Grace", description: `+${bonus} pts (15%)` });
+          }
+      }
+
+      if (newState.pianoManEncoreActive) {
+          const bonus = Math.round(scoreResult.totalScore * 0.15);
+          scoreResult.totalScore += bonus;
+          scoreResult.bonuses.push({ name: "Piano Man Encore", description: `Piano Man Encore: +${bonus} pts`});
+          showMessage(`🎹 Piano Man Encore! +${bonus} bonus points.`, 2000);
+      }
+      if (newState.activeCharms.some(c => c.id === 'christiansHoodieMode')) {
+          if (timeSinceLast < 10000 && /[GAM]/.test(word.toUpperCase())) {
+              const bonus = Math.round(scoreResult.totalScore * 0.15);
+              scoreResult.totalScore += bonus;
+              scoreResult.bonuses.push({ name: "Christian’s Hoodie Mode", description: `+${bonus} pts (15%)`});
+              showMessage(`🎮 Hoodie Mode! +${bonus} bonus points.`, 2000);
+          }
+      }
+
+      if (newState.activePowerPlays.multiverseOfSadness) {
+          const timeBonus = Math.round(scoreResult.totalScore / 2);
+          scoreResult.totalScore = Math.floor(scoreResult.totalScore / 2);
+          newState.multiverseTimeBonus = timeBonus;
+          scoreResult.bonuses.push({ name: "Multiverse of Sadness", description: `Multiverse: /2 Score, +${timeBonus}s next round`});
+          showMessage(`🌀 Multiverse: +${timeBonus}s next round!`, 3000);
+      }
+
+      // Charm Bonuses that add on top
+      const currentHour = new Date().getHours();
+      if (newState.activeCharms.some(c => c.id === 'buffyBonus') && (currentHour >= 20 || currentHour < 8)) {
+        const bonus = Math.round(scoreResult.totalScore * 0.15);
+        scoreResult.totalScore += bonus;
+        scoreResult.bonuses.push({ name: 'Buffy Bonus', description: `+${bonus} (15%)` });
+      }
+      if (newState.activeCharms.some(c => c.id === 'totallyClueless') && originalWordScore < 10) {
+        scoreResult.totalScore += 25;
+        scoreResult.bonuses.push({ name: 'Totally Clueless', description: `+${25} pts` });
+      }
+
+      // --- PERFECT 4-CHAIN LOGIC ---
+      if (word.length === 4) {
+          newState.perfectChainProgress++;
+          const chainBonus = newState.perfectChainProgress * 20;
+          scoreResult.totalScore += chainBonus;
+          scoreResult.bonuses.push({ name: `4-Letter Chain! (x${newState.perfectChainProgress})`, description: `+${chainBonus} pts` });
+
+          if (newState.perfectChainProgress === 4) {
+              const perfectChainBonus = 444;
+              scoreResult.totalScore += perfectChainBonus;
+              scoreResult.bonuses.push({ name: 'Perfect 4-Chain!', description: `+${perfectChainBonus} pts` });
+              
+              soundService.playNESFanfare();
+              const mainContainer = document.getElementById('main-container');
+              if (mainContainer) {
+                  mainContainer.classList.add('screen-shake');
+                  setTimeout(() => mainContainer.classList.remove('screen-shake'), 500);
+              }
+
+              modalQueue.push({
+                  type: 'info',
+                  title: '⛓️ PERFECT 4-CHAIN! ⛓️',
+                  content: `Four 4-letter words in a row! That's some serious skill! You've earned a massive 444 point bonus!`,
+                  autoClose: 4000,
+              });
+
+              newState.perfectChainProgress = 0; // Reset for the next chain
+          }
+      } else {
+          if (newState.perfectChainProgress > 0) {
+              newState.perfectChainProgress = 0;
+          }
+      }
+      
+      // Clever Girl check
+      if (newState.activeCharms.some(c => c.id === 'cleverGirl')) {
+        const raptorLetters = new Set(['R', 'A', 'P', 'T', 'O']);
+        const uniqueLettersInWord = new Set(word.toUpperCase().split(''));
+        const matchingLetters = [...uniqueLettersInWord].filter(letter => raptorLetters.has(letter));
+        if (matchingLetters.length >= 3) {
+            newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + 5;
+            showMessage("🦖 Clever Girl! +5s next round.", 2500);
+        }
+      }
+      
+      // Execute Order 66 check
+      if (newState.activeCharms.some(c => c.id === 'executeOrder66')) {
+        const hasDoubleLetter = /(.)\1/i.test(word);
+        if (hasDoubleLetter) {
+          newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + 6;
+          showMessage("🛰️ Execute Order 66! +6s next round.", 2500);
+        }
+      }
+      
+      // --- 5. GAME STATE BONUSES (Refactored) ---
+      runningScore += scoreResult.totalScore;
+
+      const isSuperHand = ((hand ?? []).filter(t => t !== null).length === 0);
+      if (isSuperHand) {
+          const superHandBonus = SUPER_HAND_BONUS;
+          runningScore += superHandBonus;
+          scoreResult.bonuses.push({ name: "Super Hand", description: `+${superHandBonus} pts`});
+          eventLogQueue.push({ type: 'event', id: `super-hand-${Date.now()}`, name: 'Super Hand!', icon: '✨', description: 'Cleared the entire hand in one word!', scoreChange: superHandBonus, cumulativeScore: runningScore });
+          
+          let gauntletBonus = 0;
+          if (newState.activeCharms.some(c => c.id === 'infinityGauntlet')) {
+              gauntletBonus = 75;
+              runningScore += gauntletBonus;
+              scoreResult.bonuses.push({ name: "Infinity Gauntlet", description: `+${gauntletBonus} pts`});
+              eventLogQueue.push({ type: 'event', id: `gauntlet-${Date.now()}`, name: 'Infinity Gauntlet!', icon: '🧤', description: 'Super Hand bonus was enhanced!', scoreChange: gauntletBonus, cumulativeScore: runningScore });
+          }
+          const superHandText = `You've assembled the perfect hand. Consider it a snap. +${SUPER_HAND_BONUS}`;
+          modalQueue.push({ type: 'super-hand', title: '✨ SUPER HAND! ✨', content: superHandText, data: { points: superHandBonus, gauntletBonus } });
+      }
+
+      if (word.length === 8) {
+          const niceRackBonus = 555;
+          runningScore += niceRackBonus;
+          scoreResult.bonuses.push({ name: "Whoa, Nice Rack!", description: `+${niceRackBonus} pts`});
+          modalQueue.push({ 
+              type: 'info', 
+              title: '😈 "WHOA, NICE RACK!" 😜', 
+              content: "Hot dang, you slapped down an 8-letter word that’s turning heads! That full rack’s so loaded, it’s practically bursting—giggity giggity GOO! You’re strutting that word board with a wink and a grin, you sly dog, you.\n\n+555 bonus points! Ohhh yeah!" 
+          });
+      }
+
+      if (newState.activeCharms.some(c => c.id === 'fluxCapacitor') && (totalWordsSubmitted) % 8 === 0) {
+          const bonus = Math.round((scoreResult.totalScore) * 0.55); // Recalculate based on word score only
+          runningScore += bonus;
+          scoreResult.bonuses.push({ name: "Flux Capacitor", description: `+${bonus} pts`});
+          showMessage(`🕰️ Flux Capacitor! +${bonus} bonus points.`, 2500);
+      }
+      if (newState.activeCharms.some(c => c.id === 'thrillerNight') && (totalWordsSubmitted) % 4 === 0) {
+        const thrillerBonus = 30;
+        runningScore += thrillerBonus;
+        scoreResult.bonuses.push({ name: 'Thriller Night', description: `+${thrillerBonus} pts` });
+        showMessage("🧟 Thriller Night! +30 points.", 3000);
+      }
+      
+      // --- STREAK BONUSES ---
+      newState.consecutiveSuccesses++;
+      newState.longestStreak = Math.max(newState.longestStreak, newState.consecutiveSuccesses);
+      let shouldResetStreak = false;
+
+      // Glitch in the Code check
+      if (newState.activeCharms.some(c => c.id === 'glitchInTheCode')) {
+          if (newState.consecutiveSuccesses >= 6) {
+              newState.glitchActive = true;
+              shouldResetStreak = true;
+              showMessage("🤖 Glitch in the Code! +5s next round.", 3000);
+          }
+      }
+      
+      // Golden Snitch check
+      const snitchCharmActive = newState.activeCharms.some(c => c.id === 'goldenSnitch');
+      if (snitchCharmActive && newState.consecutiveSuccesses >= 5) {
+          const snitchBonus = 500;
+          runningScore += snitchBonus;
+          scoreResult.bonuses.push({ name: "Golden Snitch", description: `+${snitchBonus} pts`});
+          shouldResetStreak = true;
+          modalQueue.push({ type: 'info', title: '🕊️ Golden Snitch Caught!', content: '5 words in a row! You earned a massive 500 point bonus!' });
+          newState.activeCharms = newState.activeCharms.filter(c => c.id !== 'goldenSnitch');
+          newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'goldenSnitch');
+      }
+
+      if (shouldResetStreak) {
+          newState.consecutiveSuccesses = 0;
+      }
+
+      // --- DUCK HUNT COMBO and DR MARIO CURE ---
+      if (newState.activeCharms.some(c => c.id === 'duckHuntCombo')) {
+          const currentWordLetters = new Set(word.toUpperCase().split(''));
+          if (newState.duckHuntComboState.streakCount === 0) {
+              newState.duckHuntComboState = { streakLetters: currentWordLetters, streakCount: 1 };
+          } else {
+              const intersection = new Set([...newState.duckHuntComboState.streakLetters!].filter(x => currentWordLetters.has(x)));
+              if (intersection.size > 0) {
+                  newState.duckHuntComboState.streakLetters = intersection;
+                  newState.duckHuntComboState.streakCount++;
+              } else {
+                  newState.duckHuntComboState = { streakLetters: currentWordLetters, streakCount: 1 };
+              }
+          }
+
+          if (newState.duckHuntComboState.streakCount >= 3) {
+              const duckHuntBonus = 350;
+              runningScore += duckHuntBonus;
+              scoreResult.bonuses.push({ name: 'Duck Hunt Combo', description: `+${duckHuntBonus} pts` });
+              modalQueue.push({ type: 'info', title: '🎯 Duck Hunt Combo!', content: 'You used the same letter in 3 straight words! +350 points.' });
+              newState.duckHuntComboState = { streakLetters: null, streakCount: 0 };
+          }
+      }
+      if (newState.activeCharms.some(c => c.id === 'drMariosCure')) {
+          const hasMultiplierTile = submittedTiles.some(t => (t.multiplier && t.multiplier > 1) || t.isSuper);
+          if (hasMultiplierTile) {
+              newState.drMarioCureStreak = 0;
+          } else {
+              newState.drMarioCureStreak++;
+          }
+
+          if (newState.drMarioCureStreak >= 3) {
+              const drMarioBonus = 100;
+              runningScore += drMarioBonus;
+              scoreResult.bonuses.push({ name: 'Dr. Mario’s Cure', description: `+${drMarioBonus} pts` });
+              modalQueue.push({ type: 'info', title: '💊 Dr. Mario’s Cure!', content: '3 clean words in a row! +100 bonus points.' });
+              newState.drMarioCureStreak = 0;
+          }
+      }
+
+      // --- 6. Aggregate Score and Check Aggregate Bonuses ---
+      const turnScorePreMilestone = runningScore - oldScore;
+
+      // Word Bonuses
+      const newWordBonus = WORD_BONUSES.find(wb => 
+          totalWordsSubmitted === wb.wordCount && 
+          !newState.unlockedWordBonusIds.includes(wb.id)
+      );
+      if (newWordBonus) {
+          runningScore += newWordBonus.reward.points;
+          newState.unlockedWordBonusIds = [...newState.unlockedWordBonusIds, newWordBonus.id];
+          scoreResult.bonuses.push({ name: newWordBonus.title, description: `+${newWordBonus.reward.points} pts` });
+          modalQueue.push({ type: 'word-bonus', title: newWordBonus.title, content: newWordBonus.description, data: newWordBonus });
+          eventLogQueue.push({ type: 'event', id: `wb-${newWordBonus.id}`, name: newWordBonus.title, icon: '🏆', description: newWordBonus.description, scoreChange: newWordBonus.reward.points, cumulativeScore: runningScore });
+      }
+
+      // Milestone Bonuses (iteratively to handle cascades)
+      let newMilestonesFound = true;
+      const sortedMilestones = [...MILESTONES_LIST].sort((a, b) => a.scoreThreshold - b.scoreThreshold);
+      while (newMilestonesFound) {
+          newMilestonesFound = false;
+          for (const milestone of sortedMilestones) {
+              if (runningScore >= milestone.scoreThreshold && !newState.unlockedMilestoneIds.includes(milestone.id)) {
+                  soundService.playMilestone();
+                  newState.gameConfig = { ...newState.gameConfig, ...milestone.configChange };
+                  if (milestone.reward.points) {
+                      runningScore += milestone.reward.points;
+                      scoreResult.bonuses.push({ name: milestone.name, description: `+${milestone.reward.points} pts` });
+                      eventLogQueue.push({ type: 'event', id: `ms-${milestone.id}`, name: milestone.name, icon: milestone.icon, description: milestone.flavorText, scoreChange: milestone.reward.points, cumulativeScore: runningScore });
+                  }
+                  newState.unlockedMilestoneIds.push(milestone.id);
+                  modalQueue.push({ type: 'milestone', title: 'Milestone Reached!', data: milestone, content: `You've unlocked ${milestone.name}!` });
+                  newMilestonesFound = true; // A milestone was found, re-iterate from the start
+                  break; 
+              }
+          }
+      }
+
+      // Score-based Easter Egg Check
+      for (const egg of EASTER_EGGS) {
+          if (WORD_OVERRIDE_EGG_IDS.has(egg.id) || newState.foundEasterEggs.some(fe => fe.id === egg.id)) continue;
+          if (egg.trigger(word, runningScore, newState)) {
+              newState.foundEasterEggs = [...newState.foundEasterEggs, egg];
+              let eggScoreChange = 0;
+              if (egg.reward.points) {
+                  runningScore += egg.reward.points;
+                  eggScoreChange = egg.reward.points;
+                  scoreResult.bonuses.push({ name: egg.name, description: `+${egg.reward.points} pts` });
+              }
+              if (egg.reward.shuffle) newState.shuffleCount += egg.reward.shuffle;
+              modalQueue.push({ type: 'easter-egg', title: egg.name, content: egg.reward.message, data: egg });
+              const eggIcon = egg.name.split(' ')[0];
+              eventLogQueue.push({ type: 'event', id: `egg-${egg.id}`, name: egg.name, icon: eggIcon, description: egg.reward.message, scoreChange: eggScoreChange, cumulativeScore: runningScore });
+          }
+      }
+
+      // Bean Counter Check
+      if (newState.activeCharms.some(c => c.id === 'beanCounter')) {
+          const oldMultiple = Math.floor(oldScore / 500);
+          const newMultiple = Math.floor(runningScore / 500);
+          if (newMultiple > oldMultiple) {
+              const beanCounterBonus = (newMultiple - oldMultiple) * 50;
+              runningScore += beanCounterBonus;
+              scoreResult.bonuses.push({ name: "Bean Counter", description: `+${beanCounterBonus} pts`});
+              eventLogQueue.push({ type: 'event', id: `charm-beanCounter-${Date.now()}`, name: 'Bean Counter', icon: '🫘', description: `Total score hit a multiple of 500!`, scoreChange: beanCounterBonus, cumulativeScore: runningScore });
+              showMessage(`🫘 Bean Counter! +${beanCounterBonus} points.`, 3000);
+          }
+      }
+
+      // The Final Frontier Check
+      const finalFrontierCharm = newState.activeCharms.find(c => c.id === 'finalFrontier');
+      if (finalFrontierCharm) {
+          const uses = newState.charmUses['finalFrontier'] || 0;
+          const maxUses = finalFrontierCharm.maxUses || 2;
+          if (uses < maxUses) {
+              const oldMilestone = Math.floor(oldScore / 1000);
+              const newMilestone = Math.floor(runningScore / 1000);
+              if (newMilestone > oldMilestone) {
+                  const potentialTriggers = newMilestone - oldMilestone;
+                  const remainingTriggers = maxUses - uses;
+                  const actualTriggers = Math.min(potentialTriggers, remainingTriggers);
+
+                  if (actualTriggers > 0) {
+                      const currentChallenges = newState.challengeCount;
+                      const maxHeldChallenges = 4;
+                      if (currentChallenges < maxHeldChallenges) {
+                          const challengesToAdd = Math.min(actualTriggers, maxHeldChallenges - currentChallenges);
+                          if (challengesToAdd > 0) {
+                              newState.challengeCount += challengesToAdd;
+                              newState.charmUses['finalFrontier'] = uses + challengesToAdd;
+                              
+                              const newTotalUses = uses + challengesToAdd;
+                              const message = `🧑‍🚀 Final Frontier! +${challengesToAdd} Challenge(s) earned. (${newTotalUses}/${maxUses} used)`;
+                              showMessage(message, 3000);
+                              soundService.playMilestone();
+
+                              if (newTotalUses >= maxUses) {
+                                  const buffIndex = newState.activeBuffs.findIndex(b => b.id === 'finalFrontier');
+                                  if (buffIndex > -1) {
+                                      const updatedBuff = { ...newState.activeBuffs[buffIndex], description: 'This effect has been used the maximum number of times.' };
+                                      newState.activeBuffs[buffIndex] = updatedBuff;
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+      }
+
+      // --- 7. FINAL SCORE UPDATE ---
+      newState.score = Math.round(runningScore);
+
+      // --- Handle Coin Award ---
+      onScoreUpdate(oldScore, newState.score);
+      const turnScore = newState.score - oldScore;
+      
+      // --- 8. OTHER STATE UPDATES ---
+      
+      newState.pianoManEncoreActive = newState.activeCharms.some(c => c.id === 'pianoManEncore') && scoreBeforeEncore >= 45;
+      
+      if (newState.activeCharms.some(c => c.id === 'strikeBank')) {
+          newState.flawlessScore += turnScore;
+          const currentUses = newState.charmUses['strikeBank'] || 0;
+  
+          // Check for the first upgrade
+          if (currentUses === 0 && newState.flawlessScore >= 500) {
+              newState.charmUses = { ...newState.charmUses, 'strikeBank': 1 };
+              newState.flawlessScore -= 500; // Carry over any excess points.
+              showMessage("🏦 Strike Bank: 4th Strike Unlocked! Next goal: 1000 flawless points.", 4000);
+              soundService.playMilestone();
+          // Check for the second upgrade, ONLY if the first is already unlocked
+          } else if (currentUses === 1 && newState.flawlessScore >= 1000) {
+              newState.charmUses = { ...newState.charmUses, 'strikeBank': 2 };
+              
+              // Find the buff and update its description to reflect it's maxed out.
+              const buffIndex = newState.activeBuffs.findIndex(b => b.id === 'strikeBank');
+              if (buffIndex !== -1) {
+                  const updatedBuff = { ...newState.activeBuffs[buffIndex], description: 'Fully upgraded. Maximum of 5 strikes reached.' };
+                  newState.activeBuffs[buffIndex] = updatedBuff;
+              }
+  
+              // Do NOT remove the charm. This keeps it from being offered again.
+  
+              showMessage("🏦 Strike Bank: 5th Strike Unlocked! Maximum strikes reached.", 4000);
+              soundService.playMilestone();
+          }
+      }
+
+      if (turnScore >= 150 && newState.activeCharms.some(c => c.id === 'powerStarResidual')) {
+        newState.powerStarResidualActive = true;
+        // Optionally update the buff description
+        const buffIndex = newState.activeBuffs.findIndex(b => b.id === 'powerStarResidual');
+        if (buffIndex !== -1) {
+            const updatedBuff = { ...newState.activeBuffs[buffIndex], description: 'ACTIVE: All future words get +5 points.' };
+            newState.activeBuffs[buffIndex] = updatedBuff;
+        }
+      }
+      
+      showMessage(`${word.toUpperCase()}: +${Math.round(turnScorePreMilestone)}`, 3000);
+
+      const wordLogEntry: WordLogEntry = {
+        type: 'word',
+        word,
+        score: Math.round(turnScore),
+        baseScore: rawBaseScore,
+        bonuses: scoreResult.bonuses,
+        definition: validationDef,
+        status: 'valid',
+        cumulativeScore: newState.score
+      };
+      newState.log = [...newState.log, wordLogEntry, ...eventLogQueue];
+      newState.longestWord = word.length > newState.longestWord.length ? word : newState.longestWord;
+      if (!newState.highestScoringWord || turnScore > newState.highestScoringWord.score) {
+        newState.highestScoringWord = { ...wordLogEntry, score: turnScore };
+      }
+      newState.wordsThisRound++;
+      newState.lastSubmissionTime = now;
+
+      // --- PowerPlay & Charm Offer Logic ---
+      
+      // Cooldowns
+      const newPowerPlayCooldowns = { ...newState.powerPlayCooldowns };
+      for (const id in newPowerPlayCooldowns) {
+          newPowerPlayCooldowns[id]--;
+          if (newPowerPlayCooldowns[id] <= 0) delete newPowerPlayCooldowns[id];
+      }
+      newState.powerPlayCooldowns = newPowerPlayCooldowns;
+      
+      const newCharmCooldowns = { ...newState.charmCooldowns };
+      for (const id in newCharmCooldowns) {
+          newCharmCooldowns[id]--;
+          if (newCharmCooldowns[id] <= 0) delete newCharmCooldowns[id];
+      }
+      newState.charmCooldowns = newCharmCooldowns;
+      
+      // PowerPlay Offer Check
+      let newProgress = { ...newState.powerPlayProgress };
+      newProgress.turnsSinceLastOffer++;
+
+      // Update score streak progress
+      if (turnScore > 0) {
+          const tensDigit = Math.floor(turnScore / 10) % 10;
+          if (newProgress.targetDigit === null || newProgress.targetDigit === tensDigit) {
+              newProgress.streak++;
+              newProgress.targetDigit = tensDigit;
+          } else {
+              newProgress.streak = 1;
+              newProgress.targetDigit = tensDigit;
+          }
+      } else {
+          newProgress.streak = 0;
+          newProgress.targetDigit = null;
+      }
+      
+      const triggeredByStreak = newProgress.streak >= 3;
+      const triggeredByWordCount = totalWordsSubmitted > 0 && totalWordsSubmitted % 35 === 0;
+
+      if (triggeredByStreak || triggeredByWordCount) {
+          const canOffer = newState.powerPlayOffer.length === 0 &&
+                           newState.availablePowerPlays.length === 0 &&
+                           newProgress.turnsSinceLastOffer >= 4;
+
+          if (canOffer) {
+              const powerPlaysToOfferFrom = POWER_PLAYS_LIST.filter(pp => 
+                  !newState.activeBuffs.some(ab => ab.id === pp.id) &&
+                  !newState.powerPlayCooldowns[pp.id]
+              );
+              const { offeredItems: offeredPowerPlays, offerDetails } = gameUtils.getOffer(powerPlaysToOfferFrom, 3, newState);
+
+              if (offeredPowerPlays.length > 0) {
+                  newState.powerPlayOffer = offeredPowerPlays;
+                  
+                  // Update state for weighting logic
+                  newState.offerHistory.push(offerDetails);
+                  newState.totalOffersMade++;
+                  offerDetails.forEach(offer => {
+                      const id = offer.id;
+                      const stats = newState.itemStats[id] || { offered: 0, lastOfferedTurn: -1 };
+                      stats.offered++;
+                      stats.lastOfferedTurn = totalWords + 1; // current turn
+                      newState.itemStats[id] = stats;
+                      newState.sessionOfferCounts[id] = (newState.sessionOfferCounts[id] || 0) + 1;
+                  });
+                  
+                  // Reset streak if it was the trigger
+                  if (triggeredByStreak) {
+                    newProgress.streak = 0;
+                    newProgress.targetDigit = null;
+                  }
+                  
+                  // Reset the offer cooldown timer
+                  newProgress.turnsSinceLastOffer = 0;
+
+                  soundService.playModalOpen();
+                  const offerReason = triggeredByStreak 
+                    ? "Your score streak earned you a power-up!"
+                    : `Milestone! You've submitted ${totalWordsSubmitted} words and earned a power-up!`;
+                  modalQueue.push({ type: 'powerplay-selection', title: 'PowerPlay Earned!', content: offerReason, data: offeredPowerPlays });
+              }
+          }
+      }
+      newState.powerPlayProgress = newProgress;
+
+      // Word Charm Offer Check
+      newState.wordMilestoneProgress.count++;
+      if (newState.wordMilestoneProgress.count >= newState.wordMilestoneProgress.nextUnlock) {
+          const charmsToOfferFrom = CHARMS_LIST.filter(c => 
+              !newState.activeCharms.some(ac => ac.id === c.id) &&
+              !newState.charmCooldowns[c.id]
+          );
+          const { offeredItems: offeredCharms, offerDetails } = gameUtils.getOffer(charmsToOfferFrom, 3, newState);
+
+          if(offeredCharms.length > 0) {
+            // Update state for weighting logic
+            newState.offerHistory.push(offerDetails);
+            newState.totalOffersMade++;
+            offerDetails.forEach(offer => {
+                const id = offer.id;
+                const stats = newState.itemStats[id] || { offered: 0, lastOfferedTurn: -1 };
+                stats.offered++;
+                stats.lastOfferedTurn = totalWords + 1; // current turn
+                newState.itemStats[id] = stats;
+                newState.sessionOfferCounts[id] = (newState.sessionOfferCounts[id] || 0) + 1;
+            });
+
+            soundService.playModalOpen();
+            modalQueue.push({ type: 'charm-selection', title: 'WordCharm Earned!', content: `Choose your charm!`, data: offeredCharms });
+          }
+          newState.wordMilestoneProgress.count = 0;
+          newState.wordMilestoneProgress.nextUnlock += 2;
+      }
+
+      const recycledTiles: Tile[] = [];
+      if (newState.activeCharms.some(c => c.id === 'recycler')) {
+           submittedTiles.forEach(tile => {
+              if ((newState.letterMultipliers[tile.letter] || 1) > 1 && Math.random() < 0.5) {
+                  recycledTiles.push(gameUtils.createTile(tile.letter));
+                  showMessage('Recycled!', 1000);
+              }
+          });
+      }
+      
+      const needsHighValueTile = newState.activeCharms.some(c => c.id === 'ctuSafeHouse') && scoreResult.totalScore < 20;
+
+      let tempNewHand: (Tile | null)[];
+      let newBag: string[];
+      
+      const cleanHand = (hand ?? []).filter(t => t === null || !t.isDuplicate);
+      while (cleanHand.length < RACK_SIZE) {
+          cleanHand.push(null);
+      }
+      if (cleanHand.length > RACK_SIZE) {
+          cleanHand.splice(RACK_SIZE);
+      }
+
+      if (isSuperHand) {
+          const deal = gameUtils.dealNewHand(tileBag, [], willTriggerGoldenRound);
+          let finalDealHand = applyMutation(deal.hand, willTriggerGoldenRound);
+
+          if (needsHighValueTile) {
+              const hasHighValue = finalDealHand.some(t => t.points >= 4);
+              if (!hasHighValue && finalDealHand.length > 0) {
+                  const highValueLetters = Object.keys(TILE_DISTRIBUTION).filter(l => TILE_DISTRIBUTION[l].points >= 4);
+                  if (highValueLetters.length > 0) {
+                      const randomHighValueLetter = highValueLetters[Math.floor(Math.random() * highValueLetters.length)];
+                      const newHighValueTile = gameUtils.createTile(randomHighValueLetter);
+                      const indexToReplace = Math.floor(Math.random() * finalDealHand.length);
+                      const tileToReturn = finalDealHand[indexToReplace];
+                      deal.tileBag = [...deal.tileBag, tileToReturn.letter];
+                      finalDealHand[indexToReplace] = newHighValueTile;
+                      showMessage('🏠 CTU Safe House: High-value tile secured!', 2000);
+                      soundService.playPowerUp();
+                  }
+              }
+          }
+
+          const paddedDeal = Array(RACK_SIZE).fill(null);
+          finalDealHand.forEach((tile, i) => paddedDeal[i] = tile);
+          tempNewHand = paddedDeal;
+          newBag = deal.tileBag;
+      } else {
+          const handTilesRemainingCount = (hand ?? []).filter(t => t !== null).length;
+          const tilesUsedCount = submittedTiles.length;
+          const refillStrategyA = Math.ceil(tilesUsedCount / REPLENISH_DIVISOR);
+          const refillStrategyB = Math.max(0, BASE_RACK_SIZE - handTilesRemainingCount);
+          const replenishCount = Math.max(refillStrategyA, refillStrategyB);
+          
+          const drawResult = gameUtils.drawTiles(replenishCount, tileBag, willTriggerGoldenRound);
+          let finalDrawnTiles = applyMutation(drawResult.newTiles, willTriggerGoldenRound);
+
+          if (needsHighValueTile) {
+              const hasHighValue = finalDrawnTiles.some(t => t.points >= 4);
+              if (!hasHighValue && finalDrawnTiles.length > 0) {
+                  const highValueLetters = Object.keys(TILE_DISTRIBUTION).filter(l => TILE_DISTRIBUTION[l].points >= 4);
+                  if (highValueLetters.length > 0) {
+                      const randomHighValueLetter = highValueLetters[Math.floor(Math.random() * highValueLetters.length)];
+                      const newHighValueTile = gameUtils.createTile(randomHighValueLetter);
+                      const indexToReplace = Math.floor(Math.random() * finalDrawnTiles.length);
+                      const tileToReturn = finalDrawnTiles[indexToReplace];
+                      drawResult.remainingBag = [...drawResult.remainingBag, tileToReturn.letter];
+                      finalDrawnTiles[indexToReplace] = newHighValueTile;
+                      showMessage('🏠 CTU Safe House: High-value tile secured!', 2000);
+                      soundService.playPowerUp();
+                  }
+              }
+          }
+          
+          let tempHand = [...cleanHand];
+          
+          recycledTiles.forEach(tile => {
+              const emptySlot = tempHand.indexOf(null);
+              if (emptySlot !== -1) tempHand[emptySlot] = tile;
+          });
+          
+          finalDrawnTiles.forEach(tile => {
+              const emptySlot = tempHand.findIndex(slot => slot === null);
+              if(emptySlot !== -1) tempHand[emptySlot] = tile;
+          });
+
+          tempNewHand = tempHand;
+          newBag = drawResult.remainingBag;
+      }
+
+      const { newHand: preChuckHand, newBag: finalBag, balancingMessage } = gameUtils.postProcessHand(tempNewHand, newBag, willTriggerGoldenRound);
+      if (balancingMessage) {
+        showMessage(balancingMessage, 1500);
+      }
+
+      let finalHand = preChuckHand;
+      if (newState.activeCharms.some(c => c.id === 'chuckNorrisWhy') && word.toUpperCase().endsWith('Y')) {
+          const handTilesWithIndices = finalHand
+              .map((tile, index) => ({ tile, index }))
+              .filter((item): item is { tile: Tile, index: number } => item.tile !== null);
+          
+          if (handTilesWithIndices.length > 0) {
+              const randomItem = handTilesWithIndices[Math.floor(Math.random() * handTilesWithIndices.length)];
+              const tileToUpgrade = randomItem.tile;
+              
+              const newHandCopy = [...finalHand];
+              newHandCopy[randomItem.index] = { ...tileToUpgrade, multiplier: 2 };
+              finalHand = newHandCopy;
+              
+              showMessage(`🥋 Roundhouse kick! A '${tileToUpgrade.letter}' tile is now 2x!`, 2500);
+              soundService.playPowerUp();
+          }
+      }
+
+      // --- 9. GOLDEN ROUND TRIGGER LOGIC ---
+      newState.consecutiveValidWords++;
+      if (newState.consecutiveValidWords >= newState.goldenRoundThreshold) {
+          soundService.playMilestone();
+          
+          newState.roundType = 'golden';
+          const handTiles = finalHand.filter((t): t is Tile => t !== null);
+          if (handTiles.length > 0) {
+              const randomTile = handTiles[Math.floor(Math.random() * handTiles.length)];
+              newState.goldenTileId = randomTile.id;
+          }
+          
+          modalQueue.push({
+              type: 'info',
+              title: '🌟 GOLDEN ROUND! 🌟',
+              content: 'Your streak has unlocked a Golden Round!\n\n- No Timer\n- No Strikes\n- All tiles are worth 2x points.\n- Use the special Golden Tile for a 6x WORD SCORE multiplier!'
+          });
+          
+          newState.consecutiveValidWords = 0;
+          
+          // Dispatch and return early for Golden Round trigger
+          dispatch({ type: 'HANDLE_SUBMIT_SUCCESS', payload: { gameState: newState, hand: sanitizeHand(finalHand), tileBag: finalBag, modalQueue } });
+          dispatch({ type: 'SET_IS_LOADING', payload: false });
+          return;
+      }
+      
+      const consumedPPs = { ...newState.activePowerPlays };
+      let consumedBuffs = [...newState.activeBuffs];
+
+      if (consumedPPs.duckHunt?.ready) {
+          delete consumedPPs.duckHunt;
+          consumedBuffs = consumedBuffs.filter(b => b.id !== 'duckHunt');
+      }
+
+      if (wordLockActive) { delete consumedPPs.wordLock; consumedBuffs = consumedBuffs.filter(b => b.id !== 'wordLock'); }
+      ['biglyScore', 'multiverseOfSadness', 'nuclearOption', 'schruteBucks', 'redWedding', 'wakandaForever', 'heisenberg', 'skywalkerBloodline', 'leafOnTheWind', 'thanosGift', 'doubleOrNothing', 'cassiesClue', 'cowabunga', 'tetrisTouch', 'blueShellSurprise', 'pinkyAndTheBrain', 'letsGetDangerous', 'slimShadyShuffle', 'spaceInvader'].forEach(id => { 
+          if ((consumedPPs as any)[id]) { 
+              delete (consumedPPs as any)[id]; 
+              consumedBuffs = consumedBuffs.filter(b => b.id !== id); 
+          }
+      });
+
+      if (consumedPPs.wordionaireCap) { delete consumedPPs.wordionaireCap; consumedBuffs = consumedBuffs.filter(b => b.instanceId !== 'wordionaire_cash'); }
+      if (consumedPPs.wordionaireDouble) { delete consumedPPs.wordionaireDouble; consumedBuffs = consumedBuffs.filter(b => b.instanceId !== 'wordionaire_double'); }
+
+      if (consumedPPs.sonicSpeed) { if (consumedPPs.sonicSpeed.count > 1) { consumedPPs.sonicSpeed = { ...consumedPPs.sonicSpeed, count: consumedPPs.sonicSpeed.count - 1 }; } else { delete consumedPPs.sonicSpeed; consumedBuffs = consumedBuffs.filter(b => b.id !== 'sonicSpeed'); }}
+      
+      newState.activePowerPlays = consumedPPs;
+      newState.activeBuffs = consumedBuffs;
+
+      if (newState.activeCharms.some(c => c.id === 'oneTileToRuleThemAll') && submittedTiles.some(t => t.tempPoints === 25)) {
+          newState.activeCharms = newState.activeCharms.filter(c => c.id !== 'oneTileToRuleThemAll');
+          newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'oneTileToRuleThemAll');
+      }
+      if (submittedTiles.some(t => t.tempPoints === 20)) { // Captain Planet
+          // This will automatically clear as the tempPoints are on the tile, which is now gone.
+      }
+
+
+      dispatch({ type: 'HANDLE_SUBMIT_SUCCESS', payload: { gameState: newState, hand: sanitizeHand(finalHand), tileBag: finalBag, modalQueue }});
+      dispatch({ type: 'SET_IS_LOADING', payload: false });
+      if (modalQueue.length === 0) {
+          handleStartNextRound();
+      }
+  }, [gameState, hand, tileBag, applyMutation, showMessage, handleStartNextRound, onScoreUpdate, isChallengeLock, totalWords, powerWord]);
+  
+   const handleSubmit = async () => {
+    const word = (buildRow ?? []).filter(i => i).map(item => item!.tile.letter).join('');
+    
+    if (isChallengeLock) {
+        soundService.playValidWord();
+
+        let newState = { ...gameState, challengeActive: false, consecutiveSuccesses: 0 };
         
+        // When a challenge is lost, the streak is always reset, regardless of success
+        newState.consecutiveValidWords = 0;
+        
+        const message = `Challenge lost. Word "${word.toUpperCase()}" submitted for 0 points.`;
         showMessage(message, 3000);
 
         if (state.challengeWordData) {
-            const challengedWordData: WordData = {
-                ...state.challengeWordData,
-                word: `${state.challengeWordData.word} (found by game)`,
-                definition: `Score 0. ${state.challengeWordData.definition || ''}`.trim(),
-                cumulativeScore: newState.score
+            const challengedWordLogEntry: WordLogEntry = {
+                type: 'word',
+                word: state.challengeWordData.word,
+                score: 0,
+                baseScore: 0,
+                status: 'valid',
+                definition: `(From Challenge) ${state.challengeWordData.definition || ''}`.trim(),
+                cumulativeScore: newState.score,
+                bonuses: [{ name: 'Challenge Lost', description: '0 pts'}]
             };
-            newState.words = [...newState.words, challengedWordData];
+            newState.log = [...newState.log, challengedWordLogEntry];
         }
         
-        const { hand: dealHand, tileBag: newBag } = gameUtils.dealNewHand(tileBag, []);
-        const { newHand: finalHand, newBag: finalBag } = gameUtils.postProcessHand(dealHand, newBag, showMessage);
+        const submittedTiles = (buildRow ?? []).filter(i => i).map(item => item!.tile);
+        const handTilesRemainingCount = (hand ?? []).filter(t => t !== null).length;
+        const tilesUsedCount = submittedTiles.length;
+        const replenishCount = Math.max(Math.ceil(tilesUsedCount / REPLENISH_DIVISOR), Math.max(0, BASE_RACK_SIZE - handTilesRemainingCount));
+        
+        const drawResult = gameUtils.drawTiles(replenishCount, tileBag, newState.roundType === 'golden');
+        let finalDrawnTiles = applyMutation(drawResult.newTiles, newState.roundType === 'golden');
+        
+        let tempHand = [...(hand ?? [])];
+        finalDrawnTiles.forEach(tile => {
+            const emptySlot = tempHand.findIndex(slot => slot === null);
+            if(emptySlot !== -1) tempHand[emptySlot] = tile;
+        });
 
+        const { newHand: finalHand, newBag: finalBag, balancingMessage } = gameUtils.postProcessHand(tempHand, drawResult.remainingBag, newState.roundType === 'golden');
+        if (balancingMessage) {
+            showMessage(balancingMessage, 1500);
+        }
+    
         dispatch({
             type: 'HANDLE_SUBMIT_SUCCESS', payload: {
                 gameState: newState, 
-                hand: finalHand,
+                hand: sanitizeHand(finalHand),
                 tileBag: finalBag,
                 modalQueue: []
             }
@@ -1363,402 +3168,88 @@ const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveG
         return;
     }
 
-    const submittedTiles = buildRow.filter(i => i).map(item => item!.tile);
-    const wordLockActive = gameState.activePowerPlays['wordLock'] && word.length <= 5;
+    if((word?.length ?? 0) < (gameState?.gameConfig?.minWordLength ?? 3) || isLoading || isPaused) return;
+
+    dispatch({ type: 'SET_IS_LOADING', payload: true });
+    dispatch({ type: 'SET_LOADING_MESSAGE', payload: `Validating "${word.toUpperCase()}"...` });
+
+    const submittedTiles = (buildRow ?? []).filter(i => i).map(item => item!.tile);
+    const wordLockActive = gameState?.activePowerPlays?.['wordLock'] && submittedTiles.length <= 5;
     
-    let isValid = false;
-    let definition: string | undefined;
+    let validationResult;
 
     if (wordLockActive) {
-        isValid = true;
-        definition = 'A rule-breaking word!';
+        validationResult = { isValid: true, definition: 'A rule-breaking word!' };
     } else {
-        dispatch({ type: 'SET_LOADING_MESSAGE', payload: "📚 Please hold... we're checking the BIG dictionary in the back of the library." });
-        dispatch({type: 'SET_IS_LOADING', payload: true});
-        const result = await dictionaryService.getWordData(word);
-        isValid = result.isValid;
-        definition = result.definition;
+        validationResult = await dictionaryService.lookupWord(word);
     }
     
-    if (isValid) {
+    if (validationResult.isValid) {
         soundService.playValidWord();
-        let newState = { ...gameState };
-        const now = Date.now();
-        const modalQueue: ModalContent[] = [];
-        const oldScore = newState.score;
-        const WORD_OVERRIDE_EGG_IDS = new Set(['sex', 'poop', 'kermitWisdom', 'homersDelight', 'dundieAward', 'dangerousAlone', 'totallyBuggin', 'loveBonus', 'timeBonus', 'dieBonus', 'joyBonus', 'chandlerBing', 'deadPoetsSociety', 'terminator', 'spiderman']);
-
-
-        // --- 1. WORD SCORE CALCULATION (BASE) ---
-        const scoreResult = gameUtils.calculateScore(word, submittedTiles, newState);
-        let wordScore = scoreResult.totalScore;
-
-        // --- 2. COMBO LOGIC ---
-        if (newState.powerSurgeProgress === 4) { // This is the 5th word in the streak.
-            wordScore *= 2;
-            scoreResult.bonuses.push({ name: "⚡ 5-Word Combo!", description: "x2 Score"});
-            newState.powerSurgeProgress = 0; // Reset after bonus.
-        } else {
-            newState.powerSurgeProgress++; // Increment for next time.
-        }
         
-        // --- 3. WORD-BASED EASTER EGG OVERRIDE ---
-        const wordBasedEgg = EASTER_EGGS.find(egg => 
-            WORD_OVERRIDE_EGG_IDS.has(egg.id) && 
-            !newState.foundEasterEggs.some(fe => fe.id === egg.id) &&
-            egg.trigger(word, 0, newState)
-        );
-        if (wordBasedEgg) {
-            wordScore = wordBasedEgg.reward.points || 0;
-            newState.foundEasterEggs = [...newState.foundEasterEggs, wordBasedEgg];
-            modalQueue.push({ type: 'easter-egg', title: wordBasedEgg.name, content: wordBasedEgg.reward.message, data: wordBasedEgg });
-            scoreResult.bonuses = []; // Clear other bonuses as this overrides them
-        }
-        
-        // --- 4. STATEFUL & RANDOM BONUSES on top of word score ---
-        if (newState.activeCharms.some(c => c.id === 'goldenTicket') && Math.random() <= 0.10) {
-          wordScore *= 3;
-          scoreResult.bonuses.push({ name: 'Golden Ticket!', description: "Golden Ticket! x3 Score"});
-        }
-        const isSecondSubmission = newState.words.some(wd => wd.word === word);
-        if (newState.activeCharms.some(c => c.id === 'doctorStrangesLoop') && isSecondSubmission) {
-            wordScore *= 2;
-            scoreResult.bonuses.push({ name: "Dr. Strange's Loop", description: "Dr. Strange's Loop: x2 Score"});
-        }
-        const timeSinceLast = now - newState.lastSubmissionTime;
-        if (newState.activeCharms.some(c => c.id === 'momentum') && timeSinceLast < 10000 && newState.consecutiveSuccesses > 0) {
-            wordScore += 20;
-            scoreResult.bonuses.push({ name: "Momentum", description: "Momentum: +20 pts"});
-        }
-        const scoreBeforeEncore = wordScore;
-        if (newState.pianoManEncoreActive) {
-            const bonus = Math.round(wordScore * 0.15);
-            wordScore += bonus;
-            scoreResult.bonuses.push({ name: "Piano Man Encore", description: `Piano Man Encore: +${bonus} pts`});
-        }
-        if (newState.activeCharms.some(c => c.id === 'christiansHoodieMode')) {
-            if (timeSinceLast < 10000 && /[GAM]/.test(word.toUpperCase())) {
-                const bonus = Math.round(wordScore * 0.15);
-                wordScore += bonus;
-                scoreResult.bonuses.push({ name: "Christian’s Hoodie Mode", description: `+${bonus} pts (15%)`});
-            }
-        }
-        if (newState.activePowerPlays['philsosophy']) {
-            const rand = Math.random();
-            if(rand < 0.20) { wordScore += 20; scoreResult.bonuses.push({ name: "Phil's-osophy", description: "Phil's-osophy: +20 pts"}); }
-            else if (rand < 0.30) { wordScore -= 10; scoreResult.bonuses.push({ name: "Phil's-osophy", description: "Phil's-osophy: -10 pts"}); }
-        }
-        if (newState.activePowerPlays.multiverseOfSadness) {
-            const timeBonus = Math.round(wordScore / 2);
-            wordScore = Math.floor(wordScore / 2);
-            newState.multiverseTimeBonus = timeBonus;
-            scoreResult.bonuses.push({ name: "Multiverse of Sadness", description: `Multiverse: /2 Score, +${timeBonus}s next round`});
-        }
-        
-        // --- 5. GAME STATE BONUSES ---
-        let gameStateBonuses = 0;
-        const isSuperHand = (hand.filter(t => t !== null).length === 0);
-        if (isSuperHand) {
-            gameStateBonuses += SUPER_HAND_BONUS;
-            scoreResult.bonuses.push({ name: "Super Hand", description: `+${SUPER_HAND_BONUS} pts`});
-            if (newState.activeCharms.some(c => c.id === 'infinityGauntlet')) {
-                gameStateBonuses += 75;
-                scoreResult.bonuses.push({ name: "Infinity Gauntlet", description: `+75 pts`});
-            }
-        }
-        if (newState.activeCharms.some(c => c.id === 'fluxCapacitor') && (newState.words.length + 1) % 8 === 0) {
-            const bonus = Math.round(wordScore * 0.55);
-            gameStateBonuses += bonus;
-            scoreResult.bonuses.push({ name: "Flux Capacitor", description: `+${bonus} pts`});
-        }
-        
-        // --- STREAK BONUSES ---
-        newState.consecutiveSuccesses++;
-        let shouldResetStreak = false;
-
-        // Glitch in the Code check
-        if (newState.activeCharms.some(c => c.id === 'glitchInTheCode')) {
-            if (newState.consecutiveSuccesses >= 6) {
-                newState.glitchActive = true;
-                shouldResetStreak = true;
-            }
-        }
-        
-        // Golden Snitch check
-        const snitchCharmActive = newState.activeCharms.some(c => c.id === 'goldenSnitch');
-        if (snitchCharmActive && newState.consecutiveSuccesses >= 5) {
-            gameStateBonuses += 500;
-            scoreResult.bonuses.push({ name: "Golden Snitch", description: `+500 pts`});
-            shouldResetStreak = true;
-            // Consume the charm
-            newState.activeCharms = newState.activeCharms.filter(c => c.id !== 'goldenSnitch');
-            newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'goldenSnitch');
+        if (gameState.roundType === 'golden') {
+            await completeSubmission(word, submittedTiles, 0, 0, [], validationResult.definition ?? '', false);
+            return;
         }
 
-        if (shouldResetStreak) {
-            newState.consecutiveSuccesses = 0;
-        }
+        if (gameState.activePowerPlays.doubleOrNothing) {
+            const scoreResult = gameUtils.calculateScore(word, submittedTiles, gameState);
+            const isDouble = Math.random() < 0.5;
+            let message = '';
 
-        // --- 6. Aggregate Score and Check Aggregate Bonuses ---
-        let runningScore = oldScore + wordScore + gameStateBonuses;
-
-        // Word Bonuses
-        const totalWordsSubmitted = newState.words.length + 1;
-        const newWordBonus = WORD_BONUSES.find(wb => 
-            totalWordsSubmitted === wb.wordCount && 
-            !newState.unlockedWordBonusIds.includes(wb.id)
-        );
-        if (newWordBonus) {
-            runningScore += newWordBonus.reward.points;
-            newState.unlockedWordBonusIds = [...newState.unlockedWordBonusIds, newWordBonus.id];
-            scoreResult.bonuses.push({ name: newWordBonus.title, description: `+${newWordBonus.reward.points} pts` });
-            modalQueue.push({ type: 'word-bonus', title: newWordBonus.title, content: newWordBonus.description, data: newWordBonus });
-        }
-
-        // Milestone Bonuses (iteratively to handle cascades)
-        let newMilestonesFound = true;
-        const sortedMilestones = [...MILESTONES_LIST].sort((a, b) => a.scoreThreshold - b.scoreThreshold);
-        while (newMilestonesFound) {
-            newMilestonesFound = false;
-            for (const milestone of sortedMilestones) {
-                if (runningScore >= milestone.scoreThreshold && !newState.unlockedMilestoneIds.includes(milestone.id)) {
-                    soundService.playMilestone();
-                    newState.gameConfig = { ...newState.gameConfig, ...milestone.configChange };
-                    if (milestone.reward.points) {
-                        runningScore += milestone.reward.points;
-                        scoreResult.bonuses.push({ name: milestone.name, description: `+${milestone.reward.points} pts` });
-                    }
-                    newState.unlockedMilestoneIds.push(milestone.id);
-                    modalQueue.push({ type: 'milestone', title: 'Milestone Reached!', data: milestone, content: `You've unlocked ${milestone.name}!` });
-                    newMilestonesFound = true; // A milestone was found, re-iterate from the start
-                    break; 
-                }
-            }
-        }
-
-        // Score-based Easter Egg Check
-        for (const egg of EASTER_EGGS) {
-            if (WORD_OVERRIDE_EGG_IDS.has(egg.id) || newState.foundEasterEggs.some(fe => fe.id === egg.id)) continue;
-            if (egg.trigger(word, runningScore, newState)) {
-                newState.foundEasterEggs = [...newState.foundEasterEggs, egg];
-                if (egg.reward.points) {
-                    runningScore += egg.reward.points;
-                    scoreResult.bonuses.push({ name: egg.name, description: `+${egg.reward.points} pts` });
-                }
-                if (egg.reward.shuffle) newState.shuffleCount += egg.reward.shuffle;
-                modalQueue.push({ type: 'easter-egg', title: egg.name, content: egg.reward.message, data: egg });
-            }
-        }
-
-        // Bean Counter Check
-        if (newState.activeCharms.some(c => c.id === 'beanCounter')) {
-            const oldMultiple = Math.floor(oldScore / 500);
-            const newMultiple = Math.floor(runningScore / 500);
-            if (newMultiple > oldMultiple) {
-                const beanCounterBonus = (newMultiple - oldMultiple) * 50;
-                runningScore += beanCounterBonus;
-                scoreResult.bonuses.push({ name: "Bean Counter", description: `+${beanCounterBonus} pts`});
-            }
-        }
-
-        // --- 7. FINAL SCORE UPDATE ---
-        newState.score = Math.round(runningScore);
-        const turnScore = newState.score - oldScore;
-        
-        // --- 8. OTHER STATE UPDATES ---
-        if (isSuperHand) {
-            let gauntletBonus = 0;
-            if (newState.activeCharms.some(c => c.id === 'infinityGauntlet')) {
-                gauntletBonus = 75;
-            }
-            modalQueue.push({ type: 'super-hand', title: '✨ SUPER HAND! ✨', content: `You cleared your entire hand! That's a master move!`, data: { points: SUPER_HAND_BONUS, gauntletBonus } });
-        }
-        
-        const lTrainCharm = newState.activeCharms.find(c => c.id === 'lTrainShuffle');
-        if (lTrainCharm) {
-            let charmUses = newState.charmUses['lTrainShuffle'] || 0;
-            if (charmUses < (lTrainCharm.maxUses || 2) && word.toUpperCase().includes('L') && word.toUpperCase().includes('T')) {
-                newState.shuffleCount++;
-                charmUses++;
-                newState.charmUses = {...newState.charmUses, 'lTrainShuffle': charmUses};
-                if (charmUses >= (lTrainCharm.maxUses || 2)) {
-                    newState.activeCharms = newState.activeCharms.filter(c => c.id !== 'lTrainShuffle');
-                    newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'lTrainShuffle');
-                }
-            }
-        }
-
-        const hasDuplicateLetters = new Set(word.split('')).size < word.length;
-        if (newState.activeCharms.some(c => c.id === 'executeOrder66') && hasDuplicateLetters) {
-            newState.multiverseTimeBonus += 6;
-        }
-        
-        newState.pianoManEncoreActive = newState.activeCharms.some(c => c.id === 'pianoManEncore') && scoreBeforeEncore >= 45;
-        
-        if (newState.activeCharms.some(c => c.id === 'strikeBank')) {
-            newState.flawlessScore += turnScore;
-            const currentUses = newState.charmUses['strikeBank'] || 0;
-            if (currentUses < 1 && newState.flawlessScore >= 500) {
-                newState.charmUses['strikeBank'] = 1;
-            } else if (currentUses < 2 && newState.flawlessScore >= 1000) {
-                newState.charmUses['strikeBank'] = 2;
-            }
-        }
-        
-        showMessage(`${word.toUpperCase()}: +${Math.round(turnScore)}`, 3000);
-
-        const wordData: WordData = {
-          word,
-          score: Math.round(turnScore),
-          baseScore: scoreResult.baseScore,
-          bonuses: scoreResult.bonuses,
-          definition,
-          status: 'valid',
-          cumulativeScore: newState.score
-        };
-        newState.words = [...newState.words, wordData];
-        newState.longestWord = word.length > newState.longestWord.length ? word : newState.longestWord;
-        if (!newState.highestScoringWord || turnScore > newState.highestScoringWord.score) {
-          newState.highestScoringWord = { ...wordData, score: turnScore };
-        }
-        newState.wordsThisRound++;
-        newState.lastSubmissionTime = now;
-        
-        // Power Play Offer Check
-        let newProgress = { ...newState.powerPlayProgress };
-        if (newProgress.cooldown > 0) {
-            newProgress.cooldown--;
-        } else {
-            const tensDigit = Math.floor(turnScore / 10) % 10;
-            newProgress.turnsSinceLastOffer++;
-            if (turnScore > 0) {
-                if (newProgress.targetDigit === null || newProgress.targetDigit === tensDigit) {
-                    newProgress.streak++;
-                    newProgress.targetDigit = tensDigit;
-                } else {
-                    newProgress.streak = 1;
-                    newProgress.targetDigit = tensDigit;
-                }
+            if (isDouble) {
+                scoreResult.totalScore *= 2;
+                scoreResult.bonuses.push({ name: 'Double or Nothing (Win)', description: 'x2 Score (Coin Flip)'});
+                message = `The coin flip was HEADS! Your score for "${word.toUpperCase()}" is doubled!`;
+                soundService.playMilestone();
             } else {
-                newProgress.streak = 0;
-                newProgress.targetDigit = null;
+                scoreResult.totalScore = 0;
+                scoreResult.bonuses = [{ name: 'Double or Nothing (Loss)', description: 'Score set to 0 (Coin Flip)' }];
+                message = `The coin flip was TAILS! Your score for "${word.toUpperCase()}" is zero.`;
+                soundService.playInvalidWord();
             }
-            if (newProgress.streak >= 3 && newState.availablePowerPlays.length === 0 && newProgress.turnsSinceLastOffer >= 4) {
-                const powerPlaysToOfferFrom = POWER_PLAYS_LIST.filter(pp => !newState.activeBuffs.some(ab => ab.id === pp.id) && !newState.availablePowerPlays.some(ap => ap.id === pp.id));
-                const offeredPowerPlays = gameUtils.getRandomItems(powerPlaysToOfferFrom, 3);
-                if (offeredPowerPlays.length > 0) {
-                    newState.powerPlayOffer = offeredPowerPlays;
-                    newProgress.streak = 0;
-                    newProgress.targetDigit = null;
-                    newProgress.turnsSinceLastOffer = 0;
-                    soundService.playModalOpen();
-                    modalQueue.push({ type: 'powerplay-selection', title: 'PowerPlay Earned!', content: `Choose your power-up!`, data: offeredPowerPlays });
-                }
-            }
-        }
-        newState.powerPlayProgress = newProgress;
-
-        // Word Charm Offer Check
-        newState.wordMilestoneProgress.count++;
-        if (newState.wordMilestoneProgress.count >= newState.wordMilestoneProgress.nextUnlock) {
-            const offeredCharms = gameUtils.getRandomItems(CHARMS_LIST.filter(c => !newState.activeCharms.some(ac => ac.id === c.id)), 3);
-            if(offeredCharms.length > 0) {
-              soundService.playModalOpen();
-              modalQueue.push({ type: 'charm-selection', title: 'WordCharm Earned!', content: `Choose your charm!`, data: offeredCharms });
-            }
-            newState.wordMilestoneProgress.count = 0;
-            newState.wordMilestoneProgress.nextUnlock += 2;
-        }
-
-        const recycledTiles: Tile[] = [];
-        if (newState.activeCharms.some(c => c.id === 'recycler')) {
-             submittedTiles.forEach(tile => {
-                if ((newState.letterMultipliers[tile.letter] || 1) > 1 && Math.random() < 0.5) {
-                    recycledTiles.push(gameUtils.createTile(tile.letter));
-                    showMessage('Recycled!', 1000);
-                }
-            });
+            
+            await completeSubmission(word, submittedTiles, scoreResult.totalScore, scoreResult.baseScore, scoreResult.bonuses, validationResult.definition ?? '', wordLockActive, message);
+            return;
         }
         
-        let tempNewHand: (Tile | null)[];
-        let newBag: string[];
-        
-        // This is the key change: create a clean hand array of the correct size first
-        const cleanHand = hand.filter(t => t === null || !t.isDuplicate);
-        while (cleanHand.length < RACK_SIZE) {
-            cleanHand.push(null);
-        }
-        if (cleanHand.length > RACK_SIZE) {
-            // This case should not happen if logic is correct, but as a safeguard
-            cleanHand.splice(RACK_SIZE);
-        }
+        const scoreResult = gameUtils.calculateScore(word, submittedTiles, gameState);
 
-        if (isSuperHand) {
-            const deal = gameUtils.dealNewHand(tileBag, []);
-            let finalDealHand = applyMutation(deal.hand);
-            const paddedDeal = Array(RACK_SIZE).fill(null);
-            finalDealHand.forEach((tile, i) => paddedDeal[i] = tile);
-            tempNewHand = paddedDeal;
-            newBag = deal.tileBag;
-        } else {
-            const handTilesRemainingCount = hand.filter(t => t !== null).length;
-            const tilesUsedCount = submittedTiles.length;
-            const refillStrategyA = Math.ceil(tilesUsedCount / REPLENISH_DIVISOR);
-            const refillStrategyB = Math.max(0, BASE_RACK_SIZE - handTilesRemainingCount);
-            const replenishCount = Math.max(refillStrategyA, refillStrategyB);
-            
-            const drawResult = gameUtils.drawTiles(replenishCount, tileBag);
-            let finalDrawnTiles = applyMutation(drawResult.newTiles);
-            
-            let tempHand = [...cleanHand];
-            
-            recycledTiles.forEach(tile => {
-                const emptySlot = tempHand.indexOf(null);
-                if (emptySlot !== -1) tempHand[emptySlot] = tile;
-            });
-            
-            finalDrawnTiles.forEach(tile => {
-                const emptySlot = tempHand.findIndex(slot => slot === null);
-                if(emptySlot !== -1) tempHand[emptySlot] = tile;
-            });
-
-            tempNewHand = tempHand;
-            newBag = drawResult.remainingBag;
-        }
-
-        const { newHand: finalHand, newBag: finalBag } = gameUtils.postProcessHand(tempNewHand, newBag, showMessage);
-        
-        const consumedPPs = { ...newState.activePowerPlays };
-        let consumedBuffs = [...newState.activeBuffs];
-        if (wordLockActive) { delete consumedPPs.wordLock; consumedBuffs = consumedBuffs.filter(b => b.id !== 'wordLock'); }
-        ['biglyScore', 'multiverseOfSadness', 'nuclearOption', 'schruteBucks', 'redWedding', 'wakandaForever', 'heisenberg', 'skywalkerBloodline', 'leafOnTheWind', 'thanosGift'].forEach(id => { 
-            if (consumedPPs[id]) { 
-                delete consumedPPs[id]; 
-                consumedBuffs = consumedBuffs.filter(b => b.id !== id); 
-            }
-        });
-        if (consumedPPs.sonicSpeed) { if (consumedPPs.sonicSpeed.count > 1) { consumedPPs.sonicSpeed = { ...consumedPPs.sonicSpeed, count: consumedPPs.sonicSpeed.count - 1 }; } else { delete consumedPPs.sonicSpeed; consumedBuffs = consumedBuffs.filter(b => b.id !== 'sonicSpeed'); }}
-        newState.activePowerPlays = consumedPPs;
-        newState.activeBuffs = consumedBuffs;
-
-        // Correctly handle 'One Tile to Rule Them All' charm
-        if (newState.activeCharms.some(c => c.id === 'oneTileToRuleThemAll') && submittedTiles.some(t => t.tempPoints === 25)) {
-            newState.activeCharms = newState.activeCharms.filter(c => c.id !== 'oneTileToRuleThemAll');
-            newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'oneTileToRuleThemAll');
-        }
-
-        dispatch({ type: 'HANDLE_SUBMIT_SUCCESS', payload: { gameState: newState, hand: finalHand, tileBag: finalBag, modalQueue }});
-        if (modalQueue.length === 0) {
-            handleStartNextRound();
-        }
+        await completeSubmission(word, submittedTiles, scoreResult.totalScore, scoreResult.baseScore, scoreResult.bonuses, validationResult.definition ?? '', wordLockActive);
 
     } else {
+        if (gameState.roundType === 'golden') {
+            soundService.playInvalidWord();
+            showMessage('Not a valid word. Golden Round over.', 3000);
+        
+            const updatedGameState = {
+                ...gameState,
+                roundType: 'normal',
+                goldenRoundThreshold: gameState.goldenRoundThreshold + 5,
+                goldenTileId: null,
+                consecutiveValidWords: 0, // Reset streak on invalid submission
+            };
+        
+            // Dispatch the state update first so resetRound has the correct context
+            dispatch({ type: 'UPDATE_GAME_STATE', payload: updatedGameState });
+        
+            // This function handles dealing a new hand and resetting the timer.
+            resetRound(updatedGameState, hand, [], tileBag);
+            
+            dispatch({ type: 'SET_IS_LOADING', payload: false });
+            return;
+        }
+        
+        if (gameState.perfectChainProgress > 0) {
+            // No toast needed, the UI will just disappear.
+        }
+
         if (gameState.powerSurgeProgress === 3 || gameState.powerSurgeProgress === 4) {
             soundService.playComboDrop();
             showMessage("Combo Lost! Don't worry, even Jack couldn’t fix this one.", 3000);
         } else if (gameState.powerSurgeProgress > 0) {
             soundService.playComboDrop();
-            showMessage('😵 Combo Dropped!', 2500);
+            showMessage('😵 Combo Dropped!', 3000);
         } else {
             soundService.playInvalidWord();
             const snitchActive = gameState.activeCharms.some(c => c.id === 'goldenSnitch');
@@ -1769,15 +3260,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveG
             }
         }
 
-      const invalidWordData: WordData = { word, score: 0, status: 'invalid' };
-      dispatch({ type: 'UPDATE_GAME_STATE', payload: { words: [...gameState.words, invalidWordData] } });
+      const invalidWordLogEntry: WordLogEntry = { type: 'word', word, score: 0, status: 'invalid', cumulativeScore: gameState.score };
+      dispatch({ type: 'UPDATE_GAME_STATE', payload: { log: [...gameState.log, invalidWordLogEntry] } });
       
       dispatch({ type: 'HANDLE_SUBMIT_FAIL' });
       dispatch({ type: 'ADD_STRIKE', payload: { source: 'invalid_word' } });
-    }
-    
-    if (!wordLockActive) {
-        dispatch({ type: 'SET_IS_LOADING', payload: false });
+      dispatch({ type: 'SET_IS_LOADING', payload: false });
     }
   };
 
@@ -1788,82 +3276,66 @@ const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveG
   };
 
   const handleChallenge = async () => {
-    const isStrikeChallenge = state.gameState.challengeCount <= 0;
-    const strikesRemaining = maxStrikes - state.gameState.strikes;
-
-    if (isLoading || isPaused || buildRow.some(t => t !== null) || isChallengeLock) return;
-    if (!isStrikeChallenge && state.gameState.challengeCount <= 0) return;
+    if (isLoading || isPaused || (buildRow ?? []).some(t => t !== null) || isChallengeLock || gameState?.roundType === 'golden') return;
+    if (!isStrikeChallenge && (state.gameState?.challengeCount ?? 0) <= 0) return;
     if (isStrikeChallenge && strikesRemaining <= 0) return;
 
     soundService.playChallenge();
+
     dispatch({ type: 'SET_LOADING_MESSAGE', payload: "Consulting the word oracles...\n\n\"You've got to ask yourself one question: 'Do I feel lucky?' Well, do you, punk?\"" });
     dispatch({ type: 'SET_IS_LOADING', payload: true });
 
-    const availableTiles = state.hand.filter((t): t is Tile => t !== null);
+    const availableTiles = (state.hand ?? []).filter((t): t is Tile => t !== null);
     let foundWord: string | null = null;
     let challengeLost = false;
 
-    // 1. Internal Search (Quick Scan)
-    for (const word of internalWords.keys()) {
+    // 1. Search over all known words (internal + cache)
+    const knownWords = dictionaryService.getAllKnownWords();
+    for (const word of knownWords) {
         if (word.length >= 3 && gameUtils.canBeMadeFromRack(word, availableTiles)) {
             foundWord = word.toUpperCase();
             challengeLost = true;
             break;
         }
     }
-
-    // 2. Gemini Check if internal search fails
-    if (!challengeLost) {
-        const letters = availableTiles.map(t => t.letter);
-        const result = await geminiService.checkWordPossibility(letters);
-
-        // 3. Quick local validation of Gemini's response
-        if (result.possible && result.word && gameUtils.canBeMadeFromRack(result.word, availableTiles)) {
-            foundWord = result.word;
-            challengeLost = true;
-        }
-    }
     
     if (challengeLost && foundWord) {
-        if (state.gameState.powerSurgeProgress === 3 || state.gameState.powerSurgeProgress === 4) {
+        if ((state.gameState?.powerSurgeProgress ?? 0) === 3 || (state.gameState?.powerSurgeProgress ?? 0) === 4) {
             soundService.playComboDrop();
             showMessage("Combo Lost! Don't worry, even Jack couldn’t fix this one.", 3000);
-        } else if (state.gameState.powerSurgeProgress > 0) {
+        } else if ((state.gameState?.powerSurgeProgress ?? 0) > 0) {
             soundService.playComboDrop();
-            showMessage('😵 Combo Dropped!', 2500);
+            showMessage('😵 Combo Dropped!', 3000);
         }
 
         const foundWordUpper = foundWord.toUpperCase();
         if (isStrikeChallenge) {
-            // Auto-play the word, add a strike, and reset the round.
-            soundService.playInvalidWord();
-            showMessage(`Word Found: ${foundWordUpper}. You lose a strike.`, 3500);
+            const wordDef = await dictionaryService.getDefinition(foundWordUpper) ?? 'A valid word discovered by the game.';
+            missedWordsService.addMissedWord(foundWordUpper, wordDef);
+
+            const strikeChallengeLostLogEntry: WordLogEntry = {
+                type: 'word',
+                word: foundWordUpper,
+                status: 'valid',
+                score: 0,
+                baseScore: 0,
+                cumulativeScore: state.gameState.score,
+                definition: wordDef,
+                bonuses: [{ name: 'Strike Challenge Lost', description: 'A strike was issued because a valid word was found.' }],
+            };
 
             dispatch({ type: 'ADD_STRIKE', payload: { source: 'challenge' } });
-
-            const wordDefForLog = internalWords.get(foundWordUpper.toLowerCase()) ?? (await geminiService.getDefinition(foundWordUpper) ?? "A valid word.");
-            const challengedWordData: WordData = {
-                word: `${foundWordUpper} (forced)`,
-                score: 0,
-                definition: `Auto-played after lost Strike Challenge. Original def: ${wordDefForLog}`,
-                status: 'valid',
-                cumulativeScore: state.gameState.score
-            };
-            dispatch({ type: 'UPDATE_GAME_STATE', payload: { 
-                words: [...state.gameState.words, challengedWordData],
-                consecutiveSuccesses: 0 // A lost challenge breaks streaks
+            dispatch({ type: 'UPDATE_GAME_STATE', payload: { log: [...state.gameState.log, strikeChallengeLostLogEntry], consecutiveSuccesses: 0, consecutiveValidWords: 0 } });
+            
+            dispatch({ type: 'SET_MODAL_CONTENT', payload: { 
+                type: 'info', 
+                title: '❌ Strike Challenge Lost', 
+                content: `A word was found: ${foundWordUpper}. You receive a strike.`
             }});
 
-            setTimeout(() => {
-                const allTiles = [...state.hand.filter((t): t is Tile => t !== null)];
-                resetRound(state.gameState, allTiles, [], state.tileBag);
-            }, 1000);
-            
-            dispatch({ type: 'SET_IS_LOADING', payload: false });
-            return;
         } else {
             // Regular challenge lost: force user to play the word.
-            let tempHand = [...state.hand];
+            let tempHand = [...(state.hand ?? [])];
             let tilesToMove: { tile: Tile; originalIndex: number }[] = [];
             let possible = true;
 
@@ -1879,11 +3351,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveG
             }
 
             if (possible) {
-                const wordDefForLog = internalWords.get(foundWordUpper.toLowerCase()) ?? (await geminiService.getDefinition(foundWordUpper) ?? "A valid word.");
+                const wordDefForLog = await dictionaryService.getDefinition(foundWordUpper) ?? "A valid word found by challenge.";
+                missedWordsService.addMissedWord(foundWordUpper, wordDefForLog);
                 dispatch({ type: 'SET_CHALLENGE_WORD_DATA', payload: { word: foundWordUpper, score: 0, definition: wordDefForLog, status: 'valid' } });
                 soundService.playInvalidWord();
                 showMessage(`A word was found: ${foundWordUpper}! Submit it for 0 points.`, 3000);
-                dispatch({ type: 'UPDATE_GAME_STATE', payload: { challengeCount: state.gameState.challengeCount - 1 } });
+                dispatch({ type: 'UPDATE_GAME_STATE', payload: { challengeCount: (state.gameState?.challengeCount ?? 0) - 1, consecutiveValidWords: 0 } });
                 dispatch({ type: 'CHALLENGE_FAILED', payload: { tilesToMove } });
             } else {
                 challengeLost = false; // Fallback to win condition
@@ -1898,688 +3371,437 @@ const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveG
       if (isStrikeChallenge) {
         messageText = 'Challenge successful! No word found. Free shuffle!';
       } else {
-        messageText = 'Challenge successful! No word found. Free shuffle! Challenge not consumed.';
+        messageText = 'Challenge successful! No word found. Challenge not consumed.';
       }
       showMessage(messageText, 3000);
-      handleShuffle(true); // Free shuffle on win
+      handleShuffle(true, true); // Free shuffle on win, and from challenge
     }
 
     dispatch({ type: 'SET_IS_LOADING', payload: false });
   };
+    const potentialScore = useMemo(() => {
+        const word = wordFromBuildRow;
+        if ((word?.length ?? 0) < (gameState?.gameConfig?.minWordLength ?? 3) || (buildRow ?? []).every(i => i === null)) {
+            return 0;
+        }
+        const tiles = (buildRow ?? []).filter((i): i is { tile: Tile, originalIndex: number } => i !== null).map(item => item.tile);
+        const scoreResult = gameUtils.calculateScore(word, tiles, gameState);
+        return scoreResult.totalScore;
+    }, [buildRow, wordFromBuildRow, gameState]);
 
-  const handleActivatePowerPlay = (powerPlay: PowerPlay) => {
-    if (isPaused || isChallengeLock) return;
+    const challengeButtonText = useMemo(() => isStrikeChallenge
+        ? `GAMBLE STRIKE (${strikesRemaining})`
+        : `CHALLENGE (${gameState?.challengeCount ?? 0})`, [isStrikeChallenge, strikesRemaining, gameState?.challengeCount]);
+
+    const handleSaveClick = () => {
+        soundService.playUIClick();
+        dispatch({ type: 'SHOW_SAVE_MODAL' });
+    };
     
-    if (powerPlay.id === 'redWedding') {
-        const handSize = hand.filter(t => t !== null).length;
-        if (handSize < 10) {
-            showMessage("Red Wedding requires a full hand of 10 tiles!", 2500);
-            return;
-        }
-    }
+    const handleConfirmSave = () => {
+        const screenState: GameScreenState = {
+            gameState, time, hand, buildRow, tileBag, message: '',
+            isPaused: false, isLoading: false, loadingMessage: null, modalContent: null, modalQueue: [],
+            tilesToSwap: [], tileToTransform: null, challengeWordData: null, tileForSelection: null, lastTurnState: null, highlightedTileIds: { first: null, rest: [] }, longWordBonusNotified: false,
+        };
+        onSaveGame(screenState);
+    };
 
-    soundService.playPowerUp();
-
-    // Special handling for Bob Kelso
-    if (powerPlay.id === 'bobKelso') {
-        const changes = powerPlay.activate(gameState);
-        dispatch({
-            type: 'UPDATE_GAME_STATE',
-            payload: {
-                ...changes,
-                availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
-            }
-        });
-        handleShuffle(true); // Free shuffle
-        showMessage("✨ +100 points and a fresh hand!", 3000);
-        return;
-    }
-
-    // Special handling for Echoes of the Past
-    if (powerPlay.id === 'echoesOfThePast') {
-        if (!gameState.highestScoringWord) {
-            showMessage("No highest scoring word recorded yet!", 2000);
-            return; // Don't consume if it does nothing
-        }
-        const changes = powerPlay.activate(gameState);
-        dispatch({
-            type: 'UPDATE_GAME_STATE',
-            payload: {
-                ...changes,
-                availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
-            }
-        });
+    const showBuffInfo = (buff: Charm | PowerPlay) => {
+        soundService.playModalOpen();
         dispatch({
             type: 'SET_MODAL_CONTENT',
             payload: {
-                type: 'info',
-                title: 'Echoes of the Past!',
-                content: `You replayed your highest scoring word "${gameState.highestScoringWord.word.toUpperCase()}" for an extra ${gameState.highestScoringWord.score} points!`,
+                type: 'buff-info',
+                title: `ℹ️ ${buff.name}`,
+                data: buff,
             }
         });
-        return;
-    }
+    };
+    
+    const handleCarmenSandiegoActivation = async () => {
+        dispatch({ type: 'SET_IS_LOADING', payload: true });
+        dispatch({ type: 'SET_LOADING_MESSAGE', payload: "Searching the globe for clues..." });
 
-    dispatch({ type: 'ACTIVATE_POWER_PLAY', payload: powerPlay });
-  };
+        const availableTiles = (hand ?? []).filter((t): t is Tile => t !== null);
+        const allWords = dictionaryService.getAllKnownWords().sort((a, b) => b.length - a.length);
 
-  const handleActivateCharm = (charm: Charm) => {
-      if (isPaused || isChallengeLock) return;
-      soundService.playPowerUp();
-      dispatch({ type: 'ACTIVATE_CHARM', payload: charm });
-  }
-
-  const handleChoosePowerPlay = (powerPlay: PowerPlay) => {
-    soundService.playUIClick();
-    const immediateEffects: { [key: string]: () => void } = {
-        gumpLuck: () => {
-            const rand = Math.random();
-            if (rand < 0.25) { // +10s
-                dispatch({ type: 'ADD_TIME', payload: 10 });
-                showMessage('🍫 +10 seconds! Run, Forrest, run!', 3000);
-            } else if (rand < 0.50) { // +20 points
-                dispatch({ type: 'UPDATE_GAME_STATE', payload: { score: gameState.score + 20 } });
-                showMessage('🍫 +20 points! That\'s all I have to say about that.', 3000);
-            } else if (rand < 0.75) { // +1 shuffle
-                dispatch({ type: 'UPDATE_GAME_STATE', payload: { shuffleCount: gameState.shuffleCount + 1 } });
-                showMessage('🍫 +1 Shuffle! Just like a box of chocolates.', 3000);
-            } else { // +1 strike
-                dispatch({ type: 'ADD_STRIKE' });
-                showMessage('🍫 You got a strike! Stupid is as stupid does.', 3000);
+        let bestWord = '';
+        for (const word of allWords) {
+            if (word.length < 3) continue;
+            if (gameUtils.canBeMadeFromRack(word, availableTiles)) {
+                bestWord = word.toUpperCase();
+                break; // Found the longest one
             }
-        },
+        }
+        
+        if (bestWord) {
+            showMessage(`A clue was found: ${bestWord}!`, 4000);
+            
+            let tempHand = [...availableTiles];
+            
+            const firstLetter = bestWord[0];
+            const firstTileIndex = tempHand.findIndex(t => t.letter === firstLetter);
+            const firstTile = firstTileIndex > -1 ? tempHand.splice(firstTileIndex, 1)[0] : null;
+
+            const restOfWord = bestWord.slice(1).split('');
+            const restTileIds: string[] = [];
+
+            for (const char of restOfWord) {
+                const tileIndex = tempHand.findIndex(t => t.letter === char);
+                if (tileIndex > -1) {
+                    restTileIds.push(tempHand[tileIndex].id);
+                    tempHand.splice(tileIndex, 1);
+                }
+            }
+            dispatch({ type: 'SET_HIGHLIGHTED_TILES', payload: { first: firstTile?.id || null, rest: restTileIds } });
+        } else {
+            showMessage("The trail went cold. No words found!", 3000);
+        }
+
+        const newLogEntry: EventLogEntry = {
+            type: 'event', id: `pp-carmenSandiego-${Date.now()}`, name: 'Where in the World is Carmen Sandiego?',
+            description: bestWord ? `Revealed the word: ${bestWord}` : 'No possible word was found.', icon: '🗺️',
+            scoreChange: 0, cumulativeScore: gameState.score
+        };
+
+        dispatch({
+            type: 'UPDATE_GAME_STATE',
+            payload: {
+                log: [...gameState.log, newLogEntry],
+                availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== 'carmenSandiego'),
+                powerPlayUses: { ...gameState.powerPlayUses, carmenSandiego: (gameState.powerPlayUses.carmenSandiego || 0) + 1 }
+            }
+        });
+        
+        dispatch({ type: 'SET_IS_LOADING', payload: false });
     };
 
-    if (immediateEffects[powerPlay.id]) {
-        immediateEffects[powerPlay.id]();
-        dispatch({ type: 'UPDATE_GAME_STATE', payload: { powerPlayOffer: [] } });
-        handleCloseModal();
-    } else {
-        dispatch({type: 'CHOOSE_POWER_PLAY', payload: powerPlay});
-    }
-  };
-  
-  const handleChooseCharm = (charm: Charm) => {
-      soundService.playUIClick();
-      dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand } });
-  }
-
-  const handleSelectLetter = (letter: string) => {
-      soundService.playUIClick();
-      const powerPlay = POWER_PLAYS_LIST.find(p => p.id === modalContent?.data?.id);
-      if(!powerPlay) return;
-      dispatch({type: 'COMPLETE_POWER_PLAY_ACTIVATION', payload: {powerPlay, option: {letter}}});
-  }
-
-  const handleSelectTileForSwap = (tile: Tile, index: number) => {
-      soundService.playTileClick();
-      if(tilesToSwap.some(t => t.originalIndex === index)) {
-          dispatch({type: 'REMOVE_TILE_FROM_SWAP', payload: {originalIndex: index}});
-      } else {
-          dispatch({type: 'ADD_TILE_TO_SWAP', payload: {tile, originalIndex: index}});
-      }
-  }
-
-  const handleConfirmSwap = () => {
-      soundService.playUIClick();
-      const config = modalContent?.data?.swapConfig ?? {min: 2, max: 2};
-      if (tilesToSwap.length < config.min || tilesToSwap.length > config.max) return;
-      
-      const indicesToReplace = tilesToSwap.map(t => t.originalIndex);
-      const lettersToReturn = tilesToSwap.map(t => t.tile.letter);
-      
-      let newHand = [...hand];
-      indicesToReplace.forEach(i => newHand[i] = null);
-      
-      const {newTiles, remainingBag} = gameUtils.drawTiles(tilesToSwap.length, [...tileBag, ...lettersToReturn]);
-      
-      newTiles.forEach(tile => {
-          const emptyIndex = newHand.findIndex(slot => slot === null);
-          if (emptyIndex !== -1) newHand[emptyIndex] = tile;
-      });
-      
-      const { newHand: finalHand, newBag: finalBag } = gameUtils.postProcessHand(newHand, remainingBag, showMessage);
-      
-      dispatch({type: 'SET_HAND_AND_BAG', payload: {hand: finalHand, tileBag: finalBag}});
-      dispatch({type: 'EXECUTE_SWAP'});
-  }
-
-  const handleSelectTileToTransform = (tile: Tile, originalIndex: number) => {
-      soundService.playTileClick();
-      dispatch({type: 'SELECT_TILE_TO_TRANSFORM', payload: {tile, originalIndex}});
-  }
-  
-  const handleConfirmTransform = (newLetter: string) => {
-      soundService.playUIClick();
-      if(modalContent?.data) {
-          dispatch({type: 'COMPLETE_CHARM_ACTIVATION', payload: {charm: modalContent.data, option: {newLetter}}});
-      }
-  }
-
-  const handleNeoChoice = (choice: 'time' | 'strike') => {
-      soundService.playUIClick();
-      if(modalContent?.data) {
-          dispatch({type: 'COMPLETE_POWER_PLAY_ACTIVATION', payload: {powerPlay: modalContent.data, option: {choice}}});
-      }
-  }
-
-  const handleSelectTileForHookshot = (tile: Tile, originalIndex: number) => {
-      soundService.playTileClick();
-      dispatch({type: 'SELECT_TILE_FOR_HOOKSHOT', payload: {tile, originalIndex}});
-  }
-
-  const handleConfirmHookshot = () => {
-      soundService.playUIClick();
-      if(modalContent?.data) {
-          dispatch({type: 'COMPLETE_POWER_PLAY_ACTIVATION', payload: {powerPlay: modalContent.data}});
-      }
-  }
-
-  const handleSaveClick = () => {
-    soundService.playUIClick();
-    dispatch({ type: 'SHOW_SAVE_MODAL' });
-  };
-
-  const handleConfirmSave = () => {
-      soundService.playUIClick();
-      onSaveGame(state);
-  }
-
-  const calculatedPotentialScore = useMemo(() => {
-    if (isChallengeLock) return 0;
-    const currentBuild = buildRow.filter(i => i);
-    if (currentBuild.length > 0) {
-        const word = currentBuild.map(item => item!.tile.letter).join('');
-        const tiles = currentBuild.map(item => item!.tile);
-        return gameUtils.calculateScore(word, tiles, gameState).totalScore;
-    }
-    return 0;
-  }, [buildRow, gameState, isChallengeLock]);
-
-  if (isLoading && !isResuming) {
-    return (
-        <div className="flex flex-col h-full items-center justify-center text-center p-4">
-             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-amber-400 mb-4"></div>
-             <h2 className="text-2xl font-bold text-slate-300 whitespace-pre-line">{state.loadingMessage || 'Loading Game...'}</h2>
-        </div>
-    );
-  }
-  
-  const showBuffInfo = (buff: Charm | PowerPlay) => {
-     soundService.playModalOpen();
-     dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'buff-info', title: buff.name, data: buff, content: '' }});
-  };
-
-  const renderModal = () => {
-    if (!modalContent) return null;
-    
-    const { type, title, data, content } = modalContent;
-    let modalBody: React.ReactNode = null;
-    let description: React.ReactNode = null;
-    
-    const isTransparentModal = type === 'super-hand';
-
-    // All cases will now populate modalBody and break, leading to a single return statement
-    switch(type) {
-        case 'save-confirmation':
-            modalBody = (
-                <div className="my-4">
-                    <div className="text-left text-slate-200 space-y-3">
-                        <p className="italic">"Goonies never say die... but they do take snack breaks."</p>
-                        <p>Want to stash your progress in a secret underground cavern and come back later?</p>
-                        <p>Saving now will send you back to the Main Menu. When you're ready to rejoin the adventure, just hit the Resume Game button and pick up right where you left off—traps, treasure, and all.</p>
-                    </div>
-                    <button onClick={handleConfirmSave} className="w-full mt-6 px-6 py-3 text-lg font-bold text-slate-900 bg-green-500 rounded-lg shadow-lg hover:bg-green-400 transition-colors">
-                        YEP, STASH IT & HEAD TO THE MENU
-                    </button>
-                    <button onClick={handleCloseModal} className="w-full mt-2 px-6 py-2 text-md font-bold text-slate-100 bg-red-600 rounded-lg shadow-lg hover:bg-red-500 transition-colors">
-                        NOPE, BACK TO THE ADVENTURE
-                    </button>
-                </div>
-            );
-            break;
-        case 'info':
-            modalBody = (
-                <p className="text-slate-200 text-md my-4 whitespace-pre-wrap">{content}</p>
-            );
-            break;
-        case 'super-hand':
-            modalBody = (
-                <>
-                    <p className="text-slate-200 text-md my-4 whitespace-pre-wrap">{content}</p>
-                    <div className="text-left space-y-2 mb-6 bg-slate-900/50 p-3 rounded-lg text-slate-100">
-                        <p className="text-green-400 font-bold">+ {data.points} Super Hand Bonus!</p>
-                        {data.gauntletBonus > 0 &&
-                            <p className="text-purple-400 font-bold">+ {data.gauntletBonus} Infinity Gauntlet Bonus!</p>
-                        }
-                    </div>
-                </>
-            );
-            break;
-        case 'easter-egg':
-            modalBody = (
-                <>
-                    <p className="text-slate-200 text-md my-4 whitespace-pre-wrap">{content}</p>
-                    <div className="text-left space-y-2 mb-6 bg-slate-900/50 p-3 rounded-lg text-slate-100">
-                      {data.reward.points > 0 && <p className="text-green-400 font-bold">+ {data.reward.points} Bonus Points!</p>}
-                      {data.reward.shuffle > 0 && <p className="text-cyan-400 font-bold">+ {data.reward.shuffle} Shuffle(s)!</p>}
-                    </div>
-                </>
-            );
-            break;
-        case 'word-bonus':
-            modalBody = (
-                <>
-                    <p className="text-slate-200 text-md my-4 whitespace-pre-wrap">{content}</p>
-                    <div className="text-left space-y-2 mb-6 bg-slate-900/50 p-3 rounded-lg text-slate-100">
-                      {data.reward.points && <p className="text-green-400 font-bold">+ {data.reward.points} Bonus Points!</p>}
-                    </div>
-                </>
-            );
-            break;
-        case 'charm-activation':
-            if (data.selectionType === 'tile_transform') {
-                if(!state.tileToTransform){
-                    modalBody = (
-                        <div className="my-4">
-                            <p className="text-slate-100 mb-4">Select a tile from your hand to transform.</p>
-                            <div className="flex flex-wrap justify-center gap-1">
-                                {hand.map((tile, index) => (
-                                    <div key={tile?.id || index} className="w-14 h-16 flex items-center justify-center">
-                                        {tile ? <TileComponent tile={tile} onClick={() => handleSelectTileToTransform(tile, index)} /> : <div className="w-12 h-14 rounded-lg bg-slate-800/50"></div>}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    );
-                } else {
-                    modalBody = (
-                        <div className="my-4">
-                            <p className="text-slate-100 mb-2">Transform <span className="font-bold text-amber-400">{state.tileToTransform.tile.letter}</span> into:</p>
-                             <div className="grid grid-cols-7 gap-1 text-center">
-                                {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(char => (
-                                    <button key={char} onClick={() => handleConfirmTransform(char)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-slate-100">
-                                        {char}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    );
-                }
-            }
-            break;
-        case 'powerplay-activation':
-            if (data.selectionType === 'letter') {
-                 modalBody = (
-                    <div className="my-4">
-                        <p className="text-slate-100 mb-4">{data.description}</p>
-                        <div className="grid grid-cols-7 gap-1 text-center">
-                            {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(char => (
-                                <button key={char} onClick={() => handleSelectLetter(char)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-slate-100">
-                                    {char}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                );
-            } else if (data.selectionType === 'tile_swap') {
-                const config = data.swapConfig ?? {min: 2, max: 2};
-                const message = config.min === config.max ? `Select ${config.max} tiles to swap.` : `Select ${config.min} to ${config.max} tiles to swap.`;
-                const buttonDisabled = tilesToSwap.length < config.min || tilesToSwap.length > config.max;
-
-                 modalBody = (
-                    <div className="my-4">
-                         <p className="text-slate-100 mb-4">{message} ({tilesToSwap.length}/{config.max})</p>
-                         <div className="flex flex-wrap justify-center gap-1">
-                             {hand.map((tile, index) => (
-                                <div key={tile?.id || index} className="w-14 h-16 flex items-center justify-center">
-                                    {tile ? (
-                                        <div className={`p-1 rounded-lg ${tilesToSwap.some(t=>t.originalIndex === index) ? 'ring-2 ring-amber-400' : ''}`}>
-                                          <TileComponent tile={tile} onClick={() => handleSelectTileForSwap(tile, index)} />
-                                        </div>
-                                    ) : (
-                                        <div className="w-12 h-14 rounded-lg bg-slate-800/50"></div>
-                                    )}
-                                </div>
-                            ))}
-                         </div>
-                         <button onClick={handleConfirmSwap} disabled={buttonDisabled} className="w-full mt-4 px-6 py-3 text-xl font-bold text-slate-900 bg-green-500 rounded-lg shadow-lg hover:bg-green-400 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors">SWAP</button>
-                    </div>
-                );
-            } else if (data.selectionType === 'custom') {
-                if (data.id === 'neosChoice') {
-                    modalBody = (
-                        <div className="my-4 space-y-3">
-                            <p className="text-slate-100 mb-4">{data.description}</p>
-                            <button onClick={() => handleNeoChoice('time')} className="w-full p-3 bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors text-white font-bold">Blue Pill: +10 Seconds</button>
-                            <button onClick={() => handleNeoChoice('strike')} disabled={gameState.strikes === 0} className="w-full p-3 bg-red-600 hover:bg-red-500 rounded-lg transition-colors text-white font-bold disabled:bg-slate-600 disabled:cursor-not-allowed">Red Pill: Erase a Strike</button>
-                        </div>
-                    );
-                } else if (data.id === 'hookshot') {
-                    if (!state.tileForHookshot) {
-                        modalBody = (
-                            <div className="my-4">
-                                <p className="text-slate-100 mb-4">Select a tile from your hand to duplicate.</p>
-                                <div className="flex flex-wrap justify-center gap-1">
-                                    {hand.map((tile, index) => (
-                                        <div key={tile?.id || index} className="w-14 h-16 flex items-center justify-center">
-                                            {tile ? <TileComponent tile={tile} onClick={() => handleSelectTileForHookshot(tile, index)} /> : <div className="w-12 h-14 rounded-lg bg-slate-800/50"></div>}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        );
-                    } else {
-                        modalBody = (
-                            <div className="my-4">
-                                <p className="text-slate-100 mb-2">Duplicate this tile?</p>
-                                <div className="flex justify-center my-4">
-                                    <TileComponent tile={state.tileForHookshot.tile} onClick={() => {}} />
-                                </div>
-                                <button onClick={handleConfirmHookshot} className="w-full mt-4 px-6 py-3 text-xl font-bold text-slate-900 bg-green-500 rounded-lg shadow-lg hover:bg-green-400 transition-colors">DUPLICATE</button>
-                            </div>
-                        );
+    const handleActivatePowerPlay = (powerPlay: PowerPlay) => {
+        if (powerPlay.id === 'withGreatPower') {
+            soundService.playPowerUp();
+            if (strikesRemaining > 1) {
+                const scoreChange = 500;
+                const newScore = gameState.score + scoreChange;
+                const newStrikes = gameState.strikes + 1;
+                const newLogEntry: EventLogEntry = {
+                    type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                    description: 'Sacrificed a strike for +500 points.', icon: '🕷️',
+                    scoreChange: scoreChange, cumulativeScore: newScore
+                };
+                dispatch({
+                    type: 'UPDATE_GAME_STATE',
+                    payload: {
+                        score: newScore,
+                        strikes: newStrikes,
+                        log: [...gameState.log, newLogEntry],
+                        availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                        powerPlayUses: { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 }
                     }
+                });
+                showMessage("With Great Power comes a great point bonus!", 2500);
+            } else {
+                showMessage("Cannot use With Great Power with only 1 strike left.", 3000);
+            }
+            return;
+        }
+        if (powerPlay.id === 'carmenSandiego') {
+            soundService.playPowerUp();
+            handleCarmenSandiegoActivation();
+            return;
+        }
+
+        if (powerPlay.id === 'gumpLuck') {
+            soundService.playPowerUp();
+            const rand = Math.random();
+            let outcomeMessage = '';
+            let changes: Partial<GameState> = {};
+            let timeChange = 0;
+            let gotStrike = false;
+    
+            if (rand < 0.25) { // +10s
+                timeChange = 10;
+                outcomeMessage = "Life is like a box of chocolates... you got 10 extra seconds!";
+            } else if (rand < 0.5) { // +20 score
+                changes.score = gameState.score + 20;
+                outcomeMessage = "Life is like a box of chocolates... you got a 20 point bonus!";
+            } else if (rand < 0.75) { // +1 shuffle
+                changes.shuffleCount = gameState.shuffleCount + 1;
+                outcomeMessage = "Life is like a box of chocolates... you got an extra shuffle!";
+            } else { // strike
+                gotStrike = true;
+                outcomeMessage = "Life is like a box of chocolates... sometimes you get a strike. Stupid is as stupid does.";
+            }
+    
+            const scoreChange = changes.score ? 20 : 0;
+            const cumulativeScore = changes.score || (gameState.score + scoreChange);
+            const newLogEntry: EventLogEntry = {
+                type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                description: outcomeMessage, icon: '🍫',
+                scoreChange: scoreChange, cumulativeScore: cumulativeScore
+            };
+            changes.log = [...gameState.log, newLogEntry];
+            changes.availablePowerPlays = gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id);
+            changes.powerPlayUses = { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 };
+    
+            dispatch({ type: 'UPDATE_GAME_STATE', payload: changes });
+            if (timeChange > 0) dispatch({ type: 'ADD_TIME', payload: timeChange });
+            if (gotStrike) dispatch({ type: 'ADD_STRIKE' });
+            
+            showMessage(outcomeMessage, 3000);
+            return;
+        }
+
+        if (powerPlay.id === 'happyPlace') {
+            soundService.playPowerUp();
+            const newLogEntry: EventLogEntry = {
+                type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                description: 'Timer reset to 60 seconds for this hand.', icon: '⛳',
+                scoreChange: 0, cumulativeScore: gameState.score
+            };
+            dispatch({ type: 'SET_TIME', payload: 60 });
+            dispatch({
+                type: 'UPDATE_GAME_STATE',
+                payload: {
+                    log: [...gameState.log, newLogEntry],
+                    availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                    powerPlayUses: { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 }
                 }
+            });
+            showMessage("Happy Place! Timer reset to 60 seconds.", 2500);
+            return;
+        }
+
+        if (powerPlay.id === 'warioWarp') {
+            soundService.playPowerUp();
+            const scoreChange = 100;
+            const newScore = gameState.score + scoreChange;
+    
+            const newLogEntry: EventLogEntry = {
+                type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                description: 'Gained 100 points, lost 10s next turn.', icon: '🛸',
+                scoreChange: scoreChange, cumulativeScore: newScore
+            };
+    
+            dispatch({ type: 'UPDATE_GAME_STATE', payload: {
+                score: newScore,
+                warioTimeDebt: 10,
+                log: [...gameState.log, newLogEntry],
+                availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+            }});
+            showMessage("Wario Warp! +100 points, -10s next turn.", 2500);
+            return;
+        }
+        
+        if (powerPlay.id === 'schruteBucks') {
+            soundService.playPowerUp();
+            const scoreChange = 150;
+            const newScore = gameState.score + scoreChange;
+    
+            const newLogEntry: EventLogEntry = {
+                type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                description: 'Gained 150 points. Next word score is capped at 1.', icon: '💵',
+                scoreChange: scoreChange, cumulativeScore: newScore
+            };
+    
+            const buff = {
+                ...powerPlay,
+                description: 'Your next word will score exactly 1 point.'
+            };
+    
+            dispatch({ type: 'UPDATE_GAME_STATE', payload: {
+                score: newScore,
+                activePowerPlays: { ...gameState.activePowerPlays, schruteBucks: true },
+                activeBuffs: [...gameState.activeBuffs, buff],
+                log: [...gameState.log, newLogEntry],
+                availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+            }});
+            showMessage("Schrute Bucks! +150 points. Next word is worth 1 point.", 3000);
+            return;
+        }
+
+        if (powerPlay.id === 'iceIceMaybe') {
+            soundService.playPowerUp();
+            const handTilesWithIndices = (hand ?? []).map((tile, index) => ({ tile, index })).filter((item): item is { tile: Tile, index: number } => item.tile !== null);
+            if (handTilesWithIndices.length === 0) {
+                showMessage("Hand is empty, cannot activate!", 2000);
+                return;
             }
-            break;
-        case 'milestone':
-            modalBody = (
-              <>
-                <div className="text-5xl my-4">{data.icon}</div>
-                <p className="text-slate-200 text-lg mb-4">{data.flavorText}</p>
-                <div className="text-left space-y-2 mb-6 bg-slate-900/50 p-3 rounded-lg text-slate-100">
-                  {data.reward.points && <p className="text-green-400">+ {data.reward.points} Bonus Points!</p>}
-                  {data.configChange?.minWordLength && <p>Minimum word length is now {data.configChange.minWordLength}.</p>}
-                  {data.configChange?.timerDuration && <p>You now have {data.configChange.timerDuration} seconds per round.</p>}
-                </div>
-              </>
-            );
-            break;
-        case 'powerplay-selection':
-            description = <p className="text-slate-100 mb-4">Your combo earned you a choice of one-time abilities!</p>;
-            modalBody = (
-                <div className="space-y-3 my-4">
-                  {data.map((pp: PowerPlay) => (
-                    <button key={pp.id} onClick={() => handleChoosePowerPlay(pp)} className="w-full text-left p-3 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors">
-                      <p className="font-bold text-amber-400">{pp.icon} {pp.name}</p>
-                      <p className="text-sm text-slate-100">{pp.description}</p>
-                      <p className="text-xs text-gray-400 italic mt-1">{pp.flavorText}</p>
-                    </button>
-                  ))}
-                </div>
-            );
-            break;
-        case 'charm-selection':
-            description = <p className="text-slate-100 mb-4">Your word count has earned you a new passive charm!</p>;
-            modalBody = (
-                <div className="space-y-3 my-4">
-                  {data.map((c: Charm) => (
-                    <button key={c.id} onClick={() => handleChooseCharm(c)} className="w-full text-left p-3 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors">
-                      <p className="font-bold text-amber-400">{c.icon} {c.name}</p>
-                      <p className="text-sm text-slate-100">{c.description}</p>
-                      {c.maxUses === 1 && (
-                        <span className="block text-xs font-bold text-red-400/90 uppercase tracking-wider mt-1">One-Time Use</span>
-                      )}
-                      <p className="text-xs text-gray-400 italic mt-1">{c.flavorText}</p>
-                    </button>
-                  ))}
-                </div>
-            );
-            break;
-        case 'word-log':
-             modalBody = <WordLogModalContent words={gameState.words} />;
-             break;
-        case 'buff-info':
-          modalBody = (
-            <>
-              <div className="text-5xl my-4">{data.icon}</div>
-              <p className="text-slate-200 text-lg mb-4">{data.description}</p>
-              <p className="text-sm text-gray-400 italic mt-1">{data.flavorText}</p>
-            </>
-          );
-        break;
-    }
+            const randomItem = handTilesWithIndices[Math.floor(Math.random() * handTilesWithIndices.length)];
+            const newHand = [...(hand ?? [])];
+            const newTile = { ...randomItem.tile, isSuper: true };
+            newHand[randomItem.index] = newTile;
+    
+            const newLogEntry: EventLogEntry = {
+                type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                description: `'${newTile.letter}' became a 4x Super Tile for this turn.`, icon: '❄️',
+                scoreChange: 0, cumulativeScore: gameState.score
+            };
+            
+            dispatch({ type: 'SET_HAND_AND_BAG', payload: { hand: newHand, tileBag } });
+            dispatch({ type: 'UPDATE_GAME_STATE', payload: { 
+                log: [...gameState.log, newLogEntry],
+                availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+            }});
+            showMessage(`Your '${newTile.letter}' tile is now a 4X Super Tile!`, 2500);
+            return;
+        }
 
-    const backgroundClass = isTransparentModal
-      ? "absolute inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
-      : "absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4";
-
-    const noGenericButtons = ['powerplay-activation', 'charm-activation', 'powerplay-selection', 'charm-selection', 'save-confirmation', 'word-log'];
-    const showContinueButton = !noGenericButtons.includes(type);
-
-    // The single, unified return for all modals.
-    return (
-        <div className={backgroundClass}>
-            <div className="bg-slate-800 border-2 border-amber-400 rounded-2xl p-6 text-center shadow-2xl max-w-md w-full animate-fade-in">
-                <h2 className="text-3xl font-bold text-amber-400 mb-2">{title}</h2>
-                {description}
-                {modalBody}
-                {showContinueButton && (
-                  <button onClick={handleCloseModal} className="w-full mt-4 px-6 py-3 text-xl font-bold text-slate-900 bg-amber-400 rounded-lg shadow-lg hover:bg-amber-300 transition-colors">CONTINUE</button>
-                )}
-                {(type === 'powerplay-activation' || type === 'charm-activation') && (
-                  <button onClick={handleCloseModal} className="w-full mt-4 px-6 py-2 text-md font-bold text-slate-100 bg-red-600 rounded-lg shadow-lg hover:bg-red-500 transition-colors">CANCEL</button>
-                )}
-                 {type === 'word-log' && (
-                  <button onClick={handleCloseModal} className="w-full mt-4 px-6 py-3 text-xl font-bold text-slate-900 bg-amber-400 rounded-lg shadow-lg hover:bg-amber-300 transition-colors">CLOSE</button>
-                )}
-            </div>
-        </div>
-    );
-  }
-
-  const showMilestoneInfo = (milestone: Milestone) => {
-     soundService.playModalOpen();
-     dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'milestone', title: milestone.name, data: milestone, content: '' }});
-  };
-  
-  const goldenSnitchActive = gameState.activeCharms.some(c => c.id === 'goldenSnitch');
-
-  return (
-    <div className="flex flex-col h-full p-4 space-y-1 relative">
-      {renderModal()}
-      <header className="grid grid-cols-5 items-center text-center gap-1">
-        <div className="text-lg font-bold text-amber-400">SCORE <br/><span className={`font-digital text-white transition-all ${gameState.score >= 10000 ? 'text-2xl' : 'text-3xl'}`}>{gameState.score}</span></div>
-        <div className="text-lg font-bold text-cyan-400">WORDS<br/><span className="font-digital text-3xl text-white">{gameState.words.length}</span></div>
-        <Timer time={time} />
-        <div className="text-lg font-bold text-red-500">STRIKES<br/>
-          <div className="flex justify-center items-center space-x-2 mt-1">
-            {[...Array(maxStrikes)].map((_, i) => (
-              <div key={i} className={`w-5 h-5 rounded-full transition-colors ${i < gameState.strikes ? 'bg-red-500' : 'bg-slate-600'}`}></div>
-            ))}
-          </div>
-        </div>
-        <div className="flex justify-end items-center">
-            <button onClick={handleSaveClick} className="text-2xl text-slate-400 hover:text-white p-2 transition-transform hover:scale-110" aria-label="Save game">
-                💾
-            </button>
-        </div>
-      </header>
-      
-      <div className="flex justify-center items-center space-x-3 py-1 bg-slate-900/50 rounded-lg">
-          {MILESTONES_LIST.map(ms => {
-              const isUnlocked = gameState.unlockedMilestoneIds.includes(ms.id);
-              return (
-                  <button key={ms.id} onClick={() => showMilestoneInfo(ms)} className={`transition-all duration-300 ${isUnlocked ? 'opacity-100' : 'opacity-30'}`} title={`${ms.name} (${ms.scoreThreshold} pts)`}>
-                      <span className={`text-2xl ${isUnlocked ? 'text-amber-400' : 'text-slate-500'}`}>{ms.icon}</span>
-                  </button>
-              )
-          })}
-           <button onClick={() => { soundService.playUIClick(); dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'word-log', title: 'Word Log', content: '' } }); }} className="text-slate-400 hover:text-amber-400 transition-colors" aria-label="Word Log">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-           </button>
-            <button onClick={handleMuteToggle} className="text-2xl text-slate-400 hover:text-white p-2 ml-4 transition-transform hover:scale-110" aria-label="Toggle sound">
-                {isMuted ? '🔇' : '🔊'}
-            </button>
-      </div>
-
-       <div className="text-center text-sm font-bold text-slate-300">
-        POWERPLAY PROGRESS
-        <div className="flex justify-center items-center space-x-3 mt-1">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="flex flex-col items-center">
-              <div className={`w-5 h-5 rounded-full border-2 transition-all duration-300 ${
-                i < gameState.powerPlayProgress.streak && gameState.powerPlayProgress.cooldown === 0
-                  ? 'bg-yellow-400 border-yellow-400'
-                  : 'bg-slate-700 border-slate-600'
-              }`}>
-              </div>
-              {i < gameState.powerPlayProgress.streak && gameState.powerPlayProgress.cooldown === 0 && gameState.powerPlayProgress.targetDigit !== null && (
-                <span className="text-xs font-digital text-yellow-500 mt-1">
-                  {gameState.powerPlayProgress.targetDigit}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-      
-      {goldenSnitchActive && (
-          <div className="text-center py-1">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Golden Snitch 🕊️ Streak</span>
-              <div className="flex justify-center items-center space-x-2 mt-1">
-                  {[...Array(5)].map((_, i) => (
-                      <div key={i} className={`w-4 h-4 rounded-full transition-all duration-300 border-2 ${i < gameState.consecutiveSuccesses ? 'bg-amber-400 border-amber-300' : 'bg-slate-700 border-slate-600'}`}></div>
-                  ))}
-              </div>
-          </div>
-      )}
-
-       <div className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider">
-        Active Buffs
-        {gameState.activeBuffs.length > 0 ? (
-          <div className="flex justify-center items-center flex-wrap gap-2 mt-1 bg-slate-900/50 rounded-lg p-2 min-h-[40px]">
-            {gameState.activeBuffs.map((buff, index) => (
-              <div key={buff.instanceId || `${buff.id}-${index}`} className="relative">
-                <button className="text-2xl transform hover:scale-125 transition-transform" title={`${buff.name}: ${buff.description}`} onClick={() => showBuffInfo(buff)}>
-                  {buff.icon}
-                </button>
-                {buff.id === 'goldenSnitch' && (
-                  <div className="absolute -top-1 right-[-10px] text-xs font-bold text-amber-300 bg-slate-800 bg-opacity-80 px-1 rounded pointer-events-none">
-                    {gameState.consecutiveSuccesses}/5
-                  </div>
-                )}
-                {buff.id === 'glitchInTheCode' && (
-                  <div className="absolute -top-1 right-[-10px] text-xs font-bold text-cyan-300 bg-slate-800 bg-opacity-80 px-1 rounded pointer-events-none">
-                    {gameState.consecutiveSuccesses}/6
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-slate-500 text-xs italic mt-1 min-h-[40px] flex justify-center items-center">(None active)</div>
-        )}
-      </div>
-
-      <div className="relative flex-grow flex flex-col justify-end">
-        {message && <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-black bg-opacity-70 text-white text-base font-bold px-3 py-1 rounded-lg z-20 animate-pulse text-center max-w-md">{message}</div>}
+        if (powerPlay.id === 'rescueDrop' && (hand ?? []).filter(t => t).length === 0) {
+            showMessage("Hand is empty, cannot activate Rescue Drop.", 2000);
+            return;
+        }
         
-        {buildRow.filter(t => t).length >= 5 && (
-            <div className="text-center text-amber-400 font-bold text-lg animate-pulse mb-1" aria-live="polite">
-                2x Word Score Bonus!
-            </div>
-        )}
+        if (powerPlay.id === 'scroogeSwipe') {
+            soundService.playPowerUp();
+            onLexCoinChange(1);
+            const scoreChange = -500;
+            const newScore = Math.max(0, gameState.score + scoreChange);
+            const newLogEntry: EventLogEntry = {
+                type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                description: 'Traded 500 points for 1 LEX Coin.', icon: '🪙',
+                scoreChange, cumulativeScore: newScore
+            };
+            dispatch({
+                type: 'UPDATE_GAME_STATE',
+                payload: {
+                    score: newScore,
+                    log: [...gameState.log, newLogEntry],
+                    availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                }
+            });
+            showMessage("Scrooge Swipe! +1 LEX Coin, -500 points.", 2500);
+            return;
+        }
         
-        <div className="w-full min-h-[72px] bg-slate-900/50 rounded-lg flex items-center justify-between p-1 mb-1">
-            <div className="flex-grow grid grid-cols-8 gap-1">
-                {[...Array(BUILD_ROW_SIZE)].map((_, index) => {
-                    const item = buildRow[index];
-                    return (
-                        <div key={index} 
-                            className={`relative w-full h-16 rounded-lg bg-slate-800/50 flex items-center justify-center 
-                                        border-2 ${isChallengeLock ? 'border-sky-400' : 'border-transparent'}`}
-                        >
-                            {item ? (
-                                <TileComponent tile={item.tile} onClick={() => handleReturnToHand(index)} />
-                            ) : (
-                                <div/>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-            {buildRow.some(t => t !== null) && 
-              <div className="flex-shrink-0 w-24 text-center" title="Potential Score">
-                  <span className="font-digital text-amber-400 text-4xl">{calculatedPotentialScore > 0 ? calculatedPotentialScore : ''}</span>
-              </div>
+        if (powerPlay.id === 'sliders') {
+            if (lastTurnState) {
+                soundService.playPowerUp();
+                dispatch({ type: 'RESTORE_LAST_TURN' });
+                showMessage("Sliders activated! Reverting to the previous turn.", 3000);
+            } else {
+                showMessage("No previous turn to slide back to!", 2000);
             }
-        </div>
-        
-        <div className={`w-full bg-slate-700 rounded-lg flex flex-wrap items-center justify-center p-1 gap-1 ${isChallengeLock || isPaused ? 'opacity-50' : ''}`}>
-          {hand.map((tile, index) => (
-              <div key={tile?.id || index} className="w-14 h-16 flex items-center justify-center">
-                  {tile ? (
-                      <TileComponent tile={tile} onClick={() => handleMoveToBuild(tile, index)} />
-                  ) : (
-                      <div className="w-12 h-14 rounded-lg bg-slate-800/50"></div>
-                  )}
-              </div>
-          ))}
-        </div>
-      </div>
-      
-      {(gameState.availablePowerPlays.length > 0 || gameState.availableCharms.length > 0) && (
-          <div className="flex justify-center items-center space-x-2 p-2 bg-slate-900/50 rounded-lg">
-            <span className="font-bold text-sm text-slate-300">ABILITIES:</span>
-            {gameState.availablePowerPlays.map(pp => {
-              const isRedWedding = pp.id === 'redWedding';
-              const handSize = hand.filter(t => t !== null).length;
-              const isRedWeddingDisabled = isRedWedding && handSize < 10;
-              return (
-              <button 
-                key={pp.id} 
-                className="text-2xl hover:scale-125 transition-transform disabled:opacity-50 disabled:cursor-not-allowed" 
-                title={isRedWeddingDisabled ? `${pp.name}: Requires a full hand of 10 tiles.` : `${pp.name}: ${pp.description}`}
-                onClick={() => handleActivatePowerPlay(pp)}
-                disabled={isChallengeLock || (pp.id === 'rewind' && gameState.strikes === 0) || isRedWeddingDisabled}
-              >
-                {pp.icon}
-              </button>
-            )})}
-            {gameState.availableCharms.map(c => (
-              <button 
-                key={c.id} 
-                className="text-2xl hover:scale-125 transition-transform" 
-                title={`${c.name}: ${c.description}`}
-                onClick={() => handleActivateCharm(c)}
-                disabled={isChallengeLock}
-              >
-                {c.icon}
-              </button>
-            ))}
-          </div>
-        )}
+            return;
+        }
 
-      <div className="grid grid-cols-2 gap-2">
-         <button onClick={handleSubmit} className="py-3 px-4 font-bold rounded-lg bg-green-600 hover:bg-green-500 transition-colors disabled:bg-slate-500" disabled={buildRow.filter(i=>i).length < gameState.gameConfig.minWordLength || isPaused}>SUBMIT</button>
-         <button onClick={() => handleShuffle(false)} disabled={gameState.shuffleCount <= 0 || isPaused || isChallengeLock} className="py-3 px-4 font-bold rounded-lg bg-slate-600 hover:bg-slate-500 transition-colors disabled:bg-gray-700 disabled:cursor-not-allowed">SHUFFLE ({gameState.shuffleCount})</button>
-      </div>
-       <div className="grid grid-cols-2 gap-2 mt-1">
-            <button onClick={handleClear} disabled={isPaused || isChallengeLock} className="py-2 px-4 font-bold rounded-lg bg-yellow-600 hover:bg-yellow-500 transition-colors disabled:bg-gray-700 disabled:cursor-not-allowed">CLEAR</button>
-            {gameState.challengeCount > 0 ? (
-                <button 
-                    onClick={handleChallenge} 
-                    disabled={isPaused || isLoading || buildRow.some(t => t !== null) || isChallengeLock} 
-                    className="py-2 px-4 font-bold rounded-lg bg-sky-600 hover:bg-sky-500 transition-colors disabled:bg-gray-700 disabled:cursor-not-allowed"
-                >
-                    CHALLENGE ({gameState.challengeCount})
-                </button>
-            ) : (
-                <button 
-                    onClick={handleChallenge} 
-                    disabled={(maxStrikes - gameState.strikes <= 0) || isPaused || isLoading || buildRow.some(t => t !== null) || isChallengeLock} 
-                    className="py-2 px-4 font-bold rounded-lg bg-red-600 hover:bg-red-500 transition-colors disabled:bg-gray-700 disabled:cursor-not-allowed"
-                >
-                    STRIKE CHALLENGE ({maxStrikes - gameState.strikes})
-                </button>
-            )}
-       </div>
-    </div>
-  );
+        soundService.playPowerUp();
+        dispatch({ type: 'ACTIVATE_POWER_PLAY', payload: powerPlay });
+    };
+
+    const handleActivateCharm = (charm: Charm) => {
+        if (charm.effectType === 'selection') {
+            soundService.playModalOpen();
+            dispatch({
+                type: 'SET_MODAL_CONTENT',
+                payload: {
+                    type: 'charm-activation',
+                    title: `Activate: ${charm.name}`,
+                    data: charm
+                }
+            });
+        } else {
+            // This case is unlikely given the current charms, but is a fallback.
+            dispatch({ type: 'ACTIVATE_CHARM', payload: charm });
+        }
+    };
+    
+    const handleChoosePowerPlay = (powerPlay: PowerPlay, allOffered: PowerPlay[]) => {
+        soundService.playUIClick();
+        dispatch({ type: 'CHOOSE_POWER_PLAY', payload: { powerPlay, allOffered } });
+        handleCloseModal();
+    };
+
+    const handleChooseCharm = (charm: Charm, allOffered: Charm[]) => {
+        soundService.playUIClick();
+        const handTiles = (hand ?? []).filter((t): t is Tile => t !== null);
+        dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand: handTiles, allOffered } });
+        handleCloseModal();
+    };
+
+    const handleAddTileToSwap = (tile: Tile, originalIndex: number) => {
+        soundService.playTileClick();
+        dispatch({ type: 'ADD_TILE_TO_SWAP', payload: { tile, originalIndex } });
+    };
+
+    const handleRemoveTileFromSwap = (originalIndex: number) => {
+        soundService.playTileClick();
+        dispatch({ type: 'REMOVE_TILE_FROM_SWAP', payload: { originalIndex } });
+    };
+    
+    const handleExecuteSwap = () => {
+        soundService.playShuffle();
+        const powerPlay = modalContent?.data as PowerPlay | undefined;
+        if (!powerPlay || (tilesToSwap?.length ?? 0) === 0) {
+            dispatch({ type: 'CLOSE_MODAL' });
+            return;
+        }
+        
+        let newHand = [...(hand ?? [])];
+        const tilesToReturnToBag = (tilesToSwap ?? []).map(item => item.tile.letter);
+        let newBag = gameUtils.shuffleArray([...(tileBag ?? []), ...tilesToReturnToBag]);
+
+        const { newTiles, remainingBag } = gameUtils.drawTiles(tilesToSwap.length, newBag, gameState?.roundType === 'golden');
+        newBag = remainingBag;
+
+        const indicesToFill = (tilesToSwap ?? []).map(item => item.originalIndex);
+        
+        indicesToFill.forEach((originalIndex, i) => {
+            newHand[originalIndex] = newTiles[i] || null;
+        });
+        
+        const { newHand: finalHand, newBag: finalBag, balancingMessage } = gameUtils.postProcessHand(newHand, newBag, gameState?.roundType === 'golden');
+        if (balancingMessage) {
+            showMessage(balancingMessage, 1500);
+        }
+
+        dispatch({ type: 'SET_HAND_AND_BAG', payload: { hand: sanitizeHand(finalHand), tileBag: finalBag } });
+        dispatch({ type: 'EXECUTE_SWAP' });
+    };
+
+    const viewProps: GameScreenViewProps = {
+        gameState,
+        time,
+        hand,
+        buildRow,
+        isPaused,
+        isLoading,
+        modalContent,
+        tilesToSwap,
+        tileToTransform,
+        wordFromBuildRow,
+        totalWords,
+        potentialScore,
+        maxStrikes,
+        challengeButtonText,
+        tileClass,
+        isMuted,
+        isChallengeLock,
+        highlightedTileIds: state.highlightedTileIds,
+        isStrikeChallenge,
+        strikesRemaining,
+        handleMuteToggle,
+        handleCloseModal,
+        handleShowMilestoneInfo,
+        handleShowEventLog,
+        handleMoveToBuild,
+        handleReturnToHand,
+        handleShuffle,
+        handleSubmit,
+        handleClear,
+        handleChallenge,
+        handleSaveClick,
+        handleConfirmSave,
+        showBuffInfo,
+        handleActivatePowerPlay,
+        handleActivateCharm,
+        handleChoosePowerPlay,
+        handleChooseCharm,
+        handleAddTileToSwap,
+        handleRemoveTileFromSwap,
+        handleExecuteSwap,
+        dispatch,
+    };
+
+    return <GameScreenView {...viewProps} />;
 };
-
-export default GameScreen;
