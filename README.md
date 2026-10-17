@@ -60,12 +60,24 @@ The official NWL/TWL and Collins lists are licensed, so they aren't bundled. The
 ([`word-list`](https://github.com/sindresorhus/word-list), MIT) is very close to them, and the
 custom file covers anything missing.
 
+## Leaderboard
+
+**Top 50** is the worldwide board on Firebase Realtime Database, with every score also saved on the
+device. When Firebase can't be reached, the game shows this device's scores instead. Set
+`VITE_LEADERBOARD=local` in `.env` for device-only scores. Setup, database rules and known limits
+are in [docs/LEADERBOARD.md](docs/LEADERBOARD.md).
+
 ## Saved data
 
-Everything is stored on the device in `localStorage` through `services/storage.ts`: player name,
-LEX coins, unlocked packs, saved game, event logs, missed words, Power Word and the leaderboard.
-The **Top 50** leaderboard is local to each device. To change the shape of saved data, bump
-`STORAGE_VERSION` and add a migration step in that file.
+Everything else is stored on the device in `localStorage` through `services/storage.ts`: player
+name, LEX coins, unlocked packs, saved game, event logs (last 25 runs plus pinned ones), missed
+words and Power Word. To change the shape of saved data, bump `STORAGE_VERSION` and add a
+migration step in that file.
+
+## Design notes
+
+- [docs/GAMEPLAY_REVIEW.md](docs/GAMEPLAY_REVIEW.md): evaluation of the core loop (timer, scoring,
+  fairness, retention) with recommended changes.
 
 ## Project layout
 
