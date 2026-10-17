@@ -90,6 +90,8 @@ export interface SecretBonus {
   points?: number;
   shuffle?: number;
   message: string;
+  /** Clue shown in the Collection before the bonus is found. */
+  hint?: string;
   media?: 'vhs' | 'cartridge' | 'cd' | 'arcade';
   source?: string;
 }

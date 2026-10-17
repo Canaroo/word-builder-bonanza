@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import StartScreen from './services/screens/StartScreen';
 
 // The start screen loads first; the rest are fetched on demand.
@@ -8,6 +8,7 @@ const GameScreen = lazy(() => loadGameScreen().then(m => ({ default: m.GameScree
 const GameOverScreen = lazy(() => import('./services/screens/GameOverScreen'));
 const HowToPlayScreen = lazy(() => import('./services/screens/HowToPlayScreen'));
 const VibezScreen = lazy(() => import('./services/screens/VibezScreen'));
+const CollectionScreen = lazy(() => import('./services/screens/CollectionScreen'));
 
 // Bonus Vault: every bonus with a validity check and reveal previews. Unlinked; open /?bonuses.
 const BonusCatalog = lazy(() => import('./components/BonusCatalog'));
@@ -26,9 +27,12 @@ import { musicService } from './services/musicService';
 import { powerWordService } from './services/powerWordService';
 import { logService } from './services/logService';
 import { PACKS_LIST } from './data/packs';
+import { SECRET_BONUSES } from './data/secretBonuses';
 import { storage, STORAGE_KEYS } from './services/storage';
 import { showToast } from './services/toast';
 import { recordRunScore, getPersonalBest } from './services/personalBest';
+import { getCollection, recordFound } from './services/collection';
+import { pickNextHint, RunRecap } from './services/runRecap';
 
 export enum Screen {
   Start,
@@ -36,10 +40,14 @@ export enum Screen {
   GameOver,
   HowToPlay,
   Vibez,
+  Collection,
 }
 
 const App: React.FC = () => {
   const [screen, setScreen] = useState<Screen>(Screen.Start);
+  const [lastRunRecap, setLastRunRecap] = useState<RunRecap | null>(null);
+  // When the current run (or resumed run) started, to tell which secrets it found first.
+  const runStartedAt = useRef(Date.now());
   const [playerName, setPlayerName] = useState<string>(() => storage.getString(STORAGE_KEYS.playerName) || '');
   const [lastGameResult, setLastGameResult] = useState<FinalGameState | null>(null);
   const [lastRunIsNewBest, setLastRunIsNewBest] = useState(false);
@@ -168,6 +176,7 @@ const App: React.FC = () => {
   }, [unlockedPackIds]);
 
   const handlePlay = useCallback((name: string) => {
+    runStartedAt.current = Date.now();
     storage.remove(STORAGE_KEYS.savedGame);
     setIsResuming(false);
     setPlayerName(name);
@@ -177,6 +186,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleResumeGame = useCallback((name: string) => {
+    runStartedAt.current = Date.now();
     setIsResuming(true);
     setPlayerName(name);
     setScreen(Screen.Game);
@@ -211,7 +221,19 @@ const App: React.FC = () => {
     
     // Auto-save the log on game over
     logService.autoSaveLog(finalState);
+    const previousBest = getPersonalBest();
     setLastRunIsNewBest(recordRunScore(finalState.score));
+
+    // Secrets are saved to the collection as they're found; this catches any that weren't.
+    finalState.foundEasterEggs.forEach(egg => { if (!getCollection()[egg.id]) recordFound(egg.id); });
+    const collection = getCollection();
+    const ids = new Set(Object.keys(collection));
+    setLastRunRecap({
+      newSecretIds: finalState.foundEasterEggs.map(e => e.id).filter(id => (collection[id]?.firstFoundAt ?? 0) >= runStartedAt.current),
+      collection: { found: ids.size, total: SECRET_BONUSES.length },
+      previousBest,
+      nextHint: pickNextHint(ids),
+    });
     
     setLastGameResult(finalState);
     setScreen(Screen.GameOver);
@@ -219,6 +241,7 @@ const App: React.FC = () => {
   }, []);
 
   const handlePlayAgain = useCallback(() => {
+    runStartedAt.current = Date.now();
     setIsResuming(false);
     setLastGameResult(null);
     setScreen(Screen.Game);
@@ -258,6 +281,12 @@ const App: React.FC = () => {
     setScreen(Screen.HowToPlay);
   }, []);
   
+  const handleShowCollection = useCallback(() => {
+    soundService.initialize();
+    soundService.playUIClick();
+    setScreen(Screen.Collection);
+  }, []);
+
   const handleShowVibez = useCallback(() => {
     soundService.initialize();
     soundService.playUIClick();
@@ -284,6 +313,7 @@ const App: React.FC = () => {
           onResumeGame={handleResumeGame} 
           onShowHowToPlay={handleShowHowToPlay} 
           onShowVibez={handleShowVibez} 
+          onShowCollection={handleShowCollection}
           lexCoins={lexCoins} 
           autoShowLeaderboard={autoShowLeaderboard}
           setAutoShowLeaderboard={setAutoShowLeaderboard}
@@ -313,6 +343,7 @@ const App: React.FC = () => {
             gameState={lastGameResult} 
             isNewBest={lastRunIsNewBest}
             personalBest={getPersonalBest()}
+            recap={lastRunRecap}
             onPlayAgain={handlePlayAgain}
             onSubmitScore={handleSubmitScore}
             onGoToMenu={handleGoToMenu}
@@ -320,6 +351,8 @@ const App: React.FC = () => {
         );
       case Screen.HowToPlay:
         return <HowToPlayScreen onBack={handleGoToMenu} />;
+      case Screen.Collection:
+        return <CollectionScreen onBack={handleGoToMenu} />;
       case Screen.Vibez:
         return <VibezScreen 
           onBack={handleGoToMenu} 
@@ -330,7 +363,7 @@ const App: React.FC = () => {
           onSelectPack={handleSelectPack}
           />;
       default:
-        return <StartScreen onPlay={handlePlay} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowVibez={handleShowVibez} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin}/>;
+        return <StartScreen onPlay={handlePlay} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin}/>;
     }
   };
 

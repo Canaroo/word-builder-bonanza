@@ -5,6 +5,8 @@ import { soundService } from '../soundService';
 import EventLogDisplay from '../../components/EventLogDisplay';
 import { showToast } from '../toast';
 import ArcadeButton from '../../components/ArcadeButton';
+import { buildShareText, secretIcon, RunRecap } from '../runRecap';
+import { splitName } from '../../components/BonusReveal';
 
 
 interface GameOverScreenProps {
@@ -16,6 +18,7 @@ interface GameOverScreenProps {
   /** This run beat the device's previous best score. */
   isNewBest?: boolean;
   personalBest?: number;
+  recap?: RunRecap | null;
 }
 
 const StatRow: React.FC<{ label: string; value: React.ReactNode; icon: string; isHighlighted?: boolean; }> = ({ label, value, icon, isHighlighted }) => {
@@ -34,7 +37,7 @@ const StatRow: React.FC<{ label: string; value: React.ReactNode; icon: string; i
 };
 
 
-const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, onPlayAgain, onSubmitScore, onGoToMenu, isNewBest = false, personalBest = 0 }) => {
+const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, onPlayAgain, onSubmitScore, onGoToMenu, isNewBest = false, personalBest = 0, recap = null }) => {
   const [showWordLog, setShowWordLog] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [submissionName, setSubmissionName] = useState(playerName);
@@ -72,6 +75,26 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
   const handleSubmitScoreClick = () => handleAction(() => setShowSubmitModal(true));
   const handleShowWordLogClick = () => handleAction(() => setShowWordLog(true));
   const handleMenuClick = () => handleAction(onGoToMenu);
+
+  const handleShare = () => handleAction(async () => {
+    if (!recap) return;
+    const url = `${location.origin}${location.pathname}`;
+    const text = buildShareText(gameState, recap, isNewBest, url);
+    try {
+      if (navigator.share) {
+        await navigator.share({ text });
+        return;
+      }
+      await navigator.clipboard.writeText(text);
+      showToast('Copied! Paste it anywhere.');
+    } catch (e) {
+      // Closing the share sheet counts as an error; only report real failures.
+      if ((e as Error)?.name !== 'AbortError') showToast("Couldn't share from this browser.");
+    }
+  });
+
+  const newSecrets = new Set(recap?.newSecretIds ?? []);
+  const bestGap = recap && !isNewBest && recap.previousBest > gameState.score ? recap.previousBest - gameState.score : 0;
   
   const doSubmit = async () => {
     if (!submissionName.trim() || isSaving) return;
@@ -155,6 +178,33 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
 
       {/* Stats Panel */}
       <div className="my-4 bg-crt-950/70 ring-1 ring-neon-cyan/30 px-4 py-2 rounded-xl flex-grow min-h-0 overflow-y-auto">
+          {recap && (
+            <div className="text-left pb-2 border-b border-dashed border-white/10 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="osd-text text-lg leading-none text-neon-pink uppercase">📼 Secrets this run</span>
+                <span className="osd-text text-lg leading-none text-slate-400">COLLECTION {recap.collection.found}/{recap.collection.total}</span>
+              </div>
+              {gameState.foundEasterEggs.length ? (
+                <ul className="flex flex-wrap gap-1.5">
+                  {gameState.foundEasterEggs.map(egg => (
+                    <li key={egg.id} className={`flex items-center gap-1 rounded-md px-2 py-1 text-sm ring-1 ${newSecrets.has(egg.id) ? 'ring-neon-yellow bg-neon-yellow/10 text-neon-yellow' : 'ring-white/15 text-slate-200'}`}>
+                      <span aria-hidden="true">{secretIcon(egg)}</span>
+                      <span className="font-semibold">{splitName(egg.name).title}</span>
+                      {newSecrets.has(egg.id) && <span className="osd-text text-base leading-none">NEW</span>}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-400">None this time.</p>
+              )}
+              {recap.nextHint && (
+                <p className="text-sm text-slate-300"><span className="osd-text text-lg leading-none text-neon-cyan">NEXT SECRET?</span> {recap.nextHint}</p>
+              )}
+              {bestGap > 0 && (
+                <p className="osd-text text-lg leading-none text-neon-yellow">ONLY {bestGap.toLocaleString()} PTS FROM YOUR BEST</p>
+              )}
+            </div>
+          )}
           <div className="text-left">
               <StatRow icon="📝" label="Words Found" value={validWords.length} />
               <StatRow icon="📏" label="Longest Word" value={gameState.longestWord.toUpperCase() || '—'} />
@@ -172,8 +222,9 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
         <ArcadeButton color="yellow" size="lg" className="w-full" onClick={handlePlayAgainClick} disabled={isActionLocked}>
           ▶ Play Again
         </ArcadeButton>
-        <div className="grid grid-cols-2 gap-3">
-          <ArcadeButton color="purple" size="sm" onClick={handleShowWordLogClick} disabled={isActionLocked}>📼 Event Log</ArcadeButton>
+        <div className="grid grid-cols-3 gap-2">
+          <ArcadeButton color="purple" size="sm" onClick={handleShowWordLogClick} disabled={isActionLocked}>📼 Log</ArcadeButton>
+          <ArcadeButton color="green" size="sm" onClick={handleShare} disabled={isActionLocked || !recap}>📤 Share</ArcadeButton>
           <ArcadeButton color="slate" size="sm" onClick={handleMenuClick} disabled={isActionLocked}>Menu</ArcadeButton>
         </div>
         <p className="osd-text text-sm text-slate-500 leading-tight">RUN SAVED · PIN IT ANYTIME FROM EVENT LOGS</p>

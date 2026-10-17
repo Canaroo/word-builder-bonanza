@@ -7,7 +7,12 @@ import ArcadeButton from './ArcadeButton';
 
 interface BonusRevealProps {
   /** triggerScore: the score that matched, for score-number bonuses. */
-  egg: EasterEgg & { triggerScore?: number };
+  egg: EasterEgg & {
+    triggerScore?: number;
+    /** First time this bonus has ever been found on this device. */
+    firstFind?: boolean;
+    collection?: { found: number; total: number };
+  };
   onClose: () => void;
 }
 
@@ -28,7 +33,7 @@ const ScoreExplanation: React.FC<{ score: number; pattern: ScorePattern }> = ({ 
 };
 
 // Bonus names carry decorative emoji and curly quotes, e.g. 🗡️ “Hero of Hyrule” 🛡️.
-const splitName = (name: string) => {
+export const splitName = (name: string) => {
   const icon = name.match(/^\p{Extended_Pictographic}️?/u)?.[0] ?? '⭐';
   const title = name
     .replace(/\p{Extended_Pictographic}️?/gu, '')
@@ -122,6 +127,11 @@ const BonusReveal: React.FC<BonusRevealProps> = ({ egg, onClose }) => {
     <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-crt-950/85 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label={`Bonus: ${title}`}>
       <div className="bonus-insert w-full max-w-sm flex flex-col items-center gap-4 text-center">
         <div className="osd-text text-neon-green text-2xl">{MEDIA_LABEL[media]}</div>
+        {egg.firstFind && (
+          <div className="osd-text text-lg leading-none text-crt-900 bg-neon-yellow px-3 py-1 rounded-md shadow-glow-yellow">
+            ★ NEW FOR YOUR COLLECTION{egg.collection ? ` · ${egg.collection.found}/${egg.collection.total}` : ''} ★
+          </div>
+        )}
         {media === 'vhs' && <VhsCover {...props} />}
         {media === 'cartridge' && <Cartridge {...props} />}
         {media === 'cd' && <Disc {...props} />}
