@@ -27,6 +27,7 @@ import { logService } from './services/logService';
 import { PACKS_LIST } from './data/packs';
 import { storage, STORAGE_KEYS } from './services/storage';
 import { showToast } from './services/toast';
+import { recordRunScore, getPersonalBest } from './services/personalBest';
 
 export enum Screen {
   Start,
@@ -40,6 +41,7 @@ const App: React.FC = () => {
   const [screen, setScreen] = useState<Screen>(Screen.Start);
   const [playerName, setPlayerName] = useState<string>(() => storage.getString(STORAGE_KEYS.playerName) || '');
   const [lastGameResult, setLastGameResult] = useState<FinalGameState | null>(null);
+  const [lastRunIsNewBest, setLastRunIsNewBest] = useState(false);
   const [isResuming, setIsResuming] = useState(false);
   const [isTimeLow, setIsTimeLow] = useState(false);
   const [isGoldenRound, setIsGoldenRound] = useState(false);
@@ -207,6 +209,7 @@ const App: React.FC = () => {
     
     // Auto-save the log on game over
     logService.autoSaveLog(finalState);
+    setLastRunIsNewBest(recordRunScore(finalState.score));
     
     setLastGameResult(finalState);
     setScreen(Screen.GameOver);
@@ -310,6 +313,8 @@ const App: React.FC = () => {
           <GameOverScreen
             playerName={playerName}
             gameState={lastGameResult} 
+            isNewBest={lastRunIsNewBest}
+            personalBest={getPersonalBest()}
             onPlayAgain={handlePlayAgain}
             onSubmitScore={handleSubmitScore}
             onGoToMenu={handleGoToMenu}

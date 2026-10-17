@@ -257,4 +257,44 @@ export const soundService = {
         playNote(ctx, 783.99, now + 0.15, 0.1, v, t); // G5
         playNote(ctx, 880.00, now + 0.3, 0.2, v, t); // A5
     }),
+
+    // --- Bonus reveal stings, one per media type (see data/bonusMedia.ts) ---
+
+    /** VHS: the clunk of a tape going in, then the VCR motor winding up. */
+    playVhsSting: () => playSound(ctx => {
+        const now = ctx.currentTime;
+        playNote(ctx, 90, now, 0.08, 0.3, 'square');
+        playNote(ctx, 60, now + 0.09, 0.1, 0.25, 'square');
+        const motor = ctx.createOscillator();
+        const gain = ctx.createGain();
+        motor.type = 'sawtooth';
+        motor.frequency.setValueAtTime(110, now + 0.2);
+        motor.frequency.exponentialRampToValueAtTime(440, now + 0.75);
+        gain.gain.setValueAtTime(0.0001, now + 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.08, now + 0.35);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+        motor.connect(gain).connect(ctx.destination);
+        motor.start(now + 0.2);
+        motor.stop(now + 0.82);
+    }),
+
+    /** Cartridge: an 8-bit power-on arpeggio. */
+    playCartridgeSting: () => playSound(ctx => {
+        const now = ctx.currentTime;
+        [523.25, 659.25, 783.99, 1046.5, 1318.51].forEach((f, i) => playNote(ctx, f, now + i * 0.07, 0.09, 0.18, 'square'));
+    }),
+
+    /** CD: a shimmering major chord as the disc spins up. */
+    playCdSting: () => playSound(ctx => {
+        const now = ctx.currentTime;
+        [392.0, 493.88, 587.33, 783.99].forEach((f, i) => playNote(ctx, f, now + i * 0.04, 0.7, 0.09, 'sine'));
+        playNote(ctx, 1567.98, now + 0.25, 0.4, 0.05, 'triangle');
+    }),
+
+    /** Arcade marquee: insert-coin blip. */
+    playCoinSting: () => playSound(ctx => {
+        const now = ctx.currentTime;
+        playNote(ctx, 987.77, now, 0.08, 0.2, 'square'); // B5
+        playNote(ctx, 1318.51, now + 0.08, 0.3, 0.2, 'square'); // E6
+    }),
 };

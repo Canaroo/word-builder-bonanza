@@ -5,7 +5,7 @@ import { LeaderboardEntry } from '../types';
 
 const LEADERBOARD_PATH = 'leaderboard';
 const TOP_N = 50;
-const TIMEOUT_MS = 6000;
+const TIMEOUT_MS = 5000;
 
 const env = import.meta.env;
 const firebaseConfig = {
@@ -33,7 +33,7 @@ const getDb = (): Promise<Database> => {
     return dbPromise;
 };
 
-// Realtime Database calls wait forever while offline; give up so the game can fall back.
+// Realtime Database calls wait forever while offline; give up on the whole request so the game can fall back.
 const withTimeout = <T>(promise: Promise<T>): Promise<T> =>
     Promise.race([
         promise,
@@ -49,29 +49,29 @@ const toEntry = (id: string, row: any): LeaderboardEntry | null => {
 };
 
 /** Top scores, highest first. */
-const list = async (): Promise<LeaderboardEntry[]> => {
-    const db = await withTimeout(getDb());
+const list = (): Promise<LeaderboardEntry[]> => withTimeout((async () => {
+    const db = await getDb();
     const { ref, query, orderByChild, limitToLast, get } = await import('firebase/database');
-    const snapshot = await withTimeout(get(query(ref(db, LEADERBOARD_PATH), orderByChild('score'), limitToLast(TOP_N))));
+    const snapshot = await get(query(ref(db, LEADERBOARD_PATH), orderByChild('score'), limitToLast(TOP_N)));
     const rows: LeaderboardEntry[] = [];
     snapshot.forEach(child => {
         const entry = toEntry(child.key!, child.val());
         if (entry) rows.push(entry);
     });
     return rows.sort((a, b) => b.score - a.score).map((e, i) => ({ ...e, rank: i + 1 }));
-};
+})());
 
 /**
  * Writes { name, score, timestamp } — exactly the fields the database rules allow —
  * and returns the new entry's id.
  */
-const submit = async (name: string, score: number): Promise<string> => {
-    const db = await withTimeout(getDb());
+const submit = (name: string, score: number): Promise<string> => withTimeout((async () => {
+    const db = await getDb();
     const { ref, push, set, serverTimestamp } = await import('firebase/database');
     // push() picks the id locally, so it's known before the write finishes.
     const newRef = push(ref(db, LEADERBOARD_PATH));
-    await withTimeout(set(newRef, { name, score, timestamp: serverTimestamp() }));
+    await set(newRef, { name, score, timestamp: serverTimestamp() });
     return newRef.key!;
-};
+})());
 
 export const onlineLeaderboard = { list, submit };

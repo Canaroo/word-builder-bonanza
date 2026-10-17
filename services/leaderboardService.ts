@@ -27,6 +27,19 @@ export interface SubmittedScore {
 }
 
 const MAX_NAME_LENGTH = 20;
+// After the online board fails, use the device board for a while instead of waiting again.
+const RETRY_ONLINE_AFTER_MS = 60_000;
+let onlineFailedAt = 0;
+
+const shouldTryOnline = (): boolean =>
+    isOnlineLeaderboardEnabled() &&
+    (typeof navigator === 'undefined' || navigator.onLine !== false) &&
+    Date.now() - onlineFailedAt > RETRY_ONLINE_AFTER_MS;
+
+const noteOnlineFailure = (error: unknown, what: string) => {
+    onlineFailedAt = Date.now();
+    console.warn(`Online leaderboard unavailable; ${what}.`, error);
+};
 
 /**
  * Saves a score on this device and, when online play is enabled, to the online board.
@@ -38,14 +51,14 @@ const submitScore = async (rawName: string, score: number): Promise<SubmitResult
     const localRank = localLeaderboard.submit(entry);
     const last: SubmittedScore = { name, score, date: entry.date };
 
-    if (isOnlineLeaderboardEnabled()) {
+    if (shouldTryOnline()) {
         try {
             last.id = await onlineLeaderboard.submit(name, score);
             storage.setJSON(STORAGE_KEYS.lastSubmittedScore, last);
             const board = await onlineLeaderboard.list();
             return { rank: board.findIndex(e => e.id === last.id) + 1, source: 'online' };
         } catch (error) {
-            console.warn('Online leaderboard unavailable; score saved on this device.', error);
+            noteOnlineFailure(error, 'score saved on this device');
         }
     }
 
@@ -55,11 +68,11 @@ const submitScore = async (rawName: string, score: number): Promise<SubmitResult
 
 /** The online board when it's reachable, otherwise this device's scores. */
 const getLeaderboard = async (): Promise<LeaderboardResult> => {
-    if (isOnlineLeaderboardEnabled()) {
+    if (shouldTryOnline()) {
         try {
             return { entries: await onlineLeaderboard.list(), source: 'online' };
         } catch (error) {
-            console.warn('Online leaderboard unavailable; showing this device.', error);
+            noteOnlineFailure(error, 'showing this device');
         }
     }
     return { entries: localLeaderboard.list(), source: 'local' };
@@ -72,10 +85,14 @@ const getLastSubmitted = (): SubmittedScore | null =>
 const isLastSubmitted = (entry: LeaderboardEntry, last: SubmittedScore | null): boolean =>
     !!last && (entry.id ? entry.id === last.id : entry.date === last.date && entry.score === last.score);
 
+/** Test hook: forget a recent online failure. */
+const resetOnlineBackoff = () => { onlineFailedAt = 0; };
+
 export const leaderboardService = {
     submitScore,
     getLeaderboard,
     getLastSubmitted,
     isLastSubmitted,
     isOnline: isOnlineLeaderboardEnabled,
+    resetOnlineBackoff,
 };

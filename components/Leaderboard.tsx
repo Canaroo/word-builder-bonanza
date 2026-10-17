@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { LeaderboardEntry } from '../types';
 import { soundService } from '../services/soundService';
 import { leaderboardService, LeaderboardSource } from '../services/leaderboardService';
+import ArcadeButton from './ArcadeButton';
 
 interface LeaderboardProps {
   data: LeaderboardEntry[];
@@ -18,7 +19,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
   if (isLoading) {
     return (
         <div className="flex items-center justify-center min-h-[400px]">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-amber-400"></div>
+            <div className="osd-text text-2xl text-neon-cyan blink">LOADING…</div>
         </div>
     );
   }
@@ -55,14 +56,14 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
   };
 
   return (
-    <div className="w-full bg-slate-900 p-4 rounded-lg shadow-inner flex-grow flex flex-col">
-      <h3 className="text-xl font-bold text-center text-amber-400 mb-1 shrink-0">TOP 50 SCORES</h3>
-      <p className="text-xs text-center text-slate-400 mb-3 shrink-0">
-        {source === 'online' ? '🌐 Worldwide' : leaderboardService.isOnline() ? '📱 This device (online board unavailable)' : '📱 This device'}
+    <div className="w-full bg-crt-950/80 ring-1 ring-neon-cyan/30 p-4 rounded-xl flex-grow flex flex-col">
+      <h3 className="font-display text-2xl text-center neon-text-pink mb-1 shrink-0">HIGH SCORES</h3>
+      <p className="osd-text text-base text-center text-neon-cyan/80 mb-3 shrink-0">
+        {source === 'online' ? '🌐 Worldwide' : leaderboardService.isOnline() ? '📱 This device · online board offline' : '📱 This device'}
       </p>
       {data.length > 0 ? (
         <>
-          <ol className="space-y-2 flex-grow overflow-y-auto pr-2 min-h-[350px]">
+          <ol className="space-y-1.5 flex-grow overflow-y-auto pr-1 min-h-[350px]">
             {scoresForPage.map((entry, index) => {
               const rank = (currentPage * SCORES_PER_PAGE) + index + 1;
               const isFirst = rank === 1;
@@ -71,25 +72,25 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
               return (
                 <li
                   key={entry.id ?? `${rank}-${entry.name}-${entry.score}`}
-                  className={`flex justify-between items-center p-2 rounded-lg transition-all duration-300 ${
+                  className={`flex justify-between items-center px-2 py-1.5 rounded-lg ${
                     isFirst
-                      ? 'bg-amber-400/20 border-2 border-amber-400 shadow-lg'
-                      : 'bg-slate-800/50'
+                      ? 'bg-neon-yellow/10 ring-2 ring-neon-yellow shadow-glow-yellow'
+                      : 'bg-crt-800/60'
                   } ${isOwnScore ? 'highlight-own-score' : ''}`}
                 >
                   <div className="flex items-center">
-                    <span className={`font-bold w-10 text-center mr-2 ${isFirst ? 'text-amber-300 text-2xl' : 'text-slate-500 text-lg'}`}>
-                      {isFirst ? '👑' : `${rank}.`}
+                    <span className={`font-osd w-10 text-center mr-2 text-2xl leading-none ${rank === 1 ? 'text-neon-yellow' : rank === 2 ? 'text-slate-200' : rank === 3 ? 'text-neon-orange' : 'text-slate-500'}`}>
+                      {isFirst ? '👑' : rank}
                     </span>
-                    <div>
-                      <span className={`font-semibold ${isFirst ? 'text-amber-200 text-xl' : 'text-slate-300 text-lg'}`}>
+                    <div className="text-left min-w-0">
+                      <span className={`font-osd text-2xl leading-none uppercase tracking-wider block truncate ${isFirst ? 'text-neon-yellow' : 'text-slate-100'}`}>
                         {entry.name}
                       </span>
-                      <p className="text-xs text-slate-400">{formatDate(entry.date)}</p>
+                      <p className="osd-text text-sm leading-none text-slate-500">{formatDate(entry.date)}</p>
                     </div>
                   </div>
-                  <span className={`font-digital font-bold ${isFirst ? 'text-amber-300 text-2xl' : 'text-cyan-400 text-xl'}`}>
-                    {entry.score}
+                  <span className={`font-osd text-3xl leading-none tabular-nums ${isFirst ? 'text-neon-yellow' : 'text-neon-cyan'}`}>
+                    {entry.score.toLocaleString()}
                   </span>
                 </li>
               );
@@ -97,21 +98,18 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
           </ol>
           {totalPages > 1 && (
             <div className="flex justify-between items-center mt-3 shrink-0">
-              <button onClick={handlePrevPage} disabled={currentPage === 0} className="px-4 py-2 font-bold text-slate-100 bg-slate-600 rounded-lg shadow-lg hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                &larr; Prev
-              </button>
-              <span className="font-digital text-slate-300">
+              <ArcadeButton color="slate" size="sm" onClick={handlePrevPage} disabled={currentPage === 0}>◀ Prev</ArcadeButton>
+              <span className="osd-text text-xl text-slate-300">
                 {currentPage + 1} / {totalPages}
               </span>
-              <button onClick={handleNextPage} disabled={currentPage >= totalPages - 1} className="px-4 py-2 font-bold text-slate-100 bg-slate-600 rounded-lg shadow-lg hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                Next &rarr;
-              </button>
+              <ArcadeButton color="slate" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages - 1}>Next ▶</ArcadeButton>
             </div>
           )}
         </>
       ) : (
-        <div className="flex items-center justify-center text-slate-500 italic min-h-[350px]">
-          No scores yet. Be the first!
+        <div className="flex flex-col items-center justify-center min-h-[350px] gap-2">
+          <span className="osd-text text-2xl text-slate-400">NO SCORES YET</span>
+          <span className="osd-text text-xl text-neon-yellow blink">INSERT COIN</span>
         </div>
       )}
     </div>

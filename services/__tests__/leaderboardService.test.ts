@@ -29,6 +29,7 @@ const { leaderboardService, MAX_LEADERBOARD_ENTRIES } = await import('../leaderb
 beforeEach(() => {
     localStorage.clear();
     Object.assign(online, { enabled: false, rows: [], fail: false });
+    leaderboardService.resetOnlineBackoff();
 });
 
 describe('device leaderboard', () => {
@@ -100,5 +101,14 @@ describe('online leaderboard', () => {
         online.fail = true;
         expect(await leaderboardService.submitScore('Ann', 500)).toEqual({ rank: 1, source: 'local' });
         expect(await leaderboardService.getLeaderboard()).toMatchObject({ source: 'local', entries: [{ name: 'Ann' }] });
+    });
+
+    test('after a failure it skips the online board for a while instead of waiting again', async () => {
+        online.fail = true;
+        await leaderboardService.getLeaderboard();
+        online.fail = false; // back online, but within the back-off window
+        expect((await leaderboardService.getLeaderboard()).source).toBe('local');
+        leaderboardService.resetOnlineBackoff();
+        expect((await leaderboardService.getLeaderboard()).source).toBe('online');
     });
 });

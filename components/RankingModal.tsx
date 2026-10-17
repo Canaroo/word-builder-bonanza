@@ -1,3 +1,4 @@
+import ArcadeButton from './ArcadeButton';
 import React from 'react';
 
 interface RankingModalProps {
@@ -69,32 +70,22 @@ const RankingModal: React.FC<RankingModalProps> = ({ data, onClose, onShowLeader
 
   return (
     <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className={`relative bg-slate-800 border-2 rounded-2xl p-6 shadow-2xl max-w-md w-full flex flex-col max-h-[90vh] text-center overflow-hidden ${config.modalClass}`}>
+      <div className={`relative bg-crt-900 border-2 rounded-2xl p-6 shadow-2xl max-w-md w-full flex flex-col max-h-[90vh] text-center overflow-hidden bonus-insert ${config.modalClass}`}>
         {config.decorativeElement}
         <div className="relative z-10">
-            <h2 className="text-4xl font-bold text-amber-400 mb-2 drop-shadow-lg">{config.icon} {config.title}</h2>
+            <h2 className="font-display text-3xl text-neon-yellow drop-shadow-glow-yellow mb-2">{config.icon} {config.title}</h2>
             
             <div className="my-6">
-                <p className="font-bold text-2xl text-white">{data.name}</p>
-                <p className="text-xl text-slate-300">You are now Rank #{data.rank}!</p>
-                <p className="font-digital text-3xl text-cyan-400 mt-2">{data.score.toLocaleString()} PTS</p>
+                <p className="font-osd text-4xl uppercase tracking-widest neon-text-cyan">{data.name}</p>
+                <p className="osd-text text-2xl text-slate-200">RANK #{data.rank}</p>
+                <p className="font-osd text-4xl text-neon-yellow mt-1 tabular-nums">{data.score.toLocaleString()} PTS</p>
             </div>
             
             <p className="text-slate-300 italic mb-6">"{config.message}"</p>
 
             <div className="space-y-3">
-                <button
-                    onClick={onShowLeaderboard}
-                    className="w-full px-6 py-3 text-lg font-bold text-slate-900 bg-cyan-400 rounded-lg shadow-lg hover:bg-cyan-300 transition-colors"
-                >
-                    VIEW LEADERBOARD
-                </button>
-                <button
-                    onClick={onClose}
-                    className="w-full px-6 py-2 text-md font-bold text-slate-900 bg-amber-400 rounded-lg shadow-lg hover:bg-amber-300 transition-colors"
-                >
-                    CLOSE
-                </button>
+                <ArcadeButton color="cyan" className="w-full" onClick={onShowLeaderboard}>🏆 View Top 50</ArcadeButton>
+                <ArcadeButton color="slate" size="sm" className="w-full" onClick={onClose}>Close</ArcadeButton>
             </div>
         </div>
       </div>

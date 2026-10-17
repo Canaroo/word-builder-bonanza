@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { soundService } from '../services/soundService';
 import { EasterEgg } from '../types';
 import { getBonusMedia, BonusMedia } from '../data/bonusMedia';
 import ArcadeButton from './ArcadeButton';
@@ -86,8 +87,16 @@ const MEDIA_LABEL: Record<BonusMedia['media'], string> = {
 };
 
 /** Full-screen reveal for a pop-culture word bonus. */
+const STINGS: Record<BonusMedia['media'], () => void> = {
+  vhs: soundService.playVhsSting,
+  cartridge: soundService.playCartridgeSting,
+  cd: soundService.playCdSting,
+  arcade: soundService.playCoinSting,
+};
+
 const BonusReveal: React.FC<BonusRevealProps> = ({ egg, onClose }) => {
   const { media, source } = getBonusMedia(egg.id);
+  useEffect(() => { STINGS[media](); }, [egg.id, media]);
   const { icon, title } = splitName(egg.name);
   const props = { icon, title, source };
 

@@ -242,31 +242,26 @@ const StartScreen: React.FC<StartScreenProps> = ({
       
       {showLeaderboardModal && (
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-slate-800 border-2 border-amber-400 rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col max-h-[90vh]">
+          <div className="bg-crt-900 border-2 border-neon-pink shadow-glow-pink rounded-2xl p-4 text-center max-w-md w-full flex flex-col max-h-[90vh] bonus-insert">
             <Leaderboard data={leaderboardData} isLoading={isLoadingLeaderboard} source={leaderboardSource} />
-            <button
-              onClick={handleCloseLeaderboard}
-              className="w-full mt-4 px-6 py-3 text-xl font-bold text-slate-900 bg-amber-400 rounded-lg shadow-lg hover:bg-amber-300 transition-colors"
-            >
-              CLOSE
-            </button>
+            <ArcadeButton color="yellow" className="w-full mt-4" onClick={handleCloseLeaderboard}>Close</ArcadeButton>
           </div>
         </div>
       )}
 
       {showEventLogsModal && (
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-slate-800 border-2 border-green-400 rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col max-h-[90vh]">
+          <div className="bg-crt-900 border-2 border-neon-green rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col max-h-[90vh]">
             {selectedRun ? (
                <>
-                <h2 className="text-2xl font-bold text-green-400 mb-2 flex-shrink-0">Viewing Event Log</h2>
+                <h2 className="font-display text-2xl text-neon-green mb-2 flex-shrink-0">Viewing Event Log</h2>
                 <div className="flex-grow overflow-y-auto pr-2">
                   <EventLogDisplay log={selectedRun.log} />
                 </div>
                </>
             ) : (
               <>
-                <h2 className="text-2xl font-bold text-green-400 mb-2">Event Logs ({eventLogs.length}/{logService.MAX_LOGS})</h2>
+                <h2 className="font-display text-2xl text-neon-green mb-2">Event Logs ({eventLogs.length}/{logService.MAX_LOGS})</h2>
                 <div className="flex-grow overflow-y-auto pr-2 space-y-3 min-h-[350px]">
                   {eventLogs.length > 0 ? (
                     eventLogs.map(run => (
@@ -282,8 +277,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
                            <button onClick={() => handleTogglePin(run.saveTimestamp!)} title={run.isPinned ? "Unpin this run" : "Pin this run"} className={`p-2 rounded-md hover:bg-slate-700 transition-colors text-xl ${run.isPinned ? '' : 'opacity-50 hover:opacity-100'}`}>
                              {run.isPinned ? '🌟' : '⭐'}
                            </button>
-                           <button onClick={() => handleViewRun(run)} className="px-3 py-1 text-sm font-bold text-slate-900 bg-cyan-400 rounded-md hover:bg-cyan-300">VIEW</button>
-                           <button onClick={() => handleDeleteRun(run.saveTimestamp!)} className="px-3 py-1 text-sm font-bold text-white bg-red-600 rounded-md hover:bg-red-500">DELETE</button>
+                           <button onClick={() => handleViewRun(run)} className="px-3 py-1 font-display text-sm text-crt-900 bg-neon-cyan rounded-md hover:brightness-110">VIEW</button>
+                           <button onClick={() => handleDeleteRun(run.saveTimestamp!)} className="px-3 py-1 font-display text-sm text-white bg-neon-red rounded-md hover:brightness-110">DELETE</button>
                         </div>
                       </div>
                     ))
@@ -293,20 +288,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 </div>
               </>
             )}
-            <button
-              onClick={handleCloseEventLogs}
-              className="w-full mt-4 px-6 py-3 text-xl font-bold text-slate-900 bg-green-500 rounded-lg shadow-lg hover:bg-green-400 transition-colors"
-            >
-              CLOSE
-            </button>
+            <ArcadeButton color="green" className="w-full mt-4" onClick={handleCloseEventLogs}>Close</ArcadeButton>
           </div>
         </div>
       )}
 
       {showMissedWordsModal && (
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-slate-800 border-2 border-red-400 rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col max-h-[90vh]">
-            <h2 className="text-2xl font-bold text-red-400 mb-2">Missed Words ({missedWords.length}/{missedWordsService.MAX_WORDS})</h2>
+          <div className="bg-crt-900 border-2 border-neon-red rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col max-h-[90vh]">
+            <h2 className="font-display text-2xl text-neon-pink mb-2">Missed Words ({missedWords.length}/{missedWordsService.MAX_WORDS})</h2>
             <p className="text-sm text-slate-400 mb-4">Your 10 most recent words from failed challenges.</p>
             <div className="flex-grow overflow-y-auto pr-2 space-y-3 min-h-[350px]">
               {missedWords.length > 0 ? (
@@ -322,20 +312,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 </div>
               )}
             </div>
-            <button
-              onClick={handleCloseMissedWords}
-              className="w-full mt-4 px-6 py-3 text-xl font-bold text-slate-900 bg-red-500 rounded-lg shadow-lg hover:bg-red-400 transition-colors"
-            >
-              CLOSE
-            </button>
+            <ArcadeButton color="pink" className="w-full mt-4" onClick={handleCloseMissedWords}>Close</ArcadeButton>
           </div>
         </div>
       )}
 
       {showPowerWordInfo && powerWordData && (
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-slate-800 border-2 border-yellow-400 rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col">
-            <h2 className="text-3xl font-bold text-yellow-400 mb-2 flex-shrink-0 flex items-center justify-center gap-3">
+          <div className="bg-crt-900 border-2 border-neon-yellow rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col">
+            <h2 className="font-display text-2xl text-neon-yellow mb-2 flex-shrink-0 flex items-center justify-center gap-3">
               <span className="text-4xl">💥</span>
               <span>Power Word Info</span>
             </h2>
@@ -346,12 +331,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 Use this word during a run for a <strong className="font-bold">500 point bonus!</strong>
               </p>
             </div>
-            <button
-              onClick={handleClosePowerWordInfo}
-              className="w-full mt-4 px-6 py-3 text-xl font-bold text-slate-900 bg-yellow-500 rounded-lg shadow-lg hover:bg-yellow-400 transition-colors"
-            >
-              GOT IT
-            </button>
+            <ArcadeButton color="yellow" className="w-full mt-4" onClick={handleClosePowerWordInfo}>Got It</ArcadeButton>
           </div>
         </div>
       )}
