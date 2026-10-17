@@ -1,0 +1,57 @@
+# Blocked words
+# -------------
+# Words listed here are always rejected, even if they appear in the base list,
+# custom.txt, or data/internalWords.ts. One word per line, letters only.
+# Lines starting with # are comments.
+#
+# After editing, restart `npm run dev` (or run `npm run words`) to rebuild the list.
+
+# Slurs present in the base list (ethnic, racial, homophobic, transphobic).
+# A starting set; extend it as you find more. Official lists removed similar words in 2020.
+abo
+abos
+chinks
+dago
+dagoes
+dagos
+darkey
+darkeys
+darkies
+darky
+faggy
+golliwog
+golliwogs
+gippo
+gook
+gooks
+gyp
+gyps
+honkeys
+honkie
+honkies
+honky
+japs
+kaffir
+kaffirs
+kafir
+kafirs
+pickaninnies
+pickaninny
+redskin
+redskins
+sambo
+sambos
+shylock
+shylocks
+spick
+spicks
+spics
+squaw
+squaws
+trannies
+wog
+wogs
+wop
+wops
+yid
+yids

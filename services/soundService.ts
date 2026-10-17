@@ -1,9 +1,18 @@
-
-
 // A service to play procedurally generated sound effects using the Web Audio API.
+import { musicService } from './musicService';
+
 
 let audioCtx: AudioContext | null = null;
 let isMuted = false;
+
+// Silence all audio (music included) while the game is in the background, to save battery.
+if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+        if (!audioCtx) return;
+        if (document.hidden) audioCtx.suspend();
+        else audioCtx.resume();
+    });
+}
 
 /**
  * Initializes the AudioContext. Must be called as a result of a user gesture (e.g., a click).
@@ -14,6 +23,12 @@ const initialize = () => {
     try {
         // Create a new AudioContext.
         audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        
+        // Initialize the music service with the shared context
+        musicService.initialize(audioCtx);
+
+        // Sync music mute state on initialization
+        musicService.setMuted(isMuted);
     } catch (e) {
         console.error("Web Audio API is not supported in this browser.");
     }
@@ -25,6 +40,7 @@ const initialize = () => {
  */
 const toggleMute = (): boolean => {
     isMuted = !isMuted;
+    musicService.setMuted(isMuted); // Control music mute state
     // Play a sound on unmute to confirm
     if (!isMuted && audioCtx) {
         playNote(audioCtx, 800, audioCtx.currentTime, 0.05, 0.1, 'square');
@@ -212,5 +228,73 @@ export const soundService = {
         const now = ctx.currentTime;
         playNote(ctx, 250, now, 0.1, 0.2, 'square');
         playNote(ctx, 150, now + 0.1, 0.15, 0.2, 'square');
+    }),
+    
+    playNESFanfare: () => playSound(ctx => {
+        const now = ctx.currentTime;
+        const t: OscillatorType = 'triangle';
+        const v = 0.2;
+        playNote(ctx, 523.25, now, 0.1, v, t); // C5
+        playNote(ctx, 783.99, now + 0.1, 0.1, v, t); // G5
+        playNote(ctx, 1046.50, now + 0.2, 0.2, v, t); // C6
+    }),
+
+    playHeroicChord: () => playSound(ctx => {
+        const now = ctx.currentTime;
+        const t: OscillatorType = 'sawtooth';
+        const v = 0.15;
+        playNote(ctx, 261.63, now, 0.5, v, t); // C4
+        playNote(ctx, 311.13, now, 0.5, v, t); // Eb4
+        playNote(ctx, 392.00, now, 0.5, v, t); // G4
+        playNote(ctx, 523.25, now + 0.2, 0.3, 0.2, t); // C5
+    }),
+
+    playBroadwayRiff: () => playSound(ctx => {
+        const now = ctx.currentTime;
+        const t: OscillatorType = 'square';
+        const v = 0.2;
+        playNote(ctx, 783.99, now, 0.1, v, t); // G5
+        playNote(ctx, 783.99, now + 0.15, 0.1, v, t); // G5
+        playNote(ctx, 880.00, now + 0.3, 0.2, v, t); // A5
+    }),
+
+    // --- Bonus reveal stings, one per media type (see data/bonusMedia.ts) ---
+
+    /** VHS: the clunk of a tape going in, then the VCR motor winding up. */
+    playVhsSting: () => playSound(ctx => {
+        const now = ctx.currentTime;
+        playNote(ctx, 90, now, 0.08, 0.3, 'square');
+        playNote(ctx, 60, now + 0.09, 0.1, 0.25, 'square');
+        const motor = ctx.createOscillator();
+        const gain = ctx.createGain();
+        motor.type = 'sawtooth';
+        motor.frequency.setValueAtTime(110, now + 0.2);
+        motor.frequency.exponentialRampToValueAtTime(440, now + 0.75);
+        gain.gain.setValueAtTime(0.0001, now + 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.08, now + 0.35);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+        motor.connect(gain).connect(ctx.destination);
+        motor.start(now + 0.2);
+        motor.stop(now + 0.82);
+    }),
+
+    /** Cartridge: an 8-bit power-on arpeggio. */
+    playCartridgeSting: () => playSound(ctx => {
+        const now = ctx.currentTime;
+        [523.25, 659.25, 783.99, 1046.5, 1318.51].forEach((f, i) => playNote(ctx, f, now + i * 0.07, 0.09, 0.18, 'square'));
+    }),
+
+    /** CD: a shimmering major chord as the disc spins up. */
+    playCdSting: () => playSound(ctx => {
+        const now = ctx.currentTime;
+        [392.0, 493.88, 587.33, 783.99].forEach((f, i) => playNote(ctx, f, now + i * 0.04, 0.7, 0.09, 'sine'));
+        playNote(ctx, 1567.98, now + 0.25, 0.4, 0.05, 'triangle');
+    }),
+
+    /** Arcade marquee: insert-coin blip. */
+    playCoinSting: () => playSound(ctx => {
+        const now = ctx.currentTime;
+        playNote(ctx, 987.77, now, 0.08, 0.2, 'square'); // B5
+        playNote(ctx, 1318.51, now + 0.08, 0.3, 0.2, 'square'); // E6
     }),
 };

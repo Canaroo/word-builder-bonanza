@@ -1,0 +1,17 @@
+/// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_LEADERBOARD?: 'online' | 'local';
+  readonly VITE_FIREBASE_API_KEY?: string;
+  readonly VITE_FIREBASE_AUTH_DOMAIN?: string;
+  readonly VITE_FIREBASE_DATABASE_URL?: string;
+  readonly VITE_FIREBASE_PROJECT_ID?: string;
+  readonly VITE_FIREBASE_APP_ID?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
+/** package.json version, injected at build time. */
+declare const __APP_VERSION__: string;

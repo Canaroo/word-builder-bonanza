@@ -1,0 +1,850 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mobile app feel: no tap flash, no pull-to-refresh bounce, no double-tap zoom (pinch zoom still works). */
+html,
+body,
+#root {
+  height: 100%;
+}
+html {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+/* Keep content clear of notches and the home indicator when installed full-screen. */
+.safe-area {
+  --gutter: 0px;
+  padding-top: max(var(--gutter), env(safe-area-inset-top));
+  padding-bottom: max(var(--gutter), env(safe-area-inset-bottom));
+  padding-left: max(var(--gutter), env(safe-area-inset-left));
+  padding-right: max(var(--gutter), env(safe-area-inset-right));
+}
+@media (min-width: 640px) {
+  .safe-area {
+    --gutter: 1rem; /* card layout on tablets and desktops */
+  }
+}
+body {
+  background-color: #0f172a; /* slate-900, shown behind themes and in the status bar area */
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+}
+.font-digital {
+  font-family: 'Roboto Mono', monospace;
+}
+.progress-bar {
+  animation: countdown 5s linear forwards;
+  transform-origin: left;
+}
+@keyframes countdown {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+@keyframes low-time-pulse {
+  50% { border-color: #ef4444; } /* Tailwind red-500 */
+}
+.low-time-flash {
+  animation: low-time-pulse 1s infinite;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+  opacity: 0; /* Start hidden */
+}
+
+/* Title Animations */
+@keyframes slide-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-slide-in-down {
+  animation: slide-in-down 0.5s ease-out forwards;
+}
+@keyframes bounce-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-15px);
+  }
+  80% {
+    transform: translateY(5px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+.animate-bounce-in-up {
+  animation: bounce-in-up 0.7s cubic-bezier(0.250, 0.460, 0.450, 0.940) forwards;
+}
+
+#toast {
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+  pointer-events: none;
+}
+#toast.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.highlight-own-score {
+  background-color: rgba(6, 182, 212, 0.2);
+  border: 2px solid #06b6d4;
+  box-shadow: 0 0 10px #06b6d4;
+}
+
+/* Golden Round styles */
+.golden-round-active {
+  border: 4px solid #fde047; /* yellow-300 */
+  box-shadow: 0 0 20px #fde047, inset 0 0 20px #fde047;
+}
+.golden-special {
+  box-shadow: 0 0 15px 5px #fde047, inset 0 0 10px #fef08a;
+  animation: golden-pulse 1.5s infinite;
+}
+@keyframes golden-pulse {
+  50% {
+    box-shadow: 0 0 25px 10px #fde047, inset 0 0 15px #fef08a;
+  }
+}
+.animate-golden-text {
+  animation: golden-text-glow 2s infinite alternate;
+}
+@keyframes golden-text-glow {
+  from {
+    text-shadow: 0 0 5px #fef08a, 0 0 10px #facc15, 0 0 15px #eab308;
+  }
+  to {
+    text-shadow: 0 0 10px #fef08a, 0 0 20px #facc15, 0 0 30px #eab308;
+  }
+}
+
+/* Dynamic Backgrounds */
+/* Cosmic Void */
+.theme-cosmic-void {
+  background-color: #000;
+  background-image: 
+    radial-gradient(ellipse at 70% 20%, rgba(200, 200, 255, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 30% 80%, rgba(255, 200, 200, 0.15) 0%, transparent 50%);
+  position: relative;
+  overflow: hidden;
+}
+.theme-cosmic-void::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: url('https://www.transparenttextures.com/patterns/stardust.png');
+  background-size: 500px 500px;
+  animation: move-stars 240s linear infinite;
+  opacity: 0.4;
+  z-index: 1;
+}
+@keyframes move-stars {
+  from { background-position: 0 0; }
+  to { background-position: -5000px 2500px; }
+}
+
+/* The Library */
+.theme-the-library {
+  position: relative;
+  overflow: hidden;
+  background-color: #382e21;
+}
+.theme-the-library::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: url('https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070&auto=format&fit=crop');
+  background-size: cover;
+  background-position: center;
+  filter: blur(6px) brightness(0.5);
+  transform: scale(1.1);
+  z-index: 1;
+}
+.theme-the-library::after {
+  content: '';
+  position: absolute;
+  top: -100px; left: 0;
+  width: 1px; height: 1px;
+  background: transparent;
+  box-shadow: 
+    -20vw 20vh 2px 2px #fff6, 40vw 40vh 3px 3px #fff4,
+    -30vw 60vh 2px 2px #fff5, 50vw 80vh 3px 3px #fff3,
+    10vw 90vh 2px 2px #fff4, 80vw 10vh 2px 2px #fff5,
+    -40vw 30vh 3px 3px #fff6, 60vw 50vh 2px 2px #fff4;
+  animation: dust-motes 60s linear infinite;
+  z-index: 2;
+}
+@keyframes dust-motes {
+    from { transform: translateY(0); }
+    to { transform: translateY(-120vh); }
+}
+
+/* Digital Grid */
+.theme-digital-grid {
+    background-color: #0d0221;
+    background-image:
+        linear-gradient(rgba(10, 225, 240, 0.2) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(10, 225, 240, 0.2) 1px, transparent 1px);
+    background-size: 40px 40px;
+    animation: move-grid 20s linear infinite;
+}
+@keyframes move-grid {
+    from { background-position: 0 0; }
+    to { background-position: 40px 80px; }
+}
+
+/* Serene Waterfall */
+.theme-serene-waterfall {
+  position: relative;
+  overflow: hidden;
+  background-color: #1a3a3a;
+}
+.theme-serene-waterfall::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: url('https://images.unsplash.com/photo-1432405972618-c60b0225b8f9?q=80&w=2070&auto=format&fit=crop');
+  background-size: cover;
+  background-position: center;
+  filter: blur(4px) brightness(0.6);
+  transform: scale(1.1);
+  z-index: 1;
+  animation: pan-waterfall 40s linear infinite alternate;
+}
+@keyframes pan-waterfall {
+    from { background-position: 45% center; }
+    to { background-position: 55% center; }
+}
+
+/* Frames */
+.frame-default {
+  border: 2px solid #334155; /* slate-700 */
+}
+.frame-gilded {
+  border: 10px solid transparent;
+  border-image: linear-gradient(145deg, #fef08a, #b45309, #fef08a) 1; /* yellow-200, amber-700 */
+  box-shadow: 0 0 20px rgba(234, 179, 8, 0.5); /* amber-500 */
+  padding: 2px;
+}
+.frame-command-console {
+  border: 4px solid #38bdf8; /* sky-400 */
+  box-shadow: 0 0 12px #38bdf8, inset 0 0 12px #38bdf8;
+  padding: 8px;
+  background-color: rgba(3, 7, 18, 0.2); /* bg-gray-950/20 */
+}
+.frame-rustic-workbench {
+  border: 12px solid transparent;
+  border-image-slice: 12;
+  border-image-width: 12px;
+  border-image-outset: 0;
+  border-image-repeat: stretch;
+  border-image-source: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%236b462a' offset='0%25'/%3E%3Cstop stop-color='%23a16207' offset='100%25'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' fill='url(%23g)'/%3E%3C/svg%3E");
+  box-shadow: inset 0 0 15px rgba(0,0,0,0.6);
+  padding: 0px;
+}
+.corner-bolt {
+  width: 16px;
+  height: 16px;
+  background-color: #71717a; /* zinc-500 */
+  border-radius: 50%;
+  position: absolute;
+  box-shadow: inset 1px 1px 2px rgba(0,0,0,0.5);
+  border: 1px solid #a1a1aa;
+  z-index: 20; /* Ensure it's above the frame */
+}
+.corner-bolt.top-left { top: -8px; left: -8px; }
+.corner-bolt.top-right { top: -8px; right: -8px; }
+.corner-bolt.bottom-left { bottom: -8px; left: -8px; }
+.corner-bolt.bottom-right { bottom: -8px; right: -8px; }
+
+/* Hawkins Horror Pack */
+.theme-hawkins-horror {
+  background-color: #1a0000; /* Dark red base */
+  position: relative;
+  overflow: hidden;
+}
+.theme-hawkins-horror::before { /* Forest Image */
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: url('https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?q=80&w=2070&auto=format&fit=crop');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.3;
+  filter: grayscale(1) brightness(0.5);
+  z-index: 1;
+}
+.theme-hawkins-horror::after { /* Particles */
+  content: '';
+  position: absolute;
+  top: -100px; left: 0;
+  width: 1px; height: 1px;
+  background: transparent;
+  box-shadow: -20vw 20vh 1px 1px #ff666633, 40vw 40vh 2px 2px #ff666622, -30vw 60vh 1px 1px #ff666644, 50vw 80vh 2px 2px #ff666611, 10vw 90vh 1px 1px #ff666633, 80vw 10vh 2px 2px #ff666644, -40vw 30vh 2px 2px #ff666655, 60vw 50vh 1px 1px #ff666622;
+  animation: upside-down-particles 80s linear infinite;
+  z-index: 2; /* Particles on top */
+}
+@keyframes upside-down-particles {
+  from { transform: translateY(0); }
+  to { transform: translateY(-120vh); }
+}
+.tile-hawkins {
+  background-color: #1a1a1a;
+  color: #f87171;
+  font-weight: bold;
+  text-shadow: 0 0 8px #ef4444;
+}
+.frame-hawkins-lab {
+  border: 4px solid #5c2121; /* dull red */
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.6);
+  padding: 8px;
+  background-color: rgba(26, 26, 26, 0.2);
+}
+
+/* Galactic Saga Pack */
+.theme-galactic-saga {
+  background-color: #000;
+  position: relative;
+  overflow: hidden;
+}
+.theme-galactic-saga::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: url('https://www.transparenttextures.com/patterns/stardust.png');
+  background-size: 500px 500px;
+  animation: move-hyperspace 1.5s linear infinite;
+  opacity: 0.7;
+  z-index: 1;
+}
+@keyframes move-hyperspace {
+  from { background-position: 0 0; }
+  to { background-position: -1000px 0; }
+}
+.tile-lightsaber {
+  background-color: #111827; /* gray-900 */
+  color: #67e8f9; /* cyan-300 */
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 8px #06b6d4, 0 0 2px #fff;
+}
+.frame-starship-hull {
+  border: 10px solid #d1d5db; /* gray-300 */
+  border-image-slice: 1;
+  border-image-source: linear-gradient(145deg, #e5e7eb, #9ca3af);
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.5);
+  padding: 2px;
+  background-color: #4b5563; /* gray-600 */
+}
+
+/* 90s Throwback Pack */
+@keyframes float-up {
+  to {
+    transform: translateY(-110vh);
+  }
+}
+
+.theme-90s-throwback {
+  background-color: #1e293b; /* slate-800 */
+  position: relative;
+  overflow: hidden;
+  z-index: 0;
+}
+.theme-90s-throwback::before {
+  content: '▲';
+  position: absolute;
+  color: #f472b6; /* pink-400 */
+  font-size: 2em;
+  top: 105vh;
+  left: 20%;
+  animation: float-up 15s linear infinite;
+  animation-delay: -2s;
+  text-shadow: 15vw 10vh 0 #fbbf24, 30vw -30vh 0 #60a5fa, 45vw 20vh 0 #34d399, 60vw -10vh 0 #f472b6, 75vw 5vh 0 #fbbf24;
+  z-index: 1;
+}
+.theme-90s-throwback::after {
+  content: '●';
+  position: absolute;
+  color: #34d399; /* emerald-400 */
+  font-size: 2.5em;
+  top: 105vh;
+  left: 10%;
+  animation: float-up 20s linear infinite;
+  animation-delay: -10s;
+  text-shadow: 10vw -15vh 0 #60a5fa, 25vw 20vh 0 #fbbf24, 50vw -25vh 0 #f472b6, 70vw 15vh 0 #34d399, 85vw -5vh 0 #60a5fa;
+  z-index: 1;
+}
+
+.tile-90s-throwback {
+  background-color: #e0e7ff; /* indigo-100 */
+  color: #be185d; /* pink-700 */
+  font-weight: 800; /* extra-bold */
+  border-bottom: 3px solid #3b82f6; /* blue-500 */
+}
+
+.frame-90s-throwback {
+  border: 10px solid transparent;
+  padding: 2px;
+  border-image: linear-gradient(45deg, #f472b6, #34d399, #fbbf24) 1;
+  background-color: rgba(15, 23, 42, 0.3); /* slate-900/30 */
+  box-shadow: inset 0 0 15px rgba(0,0,0,0.4);
+}
+
+/* Ranking Modal Animations */
+@keyframes screen-shake {
+  0%, 100% { transform: translate(0, 0); }
+  10%, 30%, 50%, 70%, 90% { transform: translate(-2px, 2px) rotate(-1deg); }
+  20%, 40%, 60%, 80% { transform: translate(2px, -2px) rotate(1deg); }
+}
+.screen-shake {
+  animation: screen-shake 0.4s linear;
+}
+@keyframes bat-flash {
+  0% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 0.7; transform: scale(1.2); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+.bat-silhouette-animation {
+  animation: bat-flash 1s ease-out forwards;
+}
+@keyframes sparkle-animation {
+  0% { transform: translateY(0) scale(0.5); opacity: 1; }
+  100% { transform: translateY(-80px) scale(1.5); opacity: 0; }
+}
+.sparkle {
+  animation: sparkle-animation 1.5s ease-out infinite;
+}
+.modal-parchment {
+  background-image: url('https://www.transparenttextures.com/patterns/old-wall.png'), linear-gradient(to bottom, #4a3f35, #382e21);
+  background-blend-mode: overlay;
+}
+
+/* The Fifth Dimension Pack */
+@keyframes twilight-zone-vortex {
+  from { transform: translate(-50%, -50%) rotate(0deg) scale(2.5); }
+  to { transform: translate(-50%, -50%) rotate(360deg) scale(2.5); }
+}
+.theme-fifth-dimension {
+  background-color: #000;
+  position: relative;
+  overflow: hidden;
+}
+.theme-fifth-dimension::before { /* Hypnotic Vortex */
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 100%; height: 100%;
+  background-image: conic-gradient(
+    white 0deg 10deg, black 10deg 20deg, white 20deg 30deg, black 30deg 40deg,
+    white 40deg 50deg, black 50deg 60deg, white 60deg 70deg, black 70deg 80deg,
+    white 80deg 90deg, black 90deg 100deg, white 100deg 110deg, black 110deg 120deg,
+    white 120deg 130deg, black 130deg 140deg, white 140deg 150deg, black 150deg 160deg,
+    white 160deg 170deg, black 170deg 180deg, white 180deg 190deg, black 190deg 200deg,
+    white 200deg 210deg, black 210deg 220deg, white 220deg 230deg, black 230deg 240deg,
+    white 240deg 250deg, black 250deg 260deg, white 260deg 270deg, black 270deg 280deg,
+    white 280deg 290deg, black 290deg 300deg, white 300deg 310deg, black 310deg 320deg,
+    white 320deg 330deg, black 330deg 340deg, white 340deg 350deg, black 350deg 360deg
+  );
+  filter: blur(2px);
+  opacity: 0.15;
+  animation: twilight-zone-vortex 60s linear infinite;
+}
+.theme-fifth-dimension::after { /* Static Noise */
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background-image: url('https://www.transparenttextures.com/patterns/subtle-white-feathers.png');
+  opacity: 0.05;
+  animation: static-flicker 0.2s steps(2, start) infinite;
+}
+@keyframes static-flicker {
+  to { transform: translate(2px, 2px); }
+}
+.tile-monochrome {
+  background: linear-gradient(145deg, #e1e1e1, #cccccc);
+  color: #1a1a1a;
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 700;
+  border: 1px solid #333;
+  box-shadow: inset 0 0 2px rgba(255,255,255,0.7), 2px 2px 3px rgba(0,0,0,0.4);
+  text-shadow: 1px 1px 1px #fff;
+}
+.frame-fifth-dimension {
+  border: 6px solid #fff;
+  box-shadow: 0 0 15px #fff, inset 0 0 15px #fff;
+  padding: 6px;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* World's Finest Pack */
+.theme-worlds-finest {
+  /* Abstract split-scene for Gotham/Metropolis with a comic dot texture */
+  background: 
+    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.2) 1px, transparent 0),
+    linear-gradient(105deg, #172554 49.9%, #991b1b 50.1%); /* dark blue, dark red */
+  background-size: 4px 4px, 100%;
+}
+.tile-comic-book {
+  background-color: #fef9c3; /* Newsprint yellow */
+  /* Halftone dot pattern */
+  background-image: radial-gradient(rgba(0,0,0,0.15) 15%, transparent 16%);
+  background-size: 5px 5px;
+  color: #111827; /* Dark ink text */
+  font-weight: 900; /* Extra bold */
+  border: 3px solid #111827; /* Thick black outline */
+  text-transform: uppercase;
+  text-shadow: 1px 1px 0px #fff; /* Inner highlight for letter */
+  box-shadow: 4px 4px 0px #000000a0; /* Hard drop shadow for tile */
+  line-height: 1;
+  position: relative; /* Context for children */
+}
+.frame-heroic-emblem {
+  border: 12px solid #111827; /* Thick black ink panel border */
+  padding: 4px;
+  background-color: #4b5563; /* Panel background color */
+  /* Inner texture with crosshatching */
+  background-image: 
+      repeating-linear-gradient(45deg, rgba(0,0,0,0.1) 0, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 8px),
+      repeating-linear-gradient(-45deg, rgba(0,0,0,0.1) 0, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 8px);
+  box-shadow: inset 0 0 15px rgba(0,0,0,0.6);
+}
+/* Comic book style for power-up indicators on tiles */
+.tile-comic-book > span[class*="absolute"] {
+  z-index: 20;
+  background-color: #ef4444; /* red-500 */
+  color: white;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 900;
+  text-shadow: 1px 1px 0 #000;
+  border: 2px solid #111827;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+}
+/* x2 multiplier burst style */
+.tile-comic-book > span[class*="top-0"][class*="right-1"] {
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  transform: rotate(15deg) translate(2px, -2px);
+}
+/* 4X Super Tile ZAP! style */
+.tile-comic-book > span[class*="top-0"][class*="left-1"] {
+  width: 38px;
+  height: 38px;
+  font-size: 14px;
+  background-color: #3b82f6; /* blue-500 */
+  clip-path: polygon(0% 0%, 10% 40%, 0% 100%, 40% 90%, 100% 100%, 90% 60%, 100% 0%, 60% 10%);
+  transform: rotate(-10deg) translate(-2px, -2px);
+}
+
+/* Glimmer effect for special tiles */
+@keyframes glimmer {
+  0% { transform: translateX(-100%) skewX(-20deg); }
+  100% { transform: translateX(200%) skewX(-20deg); }
+}
+.glimmer-effect {
+  position: relative;
+  overflow: hidden;
+}
+.glimmer-effect::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: translateX(-100%) skewX(-20deg);
+  animation: glimmer 3.5s infinite 1s;
+}
+
+/* ==========================================================================
+   Arcade + VHS theme (default pack)
+   ========================================================================== */
+
+/* Background: night-sky gradient with a synthwave floor grid. */
+.theme-arcade {
+  background:
+    radial-gradient(ellipse at 50% 120%, rgba(255, 62, 165, 0.35), transparent 60%),
+    linear-gradient(180deg, #06050d 0%, #151233 55%, #2a0f3d 100%);
+  position: relative;
+  overflow: hidden;
+}
+.theme-arcade::before {
+  content: '';
+  position: absolute;
+  left: -50%;
+  right: -50%;
+  bottom: -10%;
+  height: 45%;
+  background-image:
+    linear-gradient(rgba(255, 62, 165, 0.45) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 62, 165, 0.45) 1px, transparent 1px);
+  background-size: 48px 48px;
+  transform: perspective(300px) rotateX(60deg);
+  transform-origin: bottom;
+  animation: arcade-grid-scroll 3s linear infinite;
+  mask-image: linear-gradient(to top, black 30%, transparent);
+  -webkit-mask-image: linear-gradient(to top, black 30%, transparent);
+  pointer-events: none;
+}
+@keyframes arcade-grid-scroll {
+  to { background-position: 0 48px; }
+}
+
+/* Cabinet frame: dark bezel with a neon edge. */
+.frame-arcade {
+  background: linear-gradient(180deg, #0c0a1d 0%, #151233 100%) !important;
+  border: 2px solid rgba(34, 228, 255, 0.55);
+  box-shadow: 0 0 0 1px rgba(255, 62, 165, 0.35), 0 0 24px rgba(34, 228, 255, 0.25), inset 0 0 40px rgba(0, 0, 0, 0.6);
+}
+@media (max-width: 639px) {
+  .frame-arcade {
+    border-width: 0;
+    box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* CRT scanlines over the whole screen. Purely decorative; never blocks taps. */
+.crt-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px);
+  mix-blend-mode: overlay;
+}
+.crt-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, 0.35) 100%);
+}
+
+/* Arcade tiles: warm ivory with a physical bottom edge. */
+.tile-arcade {
+  background: linear-gradient(180deg, #fff6d6 0%, #ffd97a 100%);
+  color: #1b1530;
+}
+
+/* Every tile gets a 3D edge and presses down when tapped (no sticky hover on touch screens). */
+.tile-3d {
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.55), inset 0 -3px 0 rgba(0, 0, 0, 0.18), 0 4px 0 rgba(0, 0, 0, 0.45);
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+}
+.tile-3d:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 0 rgba(0, 0, 0, 0.18), 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+@media (hover: hover) {
+  .tile-3d:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+}
+
+/* Golden Round: gold frame around the whole screen and a banner under the HUD. */
+.golden-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 55;
+  pointer-events: none;
+  border: 5px solid #ffd23f;
+  border-radius: inherit;
+  box-shadow: inset 0 0 28px rgba(255, 210, 63, 0.75), inset 0 0 70px rgba(255, 210, 63, 0.25), 0 0 24px rgba(255, 210, 63, 0.6);
+  animation: golden-frame-pulse 1.6s ease-in-out infinite;
+}
+@keyframes golden-frame-pulse {
+  50% { box-shadow: inset 0 0 40px rgba(255, 210, 63, 0.95), inset 0 0 90px rgba(255, 210, 63, 0.35), 0 0 36px rgba(255, 210, 63, 0.8); }
+}
+.golden-banner {
+  background: linear-gradient(90deg, #f59e0b, #ffd23f 30%, #fff3b0 50%, #ffd23f 70%, #f59e0b);
+  background-size: 200% 100%;
+  animation: golden-sheen 2.4s linear infinite;
+  box-shadow: 0 0 18px rgba(255, 210, 63, 0.6);
+}
+@keyframes golden-sheen {
+  to { background-position: -200% 0; }
+}
+
+/* Highlight rings and glows drawn over a tile (its own box-shadow is the 3D edge). */
+.tile-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 15;
+}
+
+/* Chunky arcade push buttons (see components/ArcadeButton.tsx). */
+.arcade-btn {
+  --btn-edge: rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), 0 5px 0 var(--btn-edge), 0 8px 14px rgba(0, 0, 0, 0.35);
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out, filter 120ms;
+}
+.arcade-btn:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), 0 1px 0 var(--btn-edge), 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.arcade-btn:disabled {
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* Neon tube lettering. */
+.neon-text-cyan {
+  color: #e9fdff;
+  text-shadow: 0 0 2px #fff, 0 0 8px #22e4ff, 0 0 18px #22e4ff, 0 0 32px rgba(34, 228, 255, 0.6);
+}
+.neon-text-pink {
+  color: #ffe9f5;
+  text-shadow: 0 0 2px #fff, 0 0 8px #ff3ea5, 0 0 18px #ff3ea5, 0 0 32px rgba(255, 62, 165, 0.6);
+}
+.neon-flicker {
+  animation: neon-flicker 6s infinite;
+}
+@keyframes neon-flicker {
+  0%, 92%, 96%, 100% { opacity: 1; }
+  93%, 95% { opacity: 0.55; }
+  94% { opacity: 0.85; }
+}
+
+/* Chunky 3D marquee lettering (the NERD logo). */
+.marquee-3d {
+  color: #ffd23f;
+  text-shadow: 0 1px 0 #ffb800, 0 2px 0 #f59e0b, 0 3px 0 #d97706, 0 4px 0 #b45309, 0 5px 0 #92400e, 0 6px 0 #ff3ea5, 0 10px 18px rgba(0, 0, 0, 0.6);
+}
+
+/* VCR on-screen display text. */
+.osd-text {
+  font-family: 'VT323', 'Roboto Mono', monospace;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 6px currentColor;
+}
+
+/* VHS tracking noise: a bright band rolling down a tape cover. */
+.vhs-tracking {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.vhs-tracking::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 18%;
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.18), transparent);
+  animation: vhs-roll 2.8s linear infinite;
+}
+@keyframes vhs-roll {
+  from { top: -20%; }
+  to { top: 110%; }
+}
+
+/* Bonus reveal entrance: slides in like a tape into a VCR. */
+.bonus-insert {
+  animation: bonus-insert 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+@keyframes bonus-insert {
+  from { opacity: 0; transform: translateY(40px) scale(0.92) rotate(-2deg); }
+  to { opacity: 1; transform: none; }
+}
+.cd-spin {
+  animation: cd-spin 2.4s linear infinite;
+}
+@keyframes cd-spin {
+  to { transform: rotate(360deg); }
+}
+.blink {
+  animation: blink 1s steps(2, start) infinite;
+}
+@keyframes blink {
+  to { visibility: hidden; }
+}
+
+/* In-game message strip above the play area. */
+.message-pop {
+  animation: message-pop 180ms ease-out both;
+}
+@keyframes message-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Floating +Ns / -Ns next to the clock when the time bank changes. */
+.time-gain {
+  transform: translateX(-50%);
+  animation: time-gain 1.4s ease-out forwards;
+  text-shadow: 0 0 6px currentColor;
+}
+@keyframes time-gain {
+  0% { opacity: 0; transform: translate(-50%, 6px); }
+  15% { opacity: 1; transform: translate(-50%, 0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -10px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .golden-frame,
+  .golden-banner {
+    animation: none;
+  }
+  .message-pop {
+    animation: none;
+  }
+  .time-gain {
+    animation: time-gain-fade 1.4s linear forwards;
+  }
+  .theme-arcade::before,
+  .neon-flicker,
+  .vhs-tracking::before,
+  .bonus-insert,
+  .cd-spin,
+  .blink {
+    animation: none !important;
+  }
+}
+@keyframes time-gain-fade {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}

@@ -1,51 +1,98 @@
-
 import { LeaderboardEntry } from '../types';
+import { storage, STORAGE_KEYS } from './storage';
+import { localLeaderboard, MAX_LEADERBOARD_ENTRIES } from './localLeaderboard';
+import { onlineLeaderboard, isOnlineLeaderboardEnabled } from './onlineLeaderboard';
 
-// Google Apps Script URL for the leaderboard
-const LEADERBOARD_URL = 'https://script.google.com/macros/s/AKfycbxn1bFURGJpGblzPzb9a0uYWkwLVwCNM688VpjsITpRNAViidVx0RWAML_4Ib_kQ6VYmw/exec';
+export { MAX_LEADERBOARD_ENTRIES };
 
-const getLeaderboard = async (): Promise<LeaderboardEntry[]> => {
-  try {
-    // The Apps Script is configured to handle GET requests for fetching scores.
-    const response = await fetch(LEADERBOARD_URL);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch leaderboard: ${response.statusText}`);
-    }
-    // The script is expected to return a JSON array of top scores.
-    const data: LeaderboardEntry[] = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error fetching leaderboard:', error);
-    // Return an empty array for graceful failure so the UI doesn't crash.
-    return [];
-  }
+export type LeaderboardSource = 'online' | 'local';
+
+export interface LeaderboardResult {
+    entries: LeaderboardEntry[];
+    source: LeaderboardSource;
+}
+
+export interface SubmitResult {
+    /** 1-based rank on the board that was updated, or 0 if it didn't make the top 50. */
+    rank: number;
+    source: LeaderboardSource;
+}
+
+/** The last score this device submitted, used to highlight it on the board. */
+export interface SubmittedScore {
+    id?: string;
+    name: string;
+    score: number;
+    date: string;
+}
+
+const MAX_NAME_LENGTH = 20;
+// After the online board fails, use the device board for a while instead of waiting again.
+const RETRY_ONLINE_AFTER_MS = 60_000;
+let onlineFailedAt = 0;
+
+const shouldTryOnline = (): boolean =>
+    isOnlineLeaderboardEnabled() &&
+    (typeof navigator === 'undefined' || navigator.onLine !== false) &&
+    Date.now() - onlineFailedAt > RETRY_ONLINE_AFTER_MS;
+
+const noteOnlineFailure = (error: unknown, what: string) => {
+    onlineFailedAt = Date.now();
+    console.warn(`Online leaderboard unavailable; ${what}.`, error);
 };
 
-const submitScore = async (name: string, score: number): Promise<void> => {
-  try {
-    // The Apps Script handles POST requests to submit a score.
-    // By removing the Content-Type header, we use 'text/plain' by default,
-    // which avoids a CORS preflight (OPTIONS) request that can fail.
-    // Google Apps Script can still parse the JSON from the request body.
-    const response = await fetch(LEADERBOARD_URL, {
-      method: 'POST',
-      body: JSON.stringify({ name, score, date: new Date().toISOString() }),
-    });
+/**
+ * Saves a score on this device and, when online play is enabled, to the online board.
+ * Falls back to the device board if the online one can't be reached.
+ */
+const submitScore = async (rawName: string, score: number): Promise<SubmitResult> => {
+    const name = rawName.trim().slice(0, MAX_NAME_LENGTH) || 'Player';
+    const entry: LeaderboardEntry = { name, score, date: new Date().toISOString() };
+    const localRank = localLeaderboard.submit(entry);
+    const last: SubmittedScore = { name, score, date: entry.date };
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to submit score: ${response.status} ${response.statusText}. Details: ${errorText}`);
+    if (shouldTryOnline()) {
+        try {
+            last.id = await onlineLeaderboard.submit(name, score);
+            storage.setJSON(STORAGE_KEYS.lastSubmittedScore, last);
+            const board = await onlineLeaderboard.list();
+            return { rank: board.findIndex(e => e.id === last.id) + 1, source: 'online' };
+        } catch (error) {
+            noteOnlineFailure(error, 'score saved on this device');
+        }
     }
-    
-    console.log(`Successfully submitted score for ${name}: ${score}`);
-    
-  } catch (error) {
-    console.error('Error submitting score:', error);
-    // The error is logged, but the app continues.
-  }
+
+    storage.setJSON(STORAGE_KEYS.lastSubmittedScore, last);
+    return { rank: localRank, source: 'local' };
 };
+
+/** The online board when it's reachable, otherwise this device's scores. */
+const getLeaderboard = async (): Promise<LeaderboardResult> => {
+    if (shouldTryOnline()) {
+        try {
+            return { entries: await onlineLeaderboard.list(), source: 'online' };
+        } catch (error) {
+            noteOnlineFailure(error, 'showing this device');
+        }
+    }
+    return { entries: localLeaderboard.list(), source: 'local' };
+};
+
+const getLastSubmitted = (): SubmittedScore | null =>
+    storage.getJSON<SubmittedScore | null>(STORAGE_KEYS.lastSubmittedScore, null);
+
+/** Whether an entry is the score this device submitted last. */
+const isLastSubmitted = (entry: LeaderboardEntry, last: SubmittedScore | null): boolean =>
+    !!last && (entry.id ? entry.id === last.id : entry.date === last.date && entry.score === last.score);
+
+/** Test hook: forget a recent online failure. */
+const resetOnlineBackoff = () => { onlineFailedAt = 0; };
 
 export const leaderboardService = {
-  getLeaderboard,
-  submitScore,
+    submitScore,
+    getLeaderboard,
+    getLastSubmitted,
+    isLastSubmitted,
+    isOnline: isOnlineLeaderboardEnabled,
+    resetOnlineBackoff,
 };

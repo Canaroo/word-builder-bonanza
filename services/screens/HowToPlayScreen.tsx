@@ -1,82 +1,138 @@
-
-
 import React from 'react';
 import { soundService } from '../soundService';
+import { GAMEPLAY } from '../../config/gameplay';
+import ArcadeButton from '../../components/ArcadeButton';
 
 interface HowToPlayScreenProps {
   onBack: () => void;
 }
 
-const RuleItem: React.FC<{ title: string; children: React.ReactNode, icon: string, colorClass: string }> = ({ title, children, icon, colorClass }) => (
-  <div>
-    <h2 className={`text-xl font-bold ${colorClass} mb-2 flex items-center gap-2`}>
-      <span className="text-2xl">{icon}</span>
+// Styled like the instruction booklet that came in the cartridge box.
+const Section: React.FC<{ title: string; icon: string; tone: string; children: React.ReactNode }> = ({ title, icon, tone, children }) => (
+  <section className="bg-crt-950/70 ring-1 ring-white/10 rounded-xl p-4 text-left">
+    <h2 className={`font-display text-lg mb-2 flex items-center gap-2 ${tone}`}>
+      <span aria-hidden="true">{icon}</span>
       <span>{title}</span>
     </h2>
-    <div className="pl-9 text-slate-300 space-y-2">{children}</div>
-  </div>
+    <div className="space-y-2 text-slate-200 text-[15px] leading-snug">{children}</div>
+  </section>
 );
 
+const Key: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <strong className="text-neon-yellow font-semibold">{children}</strong>
+);
+
+const { timeBank } = GAMEPLAY;
+const timeRows = Object.entries(timeBank.secondsByLength);
+const lengthRows = Object.entries(GAMEPLAY.lengthMultipliers);
 
 const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
-  
   const handleBackClick = () => {
     soundService.playUIClick();
     onBack();
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-800 p-6 md:p-8 text-left justify-between animate-fade-in">
-      <div>
-        <h1 className="text-4xl font-bold text-center text-amber-400 mb-6">The Lowdown</h1>
-
-        <div className="space-y-5 text-slate-200 overflow-y-auto max-h-[calc(100vh-250px)] pr-2">
-          
-          <RuleItem title="The Basics" icon="🎯" colorClass="text-cyan-400">
-            <p>
-              Build words (3+ letters) from your tiles. Submit before the timer ends! Longer words and rare letters (J, Q, Z) score more. Use all your tiles in one word for a massive <strong className="text-amber-300">Super Hand</strong> bonus!
-            </p>
-            <p>
-              <strong className="text-red-400">Watch the clock!</strong> If the timer hits zero, the game ends instantly. Invalid words cost a strike — <strong className="text-red-400">3 strikes and you're out!</strong>
-            </p>
-          </RuleItem>
-
-          <RuleItem title="Game Changers" icon="✨" colorClass="text-cyan-400">
-            <p>
-                <strong className="text-yellow-400">Word Combos:</strong> Play words consecutively for a score bonus! At 5 words in a row, your word's score is <strong className="text-yellow-400">DOUBLED!</strong> You'll get notifications for your streaks. Don't break your combo!
-            </p>
-            <p>
-              <strong className="text-amber-300">Charms & PowerPlays:</strong> Earn these as you play. Charms give passive buffs and PowerPlays are powerful one-shot abilities. Choose wisely to boost your score!
-            </p>
-          </RuleItem>
-
-          <RuleItem title="Your Toolkit" icon="🛠️" colorClass="text-cyan-400">
-            <p>
-              <strong className="text-white">Shuffle:</strong> Bad hand? Swap your tiles. Uses are limited!
-            </p>
-            <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-600">
-              <p>
-                <strong className="text-sky-400">Challenge:</strong> Think you're stuck? Hit Challenge!
-              </p>
-              <ul className="list-disc list-inside mt-1 text-sm">
-                <li><strong className="text-green-400">WIN:</strong> No word found? You get a FREE shuffle.</li>
-                <li><strong className="text-red-400">LOSE:</strong> A word was possible. You must play it for 0 points and you lose a challenge charge.</li>
-              </ul>
-            </div>
-            <div className="p-3 bg-slate-900/50 rounded-lg border border-red-500/50">
-                <p><strong className="text-red-500">Strike Challenge:</strong> Out of normal challenges? Gamble a strike! Win for a free shuffle, lose and you take a strike penalty. High risk, high reward!</p>
-            </div>
-          </RuleItem>
-        </div>
+    <div className="flex flex-col h-full min-h-0 p-4">
+      <div className="text-center shrink-0 mb-3">
+        <h1 className="font-display text-4xl neon-text-cyan">HOW TO PLAY</h1>
+        <p className="osd-text text-lg text-neon-pink">INSTRUCTION BOOKLET · PLEASE READ</p>
       </div>
 
-      <div className="mt-6">
-        <button
-          onClick={handleBackClick}
-          className="w-full px-6 py-4 text-2xl font-bold text-slate-900 bg-green-500 rounded-lg shadow-lg hover:bg-green-400 transition-all duration-300 transform hover:scale-105"
-        >
-          Got It, Let's Play!
-        </button>
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-3 pr-1">
+        <Section title="The Basics" icon="🎯" tone="text-neon-cyan">
+          <p>
+            Tap tiles to spell words of <Key>3+ letters</Key>, then hit <Key>Submit</Key>. Your hand always refills to{' '}
+            <Key>{GAMEPLAY.handSize} tiles</Key>. Rare letters (J, Q, X, Z) score big, and using every tile earns a{' '}
+            <Key>Super Hand</Key> bonus.
+          </p>
+          <p>
+            Invalid words cost a <Key>strike</Key>. Three strikes and it's game over, but{' '}
+            <Key>{GAMEPLAY.strikeRecoveryStreak} valid words in a row</Key> win one back.
+          </p>
+        </Section>
+
+        <Section title="The Clock Is a Bank" icon="⏱️" tone="text-neon-green">
+          <p>
+            You start with <Key>{timeBank.start} seconds</Key> and the clock never resets. Every valid word{' '}
+            <Key>adds time</Key>, so longer words keep you alive. An invalid word costs <Key>{timeBank.invalidPenalty}s</Key>.
+            The bank tops out at {timeBank.max}s. When it hits zero, the run ends.
+          </p>
+          <div className="grid grid-cols-5 gap-1 text-center osd-text text-lg">
+            {timeRows.map(([len, secs], i) => (
+              <div key={len} className="bg-crt-800/80 rounded-md py-1">
+                <div className="text-slate-400 leading-none">{len}{i === timeRows.length - 1 ? '+' : ''} LTR</div>
+                <div className="text-neon-green leading-none">+{secs}s</div>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Scoring" icon="💯" tone="text-neon-yellow">
+          <p>Longer words multiply your score:</p>
+          <div className="grid grid-cols-5 gap-1 text-center osd-text text-lg">
+            {lengthRows.map(([len, mult], i) => (
+              <div key={len} className="bg-crt-800/80 rounded-md py-1">
+                <div className="text-slate-400 leading-none">{len}{i === lengthRows.length - 1 ? '+' : ''} LTR</div>
+                <div className="text-neon-yellow leading-none">x{mult}</div>
+              </div>
+            ))}
+          </div>
+          <p>
+            Multipliers from length, charms, PowerPlays and combos <Key>add together</Key>: x2 and x4 make x6. Coin-flip
+            gambles like Double or Nothing multiply the final score.
+          </p>
+          <p>
+            <Key>Word Combo:</Key> five valid words in a row adds another x2. <Key>Perfect 4-Chain:</Key> four 4-letter
+            words in a row pays +20, +40, +60, then a +444 jackpot.
+          </p>
+        </Section>
+
+        <Section title="Pop-Culture Bonuses" icon="📼" tone="text-neon-pink">
+          <p>
+            Some words are secret references to 90s and 2000s movies, TV, games and music. Spell <Key>LINK</Key> or{' '}
+            <Key>AIR</Key> and see what happens. Each one pays out once per run.
+          </p>
+        </Section>
+
+        <Section title="Power-Ups" icon="✨" tone="text-neon-purple">
+          <p>
+            <Key>PowerPlays</Key> are one-shot abilities. Fill the PowerPlay meter by playing{' '}
+            <Key>{GAMEPLAY.powerPlayMeterLetters} letters</Key> to earn a pick of three (also every{' '}
+            {GAMEPLAY.powerPlayEveryWords} words).
+          </p>
+          <p><Key>Charms</Key> are passive buffs you unlock as your word count grows.</p>
+        </Section>
+
+        <Section title="Golden Round" icon="🌟" tone="text-neon-yellow">
+          <p>
+            Chain enough valid words to unlock a Golden Round: <Key>{GAMEPLAY.goldenRoundSeconds} seconds</Key> on its own
+            clock while your bank waits, all tiles worth <Key>2x</Key>, and a <Key>Golden Tile</Key> worth a{' '}
+            <Key>6x</Key> word score.
+          </p>
+        </Section>
+
+        <Section title="Your Toolkit" icon="🛠️" tone="text-neon-cyan">
+          <p><Key>Shuffle:</Key> swap your whole hand. Uses are limited and the clock keeps running.</p>
+          <p>
+            <Key>Challenge:</Key> stuck? If no everyday word can be made, you win a free shuffle. If one can, you must play it
+            for 0 points.
+          </p>
+          <p><Key>Strike Challenge:</Key> out of challenges? Gamble a strike for the same deal.</p>
+        </Section>
+
+        <Section title="Daily Power Word" icon="💥" tone="text-neon-orange">
+          <p>
+            Spin once a day on the main menu for a 4-letter <Key>Power Word</Key>. Play it during a run for{' '}
+            <Key>+500</Key> (once per run). The spin resets daily at 8:00 AM.
+          </p>
+        </Section>
+      </div>
+
+      <div className="shrink-0 pt-3">
+        <ArcadeButton color="yellow" size="lg" className="w-full" onClick={handleBackClick}>
+          ▶ Got It, Let's Play
+        </ArcadeButton>
       </div>
     </div>
   );
