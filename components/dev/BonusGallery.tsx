@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { EASTER_EGGS } from '../../data/easterEggs';
 import { getBonusMedia } from '../../data/bonusMedia';
+import { exampleScore } from '../../services/scoreBonus';
 import BonusReveal from '../BonusReveal';
 
 /**
@@ -14,7 +15,7 @@ const BonusGallery: React.FC = () => {
 
   return (
     <div className="relative flex-1 min-h-0">
-      <BonusReveal egg={egg} onClose={() => step(1)} />
+      <BonusReveal egg={{ ...egg, triggerScore: egg.scorePattern ? exampleScore(egg.scorePattern) : undefined }} onClose={() => step(1)} />
       <div className="absolute top-2 inset-x-2 z-[70] flex justify-between items-center osd-text text-lg text-white">
         <button onClick={() => step(-1)} className="px-2 bg-crt-950/80 rounded">◀ PREV</button>
         <span>{index + 1}/{EASTER_EGGS.length} · {egg.id} · {getBonusMedia(egg.id).media}</span>

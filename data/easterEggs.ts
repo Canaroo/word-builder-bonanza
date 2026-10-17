@@ -1,46 +1,53 @@
 import { EasterEgg } from '../types';
+import { scoreTrigger } from '../services/scoreBonus';
 
 export const EASTER_EGGS: EasterEgg[] = [
   {
     id: 'niceNumber',
     name: '😏 The Nice Number',
     description: "Your score ends in 69? Whoa, that's our number! Be excellent to yourself with this free shuffle.",
-    trigger: (word, score) => score > 0 && score % 100 === 69,
+    scorePattern: { kind: 'endsWith', digits: '69' },
+    trigger: scoreTrigger({ kind: 'endsWith', digits: '69' }),
     reward: { shuffle: 1, message: "Your total score ended in 69! Whoa! Be excellent to yourself with this free shuffle." },
   },
   {
     id: 'vegasBaby',
     name: '🎲 Vegas, Baby!',
     description: "Your score includes 21. You're so money.",
-    trigger: (word, score) => String(score).includes('21'),
+    scorePattern: { kind: 'contains', digits: '21' },
+    trigger: scoreTrigger({ kind: 'contains', digits: '21' }),
     reward: { points: 100, message: "You’re so money and you don’t even know it. Blackjack. Bonus. Bravado." },
   },
   {
     id: 'theGoat',
     name: '🐐 The GOAT',
     description: 'Score includes 23 → +100 bonus.',
-    trigger: (word, score) => String(score).includes('23'),
+    scorePattern: { kind: 'contains', digits: '23' },
+    trigger: scoreTrigger({ kind: 'contains', digits: '23' }),
     reward: { points: 100, message: 'Your total score contains 23! The GOAT would be proud.'}
   },
   {
     id: 'theAnswer',
     name: '🧠 The Answer',
     description: 'Score includes 42 → +300 bonus.',
-    trigger: (word, score) => String(score).includes('42'),
+    scorePattern: { kind: 'contains', digits: '42' },
+    trigger: scoreTrigger({ kind: 'contains', digits: '42' }),
     reward: { points: 300, message: 'Your total score contains 42! All meaning, no towel required.'}
   },
   {
     id: 'squidGame',
     name: '🦑 Squid Game',
     description: 'Score = 456 → +1,000 bonus.',
-    trigger: (word, score) => score === 456,
+    scorePattern: { kind: 'equals', digits: '456' },
+    trigger: scoreTrigger({ kind: 'equals', digits: '456' }),
     reward: { points: 1000, message: 'Your total score is exactly 456! No red light. Just green points.'}
   },
   {
     id: 'announcersFavorite',
     name: '🎙️ Announcer’s Favorite',
     description: 'Score = 2763 → +1,000 bonus.',
-    trigger: (word, score) => score === 2763,
+    scorePattern: { kind: 'equals', digits: '2763' },
+    trigger: scoreTrigger({ kind: 'equals', digits: '2763' }),
     reward: { points: 1000, message: 'Your total score is exactly 2763! It’s everywhere in BFDI — and now it’s here too.' },
   },
   {

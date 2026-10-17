@@ -69,6 +69,8 @@ export interface EasterEgg {
   name: string;
   description: string;
   trigger: (word: string, score: number, gameState: GameState) => boolean;
+  /** For score-number bonuses: the pattern the score must match (also used to explain the bonus). */
+  scorePattern?: import('./services/scoreBonus').ScorePattern;
   reward: {
     points?: number;
     shuffle?: number;

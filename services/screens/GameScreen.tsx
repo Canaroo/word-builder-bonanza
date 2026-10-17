@@ -15,6 +15,7 @@ import { storage, STORAGE_KEYS } from '../storage';
 import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
+import { explainScoreBonus } from '../scoreBonus';
 import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, timeForWord, advancePowerPlayMeter, advanceStrikeRecovery } from '../rules';
 import { GAMEPLAY } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
@@ -2044,9 +2045,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     dispatch({ type: 'SET_HAND_AND_BAG', payload: { hand: sanitizeHand(finalHand), tileBag: finalBag } });
   }, [showMessage, applyMutation]);
 
+  // Whether this game was resumed is decided once, when the screen mounts. Reacting to later
+  // changes of the prop used to deal a fresh hand over a resumed game.
+  const resumedOnMount = React.useRef(isResuming).current;
+
   useEffect(() => {
     dispatch({ type: 'SET_IS_LOADING', payload: true });
-    if (isResuming) {
+    if (resumedOnMount) {
         // State is already loaded by reducer initializer.
         // We can show a welcome message.
         showMessage(`Welcome back, ${playerName}!`, 2500);
@@ -2055,7 +2060,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         initialDeal();
     }
     dispatch({ type: 'SET_IS_LOADING', payload: false });
-  }, [initialDeal, isResuming, playerName, showMessage]);
+    // Run once per mounted game.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     // This effect is dedicated to notifying the parent about the time status.
@@ -2700,6 +2707,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       for (const egg of EASTER_EGGS) {
           if (WORD_OVERRIDE_EGG_IDS.has(egg.id) || newState.foundEasterEggs.some(fe => fe.id === egg.id)) continue;
           if (egg.trigger(word, runningScore, newState)) {
+              // Remember the exact score that matched, to show the player why the bonus fired.
+              const triggerScore = runningScore;
+              const explanation = egg.scorePattern ? explainScoreBonus(triggerScore, egg.scorePattern) : '';
               newState.foundEasterEggs = [...newState.foundEasterEggs, egg];
               let eggScoreChange = 0;
               if (egg.reward.points) {
@@ -2708,9 +2718,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                   scoreResult.bonuses.push({ name: egg.name, description: `+${egg.reward.points} pts` });
               }
               if (egg.reward.shuffle) newState.shuffleCount += egg.reward.shuffle;
-              modalQueue.push({ type: 'easter-egg', title: egg.name, content: egg.reward.message, data: egg });
+              modalQueue.push({ type: 'easter-egg', title: egg.name, content: egg.reward.message, data: { ...egg, triggerScore } });
               const eggIcon = egg.name.split(' ')[0];
-              eventLogQueue.push({ type: 'event', id: `egg-${egg.id}`, name: egg.name, icon: eggIcon, description: egg.reward.message, scoreChange: eggScoreChange, cumulativeScore: runningScore });
+              eventLogQueue.push({ type: 'event', id: `egg-${egg.id}`, name: egg.name, icon: eggIcon, description: explanation ? `${explanation} ${egg.reward.message}` : egg.reward.message, scoreChange: eggScoreChange, cumulativeScore: runningScore });
           }
       }
 

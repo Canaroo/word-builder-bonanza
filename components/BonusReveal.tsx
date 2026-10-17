@@ -1,13 +1,31 @@
 import React, { useEffect } from 'react';
 import { soundService } from '../services/soundService';
+import { matchScorePattern, explainScoreBonus, type ScorePattern } from '../services/scoreBonus';
 import { EasterEgg } from '../types';
 import { getBonusMedia, BonusMedia } from '../data/bonusMedia';
 import ArcadeButton from './ArcadeButton';
 
 interface BonusRevealProps {
-  egg: EasterEgg;
+  /** triggerScore: the score that matched, for score-number bonuses. */
+  egg: EasterEgg & { triggerScore?: number };
   onClose: () => void;
 }
+
+/** The triggering score as a VCR readout, with the digits that matched lit up. */
+const ScoreExplanation: React.FC<{ score: number; pattern: ScorePattern }> = ({ score, pattern }) => {
+  const m = matchScorePattern(score, pattern);
+  if (!m) return null;
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="font-osd text-5xl leading-none tracking-widest tabular-nums" aria-hidden="true">
+        <span className="text-slate-400">{m.before}</span>
+        <span className="text-neon-yellow drop-shadow-glow-yellow underline decoration-4 underline-offset-4">{m.match}</span>
+        <span className="text-slate-400">{m.after}</span>
+      </div>
+      <p className="osd-text text-xl text-neon-cyan">{explainScoreBonus(score, pattern)}</p>
+    </div>
+  );
+};
 
 // Bonus names carry decorative emoji and curly quotes, e.g. 🗡️ “Hero of Hyrule” 🛡️.
 const splitName = (name: string) => {
@@ -108,6 +126,7 @@ const BonusReveal: React.FC<BonusRevealProps> = ({ egg, onClose }) => {
         {media === 'cartridge' && <Cartridge {...props} />}
         {media === 'cd' && <Disc {...props} />}
         {media === 'arcade' && <Marquee icon={icon} title={title} />}
+        {egg.scorePattern && egg.triggerScore !== undefined && <ScoreExplanation score={egg.triggerScore} pattern={egg.scorePattern} />}
         <p className="text-slate-200 text-base leading-snug px-2">{egg.reward.message}</p>
         {egg.reward.points ? (
           <div className="font-display text-4xl text-neon-yellow drop-shadow-glow-yellow">+{egg.reward.points}</div>

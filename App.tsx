@@ -168,6 +168,7 @@ const App: React.FC = () => {
 
   const handlePlay = useCallback((name: string) => {
     storage.remove(STORAGE_KEYS.savedGame);
+    setIsResuming(false);
     setPlayerName(name);
     setScreen(Screen.Game);
     setRankingModalData(null); // Clear any leftover ranking data
@@ -217,6 +218,7 @@ const App: React.FC = () => {
   }, []);
 
   const handlePlayAgain = useCallback(() => {
+    setIsResuming(false);
     setLastGameResult(null);
     setScreen(Screen.Game);
     musicService.play();
@@ -272,11 +274,6 @@ const App: React.FC = () => {
     }
   }, [canSpin]);
 
-  useEffect(() => {
-    if (screen === Screen.Game && isResuming) {
-        setIsResuming(false);
-    }
-  }, [screen, isResuming]);
 
   const renderScreen = () => {
     switch (screen) {
