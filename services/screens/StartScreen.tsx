@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { soundService } from '../soundService';
 import { musicService } from '../musicService';
 import Leaderboard from '../../components/Leaderboard';
-import { leaderboardService } from '../leaderboardService';
+import { leaderboardService, LeaderboardSource } from '../leaderboardService';
 import { LeaderboardEntry, FinalGameState, MissedWord, PowerWordData } from '../../types';
 import { logService } from '../logService';
 import { missedWordsService } from '../missedWordsService';
@@ -49,6 +49,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
+  const [leaderboardSource, setLeaderboardSource] = useState<LeaderboardSource>('local');
 
   const [showEventLogsModal, setShowEventLogsModal] = useState(false);
   const [eventLogs, setEventLogs] = useState<FinalGameState[]>([]);
@@ -104,8 +105,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
     if (showLeaderboardModal) {
       const fetchLeaderboard = async () => {
         setIsLoadingLeaderboard(true);
-        const data = await leaderboardService.getLeaderboard();
-        setLeaderboardData(data);
+        const { entries, source } = await leaderboardService.getLeaderboard();
+        setLeaderboardData(entries);
+        setLeaderboardSource(source);
         setIsLoadingLeaderboard(false);
       };
       fetchLeaderboard();
@@ -240,7 +242,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
       {showLeaderboardModal && (
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-slate-800 border-2 border-amber-400 rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col max-h-[90vh]">
-            <Leaderboard data={leaderboardData} isLoading={isLoadingLeaderboard} />
+            <Leaderboard data={leaderboardData} isLoading={isLoadingLeaderboard} source={leaderboardSource} />
             <button
               onClick={handleCloseLeaderboard}
               className="w-full mt-4 px-6 py-3 text-xl font-bold text-slate-900 bg-amber-400 rounded-lg shadow-lg hover:bg-amber-300 transition-colors"

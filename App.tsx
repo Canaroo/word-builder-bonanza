@@ -203,7 +203,7 @@ const App: React.FC = () => {
   const handleSubmitScore = useCallback(async (name: string) => {
     if (lastGameResult) {
       const score = lastGameResult.score;
-      const rank = await leaderboardService.submitScore(name, score);
+      const { rank } = await leaderboardService.submitScore(name, score);
       setPlayerName(name);
 
       if (rank > 0 && rank <= 10) {

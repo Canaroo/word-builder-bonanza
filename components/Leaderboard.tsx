@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { LeaderboardEntry } from '../types';
 import { soundService } from '../services/soundService';
-import { leaderboardService } from '../services/leaderboardService';
+import { leaderboardService, LeaderboardSource } from '../services/leaderboardService';
 
 interface LeaderboardProps {
   data: LeaderboardEntry[];
   isLoading: boolean;
+  source?: LeaderboardSource;
 }
 
-const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading }) => {
+const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'local' }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const SCORES_PER_PAGE = 10;
 
@@ -55,18 +56,21 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading }) => {
 
   return (
     <div className="w-full bg-slate-900 p-4 rounded-lg shadow-inner flex-grow flex flex-col">
-      <h3 className="text-xl font-bold text-center text-amber-400 mb-3 shrink-0">TOP 50 SCORES</h3>
+      <h3 className="text-xl font-bold text-center text-amber-400 mb-1 shrink-0">TOP 50 SCORES</h3>
+      <p className="text-xs text-center text-slate-400 mb-3 shrink-0">
+        {source === 'online' ? '🌐 Worldwide' : leaderboardService.isOnline() ? '📱 This device (online board unavailable)' : '📱 This device'}
+      </p>
       {data.length > 0 ? (
         <>
           <ol className="space-y-2 flex-grow overflow-y-auto pr-2 min-h-[350px]">
             {scoresForPage.map((entry, index) => {
               const rank = (currentPage * SCORES_PER_PAGE) + index + 1;
               const isFirst = rank === 1;
-              const isOwnScore = lastSubmitted !== null && entry.date === lastSubmitted.date && entry.score === lastSubmitted.score;
+              const isOwnScore = leaderboardService.isLastSubmitted(entry, lastSubmitted);
 
               return (
                 <li
-                  key={`${rank}-${entry.name}-${entry.score}`}
+                  key={entry.id ?? `${rank}-${entry.name}-${entry.score}`}
                   className={`flex justify-between items-center p-2 rounded-lg transition-all duration-300 ${
                     isFirst
                       ? 'bg-amber-400/20 border-2 border-amber-400 shadow-lg'

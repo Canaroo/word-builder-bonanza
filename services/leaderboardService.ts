@@ -1,54 +1,81 @@
 import { LeaderboardEntry } from '../types';
 import { storage, STORAGE_KEYS } from './storage';
+import { localLeaderboard, MAX_LEADERBOARD_ENTRIES } from './localLeaderboard';
+import { onlineLeaderboard, isOnlineLeaderboardEnabled } from './onlineLeaderboard';
 
-// Scores are kept on this device only.
-export const MAX_LEADERBOARD_ENTRIES = 50;
+export { MAX_LEADERBOARD_ENTRIES };
 
+export type LeaderboardSource = 'online' | 'local';
+
+export interface LeaderboardResult {
+    entries: LeaderboardEntry[];
+    source: LeaderboardSource;
+}
+
+export interface SubmitResult {
+    /** 1-based rank on the board that was updated, or 0 if it didn't make the top 50. */
+    rank: number;
+    source: LeaderboardSource;
+}
+
+/** The last score this device submitted, used to highlight it on the board. */
 export interface SubmittedScore {
+    id?: string;
     name: string;
     score: number;
     date: string;
 }
 
-const readBoard = (): LeaderboardEntry[] => {
-    const rows = storage.getJSON<unknown>(STORAGE_KEYS.leaderboard, []);
-    if (!Array.isArray(rows)) return [];
-    return rows
-        .filter((r): r is LeaderboardEntry =>
-            typeof r?.name === 'string' && typeof r?.score === 'number' && typeof r?.date === 'string')
-        .sort((a, b) => b.score - a.score);
-};
+const MAX_NAME_LENGTH = 20;
 
 /**
- * Adds a score and returns its 1-based rank, or 0 if it didn't make the board.
+ * Saves a score on this device and, when online play is enabled, to the online board.
+ * Falls back to the device board if the online one can't be reached.
  */
-const submitScore = async (name: string, score: number): Promise<number> => {
+const submitScore = async (rawName: string, score: number): Promise<SubmitResult> => {
+    const name = rawName.trim().slice(0, MAX_NAME_LENGTH) || 'Player';
     const entry: LeaderboardEntry = { name, score, date: new Date().toISOString() };
-    // Ties keep the earlier score ahead.
-    const board = [...readBoard(), entry]
-        .sort((a, b) => b.score - a.score)
-        .slice(0, MAX_LEADERBOARD_ENTRIES);
+    const localRank = localLeaderboard.submit(entry);
+    const last: SubmittedScore = { name, score, date: entry.date };
 
-    storage.setJSON(STORAGE_KEYS.leaderboard, board);
-    storage.setJSON(STORAGE_KEYS.lastSubmittedScore, entry satisfies SubmittedScore);
+    if (isOnlineLeaderboardEnabled()) {
+        try {
+            last.id = await onlineLeaderboard.submit(name, score);
+            storage.setJSON(STORAGE_KEYS.lastSubmittedScore, last);
+            const board = await onlineLeaderboard.list();
+            return { rank: board.findIndex(e => e.id === last.id) + 1, source: 'online' };
+        } catch (error) {
+            console.warn('Online leaderboard unavailable; score saved on this device.', error);
+        }
+    }
 
-    return board.indexOf(entry) + 1;
+    storage.setJSON(STORAGE_KEYS.lastSubmittedScore, last);
+    return { rank: localRank, source: 'local' };
 };
 
-const getLeaderboard = async (): Promise<LeaderboardEntry[]> =>
-    readBoard().map((entry, i) => ({ ...entry, rank: i + 1 }));
+/** The online board when it's reachable, otherwise this device's scores. */
+const getLeaderboard = async (): Promise<LeaderboardResult> => {
+    if (isOnlineLeaderboardEnabled()) {
+        try {
+            return { entries: await onlineLeaderboard.list(), source: 'online' };
+        } catch (error) {
+            console.warn('Online leaderboard unavailable; showing this device.', error);
+        }
+    }
+    return { entries: localLeaderboard.list(), source: 'local' };
+};
 
 const getLastSubmitted = (): SubmittedScore | null =>
     storage.getJSON<SubmittedScore | null>(STORAGE_KEYS.lastSubmittedScore, null);
 
-const clearLeaderboard = () => {
-    storage.remove(STORAGE_KEYS.leaderboard);
-    storage.remove(STORAGE_KEYS.lastSubmittedScore);
-};
+/** Whether an entry is the score this device submitted last. */
+const isLastSubmitted = (entry: LeaderboardEntry, last: SubmittedScore | null): boolean =>
+    !!last && (entry.id ? entry.id === last.id : entry.date === last.date && entry.score === last.score);
 
 export const leaderboardService = {
     submitScore,
     getLeaderboard,
     getLastSubmitted,
-    clearLeaderboard,
+    isLastSubmitted,
+    isOnline: isOnlineLeaderboardEnabled,
 };
