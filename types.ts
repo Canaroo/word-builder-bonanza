@@ -220,6 +220,12 @@ export interface ScoreCalculationResult {
   totalScore: number;
   baseScore: number;
   bonuses: ScoreBonusInfo[];
+  /** Word score after tile modifiers, before word multipliers; later multipliers add to this. */
+  scoreBeforeMultiplier?: number;
+  /** Combined word multiplier applied to scoreBeforeMultiplier. */
+  wordMultiplier?: number;
+  /** A cap (Schrute Bucks, Wordionaire) fixed the score; later bonuses must not change it. */
+  capped?: boolean;
 }
 
 export interface FinalGameState {
