@@ -34,4 +34,13 @@ describe('generated word list', () => {
         expect(triggers.length).toBeGreaterThan(30);
         expect(triggers.filter(w => !words.has(w))).toEqual([]);
     });
+
+    test('the common list is an everyday subset of the full list', () => {
+        const common = fs.readFileSync(path.join(root, 'public/words/common.txt'), 'utf8').split('\n').filter(Boolean);
+        expect(common.length).toBeGreaterThan(20_000);
+        expect(common.filter(w => !words.has(w))).toEqual([]);
+        const set = new Set(common);
+        for (const w of ['cat', 'zebra', 'tacos']) expect(set).toContain(w);
+        for (const w of ['aas', 'qat', 'aah']) expect(set).not.toContain(w);
+    });
 });

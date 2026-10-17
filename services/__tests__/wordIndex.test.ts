@@ -27,3 +27,18 @@ describe('createWordIndex', () => {
         expect(index.findPlayable(['X', 'Z', 'V'])).toBeNull();
     });
 });
+
+describe('common-words search', () => {
+    const withCommon = createWordIndex(['aas', 'sea', 'seas', 'cat'], ['sea', 'cat', 'notplayable']);
+
+    test('commonOnly skips obscure words but they stay valid', () => {
+        expect(withCommon.findPlayable(['A', 'A', 'S'])).toBe('aas');
+        expect(withCommon.findPlayable(['A', 'A', 'S'], { commonOnly: true })).toBeNull();
+        expect(withCommon.findPlayable(['S', 'E', 'A', 'S'], { commonOnly: true, longest: true })).toBe('sea');
+        expect(withCommon.has('aas')).toBe(true);
+    });
+
+    test('common words must also be in the full list', () => {
+        expect(withCommon.findPlayable(['N', 'O', 'T', 'P', 'L', 'A', 'Y', 'A', 'B', 'L', 'E'], { commonOnly: true })).toBeNull();
+    });
+});

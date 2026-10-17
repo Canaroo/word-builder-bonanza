@@ -15,21 +15,30 @@ declare const self: DedicatedWorkerGlobalScope;
 
 let index: WordIndex | null = null;
 
-const load = async (url: string) => {
+const fetchList = async (url: string): Promise<string[]> => {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
+    return parseWordList(await response.text());
+};
+
+const load = async (url: string, commonUrl: string) => {
     try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        index = createWordIndex(parseWordList(await response.text()));
+        const [words, common] = await Promise.all([
+            fetchList(url),
+            // Without the common list, Challenge and hints fall back to searching everything.
+            fetchList(commonUrl).catch(() => undefined),
+        ]);
+        index = createWordIndex(words, common);
         self.postMessage({ type: 'ready', size: index.size } satisfies DictionaryResponse);
     } catch (error) {
         self.postMessage({ type: 'error', message: String(error) } satisfies DictionaryResponse);
     }
 };
 
-self.onmessage = (event: MessageEvent<DictionaryRequest | { type: 'load'; url: string }>) => {
+self.onmessage = (event: MessageEvent<DictionaryRequest | { type: 'load'; url: string; commonUrl: string }>) => {
     const msg = event.data;
     if (msg.type === 'load') {
-        load(msg.url);
+        load(msg.url, msg.commonUrl);
         return;
     }
     if (!index) return; // The client only sends lookups after 'ready'.

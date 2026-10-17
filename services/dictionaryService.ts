@@ -16,6 +16,7 @@ export interface WordDataResult {
 }
 
 const WORD_LIST_URL = `${import.meta.env.BASE_URL}words/wordlist.txt`;
+const COMMON_LIST_URL = `${import.meta.env.BASE_URL}words/common.txt`;
 const DEFINITION_TIMEOUT_MS = 1200;
 const MAX_CACHED_DEFINITIONS = 500;
 
@@ -55,7 +56,11 @@ const preload = (): Promise<boolean> => {
             console.error('Dictionary worker crashed.', event);
             resolve(false);
         };
-        worker.postMessage({ type: 'load', url: new URL(WORD_LIST_URL, location.href).href });
+        worker.postMessage({
+            type: 'load',
+            url: new URL(WORD_LIST_URL, location.href).href,
+            commonUrl: new URL(COMMON_LIST_URL, location.href).href,
+        });
     });
     return readyPromise;
 };
@@ -151,21 +156,23 @@ async function getDefinition(word: string): Promise<string | null> {
 }
 
 /**
- * Finds a word that can be spelled from the given tile letters, or null if none.
- * Curated internal words are preferred (they have fun definitions); the full list is searched next.
+ * Finds an everyday word that can be spelled from the given tile letters, or null if none.
+ * Used by Challenge and hints, so obscure Scrabble words (AAS, QAT...) don't count against the player.
+ * Falls back to the curated internal words if the word lists couldn't load.
  */
 async function findPlayableWord(letters: string[], options: FindWordOptions = {}): Promise<string | null> {
     const { minLength = 3, longest = false } = options;
-    let bestInternal: string | null = null;
+    const fromList = await ask<string | null>({ type: 'find', letters, options: { minLength, longest, commonOnly: true } });
+    if (fromList !== undefined) return fromList;
+
+    let best: string | null = null;
     for (const w of internalWords.keys()) {
         if (w.length >= minLength && canBeMadeFromLetters(w, letters)) {
             if (!longest) return w;
-            if (!bestInternal || w.length > bestInternal.length) bestInternal = w;
+            if (!best || w.length > best.length) best = w;
         }
     }
-    const fromList = await ask<string | null>({ type: 'find', letters, options: { minLength, longest } });
-    if (longest && bestInternal && (!fromList || bestInternal.length >= fromList.length)) return bestInternal;
-    return fromList ?? bestInternal;
+    return best;
 }
 
 /**

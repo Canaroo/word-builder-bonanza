@@ -1,6 +1,10 @@
-// Builds public/words/wordlist.txt, the list the game validates against:
-//   base list (word-list package) + data/internalWords.ts + words/custom.txt − words/blocked.txt
+// Builds the word lists the game uses:
+//   public/words/wordlist.txt  every playable word:
+//     base list (word-list package) + data/internalWords.ts + words/custom.txt − words/blocked.txt
+//   public/words/common.txt    the everyday subset Challenge and hints search
+//     (SCOWL levels 10-35 from wordlist-english that the game accepts)
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import baseListPath from 'word-list';
@@ -39,11 +43,27 @@ for (const w of [...base, ...internal, ...custom]) {
 }
 
 const sorted = [...words].sort();
+
+// Common words: SCOWL's everyday levels, limited to words the game accepts.
+const require = createRequire(import.meta.url);
+const COMMON_LEVELS = [10, 20, 35];
+const common = new Set();
+for (const variant of ['english', 'american']) {
+  for (const level of COMMON_LEVELS) {
+    for (const w of require(`wordlist-english/${variant}-words-${level}.json`)) {
+      if (words.has(w)) common.add(w);
+    }
+  }
+}
+const commonSorted = [...common].sort();
+
 const outDir = path.join(root, 'public/words');
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(path.join(outDir, 'wordlist.txt'), sorted.join('\n') + '\n');
+fs.writeFileSync(path.join(outDir, 'common.txt'), commonSorted.join('\n') + '\n');
 
 console.log(
   `Word list: ${sorted.length} words ` +
-  `(${internal.length} internal, ${custom.length} custom, ${blocked.size} blocked) → public/words/wordlist.txt`
+  `(${internal.length} internal, ${custom.length} custom, ${blocked.size} blocked), ` +
+  `${commonSorted.length} common → public/words/`
 );
