@@ -1,8 +1,27 @@
 # Gameplay Loop Review
 
 An evaluation of Word Nerd's core loop (timer, scoring, fairness, retention) against common practice
-in the genre, with suggested changes. Nothing here has been implemented yet. Runs stay **endless**,
-as decided; the suggestions are about making an endless run tense, fair and worth replaying.
+in the genre, with suggested changes. Runs stay **endless**, as decided; the suggestions are about
+making an endless run tense, fair and worth replaying.
+
+## Status
+
+Implemented (tunable in `config/gameplay.ts`, rules in `services/rules.ts`):
+
+| # | Change | Notes |
+| --- | --- | --- |
+| 1 | Challenge and hints search everyday words only | SCOWL levels 10–35, `public/words/common.txt` |
+| 2 | Time bank + 30s Golden Round clock | 60s start, 90s cap, +2s to +10s per word, −5s per invalid word |
+| 3 | Word multipliers add together | x2 + x4 = x6; coin-flip gambles still multiply the final score |
+| 4 | Length curve + constant 8-tile hand | 4 x1.25 … 8+ x3 |
+| 5 | Visible PowerPlay meter | 25 letters fills it; every-35-words fallback kept |
+| 6 | Strike recovery | 15 valid words in a row |
+| – | Personal best | NEW HIGH SCORE banner on game over |
+
+Not yet: Bonus Collection album, Daily Run, share card, first-run tutorial. These numbers are first
+guesses; playtest and adjust them in the config file.
+
+The sections below are the original review, kept for the reasoning.
 
 ## How the loop works today
 

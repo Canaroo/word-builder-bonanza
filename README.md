@@ -60,6 +60,26 @@ The official NWL/TWL and Collins lists are licensed, so they aren't bundled. The
 ([`word-list`](https://github.com/sindresorhus/word-list), MIT) is very close to them, and the
 custom file covers anything missing.
 
+## Tuning the game
+
+Gameplay numbers live in [`config/gameplay.ts`](config/gameplay.ts): time bank (start, cap, seconds
+per word length, invalid-word penalty), Golden Round clock, length multipliers, hand size, PowerPlay
+meter size and strike recovery. The rules that use them are small tested functions in
+`services/rules.ts`, and How to Play reads the same numbers, so changing the config updates the
+game and its instructions together. `docs/GAMEPLAY_REVIEW.md` explains the reasoning.
+
+## Pop-culture bonuses
+
+Word bonuses are defined in `data/easterEggs.ts`. When one fires it gets a full-screen reveal styled
+by its source, set in `data/bonusMedia.ts`: `vhs` (movies/TV), `cartridge` (games), `cd` (music) or
+`arcade` (everything else, the default). To add a bonus:
+
+1. Add the entry to `data/easterEggs.ts` (and its id to `WORD_OVERRIDE_EGG_IDS` in `GameScreen.tsx`
+   if the word should replace the normal word score).
+2. Add `{ media, source }` for it in `data/bonusMedia.ts`.
+3. Make sure the word is playable (`words/custom.txt` if needed) and run `npm test`.
+4. Preview it with `npm run dev` at `/?gallery&egg=<id>`.
+
 ## Leaderboard
 
 **Top 50** is the worldwide board on Firebase Realtime Database, with every score also saved on the
@@ -87,7 +107,8 @@ components/, ui/         Reusable UI pieces
 services/screens/        Screens (GameScreen = game logic, GameScreenView = its layout)
 services/                Game logic, word validation, sound, storage, leaderboard
 data/                    Charms, PowerPlays, easter eggs, packs, curated words
-words/                   custom.txt and blocked.txt word overrides
+config/                  gameplay.ts: all tunable gameplay numbers
+words/                   custom.txt and blocked.txt word overrides, word-list licences
 scripts/                 Build-time scripts (word list)
 public/                  Static files: music, icons, favicon
 ```
