@@ -12,6 +12,19 @@ html {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
+/* Keep content clear of notches and the home indicator when installed full-screen. */
+.safe-area {
+  --gutter: 0px;
+  padding-top: max(var(--gutter), env(safe-area-inset-top));
+  padding-bottom: max(var(--gutter), env(safe-area-inset-bottom));
+  padding-left: max(var(--gutter), env(safe-area-inset-left));
+  padding-right: max(var(--gutter), env(safe-area-inset-right));
+}
+@media (min-width: 640px) {
+  .safe-area {
+    --gutter: 1rem; /* card layout on tablets and desktops */
+  }
+}
 body {
   background-color: #0f172a; /* slate-900, shown behind themes and in the status bar area */
   overscroll-behavior: none;

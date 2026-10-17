@@ -356,19 +356,21 @@ const StartScreen: React.FC<StartScreenProps> = ({
       )}
 
 
-      <div className="flex flex-col h-full bg-slate-800 p-4 text-center justify-center relative">
-        <button onClick={onShowVibez} className="absolute top-4 left-4 flex items-center gap-2 bg-purple-900/70 hover:bg-purple-800/80 text-purple-200 pl-2 pr-3 py-2 rounded-full transition-colors shadow-md">
-            <span className="text-xl">🎨</span>
-            <span className="flex items-center gap-1 font-digital text-lg">
-                <span className="text-yellow-300">🪙</span>
-                {lexCoins}
-            </span>
-        </button>
-        <button onClick={handleMuteToggle} className="absolute top-4 right-4 text-2xl text-slate-400 hover:text-white p-2 transition-transform hover:scale-110">
-          {isMuted ? '🔇' : '🔊'}
-        </button>
+      <div className="flex flex-col min-h-full bg-slate-800 p-4 text-center">
+        <div className="flex justify-between items-center shrink-0">
+          <button onClick={onShowVibez} className="flex items-center gap-2 bg-purple-900/70 hover:bg-purple-800/80 text-purple-200 pl-2 pr-3 py-2 rounded-full transition-colors shadow-md">
+              <span className="text-xl">🎨</span>
+              <span className="flex items-center gap-1 font-digital text-lg">
+                  <span className="text-yellow-300">🪙</span>
+                  {lexCoins}
+              </span>
+          </button>
+          <button onClick={handleMuteToggle} className="text-2xl text-slate-400 hover:text-white p-2 transition-transform hover:scale-110">
+            {isMuted ? '🔇' : '🔊'}
+          </button>
+        </div>
 
-        <div className="w-full max-w-sm mx-auto flex flex-col items-center gap-4">
+        <div className="w-full max-w-sm mx-auto flex flex-col items-center gap-4 my-auto py-4">
             <div className="text-center">
                 <h1 
                     className="text-6xl md:text-7xl font-bold text-cyan-400 animate-slide-in-down" 
@@ -414,7 +416,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 )}
             </div>
 
-            <div className="w-full my-2">
+            <div className="w-full my-2 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
                 {powerWordData && !canSpin ? (
                     <div className="bg-slate-900/50 p-3 rounded-lg text-center w-full animate-fade-in">
                         <div className="flex justify-center items-center gap-2">
@@ -432,6 +435,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 ) : (
                     <p className="text-sm text-slate-400 italic">Spin for your daily Power Word!</p>
                 )}
+              </div>
+              <button
+                  onClick={onSpin}
+                  disabled={!canSpin}
+                  title={!canSpin ? powerWordService.getCooldownMessage() : 'Spin for your daily Power Word!'}
+                  aria-label="Spin for your daily Power Word"
+                  className="shrink-0 w-14 h-14 bg-yellow-400 text-slate-900 rounded-full shadow-lg flex items-center justify-center transform hover:scale-110 transition-transform disabled:bg-slate-600 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                  <span className={`text-3xl ${canSpin ? 'animate-spin' : ''}`}>💥</span>
+              </button>
             </div>
 
             <hr className="w-full border-slate-700/50 my-2" />
@@ -444,16 +457,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             </div>
         </div>
         
-        <button 
-            onClick={onSpin}
-            disabled={!canSpin}
-            title={!canSpin ? powerWordService.getCooldownMessage() : 'Spin for your daily Power Word!'}
-            className="absolute bottom-6 right-6 w-16 h-16 bg-yellow-400 text-slate-900 rounded-full shadow-lg flex items-center justify-center transform hover:scale-110 transition-transform disabled:bg-slate-600 disabled:cursor-not-allowed disabled:transform-none"
-        >
-            <span className={`text-3xl ${canSpin ? 'animate-spin' : ''}`}>💥</span>
-        </button>
-        
-        <p className="absolute bottom-2 w-full left-0 text-center text-amber-400 text-xs">Version 6.5</p>
+        <p className="shrink-0 text-center text-amber-400 text-xs">Version {__APP_VERSION__}</p>
       </div>
     </>
   );

@@ -1,4 +1,4 @@
-// 🚫 READ-ONLY UI: Do not modify any JSX structure here. This file must only compose state and render <GameScreenView />.
+// Game logic and state. Layout lives in GameScreenView.tsx.
 import React, { useReducer, useEffect, useCallback, useMemo, useState } from 'react';
 import { GameState, Tile, WordData, Milestone, Charm, PowerPlay, ScoreCalculationResult, ScoreBonusInfo, LogEntry, WordLogEntry, EventLogEntry, GameOverLogEntry } from '../../types';
 import { RACK_SIZE, BALANCE_REPLACE_COUNT, VOWELS, REPLENISH_DIVISOR, INITIAL_SHUFFLES, MAX_STRIKES_INITIAL, SUPER_HAND_BONUS, TILE_DISTRIBUTION, INITIAL_CHALLENGES, BASE_RACK_SIZE, COMBO_TILES } from '../../constants';

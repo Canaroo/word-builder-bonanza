@@ -328,8 +328,8 @@ const App: React.FC = () => {
   };
 
   return (
-    <main id="main-container" className={`w-screen h-dvh flex items-center justify-center p-4 transition-all duration-500 ${selectedPack.themeClass}`}>
-      <div className={`relative z-10 w-full max-w-xl h-full max-h-[800px] bg-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-y-auto transition-all duration-300 ${selectedPack.frameClass} ${isTimeLow ? 'low-time-flash' : ''} ${isGoldenRound ? 'golden-round-active' : ''}`}>
+    <main id="main-container" className={`safe-area w-screen h-dvh flex items-center justify-center transition-all duration-500 ${selectedPack.themeClass}`}>
+      <div className={`relative z-10 w-full max-w-xl h-full sm:max-h-[800px] bg-slate-800 sm:rounded-2xl shadow-2xl flex flex-col overflow-y-auto overscroll-contain transition-all duration-300 ${selectedPack.frameClass} ${isTimeLow ? 'low-time-flash' : ''} ${isGoldenRound ? 'golden-round-active' : ''}`}>
         {selectedPack.id === 'rustic-workbench' && (
           <>
             <div className="corner-bolt top-left"></div>

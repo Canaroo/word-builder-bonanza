@@ -8,8 +8,6 @@ export default {
     './data/**/*.{ts,tsx}',
     './ui/**/*.{ts,tsx}',
   ],
-  // Built at runtime in GameScreenView: `grid-cols-${BUILD_ROW_SIZE}`
-  safelist: ['grid-cols-8'],
   theme: {
     extend: {},
   },

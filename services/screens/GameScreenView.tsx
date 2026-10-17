@@ -483,16 +483,17 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         }
     };
   
-    // ⛔ VIEW-LOCK: DO NOT EDIT ABOVE THIS LINE
+    // Layout: a fixed top bar, a status area that takes the leftover height (and scrolls inside
+    // itself on short phones), and the play area pinned to the bottom so it's always in reach.
     return (
-    <div className="flex flex-col h-full bg-slate-800/50 p-4 text-slate-200 gap-4">
-      {/* --- MODAL CONTAINER (DO NOT REMOVE) --- */}
+    <div className="flex flex-col h-full min-h-0 bg-slate-800/50 p-3 text-slate-200 gap-2">
+      {/* --- MODALS --- */}
       {renderModal()}
       
-      {/* --- TOP BAR (DO NOT REMOVE) --- */}
-      <div className="flex justify-between items-center flex-shrink-0 text-white">
+      {/* --- TOP BAR --- */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center flex-shrink-0 text-white gap-2">
         {/* Score & Words Display */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="text-left">
             <div className="text-xs font-bold text-amber-400">SCORE</div>
             <div className="text-2xl font-digital">{gameState?.score?.toLocaleString() ?? '0'}</div>
@@ -513,12 +514,12 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         </div>
 
         {/* Strikes & Save Display */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-end gap-2">
           <div>
             <div className="text-xs font-bold text-red-500 text-right">STRIKES</div>
             <div className="flex justify-end items-center gap-1.5 mt-1">
               {[...Array(maxStrikes ?? 3)].map((_, i) => (
-                <div key={i} className={`w-5 h-5 rounded-full transition-colors ${(i < (gameState?.strikes ?? 0)) ? 'bg-red-500' : 'bg-slate-600'}`}></div>
+                <div key={i} className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full transition-colors ${(i < (gameState?.strikes ?? 0)) ? 'bg-red-500' : 'bg-slate-600'}`}></div>
               ))}
             </div>
           </div>
@@ -528,9 +529,11 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         </div>
       </div>
 
-      {/* --- ICONS BAR (DO NOT REMOVE) --- */}
+      {/* --- STATUS AREA --- */}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col gap-2">
+      {/* --- ICONS BAR --- */}
       <div className="flex justify-between items-center bg-slate-900/50 p-1 rounded-lg flex-shrink-0">
-        <div className="flex gap-3">
+        <div className="flex gap-2 sm:gap-3">
           {MILESTONES_LIST.map(m => (
             <button key={m.id} onClick={() => handleShowMilestoneInfo(m)} disabled={!(gameState?.unlockedMilestoneIds ?? []).includes(m.id)} className="text-2xl transition-opacity disabled:opacity-30 enabled:hover:scale-110" title={m.name}>
               {m.icon}
@@ -543,7 +546,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         </div>
       </div>
 
-      {/* --- PROGRESS INDICATORS (DO NOT REMOVE) --- */}
+      {/* --- PROGRESS INDICATORS --- */}
       <div className="flex gap-2 w-full flex-shrink-0">
         {(gameState?.roundType ?? 'normal') === 'normal' && (
           <div className="text-center flex-1">
@@ -589,12 +592,12 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         )}
       </div>
       
-      {/* --- WORD COMBO METER (DO NOT REMOVE) --- */}
+      {/* --- WORD COMBO METER --- */}
       <div className="flex-shrink-0">
         <PowerSurgeMeter progress={gameState?.powerSurgeProgress ?? 0} />
       </div>
 
-      {/* --- ACTIVE BUFFS TRAY (DO NOT REMOVE) --- */}
+      {/* --- ACTIVE BUFFS TRAY --- */}
       <div className="text-center w-full flex-shrink-0">
         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
           Active Buffs
@@ -640,10 +643,12 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         </div>
       </div>
 
-      {/* --- WORD BUILD AREA (DO NOT REMOVE) --- */}
-      <div className="flex-grow flex flex-col items-center mt-6">
+      </div>
+
+      {/* --- PLAY AREA (always visible) --- */}
+      <div className="flex-shrink-0 flex flex-col gap-2 w-full max-w-sm mx-auto">
         {/* Potential Score Display */}
-        <div className="flex-shrink-0 mb-2 h-8 flex items-center justify-center">
+        <div className="flex-shrink-0 h-8 flex items-center justify-center">
             {potentialScore > 0 && (
                 <div className="bg-slate-900/70 px-4 py-1 rounded-full">
                     <span className="font-digital text-2xl font-bold text-yellow-400 animate-fade-in">
@@ -654,9 +659,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             )}
         </div>
 
-        {/* Build Row */}
-        <div className="flex-shrink-0">
-          <div className={`grid grid-cols-${BUILD_ROW_SIZE} gap-2`}>
+        {/* Build Row: slots share the width so all eight fit on any phone */}
+        <div className="flex-shrink-0 w-full">
+          <div className="grid gap-1 sm:gap-1.5" style={{ gridTemplateColumns: `repeat(${BUILD_ROW_SIZE}, minmax(0, 1fr))` }}>
               {Array.from({ length: BUILD_ROW_SIZE }).map((_, index) => {
                   const item = (buildRow ?? [])[index];
                   const isFifthSlot = index === 4;
@@ -664,7 +669,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                   return (
                     <div
                       key={index}
-                      className={`relative w-12 h-14 rounded-lg bg-slate-900/50 flex items-center justify-center
+                      className={`relative w-full aspect-[5/6] rounded-lg bg-slate-900/50 flex items-center justify-center
                         ${isFifthSlot && isLongWordBonusActive ? 'ring-2 ring-yellow-400' : ''}
                       `}
                     >
@@ -678,11 +683,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
               })}
           </div>
         </div>
-      </div>
 
-      {/* --- HAND AREA (DO NOT REMOVE) --- */}
-      <div className="flex-shrink-0 mt-auto">
-        <div className="space-y-2 w-full max-w-sm mx-auto">
+        {/* --- HAND --- */}
+        <div className="space-y-2 w-full">
           {[0, 5].map(offset => (
             <div className="grid grid-cols-5 gap-2" key={offset}>
               {(hand ?? Array(RACK_SIZE).fill(null)).slice(offset, offset + 5).map((tile, index) => {
@@ -691,7 +694,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 const isHintFirst = item?.id === highlightedTileIds?.first;
                 const isHintRest = (highlightedTileIds?.rest ?? []).includes(item?.id || '');
                 return (
-                  <div key={item?.id || originalIndex} className="w-full h-16 flex items-center justify-center">
+                  <div key={item?.id || originalIndex} className="w-full h-12 min-[375px]:h-14 sm:h-16 flex items-center justify-center">
                     {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} isHintFirst={isHintFirst} isHintRest={isHintRest} /> : <div className="w-full h-full rounded-lg bg-slate-900/50"></div>}
                   </div>
                 );
@@ -700,33 +703,33 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           ))}
         </div>
         
-        {/* --- ACTION BUTTONS (DO NOT REMOVE) --- */}
-        <div className="grid grid-cols-2 gap-2 mt-4">
+        {/* --- ACTION BUTTONS --- */}
+        <div className="grid grid-cols-2 gap-2">
           <button
             onClick={handleSubmit}
             disabled={(wordFromBuildRow?.length ?? 0) < (gameState?.gameConfig?.minWordLength ?? 3) || isLoading || isPaused}
-            className="p-3 text-lg font-bold text-slate-900 bg-amber-400 rounded-lg shadow-lg hover:bg-amber-300 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="p-2.5 sm:p-3 text-base sm:text-lg font-bold text-slate-900 bg-amber-400 rounded-lg shadow-lg hover:bg-amber-300 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             SUBMIT
           </button>
           <button
             onClick={() => handleShuffle(false)}
             disabled={(gameState?.shuffleCount ?? 0) <= 0 || isPaused || isChallengeLock || isLoading || (gameState?.roundType === 'golden')}
-            className="p-3 text-lg font-bold text-slate-900 bg-cyan-500 rounded-lg shadow-lg hover:bg-cyan-400 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="p-2.5 sm:p-3 text-base sm:text-lg font-bold text-slate-900 bg-cyan-500 rounded-lg shadow-lg hover:bg-cyan-400 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             SHUFFLE ({(gameState?.shuffleCount ?? 0)})
           </button>
           <button
             onClick={handleClear}
             disabled={(buildRow ?? []).every(i => i === null) || isChallengeLock || isLoading || isPaused}
-            className="p-3 text-lg font-bold text-slate-900 bg-slate-500 rounded-lg shadow-lg hover:bg-slate-400 disabled:bg-slate-700 disabled:cursor-not-allowed"
+            className="p-2.5 sm:p-3 text-base sm:text-lg font-bold text-slate-900 bg-slate-500 rounded-lg shadow-lg hover:bg-slate-400 disabled:bg-slate-700 disabled:cursor-not-allowed"
           >
             CLEAR
           </button>
           <button
             onClick={handleChallenge}
             disabled={(isStrikeChallenge ? strikesRemaining <= 0 : (gameState?.challengeCount ?? 0) <= 0) || (buildRow ?? []).some(t => t !== null) || isPaused || isChallengeLock || isLoading || (gameState?.roundType === 'golden')}
-            className={`p-3 text-lg font-bold text-slate-900 rounded-lg shadow-lg transition-colors disabled:bg-slate-700 disabled:cursor-not-allowed ${isStrikeChallenge ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'}`}
+            className={`p-2.5 sm:p-3 text-base sm:text-lg font-bold text-slate-900 rounded-lg shadow-lg transition-colors disabled:bg-slate-700 disabled:cursor-not-allowed ${isStrikeChallenge ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'}`}
           >
             {challengeButtonText}
           </button>
@@ -735,5 +738,4 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
     </div>
   );
-  // ⛔ VIEW-LOCK: DO NOT EDIT BELOW THIS LINE
 };
