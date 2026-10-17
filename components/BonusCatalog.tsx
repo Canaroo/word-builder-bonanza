@@ -121,11 +121,6 @@ const BonusCatalog: React.FC = () => {
           <span className="text-neon-yellow">{rewardText(b)}</span>
           <span className="text-neon-pink">{MEDIA_LABEL[media]}{source ? ` · ${source}` : ''}</span>
         </div>
-        {b.word && (
-          <p className="text-xs text-slate-400">
-            {b.replacesWordScore ? 'Word scores exactly these points' : 'Points added on top of the word score'}
-          </p>
-        )}
         {status === 'blocked' && <p className="text-xs text-neon-red">This word is in words/blocked.txt, so it can never be played.</p>}
         {status === 'unknown' && <p className="text-xs text-neon-red">Not in the dictionary. Add it to words/custom.txt.</p>}
         {own.map(p => <p key={p} className="text-xs text-neon-red">{p}</p>)}

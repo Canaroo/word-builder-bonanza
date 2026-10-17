@@ -11,7 +11,6 @@ export const toEasterEgg = (b: SecretBonus): EasterEgg => {
     description: b.description,
     word,
     scorePattern: b.score,
-    replacesWordScore: !!word && !!b.replacesWordScore,
     trigger: b.score ? scoreTrigger(b.score) : (submitted) => submitted.toUpperCase() === word,
     reward: { points: b.points, shuffle: b.shuffle, message: b.message },
   };

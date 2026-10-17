@@ -41,7 +41,6 @@ Every secret bonus is one entry in
     description: "When you submit the word LINK",
     points: 189,
     message: "It’s dangerous to go alone—so take these bonus points!",
-    replacesWordScore: true,
     media: "cartridge",
     source: "The Legend of Zelda",
   },
@@ -71,9 +70,8 @@ Every secret bonus is one entry in
 | `word` or `score` | one of them | What triggers the bonus. Words can be any case. |
 | `name` | yes | Title on the reveal. Start it with an emoji. |
 | `description` | yes | A short summary of the bonus. |
-| `points` / `shuffle` | at least one | Bonus points, free shuffles, or both. |
+| `points` / `shuffle` | at least one | Bonus points (added on top of the word's normal score), free shuffles, or both. |
 | `message` | yes | What the player reads when it fires. |
-| `replacesWordScore` | no | Word bonuses only. `true`: the word scores exactly `points` (multipliers still apply). Left out: `points` are added on top of the word's normal score. |
 | `media` | no | Reveal art: `"vhs"` (movies, TV), `"cartridge"` (games), `"cd"` (music), `"arcade"` (anything else; the default). |
 | `source` | with vhs / cartridge / cd | Printed on the label, e.g. `"Back to the Future"`. |
 
