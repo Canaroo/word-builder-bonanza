@@ -682,6 +682,15 @@ body {
   }
 }
 
+/* Highlight rings and glows drawn over a tile (its own box-shadow is the 3D edge). */
+.tile-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 15;
+}
+
 /* Chunky arcade push buttons (see components/ArcadeButton.tsx). */
 .arcade-btn {
   --btn-edge: rgba(0, 0, 0, 0.45);
@@ -769,6 +778,15 @@ body {
   to { visibility: hidden; }
 }
 
+/* In-game message strip above the play area. */
+.message-pop {
+  animation: message-pop 180ms ease-out both;
+}
+@keyframes message-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
 /* Floating +Ns / -Ns next to the clock when the time bank changes. */
 .time-gain {
   transform: translateX(-50%);
@@ -783,6 +801,9 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .message-pop {
+    animation: none;
+  }
   .time-gain {
     animation: time-gain-fade 1.4s linear forwards;
   }

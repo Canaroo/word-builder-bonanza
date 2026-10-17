@@ -120,7 +120,7 @@ const initialGameState: GameState = {
   totalOffersMade: 0,
 };
 
-type GameScreenState = {
+export type GameScreenState = {
   /** Last change to the time bank, shown as a floating +Ns / -Ns next to the clock. */
   timeGain?: { seconds: number; key: number };
   gameState: GameState;
@@ -143,7 +143,7 @@ type GameScreenState = {
   longWordBonusNotified: boolean;
 }
 
-const screenInitialState: GameScreenState = {
+export const screenInitialState: GameScreenState = {
   gameState: initialGameState,
   time: initialGameState.gameConfig.timerDuration,
   hand: Array(RACK_SIZE).fill(null),
@@ -169,7 +169,7 @@ type GameAction =
     | { type: 'SET_LOADING_MESSAGE', payload: string | null }
     | { type: 'SET_HAND_AND_BAG', payload: { hand: (Tile | null)[], tileBag: string[] } }
     | { type: 'SET_MESSAGE', payload: string }
-    | { type: 'CLEAR_MESSAGE' }
+    | { type: 'CLEAR_MESSAGE'; payload?: string }
     | { type: 'PAUSE_GAME' }
     | { type: 'RESUME_GAME' }
     | { type: 'TICK_TIMER' }
@@ -223,7 +223,7 @@ const settleTimeBank = (time: number, gs: GameState): { time: number; gs: GameSt
     return { time, gs };
 };
 
-function gameReducer(state: GameScreenState, action: GameAction): GameScreenState {
+export function gameReducer(state: GameScreenState, action: GameAction): GameScreenState {
     let { gameState } = state;
 
     switch (action.type) {
@@ -231,11 +231,12 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
         case 'SET_LOADING_MESSAGE': return { ...state, loadingMessage: action.payload };
         case 'SET_HAND_AND_BAG': return { ...state, hand: action.payload.hand, tileBag: action.payload.tileBag };
         case 'SET_MESSAGE': return { ...state, message: action.payload };
-        case 'CLEAR_MESSAGE': return { ...state, message: '' };
+        // Only clear the message this timer belongs to, so a newer message isn't cut short.
+        case 'CLEAR_MESSAGE': return action.payload === undefined || state.message === action.payload ? { ...state, message: '' } : state;
         case 'PAUSE_GAME': return { ...state, isPaused: true };
         case 'RESUME_GAME': return { ...state, isPaused: false, time: state.time }; // Prevent timer reset on resume
         case 'TICK_TIMER': return { ...state, time: state.time - 1 };
-        case 'ADD_TIME': return {...state, time: state.time + action.payload };
+        case 'ADD_TIME': return {...state, time: clampTime(state.time + action.payload) };
         case 'SET_TIME': return { ...state, time: action.payload };
         case 'UPDATE_GAME_STATE': return { ...state, gameState: { ...state.gameState, ...action.payload } };
         case 'SET_CHALLENGE_WORD_DATA': return { ...state, challengeWordData: action.payload };
@@ -1367,7 +1368,7 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
             
             return {
               ...state,
-              time: state.time + timeChange,
+              time: clampTime(state.time + timeChange),
               hand: newHand,
               tileBag: newBag,
               buildRow: newBuildRow,
@@ -1442,7 +1443,7 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
             }
             return {
                 ...state,
-                time: state.time + timeChange,
+                time: clampTime(state.time + timeChange),
                 modalContent: null,
                 isPaused: false,
                 gameState: {
@@ -1864,7 +1865,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
   const showMessage = useCallback((text: string, duration = 3000) => {
     dispatch({ type: 'SET_MESSAGE', payload: text });
-    setTimeout(() => dispatch({ type: 'CLEAR_MESSAGE' }), duration);
+    setTimeout(() => dispatch({ type: 'CLEAR_MESSAGE', payload: text }), duration);
   }, []);
 
   const applyMutation = useCallback((tiles: Tile[], isForGoldenRound = false): Tile[] => {
@@ -2799,6 +2800,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // --- 8. OTHER STATE UPDATES ---
       
       newState.pianoManEncoreActive = newState.activeCharms.some(c => c.id === 'pianoManEncore') && scoreBeforeEncore >= 45;
+
+      // L Train Shuffle: a word with both L and T earns a free shuffle, twice per game.
+      const lTrainCharm = newState.activeCharms.find(c => c.id === 'lTrainShuffle');
+      if (lTrainCharm && /L/i.test(word) && /T/i.test(word)) {
+          const uses = (newState.charmUses['lTrainShuffle'] || 0) + 1;
+          const maxUses = lTrainCharm.maxUses || 2;
+          newState.shuffleCount += 1;
+          newState.charmUses = { ...newState.charmUses, lTrainShuffle: uses };
+          if (uses >= maxUses) {
+              newState.activeCharms = newState.activeCharms.filter(c => c.id !== 'lTrainShuffle');
+              newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'lTrainShuffle');
+          }
+          eventLogQueue.push({ type: 'event', id: `charm-lTrain-${now}`, name: lTrainCharm.name, icon: '🚆', description: `L and T in "${word.toUpperCase()}": free shuffle (${uses}/${maxUses}).`, scoreChange: 0, cumulativeScore: runningScore });
+          showMessage(`🚆 L Train Shuffle! Free shuffle (${uses}/${maxUses}).`, 2500);
+      }
       
       if (newState.activeCharms.some(c => c.id === 'strikeBank')) {
           newState.flawlessScore += turnScore;
@@ -3533,10 +3549,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             soundService.playPowerUp();
             const newLogEntry: EventLogEntry = {
                 type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
-                description: 'Timer reset to 60 seconds for this hand.', icon: '⛳',
+                description: `Time bank refilled to ${GAMEPLAY.timeBank.max} seconds.`, icon: '⛳',
                 scoreChange: 0, cumulativeScore: gameState.score
             };
-            dispatch({ type: 'SET_TIME', payload: 60 });
+            dispatch({ type: 'SET_TIME', payload: Math.max(time, GAMEPLAY.timeBank.max) });
             dispatch({
                 type: 'UPDATE_GAME_STATE',
                 payload: {
@@ -3545,7 +3561,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                     powerPlayUses: { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 }
                 }
             });
-            showMessage("Happy Place! Timer reset to 60 seconds.", 2500);
+            showMessage(`⛳ Happy Place! Clock refilled to ${GAMEPLAY.timeBank.max} seconds.`, 2500);
             return;
         }
 
@@ -3740,6 +3756,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         gameState,
         time,
         timeGain: state.timeGain,
+        message,
         hand,
         buildRow,
         isPaused,

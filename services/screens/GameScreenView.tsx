@@ -25,6 +25,8 @@ export interface GameScreenViewProps {
   gameState: GameState;
   time: number;
   timeGain?: { seconds: number; key: number };
+  /** Short game feedback (PowerPlay results, combos, hints). Empty when nothing to say. */
+  message?: string;
   hand: (Tile | null)[];
   buildRow: ({tile: Tile, originalIndex: number} | null)[];
   isPaused: boolean;
@@ -68,7 +70,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, timeGain, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handleShowMilestoneInfo, handleShowEventLog,
@@ -668,7 +670,15 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       </div>
 
       {/* --- PLAY AREA (always visible) --- */}
-      <div className="flex-shrink-0 flex flex-col gap-2 w-full max-w-sm mx-auto">
+      <div className="relative flex-shrink-0 flex flex-col gap-2 w-full max-w-sm mx-auto">
+        {/* Game messages float just above the play area, where the player is looking. */}
+        {message && (
+          <div className="absolute bottom-full inset-x-0 mb-2 flex justify-center pointer-events-none z-20" role="status" aria-live="polite">
+            <div key={message} className="message-pop max-w-full px-3 py-1.5 rounded-lg bg-crt-950/95 ring-1 ring-neon-cyan/60 shadow-glow-cyan osd-text text-xl leading-tight text-neon-cyan text-center whitespace-pre-line">
+              {message}
+            </div>
+          </div>
+        )}
         {/* Potential Score Display */}
         <div className="flex-shrink-0 h-8 flex items-center justify-center">
             {potentialScore > 0 && (
@@ -715,11 +725,13 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           return (
             <div className="grid gap-2 w-full" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
               {slots.map((item, originalIndex) => {
-                const isHintFirst = item?.id === highlightedTileIds?.first;
-                const isHintRest = (highlightedTileIds?.rest ?? []).includes(item?.id || '');
+                // Hinted word tiles are numbered in spelling order.
+                const hintIds = [highlightedTileIds?.first, ...(highlightedTileIds?.rest ?? [])].filter(Boolean);
+                const hintIndex = item ? hintIds.indexOf(item.id) : -1;
+                const hintOrder = hintIndex >= 0 ? hintIndex + 1 : undefined;
                 return (
                   <div key={item?.id || originalIndex} className="w-full h-12 min-[375px]:h-14 sm:h-16 flex items-center justify-center">
-                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} isHintFirst={isHintFirst} isHintRest={isHintRest} /> : <div className="w-full h-full rounded-lg bg-crt-950/60 ring-1 ring-white/5"></div>}
+                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} hintOrder={hintOrder} /> : <div className="w-full h-full rounded-lg bg-crt-950/60 ring-1 ring-white/5"></div>}
                   </div>
                 );
               })}

@@ -251,7 +251,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'timeTurner', 
     name: 'Time Turner', 
-    description: 'Your next 2 rounds will have 30 seconds added to them.',
+    description: 'Your next 2 words each add an extra 30 seconds to your clock.',
     flavorText: '“Like Hermione in third year, you\'ve got time to do it all—twice.”',
     icon: '⌛',
     subtheme: 'timer',
@@ -279,8 +279,8 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'redWedding', 
     name: 'Red Wedding', 
-    description: 'With a full hand of 10 tiles, sacrifice 2 random tiles now; your very next word earns 5× its normal score.', 
-    flavorText: 'When your hand is full (10 tiles), make the ultimate sacrifice. Two letters meet an untimely end—no replacements until after you play—yet vengeance is sweet: your next word scores five times its usual value.',
+    description: 'Sacrifice 2 random tiles now; your very next word earns 5× its normal score.', 
+    flavorText: 'Make the ultimate sacrifice. Two letters meet an untimely end—no replacements until after you play—yet vengeance is sweet: your next word scores five times its usual value.',
     icon: '🏰',
     subtheme: 'score',
     effectType: 'selection',
@@ -457,7 +457,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'happyPlace',
     name: 'Happy Place',
-    description: 'For this hand only, reset your timer to a full 60 seconds — even if you were down to the last gasp.',
+    description: 'Refill your time bank to the max (90 seconds) — even if you were down to the last gasp.',
     flavorText: '“Just tap it in. Give it a little tappy. Tap tap taparoo.”',
     icon: '⛳',
     subtheme: 'timer',
@@ -657,7 +657,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'warioWarp',
     name: 'Wario Warp',
-    description: 'Sacrifice 10s from your next turn for an immediate +100 points.',
+    description: 'Gain +100 points now; your next word costs 10 seconds from your clock.',
     flavorText: 'Classic Wario — future problems, present profits.',
     icon: '🛸',
     subtheme: 'score',
@@ -821,7 +821,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'slimShadyShuffle',
     name: 'Slim Shady Shuffle',
-    description: 'Instantly replaces your rack with 10 new tiles. Your very next valid word earns a +50 bonus.',
+    description: 'Instantly replaces your rack with a fresh hand. Your very next valid word earns a +50 bonus.',
     flavorText: 'Lose yourself… in the new letters.',
     icon: '🎤',
     subtheme: 'rack',

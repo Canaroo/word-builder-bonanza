@@ -5,12 +5,12 @@ interface TileProps {
   tile: Tile;
   onClick: () => void;
   packTileClass: string;
-  isHintFirst?: boolean;
-  isHintRest?: boolean;
+  /** Position of this tile in a hinted word (1 = first letter), from Carmen Sandiego or Phone-a-Friend. */
+  hintOrder?: number;
   isGolden?: boolean;
 }
 
-const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, isHintFirst, isHintRest, isGolden }) => {
+const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hintOrder, isGolden }) => {
   const hasMultiplier = tile.multiplier && tile.multiplier > 1;
   const hasTempPoints = tile.tempPoints && tile.tempPoints > 0;
   
@@ -26,27 +26,34 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, isHi
   const tileStyle = tile.isCombo
     ? 'bg-green-500 text-white'
     : (tile.isSuper || (hasMultiplier && tile.multiplier === 4)
-        ? 'bg-red-600 text-white ring-4 ring-red-400 shadow-lg shadow-red-500/50 animate-pulse' 
+        ? 'bg-red-600 text-white' 
         : (hasMultiplier
             ? 'bg-purple-600 text-white' 
             : (hasTempPoints 
                 ? 'bg-amber-400 text-slate-900 animate-pulse' 
                 : packTileClass)));
   
-  const hintClass = isHintFirst 
-    ? 'ring-4 ring-red-400 ring-inset' 
-    : (isHintRest ? 'ring-2 ring-white ring-inset' : '');
-
-  const goldenClass = isGolden ? 'golden-special' : '';
+  const isSuperLook = tile.isSuper || (hasMultiplier && tile.multiplier === 4);
 
 
   return (
     <button
       onClick={handleInteraction}
       disabled={tile.isLocked}
-      className={`tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none ${tileStyle} ${hintClass} ${goldenClass} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-      aria-label={`Tile ${tile.letter} with ${tile.points} points ${tile.isLocked ? '(locked for this turn)' : ''}`}
+      className={`tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none ${tileStyle} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+      aria-label={`Tile ${tile.letter} with ${tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${tile.isLocked ? ' (locked for this turn)' : ''}`}
     >
+      {/* Rings and glows are overlays: the tile's own box-shadow is its 3D edge. */}
+      {isSuperLook && <span className="tile-overlay ring-4 ring-red-400 animate-pulse" aria-hidden="true" />}
+      {isGolden && <span className="tile-overlay golden-special" aria-hidden="true" />}
+      {hintOrder !== undefined && (
+        <>
+          <span className={`tile-overlay ring-4 ${hintOrder === 1 ? 'ring-neon-red' : 'ring-neon-cyan'} animate-pulse`} aria-hidden="true" />
+          <span className={`absolute -top-2 -left-2 z-20 w-6 h-6 rounded-full font-osd text-lg leading-6 text-center shadow-md ${hintOrder === 1 ? 'bg-neon-red text-white' : 'bg-neon-cyan text-crt-900'}`} aria-hidden="true">
+            {hintOrder}
+          </span>
+        </>
+      )}
       <span className={`z-10 font-display leading-none ${tile.letter.length > 2 ? 'text-base' : tile.letter.length > 1 ? 'text-lg' : 'text-2xl'}`}>{tile.letter}</span>
       <span className="absolute bottom-0.5 right-1 font-osd text-sm leading-none z-10">{tile.tempPoints ?? tile.points}</span>
       {(tile.isSuper || (hasMultiplier && tile.multiplier === 4)) && (
