@@ -50,10 +50,6 @@ export default defineConfig({
       },
     }),
   ],
-  build: {
-    // The game logic and its data tables ship as one chunk for now (~160 kB gzipped).
-    chunkSizeWarningLimit: 600,
-  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),

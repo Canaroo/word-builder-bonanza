@@ -1,10 +1,19 @@
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react';
 import StartScreen from './services/screens/StartScreen';
-import { GameScreen } from './services/screens/GameScreen';
-import GameOverScreen from './services/screens/GameOverScreen';
-import HowToPlayScreen from './services/screens/HowToPlayScreen';
-import VibezScreen from './services/screens/VibezScreen';
+
+// The start screen loads first; the rest are fetched on demand.
+const loadGameScreen = () => import('./services/screens/GameScreen');
+const GameScreen = lazy(() => loadGameScreen().then(m => ({ default: m.GameScreen })));
+const GameOverScreen = lazy(() => import('./services/screens/GameOverScreen'));
+const HowToPlayScreen = lazy(() => import('./services/screens/HowToPlayScreen'));
+const VibezScreen = lazy(() => import('./services/screens/VibezScreen'));
+
+const ScreenFallback = () => (
+  <div className="flex-grow flex items-center justify-center">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-400"></div>
+  </div>
+);
 import { GameState, FinalGameState, Pack, PowerWordData } from './types';
 import {leaderboardService} from './services/leaderboardService';
 import { soundService } from './services/soundService';
@@ -50,6 +59,12 @@ const App: React.FC = () => {
   const [powerWordData, setPowerWordData] = useState<PowerWordData | null>(null);
   const [canSpin, setCanSpin] = useState<boolean>(true);
 
+
+  useEffect(() => {
+    // Fetch the game screen in the background so New Game starts instantly.
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1500));
+    idle(() => { loadGameScreen(); });
+  }, []);
 
   useEffect(() => {
     // Load Power Word data on initial app load
@@ -323,7 +338,7 @@ const App: React.FC = () => {
             <div className="corner-bolt bottom-right"></div>
           </>
         )}
-        {renderScreen()}
+        <Suspense fallback={<ScreenFallback />}>{renderScreen()}</Suspense>
       </div>
     </main>
   );

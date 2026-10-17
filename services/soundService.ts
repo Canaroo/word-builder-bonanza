@@ -5,6 +5,15 @@ import { musicService } from './musicService';
 let audioCtx: AudioContext | null = null;
 let isMuted = false;
 
+// Silence all audio (music included) while the game is in the background, to save battery.
+if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+        if (!audioCtx) return;
+        if (document.hidden) audioCtx.suspend();
+        else audioCtx.resume();
+    });
+}
+
 /**
  * Initializes the AudioContext. Must be called as a result of a user gesture (e.g., a click).
  * This is necessary to comply with browser autoplay policies.

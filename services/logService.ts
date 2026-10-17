@@ -3,7 +3,8 @@ import { FinalGameState } from '../types';
 import { storage, STORAGE_KEYS } from './storage';
 
 const SAVED_LOGS_KEY = STORAGE_KEYS.savedLogs;
-const MAX_LOGS = 100;
+// Each run stores its full word log; endless runs make these large, so keep the count modest.
+const MAX_LOGS = 25;
 
 const getSavedLogs = (): FinalGameState[] => {
     try {
@@ -20,16 +21,13 @@ const getSavedLogs = (): FinalGameState[] => {
 const autoSaveLog = (logToSave: FinalGameState): { success: boolean, message: string } => {
     let savedLogs = getSavedLogs();
     
-    // FIFO logic: If we are at or over the cap, remove the oldest unpinned log.
+    // FIFO logic: drop the oldest unpinned logs so there's room for this one under the cap.
     const unpinnedLogs = savedLogs.filter(log => !log.isPinned);
-    if (unpinnedLogs.length >= MAX_LOGS) {
-        // Sort unpinned logs by date to find the oldest one
+    const excess = unpinnedLogs.length - (MAX_LOGS - 1);
+    if (excess > 0) {
         unpinnedLogs.sort((a, b) => new Date(a.saveTimestamp!).getTime() - new Date(b.saveTimestamp!).getTime());
-        const oldestLogTimestamp = unpinnedLogs[0].saveTimestamp;
-        // Filter the main logs array to remove the oldest unpinned log
-        if(oldestLogTimestamp) {
-            savedLogs = savedLogs.filter(log => log.saveTimestamp !== oldestLogTimestamp);
-        }
+        const dropped = new Set(unpinnedLogs.slice(0, excess).map(log => log.saveTimestamp));
+        savedLogs = savedLogs.filter(log => !dropped.has(log.saveTimestamp));
     }
     
     const newLogWithMetadata: FinalGameState = { 

@@ -13,6 +13,8 @@ import { dictionaryService } from '../dictionaryService';
 import { missedWordsService } from '../missedWordsService';
 import { storage, STORAGE_KEYS } from '../storage';
 import { showToast } from '../toast';
+import { assignTilesToWord } from '../rackMatch';
+import { useDocumentVisible } from '../useDocumentVisible';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 
 
@@ -1805,6 +1807,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   });
   const { gameState, time, hand, buildRow, tileBag, message, isPaused, isLoading, modalContent, tilesToSwap, lastTurnState, longWordBonusNotified, tileToTransform } = state;
   const isChallengeLock = gameState.challengeActive;
+  // The clock stops while the app is in the background so switching apps never costs a run.
+  const isVisible = useDocumentVisible();
   const [isMuted, setIsMuted] = useState(soundService.getMuteState());
   
   const wordFromBuildRow = useMemo(() => (buildRow ?? []).filter(i => i).map(item => item!.tile.letter).join(''), [buildRow]);
@@ -2072,8 +2076,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   }, [state.modalContent, dispatch]);
   
   useEffect(() => {
-      // Apply guards for pause, load, or special rounds/power-ups that stop time.
-      if (isPaused || isLoading || gameState?.activePowerPlays?.leafOnTheWind || gameState?.roundType === 'golden') return;
+      // Apply guards for pause, load, a backgrounded app, or special rounds/power-ups that stop time.
+      if (!isVisible || isPaused || isLoading || gameState?.activePowerPlays?.leafOnTheWind || gameState?.roundType === 'golden') return;
 
       // First, check for game-ending strike condition.
       if ((gameState?.strikes ?? 0) >= maxStrikes) {
@@ -2136,7 +2140,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }, 1000);
 
       return () => clearInterval(interval);
-  }, [gameState, time, onGameOver, isPaused, isLoading, showMessage, maxStrikes]);
+  }, [gameState, time, onGameOver, isPaused, isLoading, isVisible, showMessage, maxStrikes]);
   
   useEffect(() => {
     if (gameState?.lastPowerPlayResult) {
@@ -3329,22 +3333,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
         } else {
             // Regular challenge lost: force user to play the word.
-            let tempHand = [...(state.hand ?? [])];
-            let tilesToMove: { tile: Tile; originalIndex: number }[] = [];
-            let possible = true;
+            const handNow = state.hand ?? [];
+            // Combo tiles (QU, ING...) cover several letters, so match tiles to the word properly.
+            const tileIndexes = assignTilesToWord(foundWordUpper, handNow.map(t => t?.letter));
+            const tilesToMove = (tileIndexes ?? []).map(i => ({ tile: handNow[i]!, originalIndex: i }));
 
-            for (const letter of foundWordUpper) {
-                const tileIndex = tempHand.findIndex(t => t?.letter === letter);
-                if (tileIndex !== -1 && tempHand[tileIndex]) {
-                    tilesToMove.push({ tile: tempHand[tileIndex]!, originalIndex: tileIndex });
-                    tempHand[tileIndex] = null;
-                } else {
-                    possible = false;
-                    break;
-                }
-            }
-
-            if (possible) {
+            if (tileIndexes) {
                 const wordDefForLog = await dictionaryService.getDefinition(foundWordUpper) ?? "A valid word found by challenge.";
                 missedWordsService.addMissedWord(foundWordUpper, wordDefForLog);
                 dispatch({ type: 'SET_CHALLENGE_WORD_DATA', payload: { word: foundWordUpper, score: 0, definition: wordDefForLog, status: 'valid' } });
@@ -3424,23 +3418,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         if (bestWord) {
             showMessage(`A clue was found: ${bestWord}!`, 4000);
             
-            let tempHand = [...availableTiles];
-            
-            const firstLetter = bestWord[0];
-            const firstTileIndex = tempHand.findIndex(t => t.letter === firstLetter);
-            const firstTile = firstTileIndex > -1 ? tempHand.splice(firstTileIndex, 1)[0] : null;
-
-            const restOfWord = bestWord.slice(1).split('');
-            const restTileIds: string[] = [];
-
-            for (const char of restOfWord) {
-                const tileIndex = tempHand.findIndex(t => t.letter === char);
-                if (tileIndex > -1) {
-                    restTileIds.push(tempHand[tileIndex].id);
-                    tempHand.splice(tileIndex, 1);
-                }
-            }
-            dispatch({ type: 'SET_HIGHLIGHTED_TILES', payload: { first: firstTile?.id || null, rest: restTileIds } });
+            const tileIds = (assignTilesToWord(bestWord, availableTiles.map(t => t.letter)) ?? []).map(i => availableTiles[i].id);
+            dispatch({ type: 'SET_HIGHLIGHTED_TILES', payload: { first: tileIds[0] ?? null, rest: tileIds.slice(1) } });
         } else {
             showMessage("The trail went cold. No words found!", 3000);
         }
