@@ -2,6 +2,7 @@ import { Tile, Charm, GameState, WordData, ScoreCalculationResult, ScoreBonusInf
 import { TILE_DISTRIBUTION, VOWELS, RACK_SIZE, BALANCE_REPLACE_COUNT, COMBO_TILES, COMBO_TILE_CHANCE, OFFER_RECENCY_WINDOW, OFFER_EXPLORATION_BOOST, OFFER_REPEAT_PENALTY, OFFER_MAX_RECENCY_PENALTY } from '../constants';
 import { dictionaryService } from './dictionaryService';
 import { canBeMadeFromLetters } from './rackMatch';
+import { combineMultipliers, lengthMultiplier } from './rules';
 
 // A simple seeded pseudo-random number generator for reproducible results.
 class SeededRNG {
@@ -453,71 +454,73 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     
     // --- 2. Word Multipliers & Bonuses ---
     let totalScore = scoreAfterTileMods;
-    let wordMultiplier = 1;
+    // Word multipliers are collected and added together (x2 + x4 = x6), see services/rules.ts.
+    const wordMultipliers: number[] = [];
 
     // Tile-based word multipliers
     tiles.forEach(tile => {
         if (tile.multiplier && tile.multiplier > 1) {
-            wordMultiplier *= tile.multiplier;
+            wordMultipliers.push(tile.multiplier);
             bonuses.push({ name: `Tile Multiplier (${tile.letter})`, description: `x${tile.multiplier} Word Score`, source: 'word' });
         }
         if (tile.isSuper) {
-            wordMultiplier *= 4;
+            wordMultipliers.push(4);
             bonuses.push({ name: `Super Tile (${tile.letter})`, description: 'x4 Word Score', source: 'word' });
         }
     });
 
     // PowerPlay: Red Wedding
     if (gameState.activePowerPlays.redWedding) {
-        wordMultiplier *= 5;
+        wordMultipliers.push(5);
         bonuses.push({ name: 'Red Wedding', description: 'x5 Word Score', source: 'word' });
     }
 
-    // General 5+ letter bonus
-    if (word.length >= 5) {
-        wordMultiplier *= 2;
-        bonuses.push({ name: '5+ Letter Bonus', description: 'x2 Score', source: 'word' });
+    // Length bonus: a smooth curve by word length (config/gameplay.ts)
+    const lengthMult = lengthMultiplier(word.length);
+    if (lengthMult > 1) {
+        wordMultipliers.push(lengthMult);
+        bonuses.push({ name: 'Length Bonus', description: `x${lengthMult} (${word.length} letters)`, source: 'word' });
     }
     
     // Charm: S-Tier Scorer (word multiplier)
     if (gameState.activeCharms.some(c => c.id === 'sTierScorer') && lettersInWord.includes('S')) {
-        wordMultiplier *= 2;
+        wordMultipliers.push(2);
         bonuses.push({ name: 'S-Tier Scorer', description: 'x2 Word Score', source: 'word' });
     }
 
     // Charm: Silent Killer
     if (gameState.activeCharms.some(c => c.id === 'silentKiller') && !lettersInWord.some(l => VOWELS.has(l))) {
-        wordMultiplier *= 4;
+        wordMultipliers.push(4);
         bonuses.push({ name: 'Silent Killer', description: 'x4 Score', source: 'word' });
     }
 
     // Charm: Star Power
     if (gameState.activeCharms.some(c => c.id === 'starPower') && ['S', 'T', 'A'].every(l => lettersInWord.includes(l))) {
-        wordMultiplier *= 4;
+        wordMultipliers.push(4);
         bonuses.push({ name: 'Star Power', description: 'x4 Score', source: 'word' });
     }
     
     // Charm: Battle of Wits
     if (gameState.activeCharms.some(c => c.id === 'battleOfWits') && word.length > 1 && wordUpper[0] === wordUpper[wordUpper.length - 1]) {
-        wordMultiplier *= 4;
+        wordMultipliers.push(4);
         bonuses.push({ name: 'Battle of Wits', description: 'x4 Score', source: 'word' });
     }
     
     // Charm: Radioactive Spider Bite
     if (gameState.activeCharms.some(c => c.id === 'radioactiveSpiderBite') && ['D', 'E', 'R'].every(l => lettersInWord.includes(l))) {
-        wordMultiplier *= 2;
+        wordMultipliers.push(2);
         bonuses.push({ name: 'Radioactive Spider Bite', description: 'x2 Score', source: 'word' });
     }
 
     // PowerPlay: Bigly Score
     if (gameState.activePowerPlays.biglyScore) {
-        wordMultiplier *= 4;
+        wordMultipliers.push(4);
         bonuses.push({ name: 'Bigly Score', description: 'x4 Word Score', source: 'word' });
     }
     
     // PowerPlay: Nuclear Option
     if (gameState.activePowerPlays.nuclearOption) {
-        wordMultiplier *= 4;
+        wordMultipliers.push(4);
         bonuses.push({ name: 'Nuclear Option', description: 'x4 Word Score', source: 'word' });
     }
 
@@ -525,14 +528,14 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     Object.keys(gameState.wordMultipliersByLetter).forEach(letter => {
         if (lettersInWord.includes(letter)) {
             const multiplier = gameState.wordMultipliersByLetter[letter];
-            wordMultiplier *= multiplier;
+            wordMultipliers.push(multiplier);
             bonuses.push({ name: 'Polish', description: `x${multiplier} for '${letter}'`, source: 'word' });
         }
     });
     
     // PowerPlay: Cassie's Clue
     if (gameState.activePowerPlays.cassiesClue && ['C', 'A', 'T'].every(l => lettersInWord.includes(l))) {
-        wordMultiplier *= 3;
+        wordMultipliers.push(3);
         bonuses.push({ name: "Cassie's Clue", description: 'x3 Score', source: 'word' });
     }
     
@@ -546,20 +549,20 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
             }
         }
         if (alternates) {
-            wordMultiplier *= 4;
+            wordMultipliers.push(4);
             bonuses.push({ name: 'Tetris Touch', description: 'x4 Score', source: 'word' });
         }
     }
     
     // PowerPlay: Wordionaire Double Down
     if (gameState.activePowerPlays.wordionaireDouble) {
-        wordMultiplier *= 2;
+        wordMultipliers.push(2);
         bonuses.push({ name: 'Wordionaire: Double Down', description: 'x2 Word Score', source: 'word' });
     }
     
     // PowerPlay: Pinky and the Brain
     if (gameState.activePowerPlays.pinkyAndTheBrain) {
-        wordMultiplier *= 2;
+        wordMultipliers.push(2);
         bonuses.push({ name: 'Pinky and the Brain', description: 'x2 Score', source: 'word' });
     }
 
@@ -567,11 +570,13 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     if (gameState.activePowerPlays.letsGetDangerous) {
         const vowelCount = lettersInWord.filter(l => VOWELS.has(l)).length;
         if (vowelCount > 0) {
-            wordMultiplier *= vowelCount;
+            wordMultipliers.push(vowelCount);
             bonuses.push({ name: "Let's Get Dangerous", description: `x${vowelCount} Score`, source: 'word' });
         }
     }
 
+    const scoreBeforeMultiplier = totalScore;
+    const wordMultiplier = combineMultipliers(wordMultipliers);
     totalScore *= wordMultiplier;
     
     // --- 3. Flat Bonuses ---
@@ -774,10 +779,15 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         bonuses.push({ name: 'Gift From Thanos', description: 'Score sacrificed to 0', source: 'game' });
     }
 
+    const capped = !!(gameState.activePowerPlays.schruteBucks || gameState.activePowerPlays.wordionaireCap || gameState.activePowerPlays.thanosGift);
+
     return {
         totalScore: Math.round(totalScore),
         baseScore: rawBaseScore,
         bonuses,
+        scoreBeforeMultiplier,
+        wordMultiplier,
+        capped,
     };
 };
 

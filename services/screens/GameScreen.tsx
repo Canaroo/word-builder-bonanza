@@ -15,6 +15,7 @@ import { storage, STORAGE_KEYS } from '../storage';
 import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
+import { addWordMultiplier, lengthMultiplier } from '../rules';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 
 
@@ -1817,7 +1818,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
   useEffect(() => {
     if ((wordFromBuildRow?.length ?? 0) >= 5 && !longWordBonusNotified) {
-        showToast("✨ 5+ Letter Bonus Eligible! (Submit for x2 score) ✨");
+        showToast(`✨ Long word! Length bonus x${lengthMultiplier(wordFromBuildRow.length)} and climbing ✨`);
         dispatch({ type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: true });
     } else if ((wordFromBuildRow?.length ?? 0) < 5 && longWordBonusNotified) {
         dispatch({ type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: false });
@@ -2222,7 +2223,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     baseBonuses: ScoreBonusInfo[],
     validationDef: string,
     wordLockActive: boolean,
-    infoMessage?: string
+    infoMessage?: string,
+    scoreBreakdown?: Pick<ScoreCalculationResult, 'scoreBeforeMultiplier' | 'wordMultiplier' | 'capped'>
     ) => {
       dispatch({ type: 'STORE_LAST_TURN' });
       let newState = { ...gameState };
@@ -2237,7 +2239,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       const oldScore = newState.score;
       const totalWordsSubmitted = totalWords + 1;
       const WORD_OVERRIDE_EGG_IDS = new Set(['sex', 'poop', 'kermitWisdom', 'homersDelight', 'dundieAward', 'dangerousAlone', 'totallyBuggin', 'loveBonus', 'timeBonus', 'dieBonus', 'gunBonus', 'joyBonus', 'chandlerBing', 'deadPoetsSociety', 'terminator', 'spiderman', 'nerd', 'flashsFrenzy', 'lionKingsLegacy', 'starshipEnterprise', 'popIdolAudition', 'hogwartsHousePoints', 'bluePillBonus', 'slimShadySnap', 'spaceJamSlam', 'oneUp', 'jamesBond', 'pinkPonyClub', 'flexAppeal', 'getOffMyPlane', 'sixpenceSwoon', 'heroOfHyrule']);
-      let scoreResult: ScoreCalculationResult = { totalScore: finalWordScore, baseScore: rawBaseScoreParam, bonuses: [...baseBonuses] };
+      let scoreResult: ScoreCalculationResult = { totalScore: finalWordScore, baseScore: rawBaseScoreParam, bonuses: [...baseBonuses], ...scoreBreakdown };
 
       // --- A: GOLDEN ROUND SUBMISSION ---
         if (newState.roundType === 'golden') {
@@ -2290,7 +2292,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       );
       
       if (word.length >= 5 && !wordBasedEgg && !isChallengeLock) {
-          showToast("5+ Letter Bonus! (x2 Score)");
+          showToast(`Length bonus x${lengthMultiplier(word.length)}!`);
       }
       
       // --- Heisenberg PowerPlay ---
@@ -2311,7 +2313,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       // --- 2. WORD COMBO LOGIC ---
       if (newState.powerSurgeProgress === 4) { // This is the 5th word in the streak.
-          scoreResult.totalScore *= 2;
+          scoreResult = addWordMultiplier(scoreResult, 2);
           scoreResult.bonuses.push({ name: "⚡ 5-Word Combo!", description: "x2 Score"});
           newState.powerSurgeProgress = 0;
       } else {
@@ -2321,7 +2323,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // --- 3. WORD-BASED EASTER EGG OVERRIDE ---
       if (wordBasedEgg) {
           const eggScore = wordBasedEgg.reward.points || 0;
-          scoreResult.totalScore = eggScore;
+          // The egg replaces the word score, so later multipliers apply to the egg's points.
+          scoreResult = { totalScore: eggScore, baseScore: scoreResult.baseScore, bonuses: scoreResult.bonuses };
           rawBaseScore = 0; // Base score is nullified by the Easter Egg override
           newState.foundEasterEggs = [...newState.foundEasterEggs, wordBasedEgg];
           modalQueue.push({ type: 'easter-egg', title: wordBasedEgg.name, content: wordBasedEgg.reward.message, data: wordBasedEgg });
@@ -2409,7 +2412,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       const isSecondSubmission = newState.log.filter(e => e.type === 'word' && e.word === word).length > 0;
       if (newState.activeCharms.some(c => c.id === 'doctorStrangesLoop') && isSecondSubmission) {
-          scoreResult.totalScore *= 2;
+          scoreResult = addWordMultiplier(scoreResult, 2);
           scoreResult.bonuses.push({ name: "Dr. Strange's Loop", description: "Dr. Strange's Loop: x2 Score"});
           showMessage("🌀 Dr. Strange's Loop! Word replayed for x2 score.", 3000);
       }
@@ -3210,13 +3213,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 soundService.playInvalidWord();
             }
             
-            await completeSubmission(word, submittedTiles, scoreResult.totalScore, scoreResult.baseScore, scoreResult.bonuses, validationResult.definition ?? '', wordLockActive, message);
+            // The coin flip is a gamble on the final score; a lost flip stays at 0.
+            await completeSubmission(word, submittedTiles, scoreResult.totalScore, scoreResult.baseScore, scoreResult.bonuses, validationResult.definition ?? '', wordLockActive, message, isDouble ? { scoreBeforeMultiplier: scoreResult.scoreBeforeMultiplier! * 2, wordMultiplier: scoreResult.wordMultiplier } : { capped: true });
             return;
         }
         
         const scoreResult = gameUtils.calculateScore(word, submittedTiles, gameState);
 
-        await completeSubmission(word, submittedTiles, scoreResult.totalScore, scoreResult.baseScore, scoreResult.bonuses, validationResult.definition ?? '', wordLockActive);
+        await completeSubmission(word, submittedTiles, scoreResult.totalScore, scoreResult.baseScore, scoreResult.bonuses, validationResult.definition ?? '', wordLockActive, undefined, scoreResult);
 
     } else {
         if (gameState.roundType === 'golden') {
