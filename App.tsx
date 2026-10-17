@@ -349,6 +349,8 @@ const App: React.FC = () => {
         )}
         <Suspense fallback={<ScreenFallback />}>{showGallery && BonusGallery ? <BonusGallery /> : renderScreen()}</Suspense>
         {selectedPack.id === 'default' && <div className="crt-overlay" aria-hidden="true" />}
+        {/* Unmissable gold frame while a Golden Round runs (any theme). */}
+        {isGoldenRound && screen === Screen.Game && <div className="golden-frame" aria-hidden="true" />}
       </div>
     </main>
   );

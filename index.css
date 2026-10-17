@@ -682,6 +682,30 @@ body {
   }
 }
 
+/* Golden Round: gold frame around the whole screen and a banner under the HUD. */
+.golden-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 55;
+  pointer-events: none;
+  border: 5px solid #ffd23f;
+  border-radius: inherit;
+  box-shadow: inset 0 0 28px rgba(255, 210, 63, 0.75), inset 0 0 70px rgba(255, 210, 63, 0.25), 0 0 24px rgba(255, 210, 63, 0.6);
+  animation: golden-frame-pulse 1.6s ease-in-out infinite;
+}
+@keyframes golden-frame-pulse {
+  50% { box-shadow: inset 0 0 40px rgba(255, 210, 63, 0.95), inset 0 0 90px rgba(255, 210, 63, 0.35), 0 0 36px rgba(255, 210, 63, 0.8); }
+}
+.golden-banner {
+  background: linear-gradient(90deg, #f59e0b, #ffd23f 30%, #fff3b0 50%, #ffd23f 70%, #f59e0b);
+  background-size: 200% 100%;
+  animation: golden-sheen 2.4s linear infinite;
+  box-shadow: 0 0 18px rgba(255, 210, 63, 0.6);
+}
+@keyframes golden-sheen {
+  to { background-position: -200% 0; }
+}
+
 /* Highlight rings and glows drawn over a tile (its own box-shadow is the 3D edge). */
 .tile-overlay {
   position: absolute;
@@ -801,6 +825,10 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .golden-frame,
+  .golden-banner {
+    animation: none;
+  }
   .message-pop {
     animation: none;
   }

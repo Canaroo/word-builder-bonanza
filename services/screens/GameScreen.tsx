@@ -588,7 +588,8 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 isPaused: false,
                 hand: newHand,
                 buildRow: Array(BUILD_ROW_SIZE).fill(null),
-                time: state.gameState.gameConfig.timerDuration,
+                // Same tiles, fresh clock (the start-of-run bank; ignores old saved milestone timers).
+                time: GAMEPLAY.timeBank.start,
                 challengeWordData: null, // Clear challenge state
                 gameState: {
                     ...state.gameState,
@@ -1832,30 +1833,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     onGoldenRoundChange(gameState?.roundType === 'golden');
   }, [gameState?.roundType, onGoldenRoundChange]);
 
-  // Effect to ensure the gameConfig's timer duration is always correct based on score.
-  useEffect(() => {
-    let correctTimerDuration = 60; // Default from initialGameState
-    const sortedMilestones = [...MILESTONES_LIST].sort((a, b) => a.scoreThreshold - b.scoreThreshold);
-
-    for (const milestone of sortedMilestones) {
-        if ((gameState?.score ?? 0) >= milestone.scoreThreshold && milestone.configChange?.timerDuration) {
-            correctTimerDuration = milestone.configChange.timerDuration;
-        }
-    }
-    
-    // This check prevents an infinite loop of dispatches if the state is already correct.
-    if (gameState?.gameConfig?.timerDuration !== correctTimerDuration) {
-        dispatch({ 
-            type: 'UPDATE_GAME_STATE', 
-            payload: { 
-                gameConfig: { 
-                    ...(gameState?.gameConfig ?? initialGameState.gameConfig), 
-                    timerDuration: correctTimerDuration 
-                } 
-            } 
-        });
-    }
-  }, [gameState?.score, gameState?.gameConfig, dispatch]);
 
   const handleMuteToggle = () => {
     soundService.initialize();

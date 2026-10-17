@@ -150,7 +150,6 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                            <div className="bg-crt-950/60 ring-1 ring-white/5 p-4 rounded-lg text-left space-y-2">
                                <p><strong className="text-white">Score to Unlock:</strong> <span className="text-amber-300 font-digital">{milestone.scoreThreshold}</span></p>
                                {milestone.reward.points && <p><strong className="text-white">Bonus Points:</strong> <span className="text-green-400">+{milestone.reward.points}</span></p>}
-                               {milestone.configChange?.timerDuration && <p><strong className="text-white">New Timer:</strong> <span className="text-red-400">{milestone.configChange.timerDuration} seconds</span></p>}
                            </div>
                            <button onClick={handleCloseModal} className="w-full mt-4 px-6 py-3 text-xl font-bold text-slate-900 bg-cyan-500 rounded-lg shadow-lg hover:bg-cyan-400">GOT IT</button>
                        </div>
@@ -549,6 +548,13 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           </button>
         </div>
       </div>
+
+      {gameState?.roundType === 'golden' && (
+        <div className="golden-banner flex-shrink-0 rounded-lg px-3 py-1.5 text-center" role="status">
+          <div className="font-display text-lg leading-none text-crt-900">★ GOLDEN ROUND ★</div>
+          <div className="osd-text text-base leading-tight text-crt-900/80">TILES 2X · GOLDEN TILE 6X · NO STRIKES</div>
+        </div>
+      )}
 
       {/* --- STATUS AREA --- */}
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col gap-2">

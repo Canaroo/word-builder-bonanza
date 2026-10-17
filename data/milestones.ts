@@ -1,6 +1,7 @@
 
 import { Milestone } from '../types';
 
+// Score milestones award one-time bonus points. They don't touch the clock (see config/gameplay.ts).
 export const MILESTONES_LIST: Milestone[] = [
   {
     id: 'milestone500',
@@ -8,8 +9,7 @@ export const MILESTONES_LIST: Milestone[] = [
     icon: '🎉',
     scoreThreshold: 500,
     reward: { points: 100 },
-    configChange: { timerDuration: 45 },
-    flavorText: "You're in the club. No jackets — just faster gameplay."
+    flavorText: "You're in the club. No jackets — just bonus points."
   },
   {
     id: 'milestone1000',
@@ -17,8 +17,7 @@ export const MILESTONES_LIST: Milestone[] = [
     icon: '🔥',
     scoreThreshold: 1000,
     reward: { points: 150 },
-    configChange: { timerDuration: 30 },
-    flavorText: "Things just got serious. No more small talk."
+    flavorText: "Halfway to legend. Keep the hustle going."
   },
   {
     id: 'milestone2000',
@@ -26,7 +25,6 @@ export const MILESTONES_LIST: Milestone[] = [
     icon: '💼',
     scoreThreshold: 2000,
     reward: { points: 200 },
-    configChange: { timerDuration: 15 },
     flavorText: "Welcome to the elite tier. Your vocabulary now pays rent."
   },
   {
@@ -35,8 +33,7 @@ export const MILESTONES_LIST: Milestone[] = [
     icon: '🌟',
     scoreThreshold: 3500,
     reward: { points: 300 },
-    configChange: { timerDuration: 10 },
-    flavorText: "Blink, and you’ll miss your shot."
+    flavorText: "Bards will sing of this vocabulary."
   },
   {
     id: 'milestone5000',
@@ -44,7 +41,6 @@ export const MILESTONES_LIST: Milestone[] = [
     icon: '👑',
     scoreThreshold: 5000,
     reward: { points: 400 },
-    configChange: { timerDuration: 8 },
-    flavorText: "You’ve become GODLIKE. Every word now feels like sudden death."
+    flavorText: "You’ve become GODLIKE. Words bow before you."
   },
 ];

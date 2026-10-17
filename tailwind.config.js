@@ -32,6 +32,7 @@ export default {
       fontFamily: {
         display: ['Bungee', 'Poppins', 'sans-serif'], // marquee titles, buttons
         osd: ['VT323', 'Roboto Mono', 'monospace'], // VCR on-screen display: HUD numbers, labels
+        tile: ['Poppins', 'system-ui', 'sans-serif'], // tile letters: clear, unambiguous shapes (use with font-extrabold)
       },
       boxShadow: {
         'glow-cyan': '0 0 6px #22e4ff, 0 0 18px rgba(34, 228, 255, 0.45)',
