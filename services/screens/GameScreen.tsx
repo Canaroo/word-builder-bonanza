@@ -2248,7 +2248,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       const eventLogQueue: EventLogEntry[] = [];
       const oldScore = newState.score;
       const totalWordsSubmitted = totalWords + 1;
-      const WORD_OVERRIDE_EGG_IDS = new Set(['sex', 'poop', 'kermitWisdom', 'homersDelight', 'dundieAward', 'dangerousAlone', 'totallyBuggin', 'loveBonus', 'timeBonus', 'dieBonus', 'gunBonus', 'joyBonus', 'chandlerBing', 'deadPoetsSociety', 'terminator', 'spiderman', 'nerd', 'flashsFrenzy', 'lionKingsLegacy', 'starshipEnterprise', 'popIdolAudition', 'hogwartsHousePoints', 'bluePillBonus', 'slimShadySnap', 'spaceJamSlam', 'oneUp', 'jamesBond', 'pinkPonyClub', 'flexAppeal', 'getOffMyPlane', 'sixpenceSwoon', 'heroOfHyrule']);
       let scoreResult: ScoreCalculationResult = { totalScore: finalWordScore, baseScore: rawBaseScoreParam, bonuses: [...baseBonuses], ...scoreBreakdown };
 
       // --- A: GOLDEN ROUND SUBMISSION ---
@@ -2313,7 +2312,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
       
       const wordBasedEgg = EASTER_EGGS.find(egg => 
-          WORD_OVERRIDE_EGG_IDS.has(egg.id) && 
+          egg.replacesWordScore && 
           !newState.foundEasterEggs.some(fe => fe.id === egg.id) &&
           egg.trigger(word, 0, newState)
       );
@@ -2705,7 +2704,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       // Score-based Easter Egg Check
       for (const egg of EASTER_EGGS) {
-          if (WORD_OVERRIDE_EGG_IDS.has(egg.id) || newState.foundEasterEggs.some(fe => fe.id === egg.id)) continue;
+          if (egg.replacesWordScore || newState.foundEasterEggs.some(fe => fe.id === egg.id)) continue;
           if (egg.trigger(word, runningScore, newState)) {
               // Remember the exact score that matched, to show the player why the bonus fired.
               const triggerScore = runningScore;
