@@ -10,6 +10,7 @@ import { missedWordsService } from '../missedWordsService';
 import { powerWordService } from '../powerWordService';
 import EventLogDisplay from '../../components/EventLogDisplay';
 import RankingModal from '../../components/RankingModal';
+import ArcadeButton from '../../components/ArcadeButton';
 import { storage, STORAGE_KEYS } from '../storage';
 
 
@@ -356,14 +357,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
       )}
 
 
-      <div className="flex flex-col min-h-full bg-slate-800 p-4 text-center">
+      <div className="flex flex-col min-h-full p-4 text-center">
         <div className="flex justify-between items-center shrink-0">
-          <button onClick={onShowVibez} className="flex items-center gap-2 bg-purple-900/70 hover:bg-purple-800/80 text-purple-200 pl-2 pr-3 py-2 rounded-full transition-colors shadow-md">
+          <button onClick={onShowVibez} className="flex items-center gap-2 bg-crt-950/70 ring-1 ring-neon-purple/60 hover:ring-neon-purple text-purple-100 pl-2 pr-3 py-1.5 rounded-full transition-shadow shadow-md" aria-label={`Themes. ${lexCoins} LEX coins`}>
               <span className="text-xl">🎨</span>
-              <span className="flex items-center gap-1 font-digital text-lg">
-                  <span className="text-yellow-300">🪙</span>
-                  {lexCoins}
-              </span>
+              <span className="osd-text text-xl leading-none text-neon-yellow">CREDITS {lexCoins}</span>
           </button>
           <button onClick={handleMuteToggle} className="text-2xl text-slate-400 hover:text-white p-2 transition-transform hover:scale-110">
             {isMuted ? '🔇' : '🔊'}
@@ -372,19 +370,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         <div className="w-full max-w-sm mx-auto flex flex-col items-center gap-4 my-auto py-4">
             <div className="text-center">
-                <h1 
-                    className="text-6xl md:text-7xl font-bold text-cyan-400 animate-slide-in-down" 
-                    style={{ textShadow: '2px 2px 3px rgba(0,0,0,0.3)' }}
-                >
+                <h1 className="font-display text-5xl min-[375px]:text-6xl md:text-7xl tracking-widest neon-text-cyan neon-flicker animate-slide-in-down">
                     WORD
                 </h1>
-                <h2 
-                    className="text-7xl md:text-8xl font-extrabold text-amber-400 tracking-normal -mt-6 pb-2 border-b-4 border-amber-500 inline-block animate-bounce-in-up" 
-                    style={{ fontFamily: "'Bungee', cursive", textShadow: '2px 2px 3px rgba(0,0,0,0.3)', animationDelay: '0.1s' }}
+                <h2
+                    className="font-display text-7xl min-[375px]:text-8xl tracking-normal -mt-1 marquee-3d animate-bounce-in-up"
+                    style={{ animationDelay: '0.1s' }}
                 >
                     NERD
                 </h2>
-                <p className="text-slate-400 italic mt-2 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>Serious words. Ridiculous fun.</p>
+                <p className="osd-text text-xl text-neon-pink mt-3 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>SERIOUS WORDS. RIDICULOUS FUN.</p>
             </div>
             
             <input
@@ -393,26 +388,22 @@ const StartScreen: React.FC<StartScreenProps> = ({
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter Your Name"
               maxLength={12}
-              className="w-full px-4 py-3 text-lg text-center bg-slate-900 border-2 border-slate-600 rounded-lg focus:outline-none focus:ring-4 focus:ring-amber-400 focus:border-amber-400 transition-all duration-300 text-slate-100 placeholder:text-slate-400"
+              aria-label="Player name"
+              className="w-full px-4 py-2 font-osd text-3xl uppercase tracking-widest text-center bg-crt-950/80 border-2 border-neon-cyan/50 rounded-lg focus:outline-none focus:border-neon-cyan focus:shadow-glow-cyan transition-shadow duration-200 text-neon-cyan placeholder:text-neon-cyan/40 placeholder:normal-case"
             />
             
             <div className="w-full flex flex-col gap-3 mt-2">
-                <button
-                    type="button"
-                    disabled={!name.trim()}
-                    onClick={handlePlayClick}
-                    className="w-full px-6 py-4 text-2xl font-bold text-slate-900 bg-amber-400 rounded-lg shadow-lg hover:bg-amber-300 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2"
-                >
-                    🎮 NEW GAME
-                </button>
+                <ArcadeButton color="yellow" size="lg" className="w-full" disabled={!name.trim()} onClick={handlePlayClick}>
+                    ▶ New Game
+                </ArcadeButton>
+                <p className={`osd-text text-lg leading-none ${name.trim() ? 'text-neon-yellow blink' : 'text-slate-500'}`}>
+                    {name.trim() ? 'PRESS START' : 'ENTER YOUR NAME TO PLAY'}
+                </p>
 
                 {savedGame && (
-                    <button
-                        onClick={handleResumeClick}
-                        className="w-full px-6 py-3 text-xl font-bold text-slate-900 bg-green-500 rounded-lg shadow-lg hover:bg-green-400 transition-all duration-300 flex items-center justify-center gap-2"
-                    >
-                        ▶️ RESUME: {savedGame.playerName}
-                    </button>
+                    <ArcadeButton color="green" className="w-full" onClick={handleResumeClick}>
+                        ⏯ Resume: {savedGame.playerName}
+                    </ArcadeButton>
                 )}
             </div>
 
@@ -441,23 +432,24 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   disabled={!canSpin}
                   title={!canSpin ? powerWordService.getCooldownMessage() : 'Spin for your daily Power Word!'}
                   aria-label="Spin for your daily Power Word"
-                  className="shrink-0 w-14 h-14 bg-yellow-400 text-slate-900 rounded-full shadow-lg flex items-center justify-center transform hover:scale-110 transition-transform disabled:bg-slate-600 disabled:cursor-not-allowed disabled:transform-none"
+                  className="arcade-btn shrink-0 w-14 h-14 bg-gradient-to-b from-[#ff86c6] to-neon-pink rounded-full flex items-center justify-center disabled:cursor-not-allowed"
+                  style={{ ['--btn-edge' as string]: '#a3175f' }}
               >
                   <span className={`text-3xl ${canSpin ? 'animate-spin' : ''}`}>💥</span>
               </button>
             </div>
 
-            <hr className="w-full border-slate-700/50 my-2" />
+            <div className="w-full h-px bg-gradient-to-r from-transparent via-neon-pink/60 to-transparent my-1" />
             
-            <div className="w-full grid grid-cols-2 gap-3">
-                <button onClick={handleShowLeaderboard} className="w-full px-4 py-3 text-md font-bold text-cyan-200 border-2 border-cyan-700 rounded-lg shadow-lg hover:bg-cyan-700 hover:text-white transition-all duration-300 flex items-center justify-center gap-2">🏆 Top 50</button>
-                <button onClick={onShowHowToPlay} className="w-full px-4 py-3 text-md font-bold text-cyan-200 border-2 border-cyan-700 rounded-lg shadow-lg hover:bg-cyan-700 hover:text-white transition-all duration-300 flex items-center justify-center gap-2">📘 How to Play</button>
-                <button onClick={handleShowEventLogs} className="w-full px-4 py-3 text-md font-bold text-green-200 border-2 border-green-700 rounded-lg shadow-lg hover:bg-green-700 hover:text-white transition-all duration-300 flex items-center justify-center gap-2">📜 Event Logs</button>
-                <button onClick={handleShowMissedWords} className="w-full px-4 py-3 text-md font-bold text-red-200 border-2 border-red-700 rounded-lg shadow-lg hover:bg-red-700 hover:text-white transition-all duration-300 flex items-center justify-center gap-2">🧠 Missed Words</button>
+            <div className="w-full grid grid-cols-2 gap-x-3 gap-y-4 pb-1">
+                <ArcadeButton color="cyan" size="sm" onClick={handleShowLeaderboard}>🏆 Top 50</ArcadeButton>
+                <ArcadeButton color="purple" size="sm" onClick={onShowHowToPlay}>📘 How to Play</ArcadeButton>
+                <ArcadeButton color="green" size="sm" onClick={handleShowEventLogs}>📼 Event Logs</ArcadeButton>
+                <ArcadeButton color="pink" size="sm" onClick={handleShowMissedWords}>🧠 Missed Words</ArcadeButton>
             </div>
         </div>
         
-        <p className="shrink-0 text-center text-amber-400 text-xs">Version {__APP_VERSION__}</p>
+        <p className="shrink-0 osd-text text-center text-neon-cyan/60 text-base">VER {__APP_VERSION__}</p>
       </div>
     </>
   );

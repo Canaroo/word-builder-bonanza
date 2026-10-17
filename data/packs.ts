@@ -3,13 +3,13 @@ import { Pack } from '../types';
 export const PACKS_LIST: Pack[] = [
   {
     id: 'default',
-    name: 'Default',
+    name: 'Arcade',
     cost: 0,
-    tileClass: 'bg-amber-200 text-slate-800',
-    themeClass: 'bg-slate-900',
-    frameClass: 'frame-default',
-    previewClass: 'bg-slate-900',
-    description: 'The original Word Builder Bonanza experience.'
+    tileClass: 'tile-arcade',
+    themeClass: 'theme-arcade',
+    frameClass: 'frame-arcade',
+    previewClass: 'theme-arcade',
+    description: 'Neon, scanlines and a synthwave sunset. Insert coin to continue.'
   },
   {
     id: 'classic',

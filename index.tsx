@@ -7,6 +7,7 @@ import '@fontsource/poppins/latin-700.css';
 import '@fontsource/poppins/latin-800.css';
 import '@fontsource/roboto-mono/latin-700.css';
 import '@fontsource/bungee/latin-400.css';
+import '@fontsource/vt323/latin-400.css';
 import './index.css';
 import App from './App';
 import { storage } from './services/storage';

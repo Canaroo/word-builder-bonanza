@@ -9,6 +9,10 @@ const GameOverScreen = lazy(() => import('./services/screens/GameOverScreen'));
 const HowToPlayScreen = lazy(() => import('./services/screens/HowToPlayScreen'));
 const VibezScreen = lazy(() => import('./services/screens/VibezScreen'));
 
+// Dev-only bonus reveal preview (?gallery); stripped from production builds.
+const BonusGallery = import.meta.env.DEV ? lazy(() => import('./components/dev/BonusGallery')) : null;
+const showGallery = import.meta.env.DEV && new URLSearchParams(location.search).has('gallery');
+
 const ScreenFallback = () => (
   <div className="flex-grow flex items-center justify-center">
     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-400"></div>
@@ -329,7 +333,7 @@ const App: React.FC = () => {
 
   return (
     <main id="main-container" className={`safe-area w-screen h-dvh flex items-center justify-center transition-all duration-500 ${selectedPack.themeClass}`}>
-      <div className={`relative z-10 w-full max-w-xl h-full sm:max-h-[800px] bg-slate-800 sm:rounded-2xl shadow-2xl flex flex-col overflow-y-auto overscroll-contain transition-all duration-300 ${selectedPack.frameClass} ${isTimeLow ? 'low-time-flash' : ''} ${isGoldenRound ? 'golden-round-active' : ''}`}>
+      <div className={`relative z-10 w-full max-w-xl h-full sm:max-h-[800px] bg-crt-900 sm:rounded-2xl shadow-2xl flex flex-col overflow-y-auto overscroll-contain transition-all duration-300 ${selectedPack.frameClass} ${isTimeLow ? 'low-time-flash' : ''} ${isGoldenRound ? 'golden-round-active' : ''}`}>
         {selectedPack.id === 'rustic-workbench' && (
           <>
             <div className="corner-bolt top-left"></div>
@@ -338,7 +342,8 @@ const App: React.FC = () => {
             <div className="corner-bolt bottom-right"></div>
           </>
         )}
-        <Suspense fallback={<ScreenFallback />}>{renderScreen()}</Suspense>
+        <Suspense fallback={<ScreenFallback />}>{showGallery && BonusGallery ? <BonusGallery /> : renderScreen()}</Suspense>
+        {selectedPack.id === 'default' && <div className="crt-overlay" aria-hidden="true" />}
       </div>
     </main>
   );

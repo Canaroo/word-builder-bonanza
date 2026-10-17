@@ -44,11 +44,11 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, isHi
     <button
       onClick={handleInteraction}
       disabled={tile.isLocked}
-      className={`relative w-full h-full font-bold rounded-lg shadow-md flex items-center justify-center cursor-pointer transform hover:scale-110 hover:-translate-y-1 transition-all duration-200 ${tileStyle} ${hintClass} ${goldenClass} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed hover:scale-100 hover:-translate-y-0' : ''}`}
+      className={`tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none ${tileStyle} ${hintClass} ${goldenClass} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
       aria-label={`Tile ${tile.letter} with ${tile.points} points ${tile.isLocked ? '(locked for this turn)' : ''}`}
     >
-      <span className={`z-10 ${tile.letter.length > 2 ? 'text-lg' : 'text-2xl'}`}>{tile.letter}</span>
-      <span className="absolute bottom-0 right-1 text-xs font-bold z-10">{tile.tempPoints ?? tile.points}</span>
+      <span className={`z-10 font-display leading-none ${tile.letter.length > 2 ? 'text-base' : tile.letter.length > 1 ? 'text-lg' : 'text-2xl'}`}>{tile.letter}</span>
+      <span className="absolute bottom-0.5 right-1 font-osd text-sm leading-none z-10">{tile.tempPoints ?? tile.points}</span>
       {(tile.isSuper || (hasMultiplier && tile.multiplier === 4)) && (
         <span className="absolute top-0 left-1 text-xs font-extrabold z-10 text-white bg-red-700/80 rounded-full px-1 py-0.5 leading-none shadow-md">
           4X

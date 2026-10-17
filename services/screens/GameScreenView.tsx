@@ -1,4 +1,6 @@
 import React from 'react';
+import ArcadeButton from '../../components/ArcadeButton';
+import BonusReveal from '../../components/BonusReveal';
 import { GameState, Tile, WordData, Milestone, Charm, PowerPlay } from '../../types';
 import Timer from '../../components/Timer';
 import TileComponent from '../../components/Tile';
@@ -78,30 +80,32 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         if (!modalContent) return null;
 
         const { type, title, content, data } = modalContent;
-        const modalBaseClass = "absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in";
-        const modalBoxBaseClass = "bg-slate-800 border-2 rounded-2xl p-6 shadow-2xl max-w-md w-full flex flex-col max-h-[90vh]";
+        const modalBaseClass = "absolute inset-0 bg-crt-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in";
+        const modalBoxBaseClass = "bg-crt-900 border-2 rounded-2xl p-6 shadow-2xl max-w-md w-full flex flex-col max-h-[90vh]";
 
         switch (type) {
             case 'info':
             case 'milestone':
             case 'word-bonus':
-            case 'easter-egg':
             case 'game-over-summary':
                 return (
                     <div className={modalBaseClass}>
-                        <div className={`${modalBoxBaseClass} border-amber-400`}>
-                            <h2 className="text-3xl font-bold text-amber-400 mb-4 text-center">{title}</h2>
+                        <div className={`${modalBoxBaseClass} border-neon-yellow shadow-glow-yellow bonus-insert`}>
+                            <h2 className="font-display text-2xl text-neon-yellow drop-shadow-glow-yellow mb-2 text-center">{title}</h2>
                             <div className="text-slate-200 text-center my-4">{content}</div>
                             {data && (data.reward?.points || data.gauntletBonus) && (
-                                <div className="text-green-400 font-bold text-2xl my-4 text-center">
-                                    {data.reward?.points && `+${data.reward.points} points!`}
-                                    {data.gauntletBonus && `+${data.gauntletBonus} points!`}
+                                <div className="font-display text-neon-green text-3xl my-4 text-center">
+                                    {data.reward?.points && `+${data.reward.points}`}
+                                    {data.gauntletBonus && `+${data.gauntletBonus}`}
                                 </div>
                             )}
-                            <button onClick={handleCloseModal} className="w-full mt-4 px-6 py-3 text-xl font-bold text-slate-900 bg-amber-400 rounded-lg shadow-lg hover:bg-amber-300">CLOSE</button>
+                            <ArcadeButton color="yellow" className="w-full mt-2" onClick={handleCloseModal}>Continue</ArcadeButton>
                         </div>
                     </div>
                 );
+
+            case 'easter-egg':
+                return <BonusReveal egg={data} onClose={handleCloseModal} />;
 
             case 'super-hand':
                 return (
@@ -139,7 +143,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         <div className={`${modalBoxBaseClass} border-cyan-400`}>
                            <h2 className="text-3xl font-bold text-cyan-400 mb-4 text-center flex items-center justify-center gap-3"><span className="text-4xl">{milestone.icon}</span> {milestone.name}</h2>
                            <p className="text-slate-300 text-center italic mb-4">"{milestone.flavorText}"</p>
-                           <div className="bg-slate-900/50 p-4 rounded-lg text-left space-y-2">
+                           <div className="bg-crt-950/60 ring-1 ring-white/5 p-4 rounded-lg text-left space-y-2">
                                <p><strong className="text-white">Score to Unlock:</strong> <span className="text-amber-300 font-digital">{milestone.scoreThreshold}</span></p>
                                {milestone.reward.points && <p><strong className="text-white">Bonus Points:</strong> <span className="text-green-400">+{milestone.reward.points}</span></p>}
                                {milestone.configChange?.timerDuration && <p><strong className="text-white">New Timer:</strong> <span className="text-red-400">{milestone.configChange.timerDuration} seconds</span></p>}
@@ -173,7 +177,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                            <p className="text-slate-300 text-center mb-4">{content}</p>
                            <div className="space-y-3 overflow-y-auto pr-2">
                                {items.map(item => (
-                                   <button key={item.id} onClick={() => isPowerPlay ? handleChoosePowerPlay(item as PowerPlay, items as PowerPlay[]) : handleChooseCharm(item as Charm, items as Charm[])} className="w-full text-left bg-slate-900/50 p-3 rounded-lg hover:bg-slate-700/50 transition-colors">
+                                   <button key={item.id} onClick={() => isPowerPlay ? handleChoosePowerPlay(item as PowerPlay, items as PowerPlay[]) : handleChooseCharm(item as Charm, items as Charm[])} className="w-full text-left bg-crt-950/60 ring-1 ring-white/5 p-3 rounded-lg hover:bg-slate-700/50 transition-colors">
                                        <h3 className="font-bold text-white flex items-center gap-2"><span className="text-xl">{item.icon}</span> {item.name} <DurationBadge tag={item.durationTag} /></h3>
                                        <p className="text-sm text-slate-300 pl-8">{item.description}</p>
                                        <p className="text-xs text-slate-500 italic mt-1 pl-8">"{item.flavorText}"</p>
@@ -486,7 +490,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     // Layout: a fixed top bar, a status area that takes the leftover height (and scrolls inside
     // itself on short phones), and the play area pinned to the bottom so it's always in reach.
     return (
-    <div className="flex flex-col h-full min-h-0 bg-slate-800/50 p-3 text-slate-200 gap-2">
+    <div className="flex flex-col h-full min-h-0 p-3 text-slate-200 gap-2">
       {/* --- MODALS --- */}
       {renderModal()}
       
@@ -495,19 +499,19 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         {/* Score & Words Display */}
         <div className="flex items-center gap-3 min-w-0">
           <div className="text-left">
-            <div className="text-xs font-bold text-amber-400">SCORE</div>
-            <div className="text-2xl font-digital">{gameState?.score?.toLocaleString() ?? '0'}</div>
+            <div className="osd-text text-base leading-none text-neon-yellow">SCORE</div>
+            <div className="font-osd text-3xl leading-none text-white">{gameState?.score?.toLocaleString() ?? '0'}</div>
           </div>
           <div className="text-left">
-            <div className="text-xs font-bold text-amber-400">WORDS</div>
-            <div className="text-2xl font-digital">{totalWords ?? 0}</div>
+            <div className="osd-text text-base leading-none text-neon-yellow">WORDS</div>
+            <div className="font-osd text-3xl leading-none text-white">{totalWords ?? 0}</div>
           </div>
         </div>
 
         {/* Timer Display */}
         <div className="text-center">
           {(gameState?.roundType ?? 'normal') === 'golden' ? (
-              <div className="font-digital text-5xl font-bold text-yellow-300 animate-golden-text">∞</div>
+              <div className="font-osd text-6xl leading-none text-neon-yellow animate-golden-text">∞</div>
             ) : (
               <Timer time={time ?? 0} />
             )}
@@ -516,10 +520,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         {/* Strikes & Save Display */}
         <div className="flex items-center justify-end gap-2">
           <div>
-            <div className="text-xs font-bold text-red-500 text-right">STRIKES</div>
+            <div className="osd-text text-base leading-none text-neon-red text-right">STRIKES</div>
             <div className="flex justify-end items-center gap-1.5 mt-1">
               {[...Array(maxStrikes ?? 3)].map((_, i) => (
-                <div key={i} className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full transition-colors ${(i < (gameState?.strikes ?? 0)) ? 'bg-red-500' : 'bg-slate-600'}`}></div>
+                <div key={i} className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full transition-colors ${(i < (gameState?.strikes ?? 0)) ? 'bg-neon-red shadow-[0_0_8px_#ff4757]' : 'bg-crt-600'}`}></div>
               ))}
             </div>
           </div>
@@ -532,7 +536,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       {/* --- STATUS AREA --- */}
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col gap-2">
       {/* --- ICONS BAR --- */}
-      <div className="flex justify-between items-center bg-slate-900/50 p-1 rounded-lg flex-shrink-0">
+      <div className="flex justify-between items-center bg-crt-950/60 ring-1 ring-white/5 p-1 rounded-lg flex-shrink-0">
         <div className="flex gap-2 sm:gap-3">
           {MILESTONES_LIST.map(m => (
             <button key={m.id} onClick={() => handleShowMilestoneInfo(m)} disabled={!(gameState?.unlockedMilestoneIds ?? []).includes(m.id)} className="text-2xl transition-opacity disabled:opacity-30 enabled:hover:scale-110" title={m.name}>
@@ -550,22 +554,22 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       <div className="flex gap-2 w-full flex-shrink-0">
         {(gameState?.roundType ?? 'normal') === 'normal' && (
           <div className="text-center flex-1">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+            <h3 className="osd-text text-base leading-none text-neon-cyan/80 uppercase tracking-widest mb-1">
               Golden Round
             </h3>
-            <div className="bg-slate-900/50 p-1 rounded-lg flex justify-center items-center h-10">
+            <div className="bg-crt-950/60 ring-1 ring-white/5 p-1 rounded-lg flex justify-center items-center h-10">
               <span className="text-sm font-bold text-white drop-shadow-md">
-                Streak: <span className="font-digital text-amber-400">{(gameState?.consecutiveValidWords ?? 0)} / {(gameState?.goldenRoundThreshold ?? 11)}</span>
+                Streak: <span className="font-osd text-lg text-neon-yellow">{(gameState?.consecutiveValidWords ?? 0)} / {(gameState?.goldenRoundThreshold ?? 11)}</span>
               </span>
             </div>
           </div>
         )}
 
         <div className="text-center flex-1">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+          <h3 className="osd-text text-base leading-none text-neon-cyan/80 uppercase tracking-widest mb-1">
             PowerPlay
           </h3>
-          <div className="bg-slate-900/50 p-1 rounded-lg h-10 flex items-center justify-center">
+          <div className="bg-crt-950/60 ring-1 ring-white/5 p-1 rounded-lg h-10 flex items-center justify-center">
             <div className="flex justify-center items-center space-x-2">
               {[...Array(3)].map((_, i) => (
                 <div key={i} className={`relative w-6 h-6 rounded-full transition-all duration-300 flex items-center justify-center ${i < (gameState?.powerPlayProgress?.streak ?? 0) ? 'bg-purple-500 shadow-lg shadow-purple-500/50' : 'bg-slate-700'}`}>
@@ -580,10 +584,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
         {(gameState?.perfectChainProgress ?? 0) > 0 && (
             <div className="text-center flex-1">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                <h3 className="osd-text text-base leading-none text-neon-cyan/80 uppercase tracking-widest mb-1">
                     4-Letter Chain
                 </h3>
-                <div className="bg-slate-900/50 p-1 rounded-lg flex justify-center items-center h-10">
+                <div className="bg-crt-950/60 ring-1 ring-white/5 p-1 rounded-lg flex justify-center items-center h-10">
                     <span className="text-2xl tracking-wider animate-pulse">
                         {'4️⃣'.repeat(gameState.perfectChainProgress)}
                     </span>
@@ -599,10 +603,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
       {/* --- ACTIVE BUFFS TRAY --- */}
       <div className="text-center w-full flex-shrink-0">
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+        <h3 className="osd-text text-base leading-none text-neon-cyan/80 uppercase tracking-widest mb-1">
           Active Buffs
         </h3>
-        <div className="min-h-[2rem] bg-slate-900/50 p-1 rounded-lg flex flex-wrap justify-center items-center gap-1">
+        <div className="min-h-[2rem] bg-crt-950/60 ring-1 ring-white/5 p-1 rounded-lg flex flex-wrap justify-center items-center gap-1">
           {((gameState?.activeBuffs?.length ?? 0) + (gameState?.availablePowerPlays?.length ?? 0) + (gameState?.availableCharms?.length ?? 0)) > 0 ? (
             <>
               {(gameState?.activeBuffs ?? []).map((buff) => {
@@ -650,11 +654,11 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         {/* Potential Score Display */}
         <div className="flex-shrink-0 h-8 flex items-center justify-center">
             {potentialScore > 0 && (
-                <div className="bg-slate-900/70 px-4 py-1 rounded-full">
-                    <span className="font-digital text-2xl font-bold text-yellow-400 animate-fade-in">
+                <div className="bg-crt-950/80 ring-1 ring-neon-yellow/40 px-4 py-0.5 rounded-full">
+                    <span className="font-osd text-3xl leading-none text-neon-yellow drop-shadow-glow-yellow animate-fade-in">
                         {potentialScore}
                     </span>
-                    <span className="text-xs text-yellow-500 ml-1">pts</span>
+                    <span className="osd-text text-base text-neon-yellow/80 ml-1">PTS</span>
                 </div>
             )}
         </div>
@@ -669,7 +673,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                   return (
                     <div
                       key={index}
-                      className={`relative w-full aspect-[5/6] rounded-lg bg-slate-900/50 flex items-center justify-center
+                      className={`relative w-full aspect-[5/6] rounded-lg bg-crt-950/60 ring-1 ring-white/5 flex items-center justify-center
                         ${isFifthSlot && isLongWordBonusActive ? 'ring-2 ring-yellow-400' : ''}
                       `}
                     >
@@ -695,7 +699,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 const isHintRest = (highlightedTileIds?.rest ?? []).includes(item?.id || '');
                 return (
                   <div key={item?.id || originalIndex} className="w-full h-12 min-[375px]:h-14 sm:h-16 flex items-center justify-center">
-                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} isHintFirst={isHintFirst} isHintRest={isHintRest} /> : <div className="w-full h-full rounded-lg bg-slate-900/50"></div>}
+                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} isHintFirst={isHintFirst} isHintRest={isHintRest} /> : <div className="w-full h-full rounded-lg bg-crt-950/60 ring-1 ring-white/5"></div>}
                   </div>
                 );
               })}
@@ -704,35 +708,35 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         </div>
         
         {/* --- ACTION BUTTONS --- */}
-        <div className="grid grid-cols-2 gap-2">
-          <button
+        <div className="grid grid-cols-2 gap-x-2 gap-y-3 pb-1">
+          <ArcadeButton
+            color="yellow"
             onClick={handleSubmit}
             disabled={(wordFromBuildRow?.length ?? 0) < (gameState?.gameConfig?.minWordLength ?? 3) || isLoading || isPaused}
-            className="p-2.5 sm:p-3 text-base sm:text-lg font-bold text-slate-900 bg-amber-400 rounded-lg shadow-lg hover:bg-amber-300 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            SUBMIT
-          </button>
-          <button
+            Submit
+          </ArcadeButton>
+          <ArcadeButton
+            color="cyan"
             onClick={() => handleShuffle(false)}
             disabled={(gameState?.shuffleCount ?? 0) <= 0 || isPaused || isChallengeLock || isLoading || (gameState?.roundType === 'golden')}
-            className="p-2.5 sm:p-3 text-base sm:text-lg font-bold text-slate-900 bg-cyan-500 rounded-lg shadow-lg hover:bg-cyan-400 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            SHUFFLE ({(gameState?.shuffleCount ?? 0)})
-          </button>
-          <button
+            Shuffle ({(gameState?.shuffleCount ?? 0)})
+          </ArcadeButton>
+          <ArcadeButton
+            color="slate"
             onClick={handleClear}
             disabled={(buildRow ?? []).every(i => i === null) || isChallengeLock || isLoading || isPaused}
-            className="p-2.5 sm:p-3 text-base sm:text-lg font-bold text-slate-900 bg-slate-500 rounded-lg shadow-lg hover:bg-slate-400 disabled:bg-slate-700 disabled:cursor-not-allowed"
           >
-            CLEAR
-          </button>
-          <button
+            Clear
+          </ArcadeButton>
+          <ArcadeButton
+            color={isStrikeChallenge ? 'red' : 'green'}
             onClick={handleChallenge}
             disabled={(isStrikeChallenge ? strikesRemaining <= 0 : (gameState?.challengeCount ?? 0) <= 0) || (buildRow ?? []).some(t => t !== null) || isPaused || isChallengeLock || isLoading || (gameState?.roundType === 'golden')}
-            className={`p-2.5 sm:p-3 text-base sm:text-lg font-bold text-slate-900 rounded-lg shadow-lg transition-colors disabled:bg-slate-700 disabled:cursor-not-allowed ${isStrikeChallenge ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'}`}
           >
             {challengeButtonText}
-          </button>
+          </ArcadeButton>
         </div>
       </div>
 
