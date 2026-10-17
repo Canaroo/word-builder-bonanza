@@ -101,7 +101,8 @@ the live game stays on the last good version. The check rejects:
 - a bonus word that's in `words/blocked.txt`;
 - a word that isn't in the dictionary (add it to `words/custom.txt` if it should count);
 - a word, score trigger, word count or id used twice;
-- a missing name, message or reward, or a `vhs`/`cartridge`/`cd` without a `source`.
+- a missing name, message or reward, or a `vhs`/`cartridge`/`cd` without a `source`;
+- a `hint` that contains its own word or score number.
 
 **If a deploy fails:** open app.netlify.com → **wordnerd-game** → **Deploys** → the failed deploy.
 The log lists each problem, for example:

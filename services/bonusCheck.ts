@@ -56,6 +56,8 @@ export const checkBonuses = (
         if (!b.name?.trim()) add(b.id, 'name is empty');
         if (!b.message?.trim()) add(b.id, 'message is empty');
         if (b.hint !== undefined && !b.hint.trim()) add(b.id, 'hint is empty; remove it to use the automatic hint');
+        if (b.hint && b.word && /^[a-z]+$/i.test(b.word) && new RegExp(`\\b${b.word}\\b`, 'i').test(b.hint)) add(b.id, `hint gives away the word "${b.word}"`);
+        if (b.hint && b.score?.digits && b.hint.includes(b.score.digits)) add(b.id, `hint gives away the score ${b.score.digits}`);
         if (!b.points && !b.shuffle) add(b.id, 'needs a reward: points, shuffle, or both');
         if (b.points !== undefined && !(Number.isInteger(b.points) && b.points >= 0)) add(b.id, 'points must be a whole number');
         if (b.shuffle !== undefined && !(Number.isInteger(b.shuffle) && b.shuffle >= 0)) add(b.id, 'shuffle must be a whole number');

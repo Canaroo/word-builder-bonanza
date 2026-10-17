@@ -45,6 +45,14 @@ describe('checkBonuses', () => {
         expect(problems.join('\n')).toMatch(/w: .*letters only/);
     });
 
+    test('flags hints that give the answer away', () => {
+        expect(problemsFor([
+            bonus({ id: 'a', hint: 'Click this link!' }),
+            bonus({ id: 'b', word: undefined, score: { kind: 'contains', digits: '42' }, hint: 'Has 42 in it.' }),
+            bonus({ id: 'c', word: 'AIR', hint: 'Jordan had it. Not to be confused with a chair.' }),
+        ])).toEqual(['a: hint gives away the word "LINK"', 'b: hint gives away the score 42']);
+    });
+
     test('flags duplicate word-count milestones', () => {
         const counts: WordBonus[] = [
             { id: 'fifty', title: 't', description: 'd', wordCount: 50, reward: { points: 100 } },
