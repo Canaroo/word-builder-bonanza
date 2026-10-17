@@ -7,6 +7,7 @@ import { MILESTONES_LIST } from '../../data/milestones';
 import { CHARMS_LIST } from '../../data/charms';
 import { POWER_PLAYS_LIST } from '../../data/powerPlays';
 import { EASTER_EGGS } from '../../data/easterEggs';
+import { recordFound, collectionProgress } from '../collection';
 import { WORD_BONUSES } from '../../data/wordBonuses';
 import { soundService } from '../soundService';
 import { dictionaryService } from '../dictionaryService';
@@ -2699,7 +2700,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                   scoreResult.bonuses.push({ name: egg.name, description: `+${egg.reward.points} pts` });
               }
               if (egg.reward.shuffle) newState.shuffleCount += egg.reward.shuffle;
-              modalQueue.push({ type: 'easter-egg', title: egg.name, content: egg.reward.message, data: { ...egg, triggerScore } });
+              // Saved to the device's Bonus Collection straight away, so it survives an abandoned run.
+              const firstFind = recordFound(egg.id);
+              modalQueue.push({ type: 'easter-egg', title: egg.name, content: egg.reward.message, data: { ...egg, triggerScore, firstFind, collection: collectionProgress() } });
               const eggIcon = egg.name.split(' ')[0];
               eventLogQueue.push({ type: 'event', id: `egg-${egg.id}`, name: egg.name, icon: eggIcon, description: explanation ? `${explanation} ${egg.reward.message}` : egg.reward.message, scoreChange: eggScoreChange, cumulativeScore: runningScore });
           }

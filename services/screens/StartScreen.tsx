@@ -11,6 +11,7 @@ import { powerWordService } from '../powerWordService';
 import EventLogDisplay from '../../components/EventLogDisplay';
 import RankingModal from '../../components/RankingModal';
 import ArcadeButton from '../../components/ArcadeButton';
+import { collectionProgress } from '../collection';
 import { storage, STORAGE_KEYS } from '../storage';
 
 
@@ -19,6 +20,7 @@ interface StartScreenProps {
   onResumeGame: (name: string) => void;
   onShowHowToPlay: () => void;
   onShowVibez: () => void;
+  onShowCollection: () => void;
   lexCoins: number;
   autoShowLeaderboard: boolean;
   setAutoShowLeaderboard: (show: boolean) => void;
@@ -34,6 +36,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onResumeGame, 
   onShowHowToPlay, 
   onShowVibez, 
+  onShowCollection,
   lexCoins, 
   autoShowLeaderboard, 
   setAutoShowLeaderboard,
@@ -45,6 +48,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 }) => {
   const [name, setName] = useState(() => storage.getString(STORAGE_KEYS.playerName) || '');
   const [isMuted, setIsMuted] = useState(soundService.getMuteState());
+  const [collection] = useState(collectionProgress);
   const [savedGame, setSavedGame] = useState<{playerName: string} | null>(null);
   
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
@@ -421,6 +425,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
             <div className="w-full h-px bg-gradient-to-r from-transparent via-neon-pink/60 to-transparent my-1" />
             
+            <ArcadeButton color="pink" className="w-full" onClick={onShowCollection} aria-label={`Collection. ${collection.found} of ${collection.total} secrets found`}>
+                📼 Collection <span className="font-osd text-2xl leading-none normal-case tracking-normal">{collection.found}/{collection.total}</span>
+            </ArcadeButton>
+
             <div className="w-full grid grid-cols-2 gap-x-3 gap-y-4 pb-1">
                 <ArcadeButton color="cyan" size="sm" onClick={handleShowLeaderboard}>🏆 Top 50</ArcadeButton>
                 <ArcadeButton color="purple" size="sm" onClick={onShowHowToPlay}>📘 How to Play</ArcadeButton>

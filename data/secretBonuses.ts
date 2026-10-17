@@ -10,6 +10,8 @@
 //   points / shuffle   the reward: bonus points (added on top of the word's normal score),
 //                      free shuffles, or both
 //   message            what the player reads when it fires
+//   hint               optional clue shown in the Collection before it's found
+//                      (without one, the game writes a clue from the word length and source)
 //   media / source     the reveal art: 'vhs' (movies, TV), 'cartridge' (games), 'cd' (music) or
 //                      'arcade' (anything else, the default); source is printed on the label
 //

@@ -72,10 +72,19 @@ Every secret bonus is one entry in
 | `description` | yes | A short summary of the bonus. |
 | `points` / `shuffle` | at least one | Bonus points (added on top of the word's normal score), free shuffles, or both. |
 | `message` | yes | What the player reads when it fires. |
+| `hint` | no | The clue shown in the player's Collection before they find it, e.g. `"A Hylian hero."`. Without one, the game writes a clue from the word length and `source` ("A 4-letter word from The Legend of Zelda."), or the first letter if there's no source. Score bonuses never reveal their number. |
 | `media` | no | Reveal art: `"vhs"` (movies, TV), `"cartridge"` (games), `"cd"` (music), `"arcade"` (anything else; the default). |
 | `source` | with vhs / cartridge / cd | Printed on the label, e.g. `"Back to the Future"`. |
 
 Each bonus pays out once per run.
+
+## The player's Collection
+
+Every secret a player finds is saved on their device and shown on the **📼 Collection** screen
+(main menu). Found bonuses sit on shelves by `media` (Movies & TV, Video Games, Music, Wild Cards)
+and can be replayed; unfound ones show a `?` and their hint. The first time a bonus is found, its
+reveal says **NEW FOR YOUR COLLECTION**. Changing a bonus's `id` makes it a new bonus, so players
+who found the old one lose it from their shelf: keep ids stable once a bonus is live.
 
 ## Word-count milestones
 
