@@ -27,8 +27,9 @@ npm run dev        # http://localhost:3000 (also reachable from a phone on the s
 
 ### Play on your phone
 
-1. Run `npm run build && npm run preview -- --host`, or deploy `dist/` to any static host
-   (Netlify, GitHub Pages, Cloudflare Pages…). Installing as an app requires HTTPS, except on `localhost`.
+1. Run `npm run build && npm run preview -- --host`, or deploy `dist/` to any static host.
+   Netlify is set up in `netlify.toml` (every PR gets a deploy preview). Installing as an app
+   requires HTTPS, except on `localhost`.
 2. Open the URL on your phone.
 3. **iPhone:** Share → *Add to Home Screen*. **Android:** menu → *Install app*.
 
