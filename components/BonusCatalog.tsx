@@ -10,6 +10,7 @@ import { exampleScore, ScorePattern } from '../services/scoreBonus';
 import { dictionaryService } from '../services/dictionaryService';
 import { isBlocked } from '../services/curatedWords';
 import { labelize } from '../services/durationTags';
+import { hintFor } from '../services/collection';
 import type { EasterEgg, SecretBonus } from '../types';
 import BonusReveal from './BonusReveal';
 
@@ -125,6 +126,7 @@ const BonusCatalog: React.FC = () => {
         {status === 'unknown' && <p className="text-xs text-neon-red">Not in the dictionary. Add it to words/custom.txt.</p>}
         {own.map(p => <p key={p} className="text-xs text-neon-red">{p}</p>)}
         <p className="text-sm text-slate-300 leading-snug">{b.message}</p>
+        <p className="text-xs text-neon-cyan/80 leading-snug">CLUE: {hintFor(b)}</p>
       </Card>
     );
   };
