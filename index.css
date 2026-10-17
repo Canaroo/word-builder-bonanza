@@ -769,7 +769,23 @@ body {
   to { visibility: hidden; }
 }
 
+/* Floating +Ns / -Ns next to the clock when the time bank changes. */
+.time-gain {
+  transform: translateX(-50%);
+  animation: time-gain 1.4s ease-out forwards;
+  text-shadow: 0 0 6px currentColor;
+}
+@keyframes time-gain {
+  0% { opacity: 0; transform: translate(-50%, 6px); }
+  15% { opacity: 1; transform: translate(-50%, 0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -10px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .time-gain {
+    animation: time-gain-fade 1.4s linear forwards;
+  }
   .theme-arcade::before,
   .neon-flicker,
   .vhs-tracking::before,
@@ -778,4 +794,8 @@ body {
   .blink {
     animation: none !important;
   }
+}
+@keyframes time-gain-fade {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
 }

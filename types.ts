@@ -184,6 +184,10 @@ export interface GameState {
   drMarioCureStreak: number;
   powerStarResidualActive: boolean;
   warioTimeDebt: number;
+  /** Seconds the last valid word earns for the time bank, added when the next round starts. */
+  pendingTimeBonus?: number;
+  /** The time bank, set aside while a Golden Round runs on its own clock. */
+  bankedTime?: number | null;
   powerWordUsed?: boolean;
   perfectChainProgress: number;
   groundhogDayCharges: number;

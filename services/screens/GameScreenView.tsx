@@ -23,6 +23,7 @@ const BUILD_ROW_SIZE = 8;
 export interface GameScreenViewProps {
   gameState: GameState;
   time: number;
+  timeGain?: { seconds: number; key: number };
   hand: (Tile | null)[];
   buildRow: ({tile: Tile, originalIndex: number} | null)[];
   isPaused: boolean;
@@ -66,7 +67,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, timeGain, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handleShowMilestoneInfo, handleShowEventLog,
@@ -510,11 +511,18 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
         {/* Timer Display */}
         <div className="text-center">
-          {(gameState?.roundType ?? 'normal') === 'golden' ? (
-              <div className="font-osd text-6xl leading-none text-neon-yellow animate-golden-text">∞</div>
-            ) : (
-              <Timer time={time ?? 0} />
+          <div className="relative">
+            <Timer time={time ?? 0} golden={gameState?.roundType === 'golden'} />
+            {timeGain && timeGain.seconds !== 0 && (
+              <span
+                key={timeGain.key}
+                className={`time-gain absolute left-1/2 -bottom-5 font-osd text-2xl leading-none pointer-events-none ${timeGain.seconds > 0 ? 'text-neon-green' : 'text-neon-red'}`}
+                aria-live="polite"
+              >
+                {timeGain.seconds > 0 ? '+' : '−'}{Math.abs(timeGain.seconds)}s
+              </span>
             )}
+          </div>
         </div>
 
         {/* Strikes & Save Display */}

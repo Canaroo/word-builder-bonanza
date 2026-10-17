@@ -15,7 +15,8 @@ import { storage, STORAGE_KEYS } from '../storage';
 import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
-import { addWordMultiplier, lengthMultiplier, refillCount } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, timeForWord } from '../rules';
+import { GAMEPLAY } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 
 
@@ -40,7 +41,7 @@ const initialGameState: GameState = {
   longestWord: '',
   foundEasterEggs: [],
   gameConfig: {
-    timerDuration: 60,
+    timerDuration: GAMEPLAY.timeBank.start,
     minWordLength: 3,
   },
   strikes: 0,
@@ -93,6 +94,8 @@ const initialGameState: GameState = {
   consecutiveSuccesses: 0,
   longestStreak: 0,
   multiverseTimeBonus: 0,
+  pendingTimeBonus: 0,
+  bankedTime: null,
   duckHuntComboState: { streakLetters: null, streakCount: 0 },
   drMarioCureStreak: 0,
   powerStarResidualActive: false,
@@ -116,6 +119,8 @@ const initialGameState: GameState = {
 };
 
 type GameScreenState = {
+  /** Last change to the time bank, shown as a floating +Ns / -Ns next to the clock. */
+  timeGain?: { seconds: number; key: number };
   gameState: GameState;
   time: number;
   hand: (Tile | null)[];
@@ -202,6 +207,19 @@ type GameAction =
     | { type: 'SET_HIGHLIGHTED_TILES', payload: { first: string | null; rest: string[] } }
     | { type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: boolean };
 
+
+// Time bank (config/gameplay.ts): the clock never resets between words. A Golden Round runs on
+// its own short clock; the bank is set aside when it starts and given back when it ends.
+const settleTimeBank = (time: number, gs: GameState): { time: number; gs: GameState } => {
+    const pending = gs.pendingTimeBonus ?? 0;
+    if (gs.roundType === 'golden' && gs.bankedTime == null) {
+        return { time: GAMEPLAY.goldenRoundSeconds, gs: { ...gs, bankedTime: clampTime(time + pending), pendingTimeBonus: 0 } };
+    }
+    if (gs.roundType !== 'golden' && gs.bankedTime != null) {
+        return { time: clampTime(gs.bankedTime + pending), gs: { ...gs, bankedTime: null, pendingTimeBonus: 0 } };
+    }
+    return { time, gs };
+};
 
 function gameReducer(state: GameScreenState, action: GameAction): GameScreenState {
     let { gameState } = state;
@@ -296,11 +314,14 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
         }
 
         case 'HANDLE_SUBMIT_SUCCESS': {
-            const { gameState: newGameState, hand, tileBag, modalQueue } = action.payload;
+            const { hand, tileBag, modalQueue } = action.payload;
             const [firstModal = null, ...restOfQueue] = modalQueue || [];
+            // Entering or leaving a Golden Round swaps between the bank and the Golden clock.
+            const { time, gs: newGameState } = settleTimeBank(state.time, action.payload.gameState);
             
             let finalState = {
                 ...state,
+                time,
                 gameState: newGameState,
                 hand,
                 tileBag,
@@ -363,30 +384,8 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
           let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress };
           
           if ((actuallyGotAStrike || strikeBlockedByShield) && action.payload?.source === 'invalid_word') {
-              // Reset timer to original value for the round
-              let timerDuration = tempGameState.gameConfig.timerDuration;
-              if (tempGameState.glitchActive) {
-                  timerDuration += 5;
-                  tempGameState.glitchActive = false;
-              }
-              if (tempGameState.multiverseTimeBonus > 0) {
-                  timerDuration += tempGameState.multiverseTimeBonus;
-                  tempGameState.multiverseTimeBonus = 0;
-              }
-              if (tempGameState.activePowerPlays.timeTurner && tempGameState.activePowerPlays.timeTurner.rounds > 0) {
-                  timerDuration += 30;
-              }
-              if (tempGameState.activePowerPlays.saveByTheBell && tempGameState.activePowerPlays.saveByTheBell.rounds > 0) {
-                  timerDuration += 5;
-              }
-              if (tempGameState.warioTimeDebt > 0) {
-                  timerDuration -= tempGameState.warioTimeDebt;
-              }
-              if (tempGameState.activePowerPlays.sonicSpeed) {
-                  if (tempGameState.activePowerPlays.sonicSpeed.count === 2) timerDuration = 8;
-                  else if (tempGameState.activePowerPlays.sonicSpeed.count === 1) timerDuration = 7;
-              }
-              newTime = timerDuration;
+              // An invalid word costs time from the bank.
+              newTime = clampTime(state.time - GAMEPLAY.timeBank.invalidPenalty);
               
               // Add a new tile
               const hasSpace = newHand.some(t => t === null);
@@ -423,6 +422,7 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
           return { 
             ...state,
             time: newTime,
+            timeGain: newTime !== state.time ? { seconds: newTime - state.time, key: Date.now() } : state.timeGain,
             hand: newHand,
             tileBag: newTileBag,
             gameState: tempGameState,
@@ -466,7 +466,6 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                 hand: newHand,
                 tileBag: action.payload.tileBag,
                 buildRow: Array(BUILD_ROW_SIZE).fill(null),
-                time: state.gameState.gameConfig.timerDuration,
                 longWordBonusNotified: false,
                 highlightedTileIds: { first: null, rest: [] },
                 gameState: { 
@@ -585,50 +584,27 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
         }
 
         case 'RESET_ROUND': {
-            let timerDuration = state.gameState.gameConfig.timerDuration;
-            const newGameState = { ...state.gameState };
-            let { hand, tileBag } = action.payload;
-
-            // The hand from the payload is the final, processed hand.
-            // Do not clear temporary points here, as they may have been applied by an active effect.
-            
-            if(newGameState.glitchActive) {
-                timerDuration += 5;
-                newGameState.glitchActive = false;
-            }
-            
-            if(newGameState.multiverseTimeBonus > 0) {
-                timerDuration += newGameState.multiverseTimeBonus;
-                newGameState.multiverseTimeBonus = 0; // Consume the bonus
-            }
-
-            if(newGameState.warioTimeDebt > 0) {
-                timerDuration -= newGameState.warioTimeDebt;
-                newGameState.warioTimeDebt = 0;
-            }
-
-            // Apply active timer buffs but do not decrement their duration on shuffle
-            if (newGameState.activePowerPlays.timeTurner && newGameState.activePowerPlays.timeTurner.rounds > 0) {
-                timerDuration += 30;
-            }
-
-            if (newGameState.activePowerPlays.saveByTheBell && newGameState.activePowerPlays.saveByTheBell.rounds > 0) {
-                timerDuration += 5;
-            }
+            // A new hand without a word played (e.g. a lost Strike Challenge, Golden Round start/end).
+            // The time bank carries over; one-shot time bonuses wait for the next word.
+            const { hand, tileBag } = action.payload;
+            const { time, gs: newGameState } = settleTimeBank(state.time, state.gameState);
 
             return {
                 ...state,
                 hand,
                 tileBag,
                 buildRow: Array(BUILD_ROW_SIZE).fill(null),
-                time: timerDuration,
+                time,
                 gameState: { ...newGameState, wordsThisRound: 0 }
             };
         }
 
         case 'START_NEXT_ROUND': {
-            let timerDuration = state.gameState.gameConfig.timerDuration;
-            let newGameState = { ...state.gameState };
+            // Time bank: keep the clock and add what the last word earned, plus charm/PowerPlay bonuses below.
+            const settled = settleTimeBank(state.time, { ...state.gameState });
+            let newGameState = settled.gs;
+            let timerDuration = settled.time + (newGameState.pendingTimeBonus ?? 0);
+            newGameState.pendingTimeBonus = 0;
     
             // Clean up temporary effects from previous round
             let hand = [...state.hand].map(tile => {
@@ -755,8 +731,8 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
             }
     
             if (newGameState.activePowerPlays.sonicSpeed) {
-                if (newGameState.activePowerPlays.sonicSpeed.count === 2) timerDuration = 8;
-                else if (newGameState.activePowerPlays.sonicSpeed.count === 1) timerDuration = 7;
+                if (newGameState.activePowerPlays.sonicSpeed.count === 2) timerDuration = Math.min(timerDuration, 8);
+                else if (newGameState.activePowerPlays.sonicSpeed.count === 1) timerDuration = Math.min(timerDuration, 7);
             }
             
             const diceRollCharm = newGameState.activeCharms.find(c => c.id === 'diceRollProtocol');
@@ -794,7 +770,8 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                 tileBag,
                 modalContent: null,
                 isPaused: false,
-                time: timerDuration,
+                time: clampTime(timerDuration),
+                timeGain: { seconds: clampTime(timerDuration) - settled.time, key: Date.now() },
                 gameState: { ...newGameState, wordsThisRound: 0 }
             };
         }
@@ -1786,6 +1763,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 savedData.gameScreenState.loadingMessage = null;
                 savedData.gameScreenState.highlightedTileIds = { first: null, rest: [] }; // Reset this non-persistent state
                 savedData.gameScreenState.longWordBonusNotified = false; // Also reset this
+                savedData.gameScreenState.timeGain = undefined; // Don't replay the last +Ns flash
                 // Rehydrate sets
                 if(savedData.gameScreenState.gameState.duckHuntComboState.streakLetters) {
                     savedData.gameScreenState.gameState.duckHuntComboState.streakLetters = new Set(savedData.gameScreenState.gameState.duckHuntComboState.streakLetters);
@@ -1963,6 +1941,24 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     dispatch({ type: 'RESET_ROUND', payload: { hand: sanitizeHand(finalHand), tileBag: processedBag } });
   }, [showMessage, applyMutation]);
 
+  /** Ends a Golden Round without a scoring word (invalid word or its clock ran out). */
+  const endGoldenRound = useCallback((message: string) => {
+    soundService.playInvalidWord();
+    showMessage(message, 3000);
+
+    const updatedGameState = {
+        ...gameState,
+        roundType: 'normal' as const,
+        goldenRoundThreshold: gameState.goldenRoundThreshold + 5,
+        goldenTileId: null,
+        consecutiveValidWords: 0,
+    };
+
+    // Dispatch the state update first so resetRound deals a normal hand and restores the time bank.
+    dispatch({ type: 'UPDATE_GAME_STATE', payload: updatedGameState });
+    resetRound(updatedGameState, hand, buildRow, tileBag);
+  }, [gameState, hand, buildRow, tileBag, resetRound, showMessage]);
+
   const maxStrikes = useMemo(() => {
     const strikeBankUses = gameState?.charmUses?.['strikeBank'] || 0;
     if (strikeBankUses >= 2) return 5;
@@ -2078,7 +2074,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   
   useEffect(() => {
       // Apply guards for pause, load, a backgrounded app, or special rounds/power-ups that stop time.
-      if (!isVisible || isPaused || isLoading || gameState?.activePowerPlays?.leafOnTheWind || gameState?.roundType === 'golden') return;
+      if (!isVisible || isPaused || isLoading || gameState?.activePowerPlays?.leafOnTheWind) return;
 
       // First, check for game-ending strike condition.
       if ((gameState?.strikes ?? 0) >= maxStrikes) {
@@ -2089,6 +2085,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       // The rest of the timer logic runs only if time is not paused.
       if ((time ?? 0) <= 0) {
+          // A Golden Round running out of time just ends the Golden Round; the bank comes back.
+          if (gameState?.roundType === 'golden') {
+              endGoldenRound("Time's up! Golden Round over.");
+              return;
+          }
           
           // Deep Freeze Check FIRST
           const deepFreezeCharm = (gameState?.activeCharms ?? []).find(c => c.id === 'deepFreeze');
@@ -2141,7 +2142,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }, 1000);
 
       return () => clearInterval(interval);
-  }, [gameState, time, onGameOver, isPaused, isLoading, isVisible, showMessage, maxStrikes]);
+  }, [gameState, time, onGameOver, isPaused, isLoading, isVisible, showMessage, maxStrikes, endGoldenRound]);
   
   useEffect(() => {
     if (gameState?.lastPowerPlayResult) {
@@ -2258,6 +2259,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             newState.goldenRoundThreshold += 5;
             newState.goldenTileId = null;
             newState.consecutiveValidWords = 0; // Reset streak after successful Golden Round
+            newState.pendingTimeBonus = timeForWord(word.length); // Added back onto the time bank
 
             showMessage(`Golden Word: ${word.toUpperCase()}! +${turnScore}. Hand reshuffled!`, 3000);
             
@@ -2284,6 +2286,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         }
 
       // --- B: NORMAL ROUND SUBMISSION ---
+      // The word's time is added to the bank when the next round starts.
+      newState.pendingTimeBonus = timeForWord(word.length);
       
       const wordBasedEgg = EASTER_EGGS.find(egg => 
           WORD_OVERRIDE_EGG_IDS.has(egg.id) && 
@@ -3059,7 +3063,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           modalQueue.push({
               type: 'info',
               title: '🌟 GOLDEN ROUND! 🌟',
-              content: 'Your streak has unlocked a Golden Round!\n\n- No Timer\n- No Strikes\n- All tiles are worth 2x points.\n- Use the special Golden Tile for a 6x WORD SCORE multiplier!'
+              content: `Your streak has unlocked a Golden Round!\n\n- ${GAMEPLAY.goldenRoundSeconds}-second clock (your time bank waits)\n- No Strikes\n- All tiles are worth 2x points.\n- Use the special Golden Tile for a 6x WORD SCORE multiplier!`
           });
           
           newState.consecutiveValidWords = 0;
@@ -3221,23 +3225,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
     } else {
         if (gameState.roundType === 'golden') {
-            soundService.playInvalidWord();
-            showMessage('Not a valid word. Golden Round over.', 3000);
-        
-            const updatedGameState = {
-                ...gameState,
-                roundType: 'normal',
-                goldenRoundThreshold: gameState.goldenRoundThreshold + 5,
-                goldenTileId: null,
-                consecutiveValidWords: 0, // Reset streak on invalid submission
-            };
-        
-            // Dispatch the state update first so resetRound has the correct context
-            dispatch({ type: 'UPDATE_GAME_STATE', payload: updatedGameState });
-        
-            // This function handles dealing a new hand and resetting the timer.
-            resetRound(updatedGameState, hand, [], tileBag);
-            
+            endGoldenRound('Not a valid word. Golden Round over.');
             dispatch({ type: 'SET_IS_LOADING', payload: false });
             return;
         }
@@ -3728,6 +3716,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     const viewProps: GameScreenViewProps = {
         gameState,
         time,
+        timeGain: state.timeGain,
         hand,
         buildRow,
         isPaused,
