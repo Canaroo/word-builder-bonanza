@@ -28,13 +28,6 @@ describe('generated word list', () => {
         for (const w of readWordFile('blocked.txt')) expect(words).not.toContain(w);
     });
 
-    test('includes every word that triggers an easter egg bonus', () => {
-        const source = fs.readFileSync(path.join(root, 'data/easterEggs.ts'), 'utf8');
-        const triggers = [...source.matchAll(/word\.toUpperCase\(\) === '([A-Z]+)'/g)].map(m => m[1].toLowerCase());
-        expect(triggers.length).toBeGreaterThan(30);
-        expect(triggers.filter(w => !words.has(w))).toEqual([]);
-    });
-
     test('the common list is an everyday subset of the full list', () => {
         const common = fs.readFileSync(path.join(root, 'public/words/common.txt'), 'utf8').split('\n').filter(Boolean);
         expect(common.length).toBeGreaterThan(20_000);

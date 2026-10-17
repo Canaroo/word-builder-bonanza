@@ -848,3 +848,7 @@ body {
   0%, 70% { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* Horizontal tab strips that scroll without a visible bar. */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

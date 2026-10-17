@@ -152,6 +152,15 @@ async function isValidWord(word: string): Promise<boolean> {
     return (await lookupWord(word)).isValid;
 }
 
+/**
+ * Checks the word list only (no definition lookup). Returns undefined if the list couldn't load.
+ */
+async function isInWordList(word: string): Promise<boolean | undefined> {
+    const wordLower = word.trim().toLowerCase();
+    if (!wordLower || isBlocked(wordLower)) return false;
+    return ask<boolean>({ type: 'has', word: wordLower });
+}
+
 async function getDefinition(word: string): Promise<string | null> {
     return lookupDefinition(word.trim().toLowerCase());
 }
@@ -187,6 +196,7 @@ function getDictionaryWords(): IterableIterator<string> {
 export const dictionaryService = {
     preload,
     isValidWord,
+    isInWordList,
     getDefinition,
     lookupWord,
     findPlayableWord,

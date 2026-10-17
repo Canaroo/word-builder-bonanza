@@ -71,11 +71,30 @@ export interface EasterEgg {
   trigger: (word: string, score: number, gameState: GameState) => boolean;
   /** For score-number bonuses: the pattern the score must match (also used to explain the bonus). */
   scorePattern?: import('./services/scoreBonus').ScorePattern;
+  /** For word bonuses: the trigger word, uppercase. */
+  word?: string;
+  /** Word bonuses only: the word scores exactly `reward.points` instead of its normal score. */
+  replacesWordScore?: boolean;
   reward: {
     points?: number;
     shuffle?: number;
     message: string;
   };
+}
+
+/** One entry in data/secretBonuses.ts. See the comment at the top of that file. */
+export interface SecretBonus {
+  id: string;
+  word?: string;
+  score?: import('./services/scoreBonus').ScorePattern;
+  name: string;
+  description: string;
+  points?: number;
+  shuffle?: number;
+  message: string;
+  replacesWordScore?: boolean;
+  media?: 'vhs' | 'cartridge' | 'cd' | 'arcade';
+  source?: string;
 }
 
 export interface WordBonus {

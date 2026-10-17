@@ -1,15 +1,21 @@
 import { describe, test, expect } from 'vitest';
-import { BONUS_MEDIA, getBonusMedia } from '../bonusMedia';
+import { getBonusMedia } from '../bonusMedia';
 import { EASTER_EGGS } from '../easterEggs';
 
 describe('bonus media', () => {
-    test('every mapped bonus is a real easter egg', () => {
-        const ids = new Set(EASTER_EGGS.map(e => e.id));
-        expect(Object.keys(BONUS_MEDIA).filter(id => !ids.has(id))).toEqual([]);
+    test('media comes from data/secretBonuses.ts', () => {
+        expect(getBonusMedia('heroOfHyrule')).toEqual({ media: 'cartridge', source: 'The Legend of Zelda' });
     });
 
-    test('unmapped bonuses fall back to the arcade marquee', () => {
+    test('bonuses without media fall back to the arcade marquee', () => {
         expect(getBonusMedia('noSuchBonus')).toEqual({ media: 'arcade' });
-        expect(getBonusMedia('heroOfHyrule')).toEqual({ media: 'cartridge', source: 'The Legend of Zelda' });
+        expect(getBonusMedia('theAnswer')).toEqual({ media: 'arcade' });
+    });
+
+    test('word bonuses trigger on their word, any case', () => {
+        const link = EASTER_EGGS.find(e => e.id === 'heroOfHyrule')!;
+        expect(link.word).toBe('LINK');
+        expect(link.trigger('link', 0, {} as never)).toBe(true);
+        expect(link.trigger('links', 0, {} as never)).toBe(false);
     });
 });

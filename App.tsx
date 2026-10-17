@@ -9,9 +9,10 @@ const GameOverScreen = lazy(() => import('./services/screens/GameOverScreen'));
 const HowToPlayScreen = lazy(() => import('./services/screens/HowToPlayScreen'));
 const VibezScreen = lazy(() => import('./services/screens/VibezScreen'));
 
-// Dev-only bonus reveal preview (?gallery); stripped from production builds.
-const BonusGallery = import.meta.env.DEV ? lazy(() => import('./components/dev/BonusGallery')) : null;
-const showGallery = import.meta.env.DEV && new URLSearchParams(location.search).has('gallery');
+// Bonus Vault: every bonus with a validity check and reveal previews. Unlinked; open /?bonuses.
+const BonusCatalog = lazy(() => import('./components/BonusCatalog'));
+const urlParams = new URLSearchParams(location.search);
+const showBonusCatalog = urlParams.has('bonuses') || urlParams.has('gallery');
 
 const ScreenFallback = () => (
   <div className="flex-grow flex items-center justify-center">
@@ -344,7 +345,7 @@ const App: React.FC = () => {
             <div className="corner-bolt bottom-right"></div>
           </>
         )}
-        <Suspense fallback={<ScreenFallback />}>{showGallery && BonusGallery ? <BonusGallery /> : renderScreen()}</Suspense>
+        <Suspense fallback={<ScreenFallback />}>{showBonusCatalog ? <BonusCatalog /> : renderScreen()}</Suspense>
         {selectedPack.id === 'default' && <div className="crt-overlay" aria-hidden="true" />}
         {/* Unmissable gold frame while a Golden Round runs (any theme). */}
         {isGoldenRound && screen === Screen.Game && <div className="golden-frame" aria-hidden="true" />}

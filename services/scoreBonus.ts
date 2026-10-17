@@ -36,6 +36,6 @@ export const explainScoreBonus = (score: number, { kind, digits }: ScorePattern)
     return `Your score hit ${shown}, which contains ${digits}.`;
 };
 
-/** A sample score for previews (the dev gallery). */
+/** A sample score for previews (the Bonus Vault). */
 export const exampleScore = ({ kind, digits }: ScorePattern): number =>
     Number(kind === 'equals' ? digits : kind === 'endsWith' ? `1${digits}` : `7${digits}`);

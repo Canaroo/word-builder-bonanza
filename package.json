@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "words": "node scripts/build-wordlist.mjs",
+    "check:bonuses": "vitest run data/__tests__/bonusData.test.ts",
     "predev": "npm run words",
     "dev": "vite",
-    "prebuild": "npm run words",
+    "prebuild": "npm run words && npm run check:bonuses",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",

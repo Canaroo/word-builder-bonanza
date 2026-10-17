@@ -71,15 +71,15 @@ game and its instructions together. `docs/GAMEPLAY_REVIEW.md` explains the reaso
 
 ## Pop-culture bonuses
 
-Word bonuses are defined in `data/easterEggs.ts`. When one fires it gets a full-screen reveal styled
-by its source, set in `data/bonusMedia.ts`: `vhs` (movies/TV), `cartridge` (games), `cd` (music) or
-`arcade` (everything else, the default). To add a bonus:
+All secret bonuses (words and score numbers) live in one list, `data/secretBonuses.ts`, including
+the reveal art for each one (`vhs`, `cartridge`, `cd` or `arcade`). Word-count milestones are in
+`data/wordBonuses.ts`. See [docs/BONUSES.md](docs/BONUSES.md) for how to add or change them.
 
-1. Add the entry to `data/easterEggs.ts` (and its id to `WORD_OVERRIDE_EGG_IDS` in `GameScreen.tsx`
-   if the word should replace the normal word score).
-2. Add `{ media, source }` for it in `data/bonusMedia.ts`.
-3. Make sure the word is playable (`words/custom.txt` if needed) and run `npm test`.
-4. Preview it with `npm run dev` at `/?gallery&egg=<id>`.
+- **Bonus Vault:** open `/?bonuses` on any build (e.g. the live site) to see every bonus, charm and
+  PowerPlay, check that each bonus word is playable, and preview its reveal. It isn't linked
+  from the menus.
+- **Build check:** `npm run build` runs `npm run check:bonuses` first and stops if a bonus word is
+  blocked, missing from the dictionary or used twice, so a bad edit never goes live.
 
 ## Leaderboard
 
