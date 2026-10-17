@@ -1,5 +1,5 @@
 import { Tile, Charm, GameState, WordData, ScoreCalculationResult, ScoreBonusInfo, PowerPlay } from '../types';
-import { TILE_DISTRIBUTION, VOWELS, RACK_SIZE, BALANCE_REPLACE_COUNT, COMBO_TILES, COMBO_TILE_CHANCE, OFFER_RECENCY_WINDOW, OFFER_EXPLORATION_BOOST, OFFER_REPEAT_PENALTY, OFFER_MAX_RECENCY_PENALTY } from '../constants';
+import { TILE_DISTRIBUTION, VOWELS, RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, COMBO_TILES, COMBO_TILE_CHANCE, OFFER_RECENCY_WINDOW, OFFER_EXPLORATION_BOOST, OFFER_REPEAT_PENALTY, OFFER_MAX_RECENCY_PENALTY } from '../constants';
 import { dictionaryService } from './dictionaryService';
 import { canBeMadeFromLetters } from './rackMatch';
 import { combineMultipliers, lengthMultiplier } from './rules';
@@ -108,7 +108,7 @@ export const dealNewHand = (tileBag: string[], tilesToReturn: Tile[] = [], isFor
   // Discard old tiles by not adding them back to the bag.
   const currentBag = shuffleArray([...tileBag]);
 
-  const { newTiles, remainingBag } = drawTiles(RACK_SIZE, currentBag, isForGoldenRound);
+  const { newTiles, remainingBag } = drawTiles(HAND_SIZE, currentBag, isForGoldenRound);
 
   return { hand: newTiles, tileBag: remainingBag };
 };

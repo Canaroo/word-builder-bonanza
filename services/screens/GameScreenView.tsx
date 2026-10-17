@@ -8,7 +8,7 @@ import PowerSurgeMeter from '../../components/PowerSurgeMeter';
 import EventLogDisplay from '../../components/EventLogDisplay';
 import { MILESTONES_LIST } from '../../data/milestones';
 import DurationBadge from '../../ui/DurationBadge';
-import { RACK_SIZE } from '../../constants';
+import { RACK_SIZE, HAND_SIZE } from '../../constants';
 
 export type ModalContent = {
   type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log';
@@ -688,13 +688,15 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           </div>
         </div>
 
-        {/* --- HAND --- */}
-        <div className="space-y-2 w-full">
-          {[0, 5].map(offset => (
-            <div className="grid grid-cols-5 gap-2" key={offset}>
-              {(hand ?? Array(RACK_SIZE).fill(null)).slice(offset, offset + 5).map((tile, index) => {
-                const originalIndex = index + offset;
-                const item = hand?.[originalIndex];
+        {/* --- HAND: the standard hand in a 4x2 grid; widens to all rack slots when a power-up overfills it --- */}
+        {(() => {
+          const rack = hand ?? Array(RACK_SIZE).fill(null);
+          const overfilled = rack.slice(HAND_SIZE).some(t => t !== null);
+          const slots = overfilled ? rack : rack.slice(0, HAND_SIZE);
+          const columns = overfilled ? 5 : 4;
+          return (
+            <div className="grid gap-2 w-full" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+              {slots.map((item, originalIndex) => {
                 const isHintFirst = item?.id === highlightedTileIds?.first;
                 const isHintRest = (highlightedTileIds?.rest ?? []).includes(item?.id || '');
                 return (
@@ -704,8 +706,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 );
               })}
             </div>
-          ))}
-        </div>
+          );
+        })()}
         
         {/* --- ACTION BUTTONS --- */}
         <div className="grid grid-cols-2 gap-x-2 gap-y-3 pb-1">

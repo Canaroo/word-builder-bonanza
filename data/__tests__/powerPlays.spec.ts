@@ -2,7 +2,7 @@
 import { describe, it, test, expect, beforeEach, vi, onTestFinished } from 'vitest';
 import { POWER_PLAYS_LIST } from '../powerPlays';
 import { GameState, Tile, WordLogEntry, EventLogEntry, PowerPlay } from '../../types';
-import { RACK_SIZE, TILE_DISTRIBUTION } from '../../constants';
+import { HAND_SIZE, TILE_DISTRIBUTION } from '../../constants';
 import { calculateScore, dealNewHand } from '../../services/gameUtils';
 
 // Mock initial state for testing
@@ -96,8 +96,8 @@ describe('Nuclear Option PowerPlay', () => {
         gameState.log.push(logEntry);
 
         // Assert rack and bag counts are correct
-        expect(newHand.length).toBe(RACK_SIZE);
-        expect(remainingBag.length).toBe(initialBag.length - RACK_SIZE);
+        expect(newHand.length).toBe(HAND_SIZE);
+        expect(remainingBag.length).toBe(initialBag.length - HAND_SIZE);
         expect(gameState.activePowerPlays.nuclearOption).toBe(true);
 
         // 3. Submit first word and assert x4 multiplier

@@ -1,7 +1,7 @@
 // Game logic and state. Layout lives in GameScreenView.tsx.
 import React, { useReducer, useEffect, useCallback, useMemo, useState } from 'react';
 import { GameState, Tile, WordData, Milestone, Charm, PowerPlay, ScoreCalculationResult, ScoreBonusInfo, LogEntry, WordLogEntry, EventLogEntry, GameOverLogEntry } from '../../types';
-import { RACK_SIZE, BALANCE_REPLACE_COUNT, VOWELS, REPLENISH_DIVISOR, INITIAL_SHUFFLES, MAX_STRIKES_INITIAL, SUPER_HAND_BONUS, TILE_DISTRIBUTION, INITIAL_CHALLENGES, BASE_RACK_SIZE, COMBO_TILES } from '../../constants';
+import { RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, VOWELS, INITIAL_SHUFFLES, MAX_STRIKES_INITIAL, SUPER_HAND_BONUS, TILE_DISTRIBUTION, INITIAL_CHALLENGES, COMBO_TILES } from '../../constants';
 import * as gameUtils from '../gameUtils';
 import { MILESTONES_LIST } from '../../data/milestones';
 import { CHARMS_LIST } from '../../data/charms';
@@ -15,7 +15,7 @@ import { storage, STORAGE_KEYS } from '../storage';
 import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
-import { addWordMultiplier, lengthMultiplier } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount } from '../rules';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 
 
@@ -1036,7 +1036,7 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                 const lettersToReturn = tilesToReturn.map(t => t.letter);
                 const newBagForShuffle = gameUtils.shuffleArray([...state.tileBag, ...lettersToReturn]);
                 
-                const { newTiles, remainingBag } = gameUtils.drawTiles(RACK_SIZE, newBagForShuffle, false);
+                const { newTiles, remainingBag } = gameUtils.drawTiles(HAND_SIZE, newBagForShuffle, false);
                 
                 const paddedHand = Array(RACK_SIZE).fill(null);
                 newTiles.forEach((tile, i) => { if (i < RACK_SIZE) paddedHand[i] = tile; });
@@ -1072,7 +1072,7 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                 const lettersToReturn = tilesToReturn.map(t => t.letter);
                 const newBagForShuffle = gameUtils.shuffleArray([...state.tileBag, ...lettersToReturn]);
                 
-                const { newTiles, remainingBag } = gameUtils.drawTiles(RACK_SIZE, newBagForShuffle, false);
+                const { newTiles, remainingBag } = gameUtils.drawTiles(HAND_SIZE, newBagForShuffle, false);
                 
                 const paddedHand = Array(RACK_SIZE).fill(null);
                 newTiles.forEach((tile, i) => { if (i < RACK_SIZE) paddedHand[i] = tile; });
@@ -1200,7 +1200,7 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                 const lettersToReturn = tilesToReturn.map(t => t.letter);
                 const newBagForShuffle = gameUtils.shuffleArray([...state.tileBag, ...lettersToReturn]);
                 
-                const { newTiles, remainingBag } = gameUtils.drawTiles(RACK_SIZE, newBagForShuffle, false);
+                const { newTiles, remainingBag } = gameUtils.drawTiles(HAND_SIZE, newBagForShuffle, false);
                 
                 const paddedHand = Array(RACK_SIZE).fill(null);
                 newTiles.forEach((tile, i) => { if (i < RACK_SIZE) paddedHand[i] = tile; });
@@ -1319,7 +1319,7 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
                     multiplier: 2
                 };
                 
-                const { newTiles, remainingBag } = gameUtils.drawTiles(RACK_SIZE - 2, newBagForShuffle, false);
+                const { newTiles, remainingBag } = gameUtils.drawTiles(HAND_SIZE - 2, newBagForShuffle, false);
                 
                 const freshHandTiles = gameUtils.shuffleArray([multiplierTile1, multiplierTile2, ...newTiles]);
                 const paddedHand = Array(RACK_SIZE).fill(null);
@@ -2981,10 +2981,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           newBag = deal.tileBag;
       } else {
           const handTilesRemainingCount = (hand ?? []).filter(t => t !== null).length;
-          const tilesUsedCount = submittedTiles.length;
-          const refillStrategyA = Math.ceil(tilesUsedCount / REPLENISH_DIVISOR);
-          const refillStrategyB = Math.max(0, BASE_RACK_SIZE - handTilesRemainingCount);
-          const replenishCount = Math.max(refillStrategyA, refillStrategyB);
+          // Top the hand back up to the standard hand size (config/gameplay.ts).
+          const replenishCount = refillCount(handTilesRemainingCount);
           
           const drawResult = gameUtils.drawTiles(replenishCount, tileBag, willTriggerGoldenRound);
           let finalDrawnTiles = applyMutation(drawResult.newTiles, willTriggerGoldenRound);
@@ -3142,8 +3140,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         
         const submittedTiles = (buildRow ?? []).filter(i => i).map(item => item!.tile);
         const handTilesRemainingCount = (hand ?? []).filter(t => t !== null).length;
-        const tilesUsedCount = submittedTiles.length;
-        const replenishCount = Math.max(Math.ceil(tilesUsedCount / REPLENISH_DIVISOR), Math.max(0, BASE_RACK_SIZE - handTilesRemainingCount));
+        const replenishCount = refillCount(handTilesRemainingCount);
         
         const drawResult = gameUtils.drawTiles(replenishCount, tileBag, newState.roundType === 'golden');
         let finalDrawnTiles = applyMutation(drawResult.newTiles, newState.roundType === 'golden');

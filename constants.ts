@@ -1,13 +1,14 @@
 
 export const INITIAL_TIME = 60;
 export const MAX_STRIKES_INITIAL = 3;
-export const RACK_SIZE = 10;
-export const BASE_RACK_SIZE = 5; // Target hand size for refills
+import { GAMEPLAY } from './config/gameplay';
+
+export const RACK_SIZE = 10; // Rack slots; power-ups can fill all of them
+export const HAND_SIZE = GAMEPLAY.handSize; // Tiles dealt, and refilled to after every word
 export const INVALID_WORD_PENALTY_SECONDS = 5; // Kept for reference, though strikes are now the main penalty
 export const SUPER_HAND_BONUS = 100;
 
 // New Tile Mechanics Constants
-export const REPLENISH_DIVISOR = 2;
 export const BALANCE_REPLACE_COUNT = 3;
 export const VOWELS = new Set(['A', 'E', 'I', 'O', 'U']);
 
