@@ -139,10 +139,15 @@ export interface GameState {
   };
   
   powerPlayProgress: {
+    /** Legacy score-digit streak; no longer drives offers. */
     targetDigit: number | null;
     streak: number;
     turnsSinceLastOffer: number;
+    /** Letters played toward the PowerPlay meter (config/gameplay.ts). */
+    letters?: number;
   };
+  /** Valid words in a row toward winning back a strike. */
+  strikeRecoveryStreak?: number;
 
   powerSurgeProgress: number;
 

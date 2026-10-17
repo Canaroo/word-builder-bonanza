@@ -15,7 +15,7 @@ import { storage, STORAGE_KEYS } from '../storage';
 import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, timeForWord } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, timeForWord, advancePowerPlayMeter, advanceStrikeRecovery } from '../rules';
 import { GAMEPLAY } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 
@@ -58,7 +58,9 @@ const initialGameState: GameState = {
       targetDigit: null,
       streak: 0,
       turnsSinceLastOffer: 4, // Allow an early offer
+      letters: 0,
   },
+  strikeRecoveryStreak: 0,
 
   powerSurgeProgress: 0,
 
@@ -375,20 +377,21 @@ function gameReducer(state: GameScreenState, action: GameAction): GameScreenStat
           consecutiveSuccesses = 0; // Reset streaks on any strike
           consecutiveValidWords = 0; // Reset Golden Round streak
           perfectChainProgress = 0;
+          const strikeRecoveryStreak = 0; // A strike (even a shielded one) restarts strike recovery
           duckHuntComboState = { streakLetters: null, streakCount: 0 }; // Reset Duck Hunt Combo streak
 
           let newTime = state.time;
           let newHand = [...state.hand];
           let newTileBag = state.tileBag;
           
-          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress };
+          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, strikeRecoveryStreak };
           
           if ((actuallyGotAStrike || strikeBlockedByShield) && action.payload?.source === 'invalid_word') {
               // An invalid word costs time from the bank.
               newTime = clampTime(state.time - GAMEPLAY.timeBank.invalidPenalty);
               
-              // Add a new tile
-              const hasSpace = newHand.some(t => t === null);
+              // Add a new tile while the hand is below the standard size; otherwise swap one.
+              const hasSpace = newHand.filter(t => t !== null).length < HAND_SIZE;
               if (hasSpace) {
                   const { newTiles, remainingBag } = gameUtils.drawTiles(1, newTileBag);
                   if (newTiles.length > 0) {
@@ -2288,6 +2291,20 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // --- B: NORMAL ROUND SUBMISSION ---
       // The word's time is added to the bank when the next round starts.
       newState.pendingTimeBonus = timeForWord(word.length);
+
+      // Strike recovery: a long enough run of valid words wins back a strike.
+      const recovery = advanceStrikeRecovery(newState.strikeRecoveryStreak ?? 0, newState.strikes);
+      newState.strikeRecoveryStreak = recovery.streak;
+      if (recovery.recovered) {
+          newState.strikes -= 1;
+          showToast(`🩹 ${GAMEPLAY.strikeRecoveryStreak} in a row! Strike recovered.`);
+          soundService.playPowerUp();
+          newState.log = [...newState.log, {
+              type: 'event', id: `strike-recovery-${now}`, name: 'Comeback Kid', icon: '🩹',
+              description: `${GAMEPLAY.strikeRecoveryStreak} valid words in a row won back a strike.`,
+              scoreChange: 0, cumulativeScore: newState.score,
+          }];
+      }
       
       const wordBasedEgg = EASTER_EGGS.find(egg => 
           WORD_OVERRIDE_EGG_IDS.has(egg.id) && 
@@ -2842,25 +2859,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       let newProgress = { ...newState.powerPlayProgress };
       newProgress.turnsSinceLastOffer++;
 
-      // Update score streak progress
-      if (turnScore > 0) {
-          const tensDigit = Math.floor(turnScore / 10) % 10;
-          if (newProgress.targetDigit === null || newProgress.targetDigit === tensDigit) {
-              newProgress.streak++;
-              newProgress.targetDigit = tensDigit;
-          } else {
-              newProgress.streak = 1;
-              newProgress.targetDigit = tensDigit;
-          }
-      } else {
-          newProgress.streak = 0;
-          newProgress.targetDigit = null;
-      }
-      
-      const triggeredByStreak = newProgress.streak >= 3;
-      const triggeredByWordCount = totalWordsSubmitted > 0 && totalWordsSubmitted % 35 === 0;
+      // The PowerPlay meter fills from letters played (config/gameplay.ts).
+      const meter = advancePowerPlayMeter(newProgress.letters ?? 0, word.length);
+      newProgress.letters = meter.letters;
 
-      if (triggeredByStreak || triggeredByWordCount) {
+      const triggeredByMeter = meter.full;
+      const triggeredByWordCount = totalWordsSubmitted > 0 && totalWordsSubmitted % GAMEPLAY.powerPlayEveryWords === 0;
+
+      if (triggeredByMeter || triggeredByWordCount) {
           const canOffer = newState.powerPlayOffer.length === 0 &&
                            newState.availablePowerPlays.length === 0 &&
                            newProgress.turnsSinceLastOffer >= 4;
@@ -2887,18 +2893,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                       newState.sessionOfferCounts[id] = (newState.sessionOfferCounts[id] || 0) + 1;
                   });
                   
-                  // Reset streak if it was the trigger
-                  if (triggeredByStreak) {
-                    newProgress.streak = 0;
-                    newProgress.targetDigit = null;
-                  }
+                  // An offer empties the meter, whichever rule triggered it.
+                  newProgress.letters = 0;
                   
                   // Reset the offer cooldown timer
                   newProgress.turnsSinceLastOffer = 0;
 
                   soundService.playModalOpen();
-                  const offerReason = triggeredByStreak 
-                    ? "Your score streak earned you a power-up!"
+                  const offerReason = triggeredByMeter
+                    ? `You played ${GAMEPLAY.powerPlayMeterLetters} letters and filled the PowerPlay meter!`
                     : `Milestone! You've submitted ${totalWordsSubmitted} words and earned a power-up!`;
                   modalQueue.push({ type: 'powerplay-selection', title: 'PowerPlay Earned!', content: offerReason, data: offeredPowerPlays });
               }

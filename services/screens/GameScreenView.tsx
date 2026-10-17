@@ -9,6 +9,7 @@ import EventLogDisplay from '../../components/EventLogDisplay';
 import { MILESTONES_LIST } from '../../data/milestones';
 import DurationBadge from '../../ui/DurationBadge';
 import { RACK_SIZE, HAND_SIZE } from '../../constants';
+import { GAMEPLAY } from '../../config/gameplay';
 
 export type ModalContent = {
   type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log';
@@ -534,6 +535,12 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 <div key={i} className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full transition-colors ${(i < (gameState?.strikes ?? 0)) ? 'bg-neon-red shadow-[0_0_8px_#ff4757]' : 'bg-crt-600'}`}></div>
               ))}
             </div>
+            {(gameState?.strikes ?? 0) > 0 && (
+              // Words left in the current streak before a strike is won back.
+              <div className="osd-text text-sm leading-none text-neon-green/90 text-right mt-1" title="Valid words in a row win back a strike">
+                🩹 {GAMEPLAY.strikeRecoveryStreak - (gameState?.strikeRecoveryStreak ?? 0)} TO HEAL
+              </div>
+            )}
           </div>
           <button onClick={handleSaveClick} className="text-2xl text-slate-400 hover:text-white transition-transform hover:scale-110">
             💾
@@ -577,17 +584,20 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           <h3 className="osd-text text-base leading-none text-neon-cyan/80 uppercase tracking-widest mb-1">
             PowerPlay
           </h3>
-          <div className="bg-crt-950/60 ring-1 ring-white/5 p-1 rounded-lg h-10 flex items-center justify-center">
-            <div className="flex justify-center items-center space-x-2">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className={`relative w-6 h-6 rounded-full transition-all duration-300 flex items-center justify-center ${i < (gameState?.powerPlayProgress?.streak ?? 0) ? 'bg-purple-500 shadow-lg shadow-purple-500/50' : 'bg-slate-700'}`}>
-                  {gameState?.powerPlayProgress?.targetDigit !== null && i === ((gameState?.powerPlayProgress?.streak ?? 0) - 1) && (
-                       <span className="font-digital text-sm text-white font-bold">{gameState.powerPlayProgress.targetDigit}</span>
-                  )}
+          {(() => {
+            // PowerPlay meter: fills from letters played (config/gameplay.ts).
+            const letters = gameState?.powerPlayProgress?.letters ?? 0;
+            const full = letters >= GAMEPLAY.powerPlayMeterLetters;
+            const pct = Math.min(100, (letters / GAMEPLAY.powerPlayMeterLetters) * 100);
+            return (
+              <div className="bg-crt-950/60 ring-1 ring-white/5 px-2 rounded-lg h-10 flex items-center gap-2" aria-label={`PowerPlay meter ${letters} of ${GAMEPLAY.powerPlayMeterLetters} letters`}>
+                <div className="flex-1 h-2.5 rounded-full bg-crt-600 overflow-hidden">
+                  <div className={`h-full rounded-full transition-all duration-500 ${full ? 'bg-neon-green shadow-glow-cyan animate-pulse' : 'bg-neon-purple'}`} style={{ width: `${pct}%` }} />
                 </div>
-              ))}
-            </div>
-          </div>
+                <span className="font-osd text-lg leading-none text-slate-200 tabular-nums">{letters}/{GAMEPLAY.powerPlayMeterLetters}</span>
+              </div>
+            );
+          })()}
         </div>
 
         {(gameState?.perfectChainProgress ?? 0) > 0 && (
