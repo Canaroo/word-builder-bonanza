@@ -7,10 +7,9 @@
 //                      (score: { kind: 'contains' | 'endsWith' | 'equals', digits: '42' })
 //   name               title on the reveal; start it with an emoji
 //   description        one line for the bonus list
-//   points / shuffle   the reward: bonus points, free shuffles, or both
+//   points / shuffle   the reward: bonus points (added on top of the word's normal score),
+//                      free shuffles, or both
 //   message            what the player reads when it fires
-//   replacesWordScore  word bonuses only: true = the word scores exactly `points` (multipliers
-//                      still apply); left out = `points` are added on top of the word's normal score
 //   media / source     the reveal art: 'vhs' (movies, TV), 'cartridge' (games), 'cd' (music) or
 //                      'arcade' (anything else, the default); source is printed on the label
 //
@@ -78,7 +77,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "Submit the word “SEX”",
     points: 169,
     message: "You typed ‘sex.’ Carrie would’ve written a column about it.",
-    replacesWordScore: true,
     media: "vhs",
     source: "Sex and the City",
   },
@@ -89,7 +87,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "Submit the word “POOP”",
     points: 133,
     message: "Poop. Classic. Never gets old.",
-    replacesWordScore: true,
   },
   {
     id: "kermitWisdom",
@@ -98,7 +95,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"TEA\".",
     points: 150,
     message: "But that's none of my business.",
-    replacesWordScore: true,
   },
   {
     id: "homersDelight",
@@ -107,7 +103,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"DONUT\".",
     points: 174,
     message: "Mmm, donuts. You just can't resist, can you?",
-    replacesWordScore: true,
     media: "vhs",
     source: "The Simpsons",
   },
@@ -118,7 +113,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"OFFICE\".",
     points: 195,
     message: "Congratulations! You just won a Dundie for best word submitted.",
-    replacesWordScore: true,
     media: "vhs",
     source: "The Office",
   },
@@ -129,7 +123,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"SWORD\".",
     points: 186,
     message: "Here, take this! You've found a legendary bonus.",
-    replacesWordScore: true,
     media: "cartridge",
     source: "The Legend of Zelda",
   },
@@ -140,7 +133,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"FETCH\".",
     points: 190,
     message: "Stop trying to make 'fetch' happen! It's not going to happen... unless you get these bonus points!",
-    replacesWordScore: true,
   },
   {
     id: "loveBonus",
@@ -149,7 +141,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"LOVE\".",
     points: 188,
     message: "All you need is LOVE… and a handful of extra points!",
-    replacesWordScore: true,
     media: "cd",
     source: "The Beatles",
   },
@@ -160,7 +151,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"TIME\".",
     points: 121,
     message: "Roads? Where we’re going, we don’t need roads.",
-    replacesWordScore: true,
     media: "vhs",
     source: "Back to the Future",
   },
@@ -171,7 +161,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"DIE\".",
     points: 194,
     message: "Welcome to the party, pal!",
-    replacesWordScore: true,
     media: "vhs",
     source: "Die Hard",
   },
@@ -182,7 +171,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"GUN\".",
     points: 184,
     message: "Yippee-ki-yay, you just scored with firepower.",
-    replacesWordScore: true,
     media: "vhs",
     source: "Die Hard",
   },
@@ -193,7 +181,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"JOY\".",
     points: 177,
     message: "Joy’s at the console—time to crank happiness up to eleven!",
-    replacesWordScore: true,
     media: "vhs",
     source: "Inside Out",
   },
@@ -204,7 +191,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"BING\".",
     points: 197,
     message: "Could you BE any more clever? You just earned some bonus points!",
-    replacesWordScore: true,
     media: "vhs",
     source: "Friends",
   },
@@ -215,7 +201,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"POET\".",
     points: 189,
     message: "Carpe Diem! Seize the day... and these bonus points!",
-    replacesWordScore: true,
     media: "vhs",
     source: "Dead Poets Society",
   },
@@ -226,7 +211,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"TERM\"",
     points: 189,
     message: "You just triggered a Terminator-class bonus. Hasta la vista, score gap.",
-    replacesWordScore: true,
     media: "vhs",
     source: "The Terminator",
   },
@@ -237,7 +221,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"PARK\"",
     points: 190,
     message: "Peter would be proud. You just web-slinged your way to bonus points!",
-    replacesWordScore: true,
     media: "vhs",
     source: "Spider-Man",
   },
@@ -248,7 +231,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"NERD\".",
     points: 180,
     message: "Brains, glasses, and bonus points. Nerds rule pop culture now.",
-    replacesWordScore: true,
   },
   {
     id: "flashsFrenzy",
@@ -257,7 +239,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"FAST\".",
     points: 160,
     message: "You're moving at superspeed! Hope your opponent brought their running shoes.",
-    replacesWordScore: true,
   },
   {
     id: "lionKingsLegacy",
@@ -266,7 +247,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"CUBS\".",
     points: 165,
     message: "Everything the light touches... is your high score.",
-    replacesWordScore: true,
   },
   {
     id: "starshipEnterprise",
@@ -275,7 +255,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"BOLD\".",
     points: 170,
     message: "To boldly go where no Bonanza player has gone before!",
-    replacesWordScore: true,
   },
   {
     id: "popIdolAudition",
@@ -284,7 +263,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"SING\".",
     points: 168,
     message: "You just hit a high note! The judges are impressed.",
-    replacesWordScore: true,
   },
   {
     id: "hogwartsHousePoints",
@@ -293,7 +271,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"BOOK\".",
     points: 163,
     message: "Ten points to your house! Knowledge is power on this board.",
-    replacesWordScore: true,
   },
   {
     id: "bluePillBonus",
@@ -302,7 +279,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"REAL\".",
     points: 182,
     message: "Welcome to the desert of the real.",
-    replacesWordScore: true,
     media: "vhs",
     source: "The Matrix",
   },
@@ -313,7 +289,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"RAP\".",
     points: 166,
     message: "Guess who's back? Back again... your score is.",
-    replacesWordScore: true,
     media: "cd",
     source: "Eminem",
   },
@@ -324,7 +299,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"JAM\".",
     points: 173,
     message: "Welcome to the Space Jam. Bonus points inbound.",
-    replacesWordScore: true,
     media: "vhs",
     source: "Space Jam",
   },
@@ -335,7 +309,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"LIFE\".",
     shuffle: 1,
     message: "Extra life granted! Mario approves. You get a free shuffle!",
-    replacesWordScore: true,
     media: "cartridge",
     source: "Super Mario Bros.",
   },
@@ -346,7 +319,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"SPY\".",
     points: 178,
     message: "Your mission: collect these bonus points and disappear.",
-    replacesWordScore: true,
     media: "vhs",
     source: "James Bond",
   },
@@ -357,7 +329,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"PONY\".",
     points: 184,
     message: "You're dancing at the Pink Pony Club—Vegas dreams and glitter beams!",
-    replacesWordScore: true,
     media: "cd",
     source: "Chappell Roan",
   },
@@ -368,7 +339,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"FLEX\".",
     points: 176,
     message: "We get it—you lift. Your vocabulary and your score are swole.",
-    replacesWordScore: true,
   },
   {
     id: "getOffMyPlane",
@@ -377,7 +347,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"AIR\".",
     points: 192,
     message: "You just Harrison Forded your way to bonus points. Presidential and powerful.",
-    replacesWordScore: true,
     media: "vhs",
     source: "Air Force One",
   },
@@ -388,7 +357,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word \"KISS\".",
     points: 185,
     message: "So kiss me… beneath the milky twilight… and collect your dreamy bonus.",
-    replacesWordScore: true,
     media: "cd",
     source: "Sixpence None the Richer",
   },
@@ -399,7 +367,6 @@ export const SECRET_BONUSES: SecretBonus[] = [
     description: "When you submit the word LINK",
     points: 189,
     message: "It’s dangerous to go alone—so take these bonus points!",
-    replacesWordScore: true,
     media: "cartridge",
     source: "The Legend of Zelda",
   },

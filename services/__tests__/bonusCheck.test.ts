@@ -11,7 +11,7 @@ const problemsFor = (secret: SecretBonus[], counts: WordBonus[] = []) =>
 describe('checkBonuses', () => {
     test('accepts valid word and score bonuses', () => {
         expect(problemsFor([
-            bonus({ media: 'cartridge', source: 'Zelda', replacesWordScore: true }),
+            bonus({ media: 'cartridge', source: 'Zelda' }),
             bonus({ id: 'theAnswer', word: undefined, score: { kind: 'contains', digits: '42' } }),
         ])).toEqual([]);
     });
@@ -34,14 +34,13 @@ describe('checkBonuses', () => {
             bonus({ id: 'x', points: undefined }),
             bonus({ id: 'x', word: 'AIR', media: 'vhs' }),
             bonus({ id: 'y', score: { kind: 'contains', digits: '42' } }),
-            bonus({ id: 'z', word: undefined, score: { kind: 'contains', digits: '042' }, replacesWordScore: true }),
+            bonus({ id: 'z', word: undefined, score: { kind: 'contains', digits: '042' } }),
             bonus({ id: 'w', word: 'L1NK' }),
         ]);
         expect(problems.join('\n')).toMatch(/x: needs a reward/);
         expect(problems.join('\n')).toMatch(/x: id is used more than once/);
         expect(problems.join('\n')).toMatch(/x: media "vhs" needs a source/);
         expect(problems.join('\n')).toMatch(/y: needs exactly one trigger/);
-        expect(problems.join('\n')).toMatch(/z: replacesWordScore only applies/);
         expect(problems.join('\n')).toMatch(/z: score digits/);
         expect(problems.join('\n')).toMatch(/w: .*letters only/);
     });

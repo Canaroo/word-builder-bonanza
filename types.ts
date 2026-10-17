@@ -73,8 +73,6 @@ export interface EasterEgg {
   scorePattern?: import('./services/scoreBonus').ScorePattern;
   /** For word bonuses: the trigger word, uppercase. */
   word?: string;
-  /** Word bonuses only: the word scores exactly `reward.points` instead of its normal score. */
-  replacesWordScore?: boolean;
   reward: {
     points?: number;
     shuffle?: number;
@@ -92,7 +90,6 @@ export interface SecretBonus {
   points?: number;
   shuffle?: number;
   message: string;
-  replacesWordScore?: boolean;
   media?: 'vhs' | 'cartridge' | 'cd' | 'arcade';
   source?: string;
 }

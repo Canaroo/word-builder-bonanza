@@ -71,7 +71,6 @@ export const checkBonuses = (
             if (words.has(key)) add(b.id, `word "${b.word}" is already used by ${words.get(key)}`);
             else words.set(key, b.id);
         } else if (b.score) {
-            if (b.replacesWordScore) add(b.id, 'replacesWordScore only applies to word bonuses');
             if (!SCORE_KINDS.includes(b.score.kind)) add(b.id, `score kind must be one of ${SCORE_KINDS.join(', ')}`);
             if (!/^[1-9][0-9]*$/.test(b.score.digits ?? '')) add(b.id, 'score digits must be a number like "42" (no leading zero)');
             const key = `${b.score.kind}:${b.score.digits}`;

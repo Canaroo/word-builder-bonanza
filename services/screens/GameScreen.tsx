@@ -2239,7 +2239,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       dispatch({ type: 'STORE_LAST_TURN' });
       let newState = { ...gameState };
       const willTriggerGoldenRound = (newState.consecutiveValidWords + 1) >= newState.goldenRoundThreshold && newState.roundType === 'normal';
-      let rawBaseScore = rawBaseScoreParam;
+      const rawBaseScore = rawBaseScoreParam;
       const now = Date.now();
       const modalQueue: ModalContent[] = [];
       if (infoMessage) {
@@ -2311,13 +2311,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }];
       }
       
-      const wordBasedEgg = EASTER_EGGS.find(egg => 
-          egg.replacesWordScore && 
-          !newState.foundEasterEggs.some(fe => fe.id === egg.id) &&
-          egg.trigger(word, 0, newState)
-      );
-      
-      if (word.length >= 5 && !wordBasedEgg && !isChallengeLock) {
+      if (word.length >= 5 && !isChallengeLock) {
           showToast(`Length bonus x${lengthMultiplier(word.length)}!`);
       }
       
@@ -2346,18 +2340,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           newState.powerSurgeProgress++;
       }
 
-      // --- 3. WORD-BASED EASTER EGG OVERRIDE ---
-      if (wordBasedEgg) {
-          const eggScore = wordBasedEgg.reward.points || 0;
-          // The egg replaces the word score, so later multipliers apply to the egg's points.
-          scoreResult = { totalScore: eggScore, baseScore: scoreResult.baseScore, bonuses: scoreResult.bonuses };
-          rawBaseScore = 0; // Base score is nullified by the Easter Egg override
-          newState.foundEasterEggs = [...newState.foundEasterEggs, wordBasedEgg];
-          modalQueue.push({ type: 'easter-egg', title: wordBasedEgg.name, content: wordBasedEgg.reward.message, data: wordBasedEgg });
-          // Overwrite bonuses to show the Easter Egg as the primary source of points in the log
-          scoreResult.bonuses = [{ name: wordBasedEgg.name, description: `+${eggScore} pts` }];
-      }
-      
       // --- 4. STATEFUL & RANDOM BONUSES on top of word score ---
       
       let runningScore = oldScore;
@@ -2702,9 +2684,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
       }
 
-      // Score-based Easter Egg Check
+      // Easter eggs: word bonuses and score-number bonuses add their points on top of the turn.
       for (const egg of EASTER_EGGS) {
-          if (egg.replacesWordScore || newState.foundEasterEggs.some(fe => fe.id === egg.id)) continue;
+          if (newState.foundEasterEggs.some(fe => fe.id === egg.id)) continue;
           if (egg.trigger(word, runningScore, newState)) {
               // Remember the exact score that matched, to show the player why the bonus fired.
               const triggerScore = runningScore;
