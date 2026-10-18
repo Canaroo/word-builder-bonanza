@@ -58,6 +58,15 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             <Key>adds time</Key>, so longer words keep you alive. An invalid word costs <Key>{timeBank.invalidPenalty}s</Key>.
             The bank tops out at {timeBank.max}s. When it hits zero, the run ends.
           </p>
+          <p>
+            <Key>Speed-up levels:</Key> every {GAMEPLAY.levels.wordsPerLevel} words the level goes up and the clock runs{' '}
+            {Math.round(GAMEPLAY.levels.speedUpPerLevel * 100)}% faster (up to x{GAMEPLAY.levels.maxSpeed}). From level{' '}
+            {timeBank.shortWordTimeStopsAtLevel}, 3-letter words add no time.
+          </p>
+          <p>
+            <Key>Overflow tax:</Key> above {timeBank.overflowAbove}s, words add only half their time (½ on the clock). A
+            shuffle costs <Key>{timeBank.shuffleCost}s</Key>.
+          </p>
           <div className="grid grid-cols-5 gap-1 text-center osd-text text-lg">
             {timeRows.map(([len, secs], i) => (
               <div key={len} className="bg-crt-800/80 rounded-md py-1">
@@ -119,7 +128,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
         </Section>
 
         <Section title="Your Toolkit" icon="🛠️" tone="text-neon-cyan">
-          <p><Key>Shuffle:</Key> swap your whole hand. Uses are limited and the clock keeps running.</p>
+          <p><Key>Shuffle:</Key> swap your whole hand. Uses are limited and each one costs {timeBank.shuffleCost}s.</p>
           <p>
             <Key>Challenge:</Key> stuck? If no everyday word can be made, you win a free shuffle. If one can, you must play it
             for 0 points.

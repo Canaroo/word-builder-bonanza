@@ -252,7 +252,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'goldenSnitch',
     name: 'Golden Snitch',
-    description: 'Every 5 valid words in a row earns +500 points. Miss once and the count starts over.',
+    description: `Catch it 3 times for +${GAMEPLAY.snitchBonus} each: ${GAMEPLAY.snitchCatchTargets.join(', then ')} valid words in a row. Miss once and the count starts over. After the last catch it flies away.`,
     flavorText: 'Fast, rare, and game-changing — catch it if you can.',
     icon: '🕊️',
     subtheme: 'utility',

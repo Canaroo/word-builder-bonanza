@@ -202,6 +202,8 @@ export interface GameState {
   wordsThisRound: number;
   lastSubmissionTime: number; 
   consecutiveSuccesses: number;
+  /** Golden Snitch catches this run; it flies away after the last one. */
+  snitchCatches?: number;
   longestStreak: number;
   multiverseTimeBonus: number;
   duckHuntComboState: { streakLetters: Set<string> | null, streakCount: number };
