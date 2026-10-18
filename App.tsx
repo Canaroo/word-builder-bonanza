@@ -1,6 +1,7 @@
 
 import React, { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import StartScreen from './services/screens/StartScreen';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // The start screen loads first; the rest are fetched on demand.
 const loadGameScreen = () => import('./services/screens/GameScreen');
@@ -275,6 +276,16 @@ const App: React.FC = () => {
     musicService.stop();
   }, []);
 
+  // After a crash: back to the menu with music stopped and no half-finished modals.
+  const handleRecoverFromCrash = useCallback(() => {
+    setIsGoldenRound(false);
+    setIsTimeLow(false);
+    setLastGameResult(null);
+    setRankingModalData(null);
+    setScreen(Screen.Start);
+    musicService.stop();
+  }, []);
+
   const handleShowHowToPlay = useCallback(() => {
     soundService.initialize();
     soundService.playUIClick();
@@ -378,7 +389,9 @@ const App: React.FC = () => {
             <div className="corner-bolt bottom-right"></div>
           </>
         )}
-        <Suspense fallback={<ScreenFallback />}>{showBonusCatalog ? <BonusCatalog /> : renderScreen()}</Suspense>
+        <ErrorBoundary key={screen} onRecover={handleRecoverFromCrash}>
+          <Suspense fallback={<ScreenFallback />}>{showBonusCatalog ? <BonusCatalog /> : renderScreen()}</Suspense>
+        </ErrorBoundary>
         {selectedPack.id === 'default' && <div className="crt-overlay" aria-hidden="true" />}
         {/* Unmissable gold frame while a Golden Round runs (any theme). */}
         {isGoldenRound && screen === Screen.Game && <div className="golden-frame" aria-hidden="true" />}
