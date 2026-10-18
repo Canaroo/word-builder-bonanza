@@ -90,6 +90,21 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         switch (type) {
             case 'info':
             case 'milestone':
+                return (
+                    <div className={modalBaseClass}>
+                        <div className={`${modalBoxBaseClass} border-neon-yellow shadow-glow-yellow bonus-insert text-center`}>
+                            <p className="osd-text text-xl leading-none text-neon-cyan">★ MILESTONE · {data.scoreThreshold.toLocaleString()} PTS ★</p>
+                            <div className="text-5xl my-3" aria-hidden="true">{data.icon}</div>
+                            <h2 className="font-display text-2xl text-neon-yellow drop-shadow-glow-yellow leading-tight">{data.name}</h2>
+                            <p className="text-slate-200 leading-snug my-3">{data.flavorText}</p>
+                            {data.reward?.points ? (
+                                <div className="font-display text-neon-green text-3xl my-3">+{data.reward.points} <span className="osd-text text-xl text-neon-green/80">BONUS</span></div>
+                            ) : null}
+                            <ArcadeButton color="yellow" className="w-full mt-2" onClick={handleCloseModal}>Continue</ArcadeButton>
+                        </div>
+                    </div>
+                );
+
             case 'word-bonus':
             case 'game-over-summary':
                 return (

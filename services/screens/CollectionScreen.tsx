@@ -83,7 +83,8 @@ const CollectionScreen: React.FC<CollectionScreenProps> = ({ onBack }) => {
         ))}
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-4 pr-1">
+      {/* Inner padding keeps the found-card rings from being clipped by the scroll area. */}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-4 p-1 -mx-1">
         {SHELVES.map(shelf => {
           const all = SECRET_BONUSES.filter(b => getBonusMedia(b.id).media === shelf.media);
           const items = all.filter(visible);
