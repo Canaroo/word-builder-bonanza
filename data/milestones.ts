@@ -5,42 +5,42 @@ import { Milestone } from '../types';
 export const MILESTONES_LIST: Milestone[] = [
   {
     id: 'milestone500',
-    name: 'Five Hundo Club',
-    icon: '🎉',
+    name: 'Party On, Wayne!',
+    icon: '🎸',
     scoreThreshold: 500,
     reward: { points: 100 },
-    flavorText: "You're in the club. No jackets — just bonus points."
+    flavorText: "500 points? Excellent! *air guitar* We're not worthy… but you are."
   },
   {
     id: 'milestone1000',
-    name: 'Half-Time Hustle',
+    name: "He's Heating Up!",
     icon: '🔥',
     scoreThreshold: 1000,
     reward: { points: 150 },
-    flavorText: "Halfway to legend. Keep the hustle going."
+    flavorText: "1,000 points and the net's on fire. Boomshakalaka!"
   },
   {
     id: 'milestone2000',
-    name: 'Grand Master',
-    icon: '💼',
+    name: 'Y2K Survivor',
+    icon: '💾',
     scoreThreshold: 2000,
     reward: { points: 200 },
-    flavorText: "Welcome to the elite tier. Your vocabulary now pays rent."
+    flavorText: "2,000 points and the computers didn't crash. Party like it's 1999."
   },
   {
     id: 'milestone3500',
-    name: 'Legendary',
+    name: 'Legen… wait for it…',
     icon: '🌟',
     scoreThreshold: 3500,
     reward: { points: 300 },
-    flavorText: "Bards will sing of this vocabulary."
+    flavorText: "…dary! 3,500 points. Suit up, the bards are already writing about you."
   },
   {
     id: 'milestone5000',
-    name: 'Supreme',
-    icon: '👑',
+    name: 'All Your Base',
+    icon: '👾',
     scoreThreshold: 5000,
     reward: { points: 400 },
-    flavorText: "You’ve become GODLIKE. Words bow before you."
+    flavorText: "5,000 points. All your base are belong to you. Somebody set up us the bonus!"
   },
 ];

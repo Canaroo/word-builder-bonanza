@@ -416,7 +416,7 @@ body {
   border: 10px solid transparent;
   padding: 2px;
   border-image: linear-gradient(45deg, #f472b6, #34d399, #fbbf24) 1;
-  background-color: rgba(15, 23, 42, 0.3); /* slate-900/30 */
+  background-color: rgba(15, 23, 42, 0.85); /* mostly opaque so the floating shapes stay behind the board */
   box-shadow: inset 0 0 15px rgba(0,0,0,0.4);
 }
 

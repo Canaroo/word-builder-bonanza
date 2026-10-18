@@ -3623,7 +3623,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             const newScore = Math.max(0, gameState.score + scoreChange);
             const newLogEntry: EventLogEntry = {
                 type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
-                description: 'Traded 500 points for 1 LEX Coin.', icon: '🪙',
+                description: 'Traded 500 points for 1 Credit.', icon: '🪙',
                 scoreChange, cumulativeScore: newScore
             };
             dispatch({
@@ -3634,7 +3634,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                     availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
                 }
             });
-            showMessage("Scrooge Swipe! +1 LEX Coin, -500 points.", 2500);
+            showMessage("Scrooge Swipe! +1 Credit, -500 points.", 2500);
             return;
         }
         

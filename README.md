@@ -91,7 +91,7 @@ are in [docs/LEADERBOARD.md](docs/LEADERBOARD.md).
 ## Saved data
 
 Everything else is stored on the device in `localStorage` through `services/storage.ts`: player
-name, LEX coins, unlocked packs, saved game, event logs (last 25 runs plus pinned ones), missed
+name, credits (LEX coins, spent in Vibez), unlocked packs, saved game, event logs (last 25 runs plus pinned ones), missed
 words and Power Word. To change the shape of saved data, bump `STORAGE_VERSION` and add a
 migration step in that file.
 

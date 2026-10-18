@@ -786,7 +786,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'scroogeSwipe', 
     name: 'Scrooge Swipe', 
-    description: 'Gain 1 LEX Coin, but immediately lose 500 points.', 
+    description: 'Gain 1 Credit (spend them in Vibez), but immediately lose 500 points.', 
     flavorText: '“Some say fortune favors the bold. Others say it favors the rich duck in a top hat.”',
     icon: '🪙',
     subtheme: 'utility',
