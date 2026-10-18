@@ -2678,7 +2678,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                       eventLogQueue.push({ type: 'event', id: `ms-${milestone.id}`, name: milestone.name, icon: milestone.icon, description: milestone.flavorText, scoreChange: milestone.reward.points, cumulativeScore: runningScore });
                   }
                   newState.unlockedMilestoneIds.push(milestone.id);
-                  modalQueue.push({ type: 'milestone', title: 'Milestone Reached!', data: milestone, content: `You've unlocked ${milestone.name}!` });
+                  modalQueue.push({ type: 'milestone', title: milestone.name, data: milestone, content: milestone.flavorText });
                   newMilestonesFound = true; // A milestone was found, re-iterate from the start
                   break; 
               }
