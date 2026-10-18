@@ -1,6 +1,7 @@
 import React from 'react';
 import ArcadeButton from '../../components/ArcadeButton';
 import BonusReveal from '../../components/BonusReveal';
+import { PowerPlayOffer, CharmOffer } from '../../components/OfferModals';
 import { GameState, Tile, WordData, Milestone, Charm, PowerPlay } from '../../types';
 import Timer from '../../components/Timer';
 import TileComponent from '../../components/Tile';
@@ -9,7 +10,7 @@ import EventLogDisplay from '../../components/EventLogDisplay';
 import { MILESTONES_LIST } from '../../data/milestones';
 import DurationBadge from '../../ui/DurationBadge';
 import { RACK_SIZE, HAND_SIZE } from '../../constants';
-import { GAMEPLAY } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_SLOTS } from '../../config/gameplay';
 
 export type ModalContent = {
   type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log';
@@ -62,7 +63,9 @@ export interface GameScreenViewProps {
   handleActivatePowerPlay: (powerPlay: PowerPlay) => void;
   handleActivateCharm: (charm: Charm) => void;
   handleChoosePowerPlay: (powerPlay: PowerPlay, allOffered: PowerPlay[]) => void;
-  handleChooseCharm: (charm: Charm, allOffered: Charm[]) => void;
+  handleChooseCharm: (charm: Charm, allOffered: Charm[], replaceId?: string) => void;
+  handlePassCharm: (allOffered: Charm[]) => void;
+  handleKeepPowerPlay: (allOffered: PowerPlay[]) => void;
   handleAddTileToSwap: (tile: Tile, originalIndex: number) => void;
   handleRemoveTileFromSwap: (originalIndex: number) => void;
   handleExecuteSwap: () => void;
@@ -76,7 +79,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     handleMuteToggle, handleCloseModal, handleShowMilestoneInfo, handleShowEventLog,
     handleMoveToBuild, handleReturnToHand, handleShuffle, handleSubmit, handleClear,
     handleChallenge, handleSaveClick, handleConfirmSave, showBuffInfo,
-    handleActivatePowerPlay, handleActivateCharm, handleChoosePowerPlay, handleChooseCharm,
+    handleActivatePowerPlay, handleActivateCharm, handleChoosePowerPlay, handleChooseCharm, handlePassCharm, handleKeepPowerPlay,
     handleAddTileToSwap, handleRemoveTileFromSwap, handleExecuteSwap, dispatch
 }) => {
 
@@ -184,27 +187,36 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     </div>
                 );
 
-            case 'powerplay-selection':
-            case 'charm-selection':
-                const items = data as (PowerPlay[] | Charm[]);
-                const isPowerPlay = type === 'powerplay-selection';
+            case 'powerplay-selection': {
+                const offered = data as PowerPlay[];
+                const held = (gameState?.availablePowerPlays ?? [])[0] ?? null;
                 return (
-                     <div className={modalBaseClass}>
-                        <div className={`${modalBoxBaseClass} ${isPowerPlay ? 'border-green-400' : 'border-purple-400'}`}>
-                           <h2 className={`text-3xl font-bold ${isPowerPlay ? 'text-green-400' : 'text-purple-400'} mb-2 text-center`}>{title}</h2>
-                           <p className="text-slate-300 text-center mb-4">{content}</p>
-                           <div className="space-y-3 overflow-y-auto pr-2">
-                               {items.map(item => (
-                                   <button key={item.id} onClick={() => isPowerPlay ? handleChoosePowerPlay(item as PowerPlay, items as PowerPlay[]) : handleChooseCharm(item as Charm, items as Charm[])} className="w-full text-left bg-crt-950/60 ring-1 ring-white/5 p-3 rounded-lg hover:bg-slate-700/50 transition-colors">
-                                       <h3 className="font-bold text-white flex items-center gap-2"><span className="text-xl">{item.icon}</span> {item.name} <DurationBadge tag={item.durationTag} /></h3>
-                                       <p className="text-sm text-slate-300 pl-8">{item.description}</p>
-                                       <p className="text-xs text-slate-500 italic mt-1 pl-8">"{item.flavorText}"</p>
-                                   </button>
-                               ))}
-                           </div>
-                        </div>
-                    </div>
+                    <PowerPlayOffer
+                        key={offered.map(p => p.id).join()}
+                        title={title}
+                        reason={content}
+                        offered={offered}
+                        held={held}
+                        onChoose={(pp) => handleChoosePowerPlay(pp, offered)}
+                        onKeep={() => handleKeepPowerPlay(offered)}
+                    />
                 );
+            }
+
+            case 'charm-selection': {
+                const offered = data as Charm[];
+                return (
+                    <CharmOffer
+                        key={offered.map(c => c.id).join()}
+                        title={title}
+                        reason={content}
+                        offered={offered}
+                        equipped={gameState?.activeCharms ?? []}
+                        onChoose={(charm, replaceId) => handleChooseCharm(charm, offered, replaceId)}
+                        onPass={() => handlePassCharm(offered)}
+                    />
+                );
+            }
             
             case 'save-confirmation':
                 return (
@@ -572,7 +584,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       )}
 
       {/* --- STATUS AREA --- */}
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col gap-2">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col gap-1.5">
       {/* --- ICONS BAR --- */}
       <div className="flex justify-between items-center bg-crt-950/60 ring-1 ring-white/5 p-1 rounded-lg flex-shrink-0">
         <div className="flex gap-2 sm:gap-3">
@@ -645,42 +657,48 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       {/* --- ACTIVE BUFFS TRAY --- */}
       <div className="text-center w-full flex-shrink-0">
         <h3 className="osd-text text-base leading-none text-neon-cyan/80 uppercase tracking-widest mb-1">
-          Active Buffs
+          Active Buffs <span className="text-neon-purple">· Charms {(gameState?.activeCharms?.length ?? 0)}/{CHARM_SLOTS}</span>
         </h3>
-        <div className="min-h-[2rem] bg-crt-950/60 ring-1 ring-white/5 p-1 rounded-lg flex flex-wrap justify-center items-center gap-1">
-          {((gameState?.activeBuffs?.length ?? 0) + (gameState?.availablePowerPlays?.length ?? 0) + (gameState?.availableCharms?.length ?? 0)) > 0 ? (
+        <div className="min-h-[2rem] bg-crt-950/60 ring-1 ring-white/5 p-0.5 rounded-lg flex flex-wrap justify-center items-center gap-1">
+          {(gameState?.activeBuffs?.length ?? 0) > 0 ? (
             <>
-              {(gameState?.activeBuffs ?? []).map((buff) => {
-                  let buffName = buff.name;
-                  if (buff.id === 'goldenSnitch') {
-                      buffName = `Golden Snitch (${(gameState?.consecutiveSuccesses ?? 0)}/5)`;
-                  }
-                  if (buff.id === 'drMariosCure') {
-                      buffName = `Dr. Mario’s Cure (${(gameState?.drMarioCureStreak ?? 0)}/3)`;
-                  }
-                  if (buff.id === 'thrillerNight') {
-                      const progress = totalWords % 4;
-                      buffName = `Thriller Night (${progress}/4)`;
-                  }
+              {(() => {
+                  const charmIds = new Set((gameState?.activeCharms ?? []).map(c => c.id));
+                  const buffs = gameState?.activeBuffs ?? [];
+                  // Running PowerPlay effects get their name (and what's left); charms are compact icons.
+                  const progressFor = (buff: Charm | PowerPlay): string => {
+                      if (buff.id === 'goldenSnitch') return `${gameState?.consecutiveSuccesses ?? 0}/5`;
+                      if (buff.id === 'drMariosCure') return `${gameState?.drMarioCureStreak ?? 0}/3`;
+                      if (buff.id === 'thrillerNight') return `${totalWords % 4}/4`;
+                      const countdown = (gameState?.activePowerPlays as any)?.[buff.id];
+                      if (countdown?.words) return `${countdown.words} ${countdown.words === 1 ? 'word' : 'words'}`;
+                      if (countdown?.rounds) return `${countdown.rounds} ${countdown.rounds === 1 ? 'round' : 'rounds'}`;
+                      if (buff.id === 'groundhogsDay' && (gameState?.groundhogDayCharges ?? 0) > 1) return `×${gameState.groundhogDayCharges}`;
+                      return '';
+                  };
                   return (
-                      <button key={buff.instanceId || buff.id} onClick={() => showBuffInfo(buff)} className="flex items-center gap-1 bg-slate-700/80 px-2 py-1 rounded-full text-xs text-white hover:bg-slate-600/80 transition-colors" title={buff.name}>
-                          <span className="text-sm">{buff.icon}</span>
-                          <span>{buffName}</span>
-                      </button>
+                      <>
+                          {buffs.filter(b => !charmIds.has(b.id)).map(buff => {
+                              const progress = progressFor(buff);
+                              return (
+                                  <button key={buff.instanceId || buff.id} onClick={() => showBuffInfo(buff)} className="flex items-center gap-1 bg-neon-cyan/15 ring-1 ring-neon-cyan/50 px-2 py-1 rounded-full text-xs text-white hover:bg-neon-cyan/25 transition-colors" title={buff.name}>
+                                      <span className="text-sm">{buff.icon}</span>
+                                      <span>{buff.name}{progress ? ` (${progress})` : ''}</span>
+                                  </button>
+                              );
+                          })}
+                          {buffs.filter(b => charmIds.has(b.id)).map(buff => {
+                              const progress = progressFor(buff);
+                              return (
+                                  <button key={buff.instanceId || buff.id} onClick={() => showBuffInfo(buff)} className="flex items-center gap-0.5 bg-neon-purple/20 ring-1 ring-neon-purple/50 h-7 min-w-7 px-1.5 rounded-full text-xs text-white hover:bg-neon-purple/35 transition-colors" title={`${buff.name} (charm): tap for details`} aria-label={`Charm: ${buff.name}`}>
+                                      <span className="text-sm leading-none">{buff.icon}</span>
+                                      {progress && <span className="osd-text text-sm leading-none text-neon-yellow">{progress}</span>}
+                                  </button>
+                              );
+                          })}
+                      </>
                   );
-              })}
-              {(gameState?.availablePowerPlays ?? []).map((pp) => (
-                  <button key={pp.id} onClick={() => handleActivatePowerPlay(pp)} className="flex items-center gap-1 bg-green-800/80 px-2 py-1 rounded-full text-xs text-white hover:bg-green-700/80 transition-colors animate-pulse" title={pp.name}>
-                      <span className="text-sm">{pp.icon}</span>
-                      <span>{pp.name}</span>
-                  </button>
-              ))}
-               {(gameState?.availableCharms ?? []).map((charm) => (
-                  <button key={charm.id} onClick={() => handleActivateCharm(charm)} className="flex items-center gap-1 bg-purple-800/80 px-2 py-1 rounded-full text-xs text-white hover:bg-purple-700/80 transition-colors animate-pulse" title={charm.name}>
-                      <span className="text-sm">{charm.icon}</span>
-                      <span>{charm.name}</span>
-                  </button>
-              ))}
+              })()}
             </>
           ) : (
             <span className="text-xs italic text-slate-500">(None Active)</span>
@@ -700,10 +718,17 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             </div>
           </div>
         )}
-        {/* Potential Score Display */}
-        <div className="flex-shrink-0 h-8 flex items-center justify-center">
+        {/* Held PowerPlay (always in reach) + potential score */}
+        <div className={`flex-shrink-0 h-8 flex items-center gap-2 ${(gameState?.availablePowerPlays?.length ?? 0) > 0 ? 'justify-between' : 'justify-center'}`}>
+            {(gameState?.availablePowerPlays ?? []).slice(0, 1).map((pp) => (
+                <button key={pp.id} onClick={() => handleActivatePowerPlay(pp)} className="min-w-0 flex items-center gap-1 bg-neon-green text-crt-900 font-semibold pl-2 pr-3 h-8 rounded-full text-sm hover:brightness-110 transition ring-2 ring-neon-green/40 shadow-[0_0_12px_rgba(61,255,140,0.45)]" title={`Tap to use ${pp.name}`} aria-label={`Use PowerPlay: ${pp.name}`}>
+                    <span className="text-base leading-none">{pp.icon}</span>
+                    <span className="osd-text text-lg leading-none shrink-0">▶ USE</span>
+                    <span className="truncate">{pp.name}</span>
+                </button>
+            ))}
             {potentialScore > 0 && (
-                <div className="bg-crt-950/80 ring-1 ring-neon-yellow/40 px-4 py-0.5 rounded-full">
+                <div className="shrink-0 bg-crt-950/80 ring-1 ring-neon-yellow/40 px-4 py-0.5 rounded-full">
                     <span className="font-osd text-3xl leading-none text-neon-yellow drop-shadow-glow-yellow animate-fade-in">
                         {potentialScore}
                     </span>

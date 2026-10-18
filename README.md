@@ -1,8 +1,8 @@
 # Word Nerd
 
 A fast-paced, Scrabble-inspired word game packed with 90s and 2000s pop culture bonuses.
-Build high-scoring words from your rack against a 60-second clock, powered up by Charms,
-PowerPlays, Milestones and easter eggs.
+Build high-scoring words from your rack against a ticking time bank, powered up by Charms,
+PowerPlays, Milestones and pop-culture easter eggs.
 
 It's an installable web app (PWA): it runs in any modern browser, can be added to a phone's
 home screen, and works offline after the first visit.
@@ -68,6 +68,18 @@ per word length, invalid-word penalty), Golden Round clock, length multipliers, 
 meter size and strike recovery. The rules that use them are small tested functions in
 `services/rules.ts`, and How to Play reads the same numbers, so changing the config updates the
 game and its instructions together. `docs/GAMEPLAY_REVIEW.md` explains the reasoning.
+
+## Charms and PowerPlays
+
+- **Charms** (`data/charms.ts`) are always on for the rest of the run. Players hold up to
+  `CHARM_SLOTS` (5); a new one beyond that replaces one, or the player passes. Charm bonus
+  values live in `CHARM_BONUS` in `config/gameplay.ts`, and the descriptions read them too.
+- **PowerPlays** (`data/powerPlays.ts`) are pressed once (some last a few words). Players hold one;
+  a new offer while holding is keep-or-swap. IDs in `INSTANT_POWER_PLAY_IDS` fire when picked, so
+  the held one is kept. Multi-word ones count down via `WORD_COUNTDOWN_POWER_PLAYS` in
+  `GameScreen.tsx`.
+- Rule of thumb when adding one: if it stays on all run, it's a charm; if you press it, it's a
+  PowerPlay. `powerUpRules.test.ts` checks this.
 
 ## Pop-culture bonuses
 
