@@ -23,6 +23,17 @@ export type ModalContent = {
 
 const BUILD_ROW_SIZE = 8;
 
+// A hand tile inside a "pick a tile" pop-up. Picked tiles lift, get a green ring and a check mark;
+// once something is picked, the rest dim so the choice is obvious before Confirm.
+const PickTile: React.FC<{ tile: Tile; selected: boolean; dimmed?: boolean; onClick: () => void; tileClass: string }> = ({ tile, selected, dimmed, onClick, tileClass }) => (
+  <div className={`relative w-full h-full rounded-lg transition-transform duration-150 ${selected ? '-translate-y-1 scale-105 ring-4 ring-neon-green shadow-[0_0_14px_rgba(61,255,140,0.7)]' : dimmed ? 'opacity-45' : ''}`} aria-pressed={selected}>
+    <TileComponent tile={tile} onClick={onClick} packTileClass={tileClass} />
+    {selected && (
+      <span className="absolute -top-2 -right-2 z-20 w-6 h-6 rounded-full bg-neon-green text-crt-900 font-bold text-sm leading-6 text-center shadow-md pointer-events-none" aria-hidden="true">✓</span>
+    )}
+  </div>
+);
+
 export interface GameScreenViewProps {
   gameState: GameState;
   time: number;
@@ -36,6 +47,8 @@ export interface GameScreenViewProps {
   modalContent: ModalContent;
   tilesToSwap: { tile: Tile, originalIndex: number }[];
   tileToTransform: { tile: Tile, originalIndex: number } | null;
+  /** The tile picked in a single-tile PowerPlay (Hookshot, Captain Planet, Duck Hunt...). */
+  tileForSelection: { tile: Tile, originalIndex: number } | null;
   wordFromBuildRow: string;
   totalWords: number;
   potentialScore: number;
@@ -75,7 +88,7 @@ export interface GameScreenViewProps {
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
     gameState, time, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
-    tileToTransform, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
+    tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handleShowMilestoneInfo, handleShowEventLog,
     handleMoveToBuild, handleReturnToHand, handleShuffle, handleSubmit, handleClear,
@@ -269,9 +282,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                                     {(hand ?? []).map((tile, index) => (
                                         <div key={tile?.id || index} className="w-full h-16">
                                             {tile ? (
-                                                <div className={`relative ${tilesToSwap?.some(t => t.originalIndex === index) ? 'ring-4 ring-green-400 rounded-lg' : ''}`}>
-                                                    <TileComponent tile={tile} onClick={() => tilesToSwap?.some(t => t.originalIndex === index) ? handleRemoveTileFromSwap(index) : handleAddTileToSwap(tile, index)} packTileClass={tileClass} />
-                                                </div>
+                                                <PickTile tile={tile} tileClass={tileClass} selected={!!tilesToSwap?.some(t => t.originalIndex === index)} onClick={() => tilesToSwap?.some(t => t.originalIndex === index) ? handleRemoveTileFromSwap(index) : handleAddTileToSwap(tile, index)} />
                                             ) : <div className="w-full h-full bg-slate-900 rounded-lg" />}
                                         </div>
                                     ))}
@@ -331,9 +342,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                                     {(hand ?? []).map((tile, index) => (
                                         <div key={tile?.id || index} className="w-full h-16">
                                             {tile ? (
-                                                <div className={`relative ${(tilesToSwap ?? []).some(t => t.originalIndex === index) ? 'ring-4 ring-green-400 rounded-lg' : ''}`}>
-                                                    <TileComponent tile={tile} onClick={() => (tilesToSwap ?? []).some(t => t.originalIndex === index) ? handleRemoveTileFromSwap(index) : handleAddTileToSwap(tile, index)} packTileClass={tileClass} />
-                                                </div>
+                                                <PickTile tile={tile} tileClass={tileClass} selected={(tilesToSwap ?? []).some(t => t.originalIndex === index)} onClick={() => (tilesToSwap ?? []).some(t => t.originalIndex === index) ? handleRemoveTileFromSwap(index) : handleAddTileToSwap(tile, index)} />
                                             ) : <div className="w-full h-full bg-slate-900 rounded-lg" />}
                                         </div>
                                     ))}
@@ -405,7 +414,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
                 const singleTileSelectionIds = new Set(['hookshot', 'captainPlanet', 'duckHunt', 'moreThanMeets']);
                 if (singleTileSelectionIds.has(powerPlay.id)) {
-                    const canExecute = modalContent?.data?.tileForSelection !== null;
+                    const picked = tileForSelection;
+                    const canExecute = picked != null;
                     return (
                          <div className={modalBaseClass}>
                             <div className={`${modalBoxBaseClass} border-green-400`}>
@@ -415,9 +425,13 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                                     {(hand ?? []).map((tile, index) => (
                                         <div key={tile?.id || index} className="w-full h-16">
                                             {tile ? (
-                                                <div className={`relative ${modalContent?.data?.tileForSelection?.originalIndex === index ? 'ring-4 ring-green-400 rounded-lg' : ''}`}>
-                                                    <TileComponent tile={tile} onClick={() => dispatch({ type: 'SELECT_TILE_FOR_SELECTION', payload: { tile, originalIndex: index } })} packTileClass={tileClass} />
-                                                </div>
+                                                <PickTile
+                                                    tile={tile}
+                                                    tileClass={tileClass}
+                                                    selected={picked?.originalIndex === index}
+                                                    dimmed={picked != null}
+                                                    onClick={() => dispatch({ type: 'SELECT_TILE_FOR_SELECTION', payload: picked?.originalIndex === index ? null : { tile, originalIndex: index } })}
+                                                />
                                             ) : <div className="w-full h-full bg-slate-900 rounded-lg" />}
                                         </div>
                                     ))}
@@ -425,8 +439,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                                 <button 
                                     onClick={() => dispatch({ type: 'COMPLETE_POWER_PLAY_ACTIVATION', payload: { powerPlay }})} 
                                     disabled={!canExecute} 
-                                    className="w-full mt-auto px-6 py-3 text-xl font-bold text-slate-900 bg-green-500 rounded-lg shadow-lg hover:bg-green-400 disabled:bg-slate-500 disabled:cursor-not-allowed">
-                                    Confirm Selection
+                                    className="w-full mt-auto px-6 py-3 text-xl font-bold text-slate-900 bg-green-500 rounded-lg shadow-lg hover:bg-green-400 disabled:bg-slate-500 disabled:text-slate-300 disabled:cursor-not-allowed">
+                                    {picked ? `Confirm: ${picked.tile.letter}` : 'Tap a tile to pick it'}
                                 </button>
                                 <button onClick={() => { dispatch({ type: 'SELECT_TILE_FOR_SELECTION', payload: null }); handleCloseModal(); }} className="w-full mt-2 text-sm text-slate-400 hover:text-white">Cancel</button>
                             </div>
@@ -477,7 +491,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                                     </>
                                 ) : (
                                     <>
-                                        <p className="text-amber-300 font-semibold text-center my-2">Now, select the letter you want to change it to:</p>
+                                        <div className="flex items-center justify-center gap-3 my-2">
+                                            <div className="w-14 h-14"><PickTile tile={tileToTransform.tile} tileClass={tileClass} selected onClick={() => {}} /></div>
+                                            <p className="text-amber-300 font-semibold text-left">Changing this {tileToTransform.tile.letter}. Now pick its new letter:</p>
+                                        </div>
                                         <div className="grid grid-cols-6 gap-2 my-4">
                                             {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => (
                                                 <button 

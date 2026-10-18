@@ -75,3 +75,24 @@ describe('every pop-up renders', () => {
         expect(renderToString(<GameScreenView {...props(null)} />)).toContain('Active Buffs');
     });
 });
+
+describe('pick-a-tile pop-ups show what you picked', () => {
+    const E = { id: 't-e', letter: 'E', points: 1 } as any;
+    const A = { id: 't-a', letter: 'A', points: 1 } as any;
+    const hookshot = { type: 'powerplay-activation', title: 'Activate: Hookshot', data: POWER_PLAYS_LIST.find(p => p.id === 'hookshot') } as ModalContent;
+    const render = (picked: any) => renderToString(
+        <GameScreenView {...props(hookshot)} hand={[A, E, ...Array(8).fill(null)]} tileForSelection={picked} />,
+    );
+
+    test('nothing picked: Confirm is off and asks for a tile', () => {
+        const html = render(null);
+        expect(html).toContain('Tap a tile to pick it');
+        expect(html).not.toContain('aria-pressed="true"');
+    });
+
+    test('picking E marks that tile and names it on the button', () => {
+        const html = render({ tile: E, originalIndex: 1 });
+        expect(html).toContain('Confirm: E');
+        expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
+    });
+});
