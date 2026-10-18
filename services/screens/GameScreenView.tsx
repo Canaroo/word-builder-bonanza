@@ -90,9 +90,29 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         const modalBaseClass = "absolute inset-0 bg-crt-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in";
         const modalBoxBaseClass = "bg-crt-900 border-2 rounded-2xl p-6 shadow-2xl max-w-md w-full flex flex-col max-h-[90vh]";
 
+        // Title, text and an optional points line: used by info, word-bonus and game-over pop-ups.
+        function renderPlainCard(cardTitle: string, cardContent: React.ReactNode, cardData: any) {
+            return (
+                <div className={modalBaseClass}>
+                    <div className={`${modalBoxBaseClass} border-neon-yellow shadow-glow-yellow bonus-insert`}>
+                        <h2 className="font-display text-2xl text-neon-yellow drop-shadow-glow-yellow mb-2 text-center">{cardTitle}</h2>
+                        <div className="text-slate-200 text-center my-4 whitespace-pre-line">{cardContent}</div>
+                        {cardData && (cardData.reward?.points || cardData.gauntletBonus) ? (
+                            <div className="font-display text-neon-green text-3xl my-4 text-center">
+                                {cardData.reward?.points ? `+${cardData.reward.points}` : null}
+                                {cardData.gauntletBonus ? `+${cardData.gauntletBonus}` : null}
+                            </div>
+                        ) : null}
+                        <ArcadeButton color="yellow" className="w-full mt-2" onClick={handleCloseModal}>Continue</ArcadeButton>
+                    </div>
+                </div>
+            );
+        }
+
         switch (type) {
-            case 'info':
             case 'milestone':
+                // Milestone pop-ups carry the milestone; anything else falls back to the plain card.
+                if (!data?.scoreThreshold) return renderPlainCard(title, content, data);
                 return (
                     <div className={modalBaseClass}>
                         <div className={`${modalBoxBaseClass} border-neon-yellow shadow-glow-yellow bonus-insert text-center`}>
@@ -108,23 +128,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     </div>
                 );
 
+            case 'info':
             case 'word-bonus':
             case 'game-over-summary':
-                return (
-                    <div className={modalBaseClass}>
-                        <div className={`${modalBoxBaseClass} border-neon-yellow shadow-glow-yellow bonus-insert`}>
-                            <h2 className="font-display text-2xl text-neon-yellow drop-shadow-glow-yellow mb-2 text-center">{title}</h2>
-                            <div className="text-slate-200 text-center my-4">{content}</div>
-                            {data && (data.reward?.points || data.gauntletBonus) && (
-                                <div className="font-display text-neon-green text-3xl my-4 text-center">
-                                    {data.reward?.points && `+${data.reward.points}`}
-                                    {data.gauntletBonus && `+${data.gauntletBonus}`}
-                                </div>
-                            )}
-                            <ArcadeButton color="yellow" className="w-full mt-2" onClick={handleCloseModal}>Continue</ArcadeButton>
-                        </div>
-                    </div>
-                );
+                return renderPlainCard(title, content, data);
 
             case 'easter-egg':
                 return <BonusReveal egg={data} onClose={handleCloseModal} />;
