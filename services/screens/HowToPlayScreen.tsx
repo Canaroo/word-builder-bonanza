@@ -1,6 +1,6 @@
 import React from 'react';
 import { soundService } from '../soundService';
-import { GAMEPLAY } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS } from '../../config/gameplay';
 import ArcadeButton from '../../components/ArcadeButton';
 
 interface HowToPlayScreenProps {
@@ -97,11 +97,17 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
 
         <Section title="Power-Ups" icon="✨" tone="text-neon-purple">
           <p>
-            <Key>PowerPlays</Key> are one-shot abilities. Fill the PowerPlay meter by playing{' '}
-            <Key>{GAMEPLAY.powerPlayMeterLetters} letters</Key> to earn a pick of three (also every{' '}
-            {GAMEPLAY.powerPlayEveryWords} words).
+            <Key>Charms</Key> are always on. They change the rules for the rest of the run ("every E is worth +
+            {CHARM_BONUS.oneRing}"). Play enough words and you pick one of three. You have{' '}
+            <Key>{CHARM_SLOTS} charm slots</Key>: when they're full, swap one out or pass.
           </p>
-          <p><Key>Charms</Key> are passive buffs you unlock as your word count grows.</p>
+          <p>
+            <Key>PowerPlays</Key> are a button you press once, at the moment you choose. Fill the meter by playing{' '}
+            <Key>{GAMEPLAY.powerPlayMeterLetters} letters</Key> (or every {GAMEPLAY.powerPlayEveryWords} words) to pick one of
+            three. You can <Key>hold one</Key> in your Buffs tray; tap it to use it. Earn another while holding one and
+            you choose: <Key>keep</Key> yours or <Key>swap</Key>. <Key>Instant</Key> ones fire right away, so you keep
+            the one in your pocket.
+          </p>
         </Section>
 
         <Section title="Golden Round" icon="🌟" tone="text-neon-yellow">

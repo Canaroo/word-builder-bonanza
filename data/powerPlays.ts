@@ -5,7 +5,234 @@ import { labelize } from '../services/durationTags';
 // The 'activate' function is for declaring the state change that should happen upon activation.
 // The actual logic is handled in the GameScreen reducer based on the power play's `effectType` and ID.
 
+
+// Arms a PowerPlay: stores its state under activePowerPlays[id] and shows it in Active Buffs.
+const arm = (id: string, value: unknown = true) => (gameState: GameState): Partial<GameState> => {
+  const powerPlay = POWER_PLAYS_LIST.find(p => p.id === id)!;
+  return {
+    activePowerPlays: { ...gameState.activePowerPlays, [id]: value },
+    activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== id), powerPlay],
+  };
+};
+
+// Letter Upgrade / Polish: one letter gets a boost for a few words.
+const letterBoost = (id: 'letterUpgrade' | 'polish', words: number) => (gameState: GameState, options?: { letter?: string }): Partial<GameState> => {
+  const letter = options?.letter;
+  if (!letter) return {};
+  const key = id === 'letterUpgrade' ? 'letterMultipliers' : 'wordMultipliersByLetter';
+  const multipliers = { ...gameState[key] };
+  const previous = gameState.activePowerPlays[id];
+  if (previous?.letter) delete multipliers[previous.letter]; // re-using it replaces the old letter
+  multipliers[letter] = 3;
+  const powerPlay = POWER_PLAYS_LIST.find(p => p.id === id)!;
+  const buff = {
+    ...powerPlay,
+    description: id === 'letterUpgrade'
+      ? `'${letter}' tiles are worth 3x for your next ${words} words.`
+      : `Words with '${letter}' score x3 for your next ${words} words.`,
+  };
+  return {
+    [key]: multipliers,
+    activePowerPlays: { ...gameState.activePowerPlays, [id]: { words, letter } },
+    activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== id), buff],
+  };
+};
+
+/** PowerPlays that fire the moment you pick them, so you also keep the one you're holding. */
+export const INSTANT_POWER_PLAY_IDS = new Set([
+  'thwomped', 'fluncleIsProud',
+  'strikeShield', 'plotArmor', 'saveByTheBell', 'timeTurner', 'mutationProtocol',
+  'deepFreeze', 'groundhogsDay', 'lifeFindsAWay', 'wildcardWake',
+]);
+
 export const POWER_PLAYS_LIST: PowerPlay[] = [
+  {
+    id: 'letterUpgrade',
+    name: 'Letter Upgrade',
+    description: 'Pick a letter: its tiles are worth 3x for your next 5 words.',
+    flavorText: 'Choose wisely. Your alphabet just got an MVP.',
+    icon: '🔠',
+    subtheme: 'score',
+    effectType: 'selection',
+    selectionType: 'letter',
+    durationTag: 'LIMITED',
+    activate: letterBoost('letterUpgrade', 5),
+  },
+  {
+    id: 'polish',
+    name: 'Polish',
+    description: 'Pick a letter: words containing it score x3 for your next 5 words.',
+    flavorText: 'Give your favorite letter the spotlight treatment.',
+    icon: '💅',
+    subtheme: 'score',
+    effectType: 'selection',
+    selectionType: 'letter',
+    durationTag: 'LIMITED',
+    activate: letterBoost('polish', 5),
+  },
+  {
+    id: 'wildcardWake',
+    name: 'Wildcard Wake',
+    description: 'Instantly gain 2 free shuffles.',
+    flavorText: 'A little shake-up when you need it most.',
+    icon: '🃏',
+    subtheme: 'rack',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: (gameState) => ({ shuffleCount: (gameState.shuffleCount || 0) + 2 }),
+  },
+  {
+    id: 'deepFreeze',
+    name: 'Deep Freeze',
+    description: 'Arms right away: the first time your clock hits 0, time freezes and you get 10 bonus seconds.',
+    flavorText: 'Like a classic Chicago winter, everything stops—but only for a moment.',
+    icon: '🧊',
+    subtheme: 'timer',
+    effectType: 'passive',
+    durationTag: 'ONE_TIME',
+    activate: arm('deepFreeze'),
+  },
+  {
+    id: 'groundhogsDay',
+    name: 'Groundhog’s Day',
+    description: 'Arms right away: if your clock runs out before you play a word, you replay the round with the same tiles and a fresh clock. Stacks.',
+    flavorText: '“Same tiles. Same time. One more shot.”',
+    icon: '🔄',
+    subtheme: 'timer',
+    effectType: 'passive',
+    durationTag: 'ONE_TIME',
+    activate: (gameState: GameState): Partial<GameState> => {
+      const powerPlay = POWER_PLAYS_LIST.find(p => p.id === 'groundhogsDay')!;
+      return {
+        groundhogDayCharges: (gameState.groundhogDayCharges || 0) + 1,
+        activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== 'groundhogsDay'), powerPlay],
+      };
+    },
+  },
+  {
+    id: 'oneTileToRuleThemAll',
+    name: 'One Tile to Rule Them All',
+    description: 'A random tile in your hand becomes worth 30 points for this round.',
+    flavorText: '“It bends to your will—just once.”',
+    icon: '💍',
+    subtheme: 'rack',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // The tile is picked in the GameScreen reducer.
+  },
+  {
+    id: 'shapeshiftersTongue',
+    name: 'Shapeshifter’s Tongue',
+    description: 'Change one tile in your hand to any letter you like.',
+    flavorText: '“Imitation is the sincerest form of wordplay.”',
+    icon: '👅',
+    subtheme: 'rack',
+    effectType: 'selection',
+    selectionType: 'tile_transform',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled by the tile-transform picker in the GameScreen reducer.
+  },
+  {
+    id: 'konamiCode',
+    name: 'Konami Code',
+    description: 'Your next 3 words each score x2.',
+    flavorText: '↑ ↑ ↓ ↓ ← → ← → B A. Thirty extra lives not included.',
+    icon: '🎮',
+    subtheme: 'score',
+    effectType: 'next_word',
+    durationTag: 'LIMITED',
+    activate: arm('konamiCode', { words: 3 }),
+  },
+  {
+    id: 'warpZone',
+    name: 'Warp Zone',
+    description: 'Skip ahead: your next valid word starts a Golden Round.',
+    flavorText: 'Welcome to Warp Zone! Pick a pipe, any pipe.',
+    icon: '🍄',
+    subtheme: 'utility',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: (gameState) => ({
+      consecutiveValidWords: Math.max(gameState.consecutiveValidWords, gameState.goldenRoundThreshold - 1),
+    }),
+  },
+  {
+    id: 'whoYouGonnaCall',
+    name: 'Who You Gonna Call?',
+    description: 'Bust ALL your strikes. Busting costs 15 seconds from your time bank (it never drops below 5).',
+    flavorText: 'I ain’t afraid of no strikes.',
+    icon: '👻',
+    subtheme: 'strike',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({ strikes: 0 }),
+  },
+  {
+    id: 'lifeFindsAWay',
+    name: 'Life Finds a Way',
+    description: 'Arms right away: when a strike would end your run, you survive with one strike to spare and +20 seconds.',
+    flavorText: 'Clever girl. Your run evolves past extinction.',
+    icon: '🦖',
+    subtheme: 'strike',
+    effectType: 'passive',
+    durationTag: 'ONE_TIME',
+    activate: arm('lifeFindsAWay'),
+  },
+  {
+    id: 'bigHeadMode',
+    name: 'Big Head Mode',
+    description: 'Every tile is worth double for your next 2 words.',
+    flavorText: 'GoldenEye cheat unlocked. Your letters have never looked so bobbleheaded.',
+    icon: '🗿',
+    subtheme: 'score',
+    effectType: 'next_word',
+    durationTag: 'LIMITED',
+    activate: arm('bigHeadMode', { words: 2 }),
+  },
+  {
+    id: 'ludicrousSpeed',
+    name: 'Ludicrous Speed',
+    description: 'Your next 3 words each score x3, but each one costs 8 seconds.',
+    flavorText: 'They’ve gone to plaid!',
+    icon: '🚀',
+    subtheme: 'score',
+    effectType: 'next_word',
+    durationTag: 'LIMITED',
+    activate: arm('ludicrousSpeed', { words: 3 }),
+  },
+  {
+    id: 'gadgetHands',
+    name: 'Go-Go-Gadget Hands',
+    description: 'Grab 2 extra tiles now; your hand refills to 10 tiles instead of 8 for the next 2 rounds.',
+    flavorText: 'Wowsers! Extendable arms, extendable words.',
+    icon: '🦾',
+    subtheme: 'rack',
+    effectType: 'immediate',
+    durationTag: 'LIMITED',
+    activate: arm('gadgetHands', { rounds: 2 }),
+  },
+  {
+    id: 'upsideDown',
+    name: 'The Upside Down',
+    description: 'Next word only: tile values flip. Common letters (E, A, S…) are worth 10 and rare ones (Q, Z…) are worth 1.',
+    flavorText: 'Everything’s backwards down here. Even the scoring.',
+    icon: '🔦',
+    subtheme: 'score',
+    effectType: 'next_word',
+    durationTag: 'ONE_TIME',
+    activate: arm('upsideDown'),
+  },
+  {
+    id: 'comboBreaker',
+    name: 'Combo Breaker',
+    description: 'Next word only: 6+ letters scores x5. Anything shorter scores 0.',
+    flavorText: 'C-C-C-COMBO BREAKER! Go big or go home.',
+    icon: '🥊',
+    subtheme: 'score',
+    effectType: 'next_word',
+    durationTag: 'ONE_TIME',
+    activate: arm('comboBreaker'),
+  },
   { 
     id: 'timeBoost', 
     name: 'Time Boost', 
@@ -16,68 +243,6 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     effectType: 'immediate',
     durationTag: 'ONE_TIME',
     activate: (gameState) => ({...gameState}) // Handled directly in reducer due to affecting screen state
-  },
-  { 
-    id: 'letterUpgrade', 
-    name: 'Letter Upgrade', 
-    description: 'Pick a letter — all tiles of that letter are now worth 2x for the rest of the run.', 
-    flavorText: 'Choose wisely. Your alphabet just got an MVP.',
-    icon: '🔠',
-    subtheme: 'score',
-    effectType: 'selection',
-    selectionType: 'letter',
-    durationTag: 'PERSISTENT',
-    activate: (gameState, options) => {
-        if (options?.letter) {
-            const newMultipliers = {...gameState.letterMultipliers};
-            const currentMultiplier = newMultipliers[options.letter] || 1;
-            newMultipliers[options.letter] = currentMultiplier * 2;
-            const instanceId = `letterUpgrade_${options.letter}`;
-
-            const buff = {
-                ...POWER_PLAYS_LIST.find(p => p.id === 'letterUpgrade')!,
-                instanceId,
-                description: `All '${options.letter}' tiles are now worth ${newMultipliers[options.letter]}x`
-            };
-            
-            const newActiveBuffs = gameState.activeBuffs.filter(b => b.instanceId !== instanceId);
-            newActiveBuffs.push(buff);
-
-            return { letterMultipliers: newMultipliers, activeBuffs: newActiveBuffs };
-        }
-        return {};
-    }
-  },
-  { 
-    id: 'polish', 
-    name: 'Polish', 
-    description: 'Pick a letter — words containing it now score 2x.', 
-    flavorText: 'Give your favorite letter the spotlight treatment.',
-    icon: '💅',
-    subtheme: 'score',
-    effectType: 'selection',
-    selectionType: 'letter',
-    durationTag: 'PERSISTENT',
-    activate: (gameState, options) => {
-        if (options?.letter) {
-            const newMultipliers = {...gameState.wordMultipliersByLetter};
-            const currentMultiplier = newMultipliers[options.letter] || 1;
-            newMultipliers[options.letter] = currentMultiplier * 2;
-            const instanceId = `polish_${options.letter}`;
-
-            const buff = {
-                ...POWER_PLAYS_LIST.find(p => p.id === 'polish')!,
-                instanceId,
-                description: `Words with '${options.letter}' now score ${newMultipliers[options.letter]}x`
-            };
-            
-            const newActiveBuffs = gameState.activeBuffs.filter(b => b.instanceId !== instanceId);
-            newActiveBuffs.push(buff);
-
-            return { wordMultipliersByLetter: newMultipliers, activeBuffs: newActiveBuffs };
-        }
-        return {};
-    }
   },
   { 
     id: 'biglyScore', 
@@ -138,20 +303,6 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
           activePowerPlays: { ...gameState.activePowerPlays, wordLock: true },
           activeBuffs: [...gameState.activeBuffs, powerPlay]
       };
-    }
-  },
-  { 
-    id: 'philsosophy', 
-    name: 'Phil’s-osophy', 
-    description: 'Every word: 20% chance for +50, 10% chance for -10, 70% nothing.', 
-    flavorText: 'Life’s a coin flip. Phil wouldn’t have it any other way.',
-    icon: '🎲',
-    subtheme: 'score',
-    effectType: 'passive',
-    durationTag: 'PERSISTENT',
-    activate: (gameState) => {
-      const powerPlay = POWER_PLAYS_LIST.find(p => p.id === 'philsosophy')!;
-      return { activePowerPlays: { ...gameState.activePowerPlays, philsosophy: true }, activeBuffs: [...gameState.activeBuffs, powerPlay] };
     }
   },
   { 

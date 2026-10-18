@@ -1,8 +1,9 @@
 import { Tile, Charm, GameState, WordData, ScoreCalculationResult, ScoreBonusInfo, PowerPlay } from '../types';
+import { CHARM_BONUS } from '../config/gameplay';
 import { TILE_DISTRIBUTION, VOWELS, RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, COMBO_TILES, COMBO_TILE_CHANCE, OFFER_RECENCY_WINDOW, OFFER_EXPLORATION_BOOST, OFFER_REPEAT_PENALTY, OFFER_MAX_RECENCY_PENALTY } from '../constants';
 import { dictionaryService } from './dictionaryService';
 import { canBeMadeFromLetters } from './rackMatch';
-import { combineMultipliers, lengthMultiplier } from './rules';
+import { combineMultipliers, lengthMultiplier, UPSIDE_DOWN_POINTS } from './rules';
 
 // A simple seeded pseudo-random number generator for reproducible results.
 class SeededRNG {
@@ -386,16 +387,28 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         let tilePoints = tile.tempPoints ?? tile.points;
         let tileMultiplier = 1;
 
+        // PowerPlay: The Upside Down (common letters worth more, rare ones less)
+        if (gameState.activePowerPlays.upsideDown && tile.tempPoints === undefined) {
+            const flipped = UPSIDE_DOWN_POINTS[tile.points] ?? tile.points;
+            if (flipped !== tilePoints) bonuses.push({ name: `Upside Down (${tile.letter})`, description: `${tilePoints} → ${flipped} pts`, source: 'tile' });
+            tilePoints = flipped;
+        }
+
+        // PowerPlay: Big Head Mode
+        if (gameState.activePowerPlays.bigHeadMode) {
+            tileMultiplier *= 2;
+        }
+
         // Charm: The Valve
         if (gameState.activeCharms.some(c => c.id === 'theValve') && VOWELS.has(tile.letter)) {
-            tilePoints += 10;
-            bonuses.push({ name: `Vowel Lover (${tile.letter})`, description: `+10 pts`, source: 'tile' });
+            tilePoints += CHARM_BONUS.theValve;
+            bonuses.push({ name: `Vowel Lover (${tile.letter})`, description: `+${CHARM_BONUS.theValve} pts`, source: 'tile' });
         }
 
         // Charm: One Ring
         if (gameState.activeCharms.some(c => c.id === 'oneRing') && tile.letter === 'E') {
-            tilePoints += 15;
-            bonuses.push({ name: `The One Ring (${tile.letter})`, description: `+15 pts`, source: 'tile' });
+            tilePoints += CHARM_BONUS.oneRing;
+            bonuses.push({ name: `The One Ring (${tile.letter})`, description: `+${CHARM_BONUS.oneRing} pts`, source: 'tile' });
         }
         
         // Charm: S-Tier Scorer (tile points)
@@ -512,6 +525,29 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         bonuses.push({ name: 'Radioactive Spider Bite', description: 'x2 Score', source: 'word' });
     }
 
+    // PowerPlay: Big Head Mode (listed once per word, applied per tile above)
+    if (gameState.activePowerPlays.bigHeadMode) {
+        bonuses.push({ name: 'Big Head Mode', description: 'x2 Tile Pts', source: 'tile' });
+    }
+
+    // PowerPlay: Konami Code
+    if (gameState.activePowerPlays.konamiCode) {
+        wordMultipliers.push(2);
+        bonuses.push({ name: 'Konami Code', description: 'x2 Word Score', source: 'word' });
+    }
+
+    // PowerPlay: Ludicrous Speed
+    if (gameState.activePowerPlays.ludicrousSpeed) {
+        wordMultipliers.push(3);
+        bonuses.push({ name: 'Ludicrous Speed', description: 'x3 Word Score', source: 'word' });
+    }
+
+    // PowerPlay: Combo Breaker (a short word scores 0; handled after scoring)
+    if (gameState.activePowerPlays.comboBreaker && word.length >= 6) {
+        wordMultipliers.push(5);
+        bonuses.push({ name: 'Combo Breaker', description: 'x5 Word Score', source: 'word' });
+    }
+
     // PowerPlay: Bigly Score
     if (gameState.activePowerPlays.biglyScore) {
         wordMultipliers.push(4);
@@ -599,8 +635,8 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         const firstLetter = wordUpper[0];
         const lastLetter = wordUpper[wordUpper.length-1];
         if (['B', 'A', 'T', 'M'].includes(firstLetter) || ['B', 'A', 'T', 'M'].includes(lastLetter)) {
-             flatBonus += 20;
-             bonuses.push({ name: 'Bat-Signal', description: '+20 pts', source: 'game' });
+             flatBonus += CHARM_BONUS.batSignal;
+             bonuses.push({ name: 'Bat-Signal', description: `+${CHARM_BONUS.batSignal} pts`, source: 'game' });
         }
     }
     
@@ -608,42 +644,42 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     if (gameState.activeCharms.some(c => c.id === 'millenniumFalcon')) {
         const consonantCount = lettersInWord.filter(l => !VOWELS.has(l)).length;
         if (consonantCount === 3) {
-             flatBonus += 20;
-             bonuses.push({ name: 'Millennium Falcon', description: '+20 pts', source: 'game' });
+             flatBonus += CHARM_BONUS.millenniumFalcon;
+             bonuses.push({ name: 'Millennium Falcon', description: `+${CHARM_BONUS.millenniumFalcon} pts`, source: 'game' });
         }
     }
     
     // Charm: Triforce of Courage
     if (gameState.activeCharms.some(c => c.id === 'triforceOfCourage') && ['Z', 'X', 'Q'].some(l => lettersInWord.includes(l))) {
-        flatBonus += 15;
-        bonuses.push({ name: 'Triforce of Courage', description: '+15 pts', source: 'game' });
+        flatBonus += CHARM_BONUS.triforceOfCourage;
+        bonuses.push({ name: 'Triforce of Courage', description: `+${CHARM_BONUS.triforceOfCourage} pts`, source: 'game' });
     }
     
     // Charm: Power Pellet
     if (gameState.activeCharms.some(c => c.id === 'powerPellet') && word.length === 5) {
-        flatBonus += 25;
-        bonuses.push({ name: 'Power Pellet', description: '+25 pts', source: 'game' });
+        flatBonus += CHARM_BONUS.powerPellet;
+        bonuses.push({ name: 'Power Pellet', description: `+${CHARM_BONUS.powerPellet} pts`, source: 'game' });
     }
     
     // Charm: Chaos Theory
     if (gameState.activeCharms.some(c => c.id === 'chaosTheory') && word.length % 2 === 0) {
-        flatBonus += 20;
-        bonuses.push({ name: 'Chaos Theory', description: '+20 pts', source: 'game' });
+        flatBonus += CHARM_BONUS.chaosTheory;
+        bonuses.push({ name: 'Chaos Theory', description: `+${CHARM_BONUS.chaosTheory} pts`, source: 'game' });
     }
     
     // Charm: We Didn’t Start the Fire
     if (gameState.activeCharms.some(c => c.id === 'weDidntStartTheFire')) {
         const uniqueVowels = new Set(lettersInWord.filter(l => VOWELS.has(l)));
         if (uniqueVowels.size >= 3) {
-             flatBonus += 25;
-             bonuses.push({ name: 'We Didn’t Start the Fire', description: '+25 pts', source: 'game' });
+             flatBonus += CHARM_BONUS.weDidntStartTheFire;
+             bonuses.push({ name: 'We Didn’t Start the Fire', description: `+${CHARM_BONUS.weDidntStartTheFire} pts`, source: 'game' });
         }
     }
     
     // Charm: Inigo’s Revenge
     if (gameState.activeCharms.some(c => c.id === 'inigosRevenge') && lettersInWord.filter(l => l === 'I').length >= 2) {
-        flatBonus += 50;
-        bonuses.push({ name: 'Inigo’s Revenge', description: '+50 pts', source: 'game' });
+        flatBonus += CHARM_BONUS.inigosRevenge;
+        bonuses.push({ name: 'Inigo’s Revenge', description: `+${CHARM_BONUS.inigosRevenge} pts`, source: 'game' });
     }
     
     // Charm: True Love
@@ -654,8 +690,8 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     
     // Charm: Sherlock's Syntax
     if (gameState.activeCharms.some(c => c.id === 'sherlocksSyntax') && wordUpper === wordUpper.split('').reverse().join('')) {
-        flatBonus += 50;
-        bonuses.push({ name: "Sherlock's Syntax", description: '+50 pts', source: 'game' });
+        flatBonus += CHARM_BONUS.sherlocksSyntax;
+        bonuses.push({ name: "Sherlock's Syntax", description: `+${CHARM_BONUS.sherlocksSyntax} pts`, source: 'game' });
     }
     
     // Charm: Sacred Heart
@@ -666,14 +702,14 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
 
     // Charm: Scooby Stack
     if (gameState.activeCharms.some(c => c.id === 'scoobyStack') && new Set(lettersInWord).size < lettersInWord.length) {
-        flatBonus += 55;
-        bonuses.push({ name: 'Scooby Stack', description: '+55 pts', source: 'game' });
+        flatBonus += CHARM_BONUS.scoobyStack;
+        bonuses.push({ name: 'Scooby Stack', description: `+${CHARM_BONUS.scoobyStack} pts`, source: 'game' });
     }
     
     // Charm: Hyrule Hustle
     if (gameState.activeCharms.some(c => c.id === 'hyruleHustle') && ['H', 'L', 'Z'].includes(wordUpper[0])) {
-        flatBonus += 15;
-        bonuses.push({ name: 'Hyrule Hustle', description: '+15 pts', source: 'game' });
+        flatBonus += CHARM_BONUS.hyruleHustle;
+        bonuses.push({ name: 'Hyrule Hustle', description: `+${CHARM_BONUS.hyruleHustle} pts`, source: 'game' });
     }
 
     // Charm: LUNA
@@ -681,28 +717,28 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         const vowelCount = lettersInWord.filter(l => VOWELS.has(l)).length;
         const consonantCount = lettersInWord.length - vowelCount;
         if (vowelCount > consonantCount) {
-             flatBonus += 50;
-             bonuses.push({ name: 'LUNA', description: '+50 pts', source: 'game' });
+             flatBonus += CHARM_BONUS.luna;
+             bonuses.push({ name: 'LUNA', description: `+${CHARM_BONUS.luna} pts`, source: 'game' });
         }
     }
 
     // Charm: The Dude Abides
     if (gameState.activeCharms.some(c => c.id === 'theDudeAbides') && word.length === 3) {
-        flatBonus += 10;
-        bonuses.push({ name: 'The Dude Abides', description: '+10 pts', source: 'game' });
+        flatBonus += CHARM_BONUS.theDudeAbides;
+        bonuses.push({ name: 'The Dude Abides', description: `+${CHARM_BONUS.theDudeAbides} pts`, source: 'game' });
     }
 
     // Charm: Pants on Fire
     if (gameState.activeCharms.some(c => c.id === 'pantsOnFire') && lettersInWord.includes('L') && lettersInWord.includes('I')) {
-        flatBonus += 25;
-        bonuses.push({ name: 'Pants on Fire', description: '+25 pts', source: 'game' });
+        flatBonus += CHARM_BONUS.pantsOnFire;
+        bonuses.push({ name: 'Pants on Fire', description: `+${CHARM_BONUS.pantsOnFire} pts`, source: 'game' });
     }
 
     // Charm: Strange Magic
     if (gameState.activeCharms.some(c => c.id === 'strangeMagic')) {
         if (/([AEIOU])\1/i.test(word)) {
-            flatBonus += 55;
-            bonuses.push({ name: 'Strange Magic', description: '+55 pts', source: 'game' });
+            flatBonus += CHARM_BONUS.strangeMagic;
+            bonuses.push({ name: 'Strange Magic', description: `+${CHARM_BONUS.strangeMagic} pts`, source: 'game' });
         }
     }
 
@@ -717,16 +753,16 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
             }
         }
         if (hasDoubleConsonant) {
-            flatBonus += 55;
-            bonuses.push({ name: 'Turtle Power', description: '+55 pts', source: 'game' });
+            flatBonus += CHARM_BONUS.turtlePower;
+            bonuses.push({ name: 'Turtle Power', description: `+${CHARM_BONUS.turtlePower} pts`, source: 'game' });
         }
     }
 
     // Charm: Ice Age Bonus
     if (gameState.activeCharms.some(c => c.id === 'iceAgeBonus')) {
         if (wordUpper.includes('I') && wordUpper.includes('C')) {
-            flatBonus += 50;
-            bonuses.push({ name: 'Ice Age Bonus', description: '+50 pts', source: 'game' });
+            flatBonus += CHARM_BONUS.iceAgeBonus;
+            bonuses.push({ name: 'Ice Age Bonus', description: `+${CHARM_BONUS.iceAgeBonus} pts`, source: 'game' });
         }
     }
 
@@ -742,8 +778,8 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
 
     // Power Star Residual
     if (gameState.powerStarResidualActive) {
-        flatBonus += 5;
-        bonuses.push({ name: 'Power Star Residual', description: '+5 pts', source: 'game' });
+        flatBonus += CHARM_BONUS.powerStarResidual;
+        bonuses.push({ name: 'Power Star Residual', description: `+${CHARM_BONUS.powerStarResidual} pts`, source: 'game' });
     }
 
     totalScore += flatBonus;
@@ -753,9 +789,9 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     // Lena of the Lost Lights
     if (gameState.activeCharms.some(c => c.id === 'lenaOfTheLostLights')) {
         if (['D', 'R', 'K', 'N'].some(l => lettersInWord.includes(l))) {
-             const bonus = Math.round(totalScore * 0.10);
+             const bonus = Math.round(totalScore * CHARM_BONUS.lenaPercent / 100);
              totalScore += bonus;
-             bonuses.push({ name: 'Lena of the Lost Lights', description: `+${bonus} pts (10%)`, source: 'game' });
+             bonuses.push({ name: 'Lena of the Lost Lights', description: `+${bonus} pts (${CHARM_BONUS.lenaPercent}%)`, source: 'game' });
         }
     }
 

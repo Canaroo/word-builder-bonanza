@@ -5,7 +5,7 @@ import { RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, VOWELS, INITIAL_SHUFFLES, 
 import * as gameUtils from '../gameUtils';
 import { MILESTONES_LIST } from '../../data/milestones';
 import { CHARMS_LIST } from '../../data/charms';
-import { POWER_PLAYS_LIST } from '../../data/powerPlays';
+import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS } from '../../data/powerPlays';
 import { EASTER_EGGS } from '../../data/easterEggs';
 import { recordFound, collectionProgress } from '../collection';
 import { WORD_BONUSES } from '../../data/wordBonuses';
@@ -17,8 +17,8 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, timeForWord, advancePowerPlayMeter, advanceStrikeRecovery } from '../rules';
-import { GAMEPLAY } from '../../config/gameplay';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, timeForWord, advancePowerPlayMeter, advanceStrikeRecovery, bankMax, handSizeFor } from '../rules';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 
 
@@ -189,8 +189,10 @@ type GameAction =
     | { type: 'SET_MODAL_CONTENT', payload: ModalContent }
     | { type: 'CLOSE_MODAL' }
     | { type: 'UPDATE_GAME_STATE', payload: Partial<GameState> }
-    | { type: 'CHOOSE_CHARM', payload: { charm: Charm; hand: (Tile | null)[]; allOffered: Charm[] } }
+    | { type: 'CHOOSE_CHARM', payload: { charm: Charm; hand: (Tile | null)[]; allOffered: Charm[]; replaceId?: string } }
+    | { type: 'PASS_CHARM', payload: { allOffered: Charm[] } }
     | { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: PowerPlay; allOffered: PowerPlay[] } }
+    | { type: 'KEEP_POWER_PLAY', payload: { allOffered: PowerPlay[] } }
     | { type: 'ACTIVATE_POWER_PLAY', payload: PowerPlay }
     | { type: 'COMPLETE_POWER_PLAY_ACTIVATION', payload: { powerPlay: PowerPlay, option?: any } }
     | { type: 'ADD_TILE_TO_SWAP', payload: { tile: Tile, originalIndex: number } }
@@ -212,15 +214,47 @@ type GameAction =
     | { type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: boolean };
 
 
+/**
+ * Saved games keep power-ups as plain JSON, without their activate() code, and may hold items
+ * that have since moved between the charm and PowerPlay lists. Rebuild them from the current
+ * definitions, keeping per-instance fields (like a buff's live description), and drop the rest.
+ */
+export const rehydratePowerUps = (gs: GameState): GameState => {
+    const charms = new Map(CHARMS_LIST.map(c => [c.id, c]));
+    const powerPlays = new Map(POWER_PLAYS_LIST.map(p => [p.id, p]));
+    const fromList = <T extends { id: string }>(items: T[] | undefined, defs: Map<string, T>): T[] =>
+        (items ?? []).filter(i => defs.has(i.id)).map(i => ({ ...i, ...defs.get(i.id)!, ...('instanceId' in i ? { instanceId: (i as any).instanceId, description: (i as any).description } : {}) }));
+    const anyDef = new Map<string, Charm | PowerPlay>([...charms, ...powerPlays]);
+    return {
+        ...gs,
+        activeCharms: fromList(gs.activeCharms, charms),
+        availablePowerPlays: fromList(gs.availablePowerPlays, powerPlays),
+        powerPlayOffer: fromList(gs.powerPlayOffer, powerPlays),
+        availableCharms: [],
+        activeBuffs: (gs.activeBuffs ?? []).filter(b => anyDef.has(b.id)).map(b => ({ ...anyDef.get(b.id)!, ...b, activate: anyDef.get(b.id)!.activate }) as Charm | PowerPlay),
+    };
+};
+
+/** Strikes allowed before the run ends (the Strike Bank charm adds up to two). */
+export const maxStrikesFor = (gs: Pick<GameState, 'charmUses'> | null | undefined): number => {
+    const strikeBankUses = gs?.charmUses?.['strikeBank'] || 0;
+    if (strikeBankUses >= 2) return 5;
+    if (strikeBankUses >= 1) return 4;
+    return MAX_STRIKES_INITIAL;
+};
+
+// Multi-word PowerPlays: activePowerPlays[id] = { words } counts down one valid word at a time.
+const WORD_COUNTDOWN_POWER_PLAYS = ['konamiCode', 'bigHeadMode', 'ludicrousSpeed', 'letterUpgrade', 'polish'];
+
 // Time bank (config/gameplay.ts): the clock never resets between words. A Golden Round runs on
 // its own short clock; the bank is set aside when it starts and given back when it ends.
 const settleTimeBank = (time: number, gs: GameState): { time: number; gs: GameState } => {
     const pending = gs.pendingTimeBonus ?? 0;
     if (gs.roundType === 'golden' && gs.bankedTime == null) {
-        return { time: GAMEPLAY.goldenRoundSeconds, gs: { ...gs, bankedTime: clampTime(time + pending), pendingTimeBonus: 0 } };
+        return { time: GAMEPLAY.goldenRoundSeconds, gs: { ...gs, bankedTime: clampTime(time + pending, bankMax(gs)), pendingTimeBonus: 0 } };
     }
     if (gs.roundType !== 'golden' && gs.bankedTime != null) {
-        return { time: clampTime(gs.bankedTime + pending), gs: { ...gs, bankedTime: null, pendingTimeBonus: 0 } };
+        return { time: clampTime(gs.bankedTime + pending, bankMax(gs)), gs: { ...gs, bankedTime: null, pendingTimeBonus: 0 } };
     }
     return { time, gs };
 };
@@ -238,7 +272,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
         case 'PAUSE_GAME': return { ...state, isPaused: true };
         case 'RESUME_GAME': return { ...state, isPaused: false, time: state.time }; // Prevent timer reset on resume
         case 'TICK_TIMER': return { ...state, time: state.time - 1 };
-        case 'ADD_TIME': return {...state, time: clampTime(state.time + action.payload) };
+        case 'ADD_TIME': return {...state, time: clampTime(state.time + action.payload, bankMax(state.gameState)) };
         case 'SET_TIME': return { ...state, time: action.payload };
         case 'UPDATE_GAME_STATE': return { ...state, gameState: { ...state.gameState, ...action.payload } };
         case 'SET_CHALLENGE_WORD_DATA': return { ...state, challengeWordData: action.payload };
@@ -356,6 +390,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
           let { strikes, activePowerPlays, activeBuffs, score, powerPlayProgress, consecutiveSuccesses, flawlessScore, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress } = gameState;
           let actuallyGotAStrike = false;
           let strikeBlockedByShield = false;
+          let revivedByLifeFindsAWay = false;
           
           if(activePowerPlays.strikeShield) {
             delete activePowerPlays.strikeShield;
@@ -371,16 +406,18 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             strikes++;
             flawlessScore = 0; // Reset flawless score on strike
             actuallyGotAStrike = true;
+            if (activePowerPlays.lifeFindsAWay && strikes >= maxStrikesFor(gameState)) {
+                strikes = maxStrikesFor(gameState) - 1;
+                delete activePowerPlays.lifeFindsAWay;
+                activeBuffs = activeBuffs.filter(b => b.id !== 'lifeFindsAWay');
+                lastPowerPlayResult = { message: "🦖 Life finds a way! You survive with +20 seconds.", scoreChange: 0 };
+                revivedByLifeFindsAWay = true;
+            }
             if (powerSurgeProgress > 0) {
               powerSurgeProgress = 0;
             }
           }
           
-          if (actuallyGotAStrike && activeCharms.some(c => c.id === 'goldenSnitch')) {
-             activeCharms = activeCharms.filter(c => c.id !== 'goldenSnitch');
-             activeBuffs = activeBuffs.filter(b => b.id !== 'goldenSnitch');
-          }
-
           if (activePowerPlays.sonicSpeed) {
               delete activePowerPlays.sonicSpeed;
               activeBuffs = activeBuffs.filter(b => b.id !== 'sonicSpeed');
@@ -402,7 +439,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
           
           if ((actuallyGotAStrike || strikeBlockedByShield) && action.payload?.source === 'invalid_word') {
               // An invalid word costs time from the bank.
-              newTime = clampTime(state.time - GAMEPLAY.timeBank.invalidPenalty);
+              newTime = clampTime(state.time - GAMEPLAY.timeBank.invalidPenalty, bankMax(gameState));
               
               // Add a new tile while the hand is below the standard size; otherwise swap one.
               const hasSpace = newHand.filter(t => t !== null).length < HAND_SIZE;
@@ -435,6 +472,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
               newHand = dupeCheckResult.newHand;
               newTileBag = dupeCheckResult.newBag;
           }
+          if (revivedByLifeFindsAWay) newTime = clampTime(newTime + 20, bankMax(gameState));
           
           return { 
             ...state,
@@ -675,6 +713,22 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 newGameState.multiverseTimeBonus = 0; // Consume the bonus
             }
 
+            if (newGameState.ludicrousTimeCost > 0) {
+                timerDuration = Math.max(Math.min(timerDuration, 5), timerDuration - newGameState.ludicrousTimeCost);
+                newGameState.ludicrousTimeCost = 0;
+            }
+
+            if (newGameState.activePowerPlays.gadgetHands) {
+                const rounds = newGameState.activePowerPlays.gadgetHands.rounds - 1;
+                if (rounds > 0) {
+                    newGameState.activePowerPlays = { ...newGameState.activePowerPlays, gadgetHands: { rounds } };
+                } else {
+                    const { gadgetHands, ...rest } = newGameState.activePowerPlays;
+                    newGameState.activePowerPlays = rest;
+                    newGameState.activeBuffs = newGameState.activeBuffs.filter(b => b.id !== 'gadgetHands');
+                }
+            }
+
             if(newGameState.warioTimeDebt > 0) {
                 timerDuration -= newGameState.warioTimeDebt;
                 newGameState.warioTimeDebt = 0;
@@ -755,7 +809,9 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             
             const diceRollCharm = newGameState.activeCharms.find(c => c.id === 'diceRollProtocol');
     
-            if (diceRollCharm && (newGameState.charmUses['diceRollProtocol'] || 0) < (diceRollCharm.maxUses || 3)) {
+            const diceRounds = (newGameState.charmUses['diceRollProtocol'] || 0) + 1;
+            if (diceRollCharm) newGameState.charmUses = { ...newGameState.charmUses, diceRollProtocol: diceRounds };
+            if (diceRollCharm && diceRounds % 3 === 0) {
                 const handTiles = hand.filter((t): t is Tile => t !== null);
                 if (handTiles.length > 0) {
                     const tileToReplaceIndex = Math.floor(Math.random() * handTiles.length);
@@ -772,13 +828,6 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                         }
                     }
     
-                    const newUses = (newGameState.charmUses['diceRollProtocol'] || 0) + 1;
-                    newGameState.charmUses = {...newGameState.charmUses, 'diceRollProtocol': newUses };
-    
-                    if (newUses >= (diceRollCharm.maxUses || 3)) {
-                        newGameState.activeCharms = newGameState.activeCharms.filter(c => c.id !== 'diceRollProtocol');
-                        newGameState.activeBuffs = newGameState.activeBuffs.filter(b => b.id !== 'diceRollProtocol');
-                    }
                 }
             }
     
@@ -788,18 +837,35 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 tileBag,
                 modalContent: null,
                 isPaused: false,
-                time: clampTime(timerDuration),
-                timeGain: { seconds: clampTime(timerDuration) - settled.time, key: Date.now() },
+                time: clampTime(timerDuration, bankMax(newGameState)),
+                timeGain: { seconds: clampTime(timerDuration, bankMax(newGameState)) - settled.time, key: Date.now() },
                 gameState: { ...newGameState, wordsThisRound: 0 }
             };
         }
         
+        case 'PASS_CHARM': {
+            const charmCooldowns = { ...gameState.charmCooldowns };
+            action.payload.allOffered.forEach(c => { charmCooldowns[c.id] = 3; });
+            return { ...state, gameState: { ...gameState, charmCooldowns } };
+        }
+
         case 'CHOOSE_CHARM': {
-            const { charm, hand, allOffered } = action.payload;
+            const { charm, hand, allOffered, replaceId } = action.payload;
             let newHand = hand;
-            const stateChanges = charm.activate(state.gameState);
-            
             let newGameState = { ...gameState };
+            let newTime = state.time;
+
+            // Charm slots: a new charm beyond the limit must replace one.
+            if (replaceId) {
+                newGameState.activeCharms = newGameState.activeCharms.filter(c => c.id !== replaceId);
+                newGameState.activeBuffs = newGameState.activeBuffs.filter(b => b.id !== replaceId);
+                if (replaceId === 'powerGlove') newTime = clampTime(newTime, GAMEPLAY.timeBank.max);
+            } else if (newGameState.activeCharms.length >= CHARM_SLOTS && !newGameState.activeCharms.some(c => c.id === charm.id)) {
+                return state;
+            }
+            if (charm.id === 'powerGlove') newTime = clampTime(newTime + 15, POWER_GLOVE_BANK_MAX);
+
+            const stateChanges = charm.activate(newGameState);
 
             const newCharmCooldowns = {...newGameState.charmCooldowns};
             allOffered.forEach(offeredCharm => {
@@ -824,43 +890,6 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 newGameState.powerStarResidualActive = false;
             }
             
-            if (charm.id === 'wildcardWake') {
-                 return {
-                    ...state,
-                    gameState: { ...newGameState, ...stateChanges }
-                };
-            }
-
-            if (charm.id === 'oneTileToRuleThemAll') {
-                const availableTiles = hand.map((tile, index) => ({ tile, index })).filter((item): item is { tile: Tile, index: number } => item.tile !== null);
-                if (availableTiles.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * availableTiles.length);
-                    const chosenItem = availableTiles[randomIndex];
-                    
-                    const updatedTile: Tile = { ...chosenItem.tile, tempPoints: 25 };
-                    
-                    const handCopy = [...hand];
-                    handCopy[chosenItem.index] = updatedTile;
-                    newHand = handCopy;
-
-                    const buff: Charm = { 
-                        ...charm, 
-                        description: `The '${updatedTile.letter}' tile is worth 25 points for one use.` 
-                    };
-                    stateChanges.activeBuffs = [...(stateChanges.activeBuffs || newGameState.activeBuffs), buff];
-                }
-                
-                return {
-                    ...state,
-                    hand: newHand,
-                    gameState: {
-                        ...newGameState,
-                        ...stateChanges,
-                        activeCharms: [...newGameState.activeCharms, charm],
-                    }
-                };
-            }
-
             if (charm.effectType === 'selection') {
                 return {
                     ...state,
@@ -874,6 +903,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             return {
                 ...state,
                 hand: newHand,
+                time: newTime,
                 gameState: {
                     ...newGameState,
                     ...stateChanges,
@@ -883,6 +913,20 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             }
         }
         
+        case 'KEEP_POWER_PLAY': {
+            const powerPlayCooldowns = { ...gameState.powerPlayCooldowns };
+            action.payload.allOffered.forEach(p => { powerPlayCooldowns[p.id] = 3; });
+            return {
+                ...state,
+                gameState: {
+                    ...gameState,
+                    powerPlayOffer: [],
+                    powerPlayCooldowns,
+                    powerPlayProgress: { ...gameState.powerPlayProgress, targetDigit: null, streak: 0, turnsSinceLastOffer: 0 },
+                },
+            };
+        }
+
         case 'CHOOSE_POWER_PLAY': {
             const { powerPlay, allOffered } = action.payload;
 
@@ -957,12 +1001,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 };
             }
 
-            const AUTOMATIC_POWER_PLAYS = new Set([
-                'strikeShield', 'philsosophy', 'plotArmor',
-                'saveByTheBell', 'timeTurner', 'mutationProtocol'
-            ]);
-
-            if (AUTOMATIC_POWER_PLAYS.has(powerPlay.id)) {
+            if (INSTANT_POWER_PLAY_IDS.has(powerPlay.id)) {
                 let newGameState = {
                     ...gameState,
                     powerPlayOffer: [],
@@ -983,7 +1022,8 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 ...state,
                 gameState: {
                     ...gameState,
-                    availablePowerPlays: [...gameState.availablePowerPlays, powerPlay],
+                    // You hold one PowerPlay at a time: a new pick swaps out the old one.
+                    availablePowerPlays: [powerPlay],
                     powerPlayOffer: [],
                     powerPlayProgress: resetProgress,
                     powerPlayCooldowns: newPowerPlayCooldowns,
@@ -1346,10 +1386,48 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 shouldPause = true;
             }
             
+            if (powerPlay.id === 'oneTileToRuleThemAll') {
+                const slots = newHand.map((tile, index) => ({ tile, index })).filter((item): item is { tile: Tile; index: number } => item.tile !== null);
+                if (slots.length > 0) {
+                    const chosen = slots[Math.floor(Math.random() * slots.length)];
+                    newHand = [...newHand];
+                    newHand[chosen.index] = { ...chosen.tile, tempPoints: 30 };
+                    newModalContent = { type: 'info', title: '💍 One Tile to Rule Them All', content: `Your '${chosen.tile.letter}' tile is worth 30 points this round.`, autoClose: 2200 };
+                    shouldPause = true;
+                }
+            }
+            if (powerPlay.id === 'gadgetHands') {
+                const { newTiles, remainingBag } = gameUtils.drawTiles(2, newBag);
+                newHand = [...newHand];
+                newTiles.forEach(tile => {
+                    const empty = newHand.indexOf(null);
+                    if (empty !== -1) newHand[empty] = tile;
+                });
+                newBag = remainingBag;
+                newModalContent = { type: 'info', title: '🦾 Go-Go-Gadget Hands!', content: 'Wowsers! +2 tiles now, and your hand refills to 10 for 2 rounds.', autoClose: 2200 };
+                shouldPause = true;
+            }
+            if (powerPlay.id === 'warpZone') {
+                newModalContent = { type: 'info', title: '🍄 Warp Zone!', content: 'Your next valid word starts a Golden Round.', autoClose: 2200 };
+                shouldPause = true;
+            }
+            if (powerPlay.id === 'whoYouGonnaCall') {
+                newModalContent = { type: 'info', title: '👻 Ghostbusted!', content: 'All strikes busted! That cost you some time.', autoClose: 2200 };
+                shouldPause = true;
+            }
+            if (powerPlay.selectionType === 'tile_transform') {
+                return {
+                    ...state,
+                    modalContent: { type: 'charm-activation', title: `Activate: ${powerPlay.name}`, data: powerPlay },
+                    isPaused: true,
+                };
+            }
+
             const activationChanges = powerPlay.activate(state.gameState);
             let timeChange = 0;
             if (powerPlay.id === 'timeBoost') timeChange = 15;
             if (powerPlay.id === 'rewind') timeChange = 10;
+            if (powerPlay.id === 'whoYouGonnaCall') timeChange = -Math.min(15, Math.max(0, state.time - 5));
 
             if (powerPlay.id === 'sonicSpeed') {
                 newModalContent = {
@@ -1371,7 +1449,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             
             return {
               ...state,
-              time: clampTime(state.time + timeChange),
+              time: clampTime(state.time + timeChange, bankMax(gameState)),
               hand: newHand,
               tileBag: newBag,
               buildRow: newBuildRow,
@@ -1446,7 +1524,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             }
             return {
                 ...state,
-                time: clampTime(state.time + timeChange),
+                time: clampTime(state.time + timeChange, bankMax(gameState)),
                 modalContent: null,
                 isPaused: false,
                 gameState: {
@@ -1640,6 +1718,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                     gameState: {
                         ...gameState,
                         availableCharms: gameState.availableCharms.filter(c => c.id !== charm.id),
+                        availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== charm.id),
                         charmUses: newCharmUses,
                     }
                 };
@@ -1793,6 +1872,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 }
                 // Sanitize the hand on resume just in case it was saved in a bad state
                 savedData.gameScreenState.hand = sanitizeHand(savedData.gameScreenState.hand);
+                savedData.gameScreenState.gameState = rehydratePowerUps(savedData.gameScreenState.gameState);
                 return savedData.gameScreenState;
             } catch (e) {
                 console.error("Error parsing saved game. Starting fresh.", e);
@@ -1963,12 +2043,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     resetRound(updatedGameState, hand, buildRow, tileBag);
   }, [gameState, hand, buildRow, tileBag, resetRound, showMessage]);
 
-  const maxStrikes = useMemo(() => {
-    const strikeBankUses = gameState?.charmUses?.['strikeBank'] || 0;
-    if (strikeBankUses >= 2) return 5;
-    if (strikeBankUses >= 1) return 4;
-    return MAX_STRIKES_INITIAL;
-  }, [gameState?.charmUses]);
+  const maxStrikes = useMemo(() => maxStrikesFor(gameState), [gameState?.charmUses]);
 
   const isStrikeChallenge = useMemo(() => (gameState?.challengeCount ?? 0) <= 0, [gameState?.challengeCount]);
   const strikesRemaining = useMemo(() => maxStrikes - (gameState?.strikes ?? 0), [maxStrikes, gameState?.strikes]);
@@ -2003,7 +2078,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     }
 
     if (lastModalTitle.includes('Deep Freeze')) {
-      dispatch({ type: 'ADD_TIME', payload: 5 });
+      dispatch({ type: 'ADD_TIME', payload: 10 });
       dispatch({ type: 'CLOSE_MODAL' });
       return;
     }
@@ -2101,20 +2176,18 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               return;
           }
           
-          // Deep Freeze Check FIRST
-          const deepFreezeCharm = (gameState?.activeCharms ?? []).find(c => c.id === 'deepFreeze');
-          if (deepFreezeCharm && ((gameState?.charmUses?.['deepFreeze'] ?? 0) < (deepFreezeCharm.maxUses || 1))) {
+          // Deep Freeze (PowerPlay) check first
+          if (gameState?.activePowerPlays?.deepFreeze) {
               dispatch({ type: 'PAUSE_GAME' });
-              const newCharmUses = { ...(gameState?.charmUses ?? {}), 'deepFreeze': (gameState?.charmUses?.['deepFreeze'] || 0) + 1 };
-              dispatch({ 
-                  type: 'UPDATE_GAME_STATE', 
-                  payload: { 
-                      charmUses: newCharmUses, 
+              const { deepFreeze, ...remainingPowerPlays } = gameState.activePowerPlays;
+              dispatch({
+                  type: 'UPDATE_GAME_STATE',
+                  payload: {
+                      activePowerPlays: remainingPowerPlays,
                       activeBuffs: (gameState?.activeBuffs ?? []).filter(b => b.id !== 'deepFreeze'),
-                      activeCharms: (gameState?.activeCharms ?? []).filter(c => c.id !== 'deepFreeze') 
                   }
               });
-              dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'info', title: '❄️ Deep Freeze! ❄️', content: 'Time has frozen for a moment. You have 5 seconds left. Make it count!' }});
+              dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'info', title: '❄️ Deep Freeze! ❄️', content: 'Time froze solid. You get 10 bonus seconds. Make them count!' }});
               soundService.playMilestone();
               return;
           }
@@ -2316,6 +2389,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           showToast(`Length bonus x${lengthMultiplier(word.length)}!`);
       }
       
+      // --- Combo Breaker: short words score nothing ---
+      if (newState.activePowerPlays.comboBreaker && word.length < 6) {
+          scoreResult.totalScore = 0;
+          scoreResult.bonuses = [{ name: 'Combo Breaker', description: 'Under 6 letters: 0 pts' }];
+          showMessage('🥊 Combo Breaker whiffed! Under 6 letters scores 0.', 2500);
+      }
+      if (newState.activePowerPlays.ludicrousSpeed) {
+          newState.ludicrousTimeCost = (newState.ludicrousTimeCost ?? 0) + 8;
+      }
+
       // --- Heisenberg PowerPlay ---
       if (newState.activePowerPlays.heisenberg) {
         const isWin = Math.random() < 0.5;
@@ -2388,16 +2471,17 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         scoreResult.bonuses.push({ name: 'Golden Ticket!', description: "Golden Ticket! x3 Score"});
         modalQueue.push({ type: 'info', title: '🎟️ Golden Ticket!', content: 'You found it! Your score is tripled!' });
       }
-      if (newState.activePowerPlays['philsosophy']) {
+      if (newState.activeCharms.some(c => c.id === 'philsosophy')) {
           const rand = Math.random();
-          if(rand < 0.20) { 
-              scoreResult.totalScore += 50; 
-              scoreResult.bonuses.push({ name: "Phil's-osophy", description: "+50 pts"}); 
-              modalQueue.push({ type: 'info', title: "🎲 Phil's-osophy", content: "Life's a coin flip. This time, it came up heads. +50 points." });
-          } else if (rand < 0.30) { 
-              scoreResult.totalScore -= 10; 
-              scoreResult.bonuses.push({ name: "Phil's-osophy", description: "-10 pts"}); 
-              modalQueue.push({ type: 'info', title: "🎲 Phil's-osophy", content: "Life's a coin flip. This time, not so good. -10 points." });
+          const { philsosophyWin: win, philsosophyLoss: loss } = CHARM_BONUS;
+          if (rand < 0.25) {
+              scoreResult.totalScore += win;
+              scoreResult.bonuses.push({ name: "Phil's-osophy", description: `+${win} pts`});
+              showMessage(`🎲 Phil's-osophy: heads! +${win} points.`, 2500);
+          } else if (rand < 0.35) {
+              scoreResult.totalScore -= loss;
+              scoreResult.bonuses.push({ name: "Phil's-osophy", description: `-${loss} pts`});
+              showMessage(`🎲 Phil's-osophy: tails. -${loss} points.`, 2500);
           }
       }
 
@@ -2427,9 +2511,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
       const timeSinceLast = now - newState.lastSubmissionTime;
       if (newState.activeCharms.some(c => c.id === 'momentum') && timeSinceLast < 10000 && newState.consecutiveSuccesses > 0) {
-          scoreResult.totalScore += 20;
-          scoreResult.bonuses.push({ name: "Momentum", description: "Momentum: +20 pts"});
-          showMessage("💨 Momentum! +20 bonus points.", 2000);
+          scoreResult.totalScore += CHARM_BONUS.momentum;
+          scoreResult.bonuses.push({ name: "Momentum", description: `Momentum: +${CHARM_BONUS.momentum} pts`});
+          showMessage(`💨 Momentum! +${CHARM_BONUS.momentum} bonus points.`, 2000);
       }
       const scoreBeforeEncore = scoreResult.totalScore;
       
@@ -2437,23 +2521,23 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (newState.activeCharms.some(c => c.id === 'nicolesGrace')) {
           const endsInVowel = VOWELS.has(word.toUpperCase().slice(-1));
           if (word.toUpperCase().includes('M') || endsInVowel) {
-              const bonus = Math.round(scoreResult.totalScore * 0.15);
+              const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.nicolesGracePercent / 100);
               scoreResult.totalScore += bonus;
-              scoreResult.bonuses.push({ name: "Nicole's Grace", description: `+${bonus} pts (15%)` });
+              scoreResult.bonuses.push({ name: "Nicole's Grace", description: `+${bonus} pts (${CHARM_BONUS.nicolesGracePercent}%)` });
           }
       }
 
       if (newState.pianoManEncoreActive) {
-          const bonus = Math.round(scoreResult.totalScore * 0.15);
+          const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.pianoManPercent / 100);
           scoreResult.totalScore += bonus;
           scoreResult.bonuses.push({ name: "Piano Man Encore", description: `Piano Man Encore: +${bonus} pts`});
           showMessage(`🎹 Piano Man Encore! +${bonus} bonus points.`, 2000);
       }
       if (newState.activeCharms.some(c => c.id === 'christiansHoodieMode')) {
           if (timeSinceLast < 10000 && /[GAM]/.test(word.toUpperCase())) {
-              const bonus = Math.round(scoreResult.totalScore * 0.15);
+              const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.christiansHoodiePercent / 100);
               scoreResult.totalScore += bonus;
-              scoreResult.bonuses.push({ name: "Christian’s Hoodie Mode", description: `+${bonus} pts (15%)`});
+              scoreResult.bonuses.push({ name: "Christian’s Hoodie Mode", description: `+${bonus} pts (${CHARM_BONUS.christiansHoodiePercent}%)`});
               showMessage(`🎮 Hoodie Mode! +${bonus} bonus points.`, 2000);
           }
       }
@@ -2469,13 +2553,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // Charm Bonuses that add on top
       const currentHour = new Date().getHours();
       if (newState.activeCharms.some(c => c.id === 'buffyBonus') && (currentHour >= 20 || currentHour < 8)) {
-        const bonus = Math.round(scoreResult.totalScore * 0.15);
+        const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.buffyPercent / 100);
         scoreResult.totalScore += bonus;
-        scoreResult.bonuses.push({ name: 'Buffy Bonus', description: `+${bonus} (15%)` });
+        scoreResult.bonuses.push({ name: 'Buffy Bonus', description: `+${bonus} (${CHARM_BONUS.buffyPercent}%)` });
       }
-      if (newState.activeCharms.some(c => c.id === 'totallyClueless') && originalWordScore < 10) {
-        scoreResult.totalScore += 25;
-        scoreResult.bonuses.push({ name: 'Totally Clueless', description: `+${25} pts` });
+      if (newState.activeCharms.some(c => c.id === 'totallyClueless') && originalWordScore < CHARM_BONUS.totallyCluelessBelow) {
+        scoreResult.totalScore += CHARM_BONUS.totallyClueless;
+        scoreResult.bonuses.push({ name: 'Totally Clueless', description: `+${CHARM_BONUS.totallyClueless} pts` });
       }
 
       // --- PERFECT 4-CHAIN LOGIC ---
@@ -2544,7 +2628,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           
           let gauntletBonus = 0;
           if (newState.activeCharms.some(c => c.id === 'infinityGauntlet')) {
-              gauntletBonus = 75;
+              gauntletBonus = CHARM_BONUS.infinityGauntlet;
               runningScore += gauntletBonus;
               scoreResult.bonuses.push({ name: "Infinity Gauntlet", description: `+${gauntletBonus} pts`});
               eventLogQueue.push({ type: 'event', id: `gauntlet-${Date.now()}`, name: 'Infinity Gauntlet!', icon: '🧤', description: 'Super Hand bonus was enhanced!', scoreChange: gauntletBonus, cumulativeScore: runningScore });
@@ -2571,10 +2655,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           showMessage(`🕰️ Flux Capacitor! +${bonus} bonus points.`, 2500);
       }
       if (newState.activeCharms.some(c => c.id === 'thrillerNight') && (totalWordsSubmitted) % 4 === 0) {
-        const thrillerBonus = 30;
+        const thrillerBonus = CHARM_BONUS.thrillerNight;
         runningScore += thrillerBonus;
         scoreResult.bonuses.push({ name: 'Thriller Night', description: `+${thrillerBonus} pts` });
-        showMessage("🧟 Thriller Night! +30 points.", 3000);
+        showMessage(`🧟 Thriller Night! +${thrillerBonus} points.`, 3000);
       }
       
       // --- STREAK BONUSES ---
@@ -2598,9 +2682,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           runningScore += snitchBonus;
           scoreResult.bonuses.push({ name: "Golden Snitch", description: `+${snitchBonus} pts`});
           shouldResetStreak = true;
-          modalQueue.push({ type: 'info', title: '🕊️ Golden Snitch Caught!', content: '5 words in a row! You earned a massive 500 point bonus!' });
-          newState.activeCharms = newState.activeCharms.filter(c => c.id !== 'goldenSnitch');
-          newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'goldenSnitch');
+          modalQueue.push({ type: 'info', title: '🕊️ Golden Snitch Caught!', content: '5 words in a row! +500 points. The Snitch is loose again: catch it for another 5.' });
       }
 
       if (shouldResetStreak) {
@@ -2713,7 +2795,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           const oldMultiple = Math.floor(oldScore / 500);
           const newMultiple = Math.floor(runningScore / 500);
           if (newMultiple > oldMultiple) {
-              const beanCounterBonus = (newMultiple - oldMultiple) * 50;
+              const beanCounterBonus = (newMultiple - oldMultiple) * CHARM_BONUS.beanCounter;
               runningScore += beanCounterBonus;
               scoreResult.bonuses.push({ name: "Bean Counter", description: `+${beanCounterBonus} pts`});
               eventLogQueue.push({ type: 'event', id: `charm-beanCounter-${Date.now()}`, name: 'Bean Counter', icon: '🫘', description: `Total score hit a multiple of 500!`, scoreChange: beanCounterBonus, cumulativeScore: runningScore });
@@ -2721,44 +2803,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
       }
 
-      // The Final Frontier Check
-      const finalFrontierCharm = newState.activeCharms.find(c => c.id === 'finalFrontier');
-      if (finalFrontierCharm) {
-          const uses = newState.charmUses['finalFrontier'] || 0;
-          const maxUses = finalFrontierCharm.maxUses || 2;
-          if (uses < maxUses) {
-              const oldMilestone = Math.floor(oldScore / 1000);
-              const newMilestone = Math.floor(runningScore / 1000);
-              if (newMilestone > oldMilestone) {
-                  const potentialTriggers = newMilestone - oldMilestone;
-                  const remainingTriggers = maxUses - uses;
-                  const actualTriggers = Math.min(potentialTriggers, remainingTriggers);
-
-                  if (actualTriggers > 0) {
-                      const currentChallenges = newState.challengeCount;
-                      const maxHeldChallenges = 4;
-                      if (currentChallenges < maxHeldChallenges) {
-                          const challengesToAdd = Math.min(actualTriggers, maxHeldChallenges - currentChallenges);
-                          if (challengesToAdd > 0) {
-                              newState.challengeCount += challengesToAdd;
-                              newState.charmUses['finalFrontier'] = uses + challengesToAdd;
-                              
-                              const newTotalUses = uses + challengesToAdd;
-                              const message = `🧑‍🚀 Final Frontier! +${challengesToAdd} Challenge(s) earned. (${newTotalUses}/${maxUses} used)`;
-                              showMessage(message, 3000);
-                              soundService.playMilestone();
-
-                              if (newTotalUses >= maxUses) {
-                                  const buffIndex = newState.activeBuffs.findIndex(b => b.id === 'finalFrontier');
-                                  if (buffIndex > -1) {
-                                      const updatedBuff = { ...newState.activeBuffs[buffIndex], description: 'This effect has been used the maximum number of times.' };
-                                      newState.activeBuffs[buffIndex] = updatedBuff;
-                                  }
-                              }
-                          }
-                      }
-                  }
-              }
+      // The Final Frontier: every 1,000 points earns a Challenge, up to a banked maximum.
+      if (newState.activeCharms.some(c => c.id === 'finalFrontier')) {
+          const earned = Math.floor(runningScore / 1000) - Math.floor(oldScore / 1000);
+          const room = Math.max(0, CHARM_BONUS.maxBankedChallenges - Math.max(0, newState.challengeCount));
+          const added = Math.min(earned, room);
+          if (added > 0) {
+              newState.challengeCount = Math.max(0, newState.challengeCount) + added;
+              showMessage(`🧑‍🚀 Final Frontier! +${added} Challenge${added > 1 ? 's' : ''}.`, 3000);
+              soundService.playMilestone();
           }
       }
 
@@ -2772,19 +2825,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       
       newState.pianoManEncoreActive = newState.activeCharms.some(c => c.id === 'pianoManEncore') && scoreBeforeEncore >= 45;
 
-      // L Train Shuffle: a word with both L and T earns a free shuffle, twice per game.
+      // L Train Shuffle: a word with both L and T earns a free shuffle, up to a banked maximum.
       const lTrainCharm = newState.activeCharms.find(c => c.id === 'lTrainShuffle');
-      if (lTrainCharm && /L/i.test(word) && /T/i.test(word)) {
-          const uses = (newState.charmUses['lTrainShuffle'] || 0) + 1;
-          const maxUses = lTrainCharm.maxUses || 2;
+      if (lTrainCharm && /L/i.test(word) && /T/i.test(word) && newState.shuffleCount < CHARM_BONUS.maxBankedShuffles) {
           newState.shuffleCount += 1;
-          newState.charmUses = { ...newState.charmUses, lTrainShuffle: uses };
-          if (uses >= maxUses) {
-              newState.activeCharms = newState.activeCharms.filter(c => c.id !== 'lTrainShuffle');
-              newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'lTrainShuffle');
-          }
-          eventLogQueue.push({ type: 'event', id: `charm-lTrain-${now}`, name: lTrainCharm.name, icon: '🚆', description: `L and T in "${word.toUpperCase()}": free shuffle (${uses}/${maxUses}).`, scoreChange: 0, cumulativeScore: runningScore });
-          showMessage(`🚆 L Train Shuffle! Free shuffle (${uses}/${maxUses}).`, 2500);
+          eventLogQueue.push({ type: 'event', id: `charm-lTrain-${now}`, name: lTrainCharm.name, icon: '🚆', description: `L and T in "${word.toUpperCase()}": free shuffle.`, scoreChange: 0, cumulativeScore: runningScore });
+          showMessage('🚆 L Train Shuffle! Free shuffle.', 2500);
       }
       
       if (newState.activeCharms.some(c => c.id === 'strikeBank')) {
@@ -2875,12 +2921,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       if (triggeredByMeter || triggeredByWordCount) {
           const canOffer = newState.powerPlayOffer.length === 0 &&
-                           newState.availablePowerPlays.length === 0 &&
                            newProgress.turnsSinceLastOffer >= 4;
 
           if (canOffer) {
               const powerPlaysToOfferFrom = POWER_PLAYS_LIST.filter(pp => 
                   !newState.activeBuffs.some(ab => ab.id === pp.id) &&
+                  !newState.availablePowerPlays.some(held => held.id === pp.id) &&
                   !newState.powerPlayCooldowns[pp.id]
               );
               const { offeredItems: offeredPowerPlays, offerDetails } = gameUtils.getOffer(powerPlaysToOfferFrom, 3, newState);
@@ -2939,7 +2985,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             });
 
             soundService.playModalOpen();
-            modalQueue.push({ type: 'charm-selection', title: 'WordCharm Earned!', content: `Choose your charm!`, data: offeredCharms });
+            modalQueue.push({ type: 'charm-selection', title: 'Charm Earned!', content: `You played ${newState.wordMilestoneProgress.nextUnlock} more words.`, data: offeredCharms });
           }
           newState.wordMilestoneProgress.count = 0;
           newState.wordMilestoneProgress.nextUnlock += 2;
@@ -2996,7 +3042,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       } else {
           const handTilesRemainingCount = (hand ?? []).filter(t => t !== null).length;
           // Top the hand back up to the standard hand size (config/gameplay.ts).
-          const replenishCount = refillCount(handTilesRemainingCount);
+          const replenishCount = refillCount(handTilesRemainingCount, handSizeFor(gameState));
           
           const drawResult = gameUtils.drawTiles(replenishCount, tileBag, willTriggerGoldenRound);
           let finalDrawnTiles = applyMutation(drawResult.newTiles, willTriggerGoldenRound);
@@ -3093,7 +3139,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
 
       if (wordLockActive) { delete consumedPPs.wordLock; consumedBuffs = consumedBuffs.filter(b => b.id !== 'wordLock'); }
-      ['biglyScore', 'multiverseOfSadness', 'nuclearOption', 'schruteBucks', 'redWedding', 'wakandaForever', 'heisenberg', 'skywalkerBloodline', 'leafOnTheWind', 'thanosGift', 'doubleOrNothing', 'cassiesClue', 'cowabunga', 'tetrisTouch', 'blueShellSurprise', 'pinkyAndTheBrain', 'letsGetDangerous', 'slimShadyShuffle', 'spaceInvader'].forEach(id => { 
+      ['biglyScore', 'multiverseOfSadness', 'nuclearOption', 'schruteBucks', 'redWedding', 'wakandaForever', 'heisenberg', 'skywalkerBloodline', 'leafOnTheWind', 'thanosGift', 'doubleOrNothing', 'cassiesClue', 'cowabunga', 'tetrisTouch', 'blueShellSurprise', 'pinkyAndTheBrain', 'letsGetDangerous', 'slimShadyShuffle', 'spaceInvader', 'upsideDown', 'comboBreaker'].forEach(id => { 
           if ((consumedPPs as any)[id]) { 
               delete (consumedPPs as any)[id]; 
               consumedBuffs = consumedBuffs.filter(b => b.id !== id); 
@@ -3105,13 +3151,28 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       if (consumedPPs.sonicSpeed) { if (consumedPPs.sonicSpeed.count > 1) { consumedPPs.sonicSpeed = { ...consumedPPs.sonicSpeed, count: consumedPPs.sonicSpeed.count - 1 }; } else { delete consumedPPs.sonicSpeed; consumedBuffs = consumedBuffs.filter(b => b.id !== 'sonicSpeed'); }}
       
+      WORD_COUNTDOWN_POWER_PLAYS.forEach(id => {
+          const entry = (consumedPPs as any)[id];
+          if (!entry) return;
+          if (entry.words > 1) {
+              (consumedPPs as any)[id] = { ...entry, words: entry.words - 1 };
+              return;
+          }
+          delete (consumedPPs as any)[id];
+          consumedBuffs = consumedBuffs.filter(b => b.id !== id);
+          if (id === 'letterUpgrade' && entry.letter) {
+              const { [entry.letter]: _gone, ...rest } = newState.letterMultipliers;
+              newState.letterMultipliers = rest;
+          }
+          if (id === 'polish' && entry.letter) {
+              const { [entry.letter]: _gone, ...rest } = newState.wordMultipliersByLetter;
+              newState.wordMultipliersByLetter = rest;
+          }
+      });
+
       newState.activePowerPlays = consumedPPs;
       newState.activeBuffs = consumedBuffs;
 
-      if (newState.activeCharms.some(c => c.id === 'oneTileToRuleThemAll') && submittedTiles.some(t => t.tempPoints === 25)) {
-          newState.activeCharms = newState.activeCharms.filter(c => c.id !== 'oneTileToRuleThemAll');
-          newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'oneTileToRuleThemAll');
-      }
       if (submittedTiles.some(t => t.tempPoints === 20)) { // Captain Planet
           // This will automatically clear as the tempPoints are on the tile, which is now gone.
       }
@@ -3154,7 +3215,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         
         const submittedTiles = (buildRow ?? []).filter(i => i).map(item => item!.tile);
         const handTilesRemainingCount = (hand ?? []).filter(t => t !== null).length;
-        const replenishCount = refillCount(handTilesRemainingCount);
+        const replenishCount = refillCount(handTilesRemainingCount, handSizeFor(gameState));
         
         const drawResult = gameUtils.drawTiles(replenishCount, tileBag, newState.roundType === 'golden');
         let finalDrawnTiles = applyMutation(drawResult.newTiles, newState.roundType === 'golden');
@@ -3254,7 +3315,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             soundService.playInvalidWord();
             const snitchActive = gameState.activeCharms.some(c => c.id === 'goldenSnitch');
             if (snitchActive) {
-                showMessage('Invalid Word! Golden Snitch lost!', 2000);
+                showMessage('Invalid Word! Golden Snitch count reset.', 2000);
             } else {
                 showMessage('Invalid Word! Strike! Timer reset & +1 Tile', 2000);
             }
@@ -3520,10 +3581,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             soundService.playPowerUp();
             const newLogEntry: EventLogEntry = {
                 type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
-                description: `Time bank refilled to ${GAMEPLAY.timeBank.max} seconds.`, icon: '⛳',
+                description: `Time bank refilled to ${bankMax(gameState)} seconds.`, icon: '⛳',
                 scoreChange: 0, cumulativeScore: gameState.score
             };
-            dispatch({ type: 'SET_TIME', payload: Math.max(time, GAMEPLAY.timeBank.max) });
+            dispatch({ type: 'SET_TIME', payload: Math.max(time, bankMax(gameState)) });
             dispatch({
                 type: 'UPDATE_GAME_STATE',
                 payload: {
@@ -3532,7 +3593,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                     powerPlayUses: { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 }
                 }
             });
-            showMessage(`⛳ Happy Place! Clock refilled to ${GAMEPLAY.timeBank.max} seconds.`, 2500);
+            showMessage(`⛳ Happy Place! Clock refilled to ${bankMax(gameState)} seconds.`, 2500);
             return;
         }
 
@@ -3676,10 +3737,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         handleCloseModal();
     };
 
-    const handleChooseCharm = (charm: Charm, allOffered: Charm[]) => {
+    const handleChooseCharm = (charm: Charm, allOffered: Charm[], replaceId?: string) => {
         soundService.playUIClick();
-        const handTiles = (hand ?? []).filter((t): t is Tile => t !== null);
-        dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand: handTiles, allOffered } });
+        dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand: hand ?? [], allOffered, replaceId } });
+        handleCloseModal();
+    };
+
+    const handlePassCharm = (allOffered: Charm[]) => {
+        soundService.playUIClick();
+        dispatch({ type: 'PASS_CHARM', payload: { allOffered } });
+        handleCloseModal();
+    };
+
+    const handleKeepPowerPlay = (allOffered: PowerPlay[]) => {
+        soundService.playUIClick();
+        dispatch({ type: 'KEEP_POWER_PLAY', payload: { allOffered } });
         handleCloseModal();
     };
 
@@ -3763,6 +3835,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         handleActivateCharm,
         handleChoosePowerPlay,
         handleChooseCharm,
+        handlePassCharm,
+        handleKeepPowerPlay,
         handleAddTileToSwap,
         handleRemoveTileFromSwap,
         handleExecuteSwap,

@@ -17,8 +17,10 @@ Implemented (tunable in `config/gameplay.ts`, rules in `services/rules.ts`):
 | 5 | Visible PowerPlay meter | 25 letters fills it; every-35-words fallback kept |
 | 6 | Strike recovery | 15 valid words in a row |
 | – | Personal best | NEW HIGH SCORE banner on game over |
+| – | Bonus Collection + run recap | Found secrets saved per device; share card on game over |
+| – | Charms vs PowerPlays cleanup | Charms always on (5 slots, swap when full); PowerPlays pressed, hold one with keep-or-swap; weak charm bonuses raised (`CHARM_BONUS`) |
 
-Not yet: Bonus Collection album, Daily Run, share card, first-run tutorial. These numbers are first
+Not yet: Daily Run, first-run tutorial. These numbers are first
 guesses; playtest and adjust them in the config file.
 
 The sections below are the original review, kept for the reasoning.

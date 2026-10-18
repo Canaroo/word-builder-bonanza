@@ -30,3 +30,48 @@ export const GAMEPLAY = {
   /** Valid words in a row that win back one strike. */
   strikeRecoveryStreak: 15,
 } as const;
+
+// Charm bonus values. Charm descriptions (data/charms.ts) read these too, so the text
+// and the rules always match. Percentages are % of the word's score.
+export const CHARM_BONUS = {
+  theValve: 20,            // per vowel tile
+  oneRing: 30,             // per E tile
+  batSignal: 60,
+  millenniumFalcon: 60,
+  triforceOfCourage: 75,
+  powerPellet: 75,
+  chaosTheory: 50,
+  weDidntStartTheFire: 75,
+  inigosRevenge: 100,
+  sherlocksSyntax: 200,
+  scoobyStack: 75,
+  hyruleHustle: 50,
+  luna: 75,
+  theDudeAbides: 40,
+  pantsOnFire: 60,
+  strangeMagic: 75,
+  turtlePower: 75,
+  iceAgeBonus: 75,
+  powerStarResidual: 15,
+  momentum: 75,
+  beanCounter: 150,
+  thrillerNight: 100,
+  totallyClueless: 50,
+  totallyCluelessBelow: 20,
+  infinityGauntlet: 150,
+  lenaPercent: 20,
+  nicolesGracePercent: 25,
+  christiansHoodiePercent: 25,
+  buffyPercent: 25,
+  pianoManPercent: 30,
+  philsosophyWin: 100,
+  philsosophyLoss: 25,
+  maxBankedShuffles: 5,    // L Train Shuffle stops adding shuffles at this many
+  maxBankedChallenges: 5,  // The Final Frontier stops adding Challenges at this many
+} as const;
+
+/** Most charms a player can have at once; a new one beyond this replaces one. */
+export const CHARM_SLOTS = 5;
+
+/** Time bank maximum while the Power Glove charm is equipped. */
+export const POWER_GLOVE_BANK_MAX = 120;

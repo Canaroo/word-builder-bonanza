@@ -44,7 +44,7 @@ export interface PowerPlay {
   icon: string;
   subtheme: 'score' | 'timer' | 'rack' | 'strike' | 'utility';
   effectType: 'immediate' | 'passive' | 'next_word' | 'selection';
-  selectionType?: 'letter' | 'tile_swap' | 'custom';
+  selectionType?: 'letter' | 'tile_swap' | 'custom' | 'tile_transform';
   swapConfig?: { min: number, max: number };
   maxUses?: number;
   durationTag: DurationTag;
@@ -209,6 +209,8 @@ export interface GameState {
   drMarioCureStreak: number;
   powerStarResidualActive: boolean;
   warioTimeDebt: number;
+  /** Seconds Ludicrous Speed takes off the clock at the start of the next round. */
+  ludicrousTimeCost?: number;
   /** Seconds the last valid word earns for the time bank, added when the next round starts. */
   pendingTimeBonus?: number;
   /** The time bank, set aside while a Golden Round runs on its own clock. */

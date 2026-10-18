@@ -1,5 +1,5 @@
 // Pure gameplay rules. No React, no DOM: easy to test and to tune via config/gameplay.ts.
-import { GAMEPLAY } from '../config/gameplay';
+import { GAMEPLAY, POWER_GLOVE_BANK_MAX } from '../config/gameplay';
 import { ScoreCalculationResult } from '../types';
 
 const lookupByLength = (table: Record<number, number>, length: number, below: number): number => {
@@ -13,9 +13,20 @@ const lookupByLength = (table: Record<number, number>, length: number, below: nu
 export const timeForWord = (length: number): number =>
     lookupByLength(GAMEPLAY.timeBank.secondsByLength, length, 0);
 
-/** Keeps the time bank between 0 and its maximum. */
-export const clampTime = (seconds: number): number =>
-    Math.max(0, Math.min(GAMEPLAY.timeBank.max, Math.round(seconds)));
+/** Keeps the time bank between 0 and its maximum (90s, or more with the Power Glove charm). */
+export const clampTime = (seconds: number, max: number = GAMEPLAY.timeBank.max): number =>
+    Math.max(0, Math.min(max, Math.round(seconds)));
+
+/** The time bank's maximum for this run: the Power Glove charm raises it. */
+export const bankMax = (gameState: { activeCharms?: { id: string }[] } | null | undefined): number =>
+    gameState?.activeCharms?.some(c => c.id === 'powerGlove') ? POWER_GLOVE_BANK_MAX : GAMEPLAY.timeBank.max;
+
+/** Tiles the hand refills to: Go-Go-Gadget Hands adds two while it lasts. */
+export const handSizeFor = (gameState: { activePowerPlays?: Record<string, unknown> } | null | undefined): number =>
+    GAMEPLAY.handSize + (gameState?.activePowerPlays?.gadgetHands ? 2 : 0);
+
+/** Tile values for The Upside Down: common letters become valuable and rare ones cheap. */
+export const UPSIDE_DOWN_POINTS: Record<number, number> = { 1: 10, 2: 8, 3: 5, 4: 4, 5: 3, 8: 2, 10: 1 };
 
 /** Word score multiplier for a word of this length (1 for short words). */
 export const lengthMultiplier = (length: number): number =>

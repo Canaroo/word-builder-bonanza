@@ -22,7 +22,7 @@ const PowerSurgeMeter: React.FC<PowerSurgeMeterProps> = ({ progress }) => {
         aria-valuemin={0}
         aria-valuemax={MAX_PROGRESS}
         aria-valuetext={`Combo progress ${progress} of ${MAX_PROGRESS}`}
-        className="flex justify-between items-center space-x-2 bg-crt-950/60 ring-1 ring-white/5 p-2 rounded-lg"
+        className="flex justify-between items-center space-x-2 bg-crt-950/60 ring-1 ring-white/5 px-2 py-1.5 rounded-lg"
       >
         <div className="flex flex-1 items-center space-x-2">
           {[...Array(MAX_PROGRESS)].map((_, i) => {
