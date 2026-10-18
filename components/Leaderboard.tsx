@@ -63,7 +63,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
       </p>
       {data.length > 0 ? (
         <>
-          <ol className="space-y-1.5 flex-grow overflow-y-auto pr-1 min-h-[350px]">
+          <ol className="space-y-2 flex-grow overflow-y-auto p-2 -mx-2 min-h-[350px]">
             {scoresForPage.map((entry, index) => {
               const rank = (currentPage * SCORES_PER_PAGE) + index + 1;
               const isFirst = rank === 1;
@@ -74,7 +74,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
                   key={entry.id ?? `${rank}-${entry.name}-${entry.score}`}
                   className={`flex justify-between items-center px-2 py-1.5 rounded-lg ${
                     isFirst
-                      ? 'bg-neon-yellow/10 ring-2 ring-neon-yellow shadow-glow-yellow'
+                      ? 'bg-neon-yellow/10 ring-2 ring-neon-yellow shadow-[0_0_8px_rgba(255,210,63,0.55)]'
                       : 'bg-crt-800/60'
                   } ${isOwnScore ? 'highlight-own-score' : ''}`}
                 >

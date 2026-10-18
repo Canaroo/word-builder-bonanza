@@ -13,37 +13,37 @@ export const PACKS_LIST: Pack[] = [
   },
   {
     id: 'classic',
-    name: 'Classic Pack',
+    name: 'Library Card',
     cost: 5,
     tileClass: 'bg-yellow-700 text-stone-100',
     themeClass: 'theme-the-library',
     frameClass: 'frame-rustic-workbench',
     previewClass: 'theme-the-library',
-    description: 'A warm, tactile theme for the distinguished wordsmith.'
+    description: 'Wood grain, warm lamps and tiles that smell faintly of old paperbacks. Shh… genius at work.'
   },
   {
     id: 'future',
-    name: 'Future Pack',
+    name: 'Mainframe',
     cost: 5,
     tileClass: 'bg-blue-800 text-cyan-300',
     themeClass: 'theme-digital-grid',
     frameClass: 'frame-command-console',
     previewClass: 'theme-digital-grid',
-    description: 'A high-tech, cybernetic style for the modern gamer.'
+    description: 'Neon grid lines straight out of TRON. Greetings, program. Your words are now online.'
   },
   {
     id: 'golden',
-    name: 'Golden Pack',
+    name: 'Midas Touch',
     cost: 5,
     tileClass: 'bg-zinc-800 text-amber-400',
     themeClass: 'theme-cosmic-void',
     frameClass: 'frame-gilded',
     previewClass: 'theme-cosmic-void',
-    description: 'An elegant and sophisticated theme for those with a Midas touch.'
+    description: 'Gold leaf in the cosmic void. Everything you spell turns to bling.'
   },
   {
     id: 'hawkins-horror',
-    name: 'Hawkins Horror Pack',
+    name: 'Hawkins Horror',
     cost: 5,
     tileClass: 'tile-hawkins',
     themeClass: 'theme-hawkins-horror',
@@ -53,7 +53,7 @@ export const PACKS_LIST: Pack[] = [
   },
   {
     id: 'galactic-saga',
-    name: 'Galactic Saga Pack',
+    name: 'Galactic Saga',
     cost: 5,
     tileClass: 'tile-lightsaber',
     themeClass: 'theme-galactic-saga',
@@ -63,7 +63,7 @@ export const PACKS_LIST: Pack[] = [
   },
   {
     id: '90s-throwback',
-    name: "'90s Throwback Pack",
+    name: "'90s Throwback",
     cost: 5,
     tileClass: 'tile-90s-throwback',
     themeClass: 'theme-90s-throwback',
@@ -79,11 +79,11 @@ export const PACKS_LIST: Pack[] = [
     themeClass: 'theme-fifth-dimension',
     frameClass: 'frame-fifth-dimension',
     previewClass: 'theme-fifth-dimension',
-    description: 'A journey into a wondrous land of imagination. You\'ve just crossed over into... The Word Builder Zone.'
+    description: 'A journey into a wondrous land of imagination. You\'ve just crossed over into… the Word Nerd Zone.'
   },
   {
     id: 'worlds-finest',
-    name: 'World\'s Finest Pack',
+    name: 'World\'s Finest',
     cost: 5,
     tileClass: 'tile-comic-book',
     themeClass: 'theme-worlds-finest',

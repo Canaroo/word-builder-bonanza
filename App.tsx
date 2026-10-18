@@ -147,7 +147,7 @@ const App: React.FC = () => {
     if (newMilestone > oldMilestone) {
         const coinsEarned = newMilestone - oldMilestone;
         setLexCoins(c => c + coinsEarned);
-        showToast(`🪙 +${coinsEarned} LEX Coin(s)!`);
+        showToast(`🪙 +${coinsEarned} ${coinsEarned === 1 ? 'Credit' : 'Credits'}!`);
         soundService.playMilestone();
     }
   }, []);
@@ -155,7 +155,7 @@ const App: React.FC = () => {
   const handleLexCoinChange = useCallback((amount: number) => {
     setLexCoins(c => c + amount);
      if (amount > 0) {
-        showToast(`🪙 +${amount} LEX Coin(s)!`);
+        showToast(`🪙 +${amount} ${amount === 1 ? 'Credit' : 'Credits'}!`);
         soundService.playMilestone();
     }
   }, []);
