@@ -5,9 +5,10 @@
 From the [`word-list`](https://github.com/sindresorhus/word-list) package (MIT), derived from the
 Letterpress word list.
 
-## SCOWL (common words for Challenge and hints)
+## SCOWL (extra playable words, and common words for Challenge and hints)
 
-Levels 10–35 of SCOWL, via the [`wordlist-english`](https://github.com/jacksonrayhamilton/wordlist-english)
+Levels 10–50 of SCOWL add playable words the base list leaves out (BUM, VAPE, EMOJI…), and levels
+10–35 make up the common list. Both come via the [`wordlist-english`](https://github.com/jacksonrayhamilton/wordlist-english)
 package (MIT).
 
 > Copyright 2000-2016 by Kevin Atkinson

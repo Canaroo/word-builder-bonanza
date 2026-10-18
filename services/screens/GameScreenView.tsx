@@ -570,12 +570,6 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 <div key={i} className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full transition-colors ${(i < (gameState?.strikes ?? 0)) ? 'bg-neon-red shadow-[0_0_8px_#ff4757]' : 'bg-crt-600'}`}></div>
               ))}
             </div>
-            {(gameState?.strikes ?? 0) > 0 && (
-              // Words left in the current streak before a strike is won back.
-              <div className="osd-text text-sm leading-none text-neon-green/90 text-right mt-1" title="Valid words in a row win back a strike">
-                🩹 {GAMEPLAY.strikeRecoveryStreak - (gameState?.strikeRecoveryStreak ?? 0)} TO HEAL
-              </div>
-            )}
           </div>
           <button onClick={handleSaveClick} className="text-2xl text-slate-400 hover:text-white transition-transform hover:scale-110">
             💾

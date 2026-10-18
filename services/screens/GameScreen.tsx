@@ -17,7 +17,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, timeForWord, advancePowerPlayMeter, advanceStrikeRecovery, bankMax, handSizeFor } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, timeForWord, advancePowerPlayMeter, bankMax, handSizeFor } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 
@@ -62,7 +62,6 @@ const initialGameState: GameState = {
       turnsSinceLastOffer: 4, // Allow an early offer
       letters: 0,
   },
-  strikeRecoveryStreak: 0,
 
   powerSurgeProgress: 0,
 
@@ -428,14 +427,13 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
           consecutiveSuccesses = 0; // Reset streaks on any strike
           consecutiveValidWords = 0; // Reset Golden Round streak
           perfectChainProgress = 0;
-          const strikeRecoveryStreak = 0; // A strike (even a shielded one) restarts strike recovery
           duckHuntComboState = { streakLetters: null, streakCount: 0 }; // Reset Duck Hunt Combo streak
 
           let newTime = state.time;
           let newHand = [...state.hand];
           let newTileBag = state.tileBag;
           
-          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, strikeRecoveryStreak };
+          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress };
           
           if ((actuallyGotAStrike || strikeBlockedByShield) && action.payload?.source === 'invalid_word') {
               // An invalid word costs time from the bank.
@@ -2371,20 +2369,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // The word's time is added to the bank when the next round starts.
       newState.pendingTimeBonus = timeForWord(word.length);
 
-      // Strike recovery: a long enough run of valid words wins back a strike.
-      const recovery = advanceStrikeRecovery(newState.strikeRecoveryStreak ?? 0, newState.strikes);
-      newState.strikeRecoveryStreak = recovery.streak;
-      if (recovery.recovered) {
-          newState.strikes -= 1;
-          showToast(`🩹 ${GAMEPLAY.strikeRecoveryStreak} in a row! Strike recovered.`);
-          soundService.playPowerUp();
-          newState.log = [...newState.log, {
-              type: 'event', id: `strike-recovery-${now}`, name: 'Comeback Kid', icon: '🩹',
-              description: `${GAMEPLAY.strikeRecoveryStreak} valid words in a row won back a strike.`,
-              scoreChange: 0, cumulativeScore: newState.score,
-          }];
-      }
-      
       if (word.length >= 5 && !isChallengeLock) {
           showToast(`Length bonus x${lengthMultiplier(word.length)}!`);
       }

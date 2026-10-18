@@ -167,7 +167,6 @@ export interface GameState {
     letters?: number;
   };
   /** Valid words in a row toward winning back a strike. */
-  strikeRecoveryStreak?: number;
 
   powerSurgeProgress: number;
 

@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest';
 import { GAMEPLAY } from '../../config/gameplay';
 import {
     timeForWord, clampTime, lengthMultiplier, combineMultipliers, addWordMultiplier,
-    refillCount, advancePowerPlayMeter, advanceStrikeRecovery,
+    refillCount, advancePowerPlayMeter,
 } from '../rules';
 
 describe('time bank', () => {
@@ -52,12 +52,5 @@ describe('rack, meter and strikes', () => {
     test('PowerPlay meter fills from letters played', () => {
         expect(advancePowerPlayMeter(10, 5)).toEqual({ letters: 15, full: false });
         expect(advancePowerPlayMeter(22, 5)).toEqual({ letters: GAMEPLAY.powerPlayMeterLetters, full: true });
-    });
-
-    test('a long enough streak wins back a strike', () => {
-        const last = GAMEPLAY.strikeRecoveryStreak - 1;
-        expect(advanceStrikeRecovery(3, 1)).toEqual({ streak: 4, recovered: false });
-        expect(advanceStrikeRecovery(last, 2)).toEqual({ streak: 0, recovered: true });
-        expect(advanceStrikeRecovery(last, 0)).toEqual({ streak: 0, recovered: false });
     });
 });

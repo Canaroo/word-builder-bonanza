@@ -28,6 +28,15 @@ describe('generated word list', () => {
         for (const w of readWordFile('blocked.txt')) expect(words).not.toContain(w);
     });
 
+    test('includes real Scrabble words the base list dropped (via SCOWL)', () => {
+        for (const w of ['vape', 'vaping', 'bum', 'butt', 'crap', 'damn', 'emoji', 'selfie']) expect(words).toContain(w);
+    });
+
+    test('keeps slurs and the harshest profanity out', () => {
+        for (const w of ['nigger', 'faggot', 'retard', 'wetback', 'cunt', 'fuck', 'fucking', 'slut']) expect(words).not.toContain(w);
+        expect(words).toContain('retardant'); // only the exact listed words are blocked
+    });
+
     test('the common list is an everyday subset of the full list', () => {
         const common = fs.readFileSync(path.join(root, 'public/words/common.txt'), 'utf8').split('\n').filter(Boolean);
         expect(common.length).toBeGreaterThan(20_000);
@@ -35,5 +44,7 @@ describe('generated word list', () => {
         const set = new Set(common);
         for (const w of ['cat', 'zebra', 'tacos']) expect(set).toContain(w);
         for (const w of ['aas', 'qat', 'aah']) expect(set).not.toContain(w);
+        // Hints and Challenge never suggest the vulgar words SCOWL adds back.
+        for (const w of ['crap', 'bum', 'butt']) expect(set).not.toContain(w);
     });
 });
