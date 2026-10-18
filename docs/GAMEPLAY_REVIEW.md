@@ -15,7 +15,7 @@ Implemented (tunable in `config/gameplay.ts`, rules in `services/rules.ts`):
 | 3 | Word multipliers add together | x2 + x4 = x6; coin-flip gambles still multiply the final score |
 | 4 | Length curve + constant 8-tile hand | 4 x1.25 … 8+ x3 |
 | 5 | Visible PowerPlay meter | 25 letters fills it; every-35-words fallback kept |
-| 6 | Strike recovery | 15 valid words in a row |
+| 6 | ~~Strike recovery~~ | Removed in v6.8.2: strikes only come back via PowerPlays or charms |
 | – | Personal best | NEW HIGH SCORE banner on game over |
 | – | Bonus Collection + run recap | Found secrets saved per device; share card on game over |
 | – | Charms vs PowerPlays cleanup | Charms always on (5 slots, swap when full); PowerPlays pressed, hold one with keep-or-swap; weak charm bonuses raised (`CHARM_BONUS`) |

@@ -70,12 +70,3 @@ export const advancePowerPlayMeter = (lettersSoFar: number, wordLength: number) 
     const full = total >= GAMEPLAY.powerPlayMeterLetters;
     return { letters: full ? GAMEPLAY.powerPlayMeterLetters : total, full };
 };
-
-/** Strike recovery after a valid word: returns the new streak and whether a strike is won back. */
-export const advanceStrikeRecovery = (streak: number, strikes: number) => {
-    const next = streak + 1;
-    if (next >= GAMEPLAY.strikeRecoveryStreak) {
-        return { streak: 0, recovered: strikes > 0 };
-    }
-    return { streak: next, recovered: false };
-};

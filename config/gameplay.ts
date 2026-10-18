@@ -28,7 +28,6 @@ export const GAMEPLAY = {
   powerPlayEveryWords: 35,
 
   /** Valid words in a row that win back one strike. */
-  strikeRecoveryStreak: 15,
 } as const;
 
 // Charm bonus values. Charm descriptions (data/charms.ts) read these too, so the text

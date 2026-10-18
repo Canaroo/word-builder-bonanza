@@ -47,8 +47,8 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             <Key>Super Hand</Key> bonus.
           </p>
           <p>
-            Invalid words cost a <Key>strike</Key>. Three strikes and it's game over, but{' '}
-            <Key>{GAMEPLAY.strikeRecoveryStreak} valid words in a row</Key> win one back.
+            Invalid words cost a <Key>strike</Key>. Three strikes and it's game over. Strikes stick: only{' '}
+            <Key>PowerPlays</Key> and <Key>charms</Key> can take one back or block it.
           </p>
         </Section>
 
