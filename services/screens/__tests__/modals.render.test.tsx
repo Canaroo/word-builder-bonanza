@@ -96,3 +96,12 @@ describe('pick-a-tile pop-ups show what you picked', () => {
         expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
     });
 });
+
+describe('pick-a-letter pop-ups wait for Confirm', () => {
+    test('Letter Upgrade shows the A-Z grid with Confirm off until a letter is picked', () => {
+        const modal = { type: 'powerplay-activation', title: 'Activate: Letter Upgrade', data: POWER_PLAYS_LIST.find(p => p.id === 'letterUpgrade') } as ModalContent;
+        const html = renderToString(<GameScreenView {...props(modal)} />);
+        expect(html).toContain('Tap a letter to pick it');
+        expect(html.match(/aria-pressed="false"/g)).toHaveLength(26);
+    });
+});

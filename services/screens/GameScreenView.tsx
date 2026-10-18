@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ArcadeButton from '../../components/ArcadeButton';
 import BonusReveal from '../../components/BonusReveal';
 import { PowerPlayOffer, CharmOffer } from '../../components/OfferModals';
@@ -22,6 +22,44 @@ export type ModalContent = {
 } | null;
 
 const BUILD_ROW_SIZE = 8;
+
+// A–Z grid for "pick a letter" pop-ups: tap to pick (it lights up), tap Confirm to use it.
+const LetterPicker: React.FC<{ onConfirm: (letter: string) => void; tone?: 'green' | 'purple' }> = ({ onConfirm, tone = 'green' }) => {
+  const [picked, setPicked] = useState<string | null>(null);
+  const confirmColor = tone === 'green' ? 'bg-green-500 hover:bg-green-400' : 'bg-purple-500 hover:bg-purple-400';
+  return (
+    <>
+      <div className="grid grid-cols-6 gap-2 my-4">
+        {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => {
+          const selected = picked === letter;
+          return (
+            <button
+              key={letter}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => setPicked(selected ? null : letter)}
+              className={`relative w-full h-12 text-xl font-bold rounded-lg shadow-lg transition ${
+                selected
+                  ? 'bg-neon-green text-crt-900 ring-4 ring-neon-green/60 scale-110 shadow-[0_0_14px_rgba(61,255,140,0.7)]'
+                  : picked ? 'bg-slate-700 text-slate-100 opacity-45' : 'bg-slate-700 text-slate-100 hover:bg-slate-600'
+              }`}
+            >
+              {letter}
+            </button>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        onClick={() => picked && onConfirm(picked)}
+        disabled={!picked}
+        className={`w-full px-6 py-3 text-xl font-bold text-slate-900 rounded-lg shadow-lg ${confirmColor} disabled:bg-slate-500 disabled:text-slate-300 disabled:cursor-not-allowed`}
+      >
+        {picked ? `Confirm: ${picked}` : 'Tap a letter to pick it'}
+      </button>
+    </>
+  );
+};
 
 // A hand tile inside a "pick a tile" pop-up. Picked tiles lift, get a green ring and a check mark;
 // once something is picked, the rest dim so the choice is obvious before Confirm.
@@ -268,9 +306,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                       ? `Your hand is full. Select ${min} to ${max} tiles to discard.`
                       : `Select up to ${max} tiles from your hand to discard.`;
                 
-                    const buttonText = min > 0
-                      ? `Confirm (${(tilesToSwap?.length ?? 0)}/${min}-${max})`
-                      : `Confirm (${(tilesToSwap?.length ?? 0)}/${max})`;
+                    const pickedCount = tilesToSwap?.length ?? 0;
+                    const buttonText = pickedCount > 0
+                      ? `Discard ${pickedCount} ${pickedCount === 1 ? 'tile' : 'tiles'}${canExecute ? '' : ` (pick ${min}-${max})`}`
+                      : min > 0 ? `Tap ${min === max ? min : `${min}-${max}`} tiles to pick them` : 'Discard none';
 
                     return (
                          <div className={modalBaseClass}>
@@ -292,7 +331,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                                         dispatch({ type: 'COMPLETE_POWER_PLAY_ACTIVATION', payload: { powerPlay, option: { tilesToDiscard: tilesToSwap } } })
                                     }} 
                                     disabled={!canExecute} 
-                                    className="w-full mt-auto px-6 py-3 text-xl font-bold text-slate-900 bg-green-500 rounded-lg shadow-lg hover:bg-green-400 disabled:bg-slate-500 disabled:cursor-not-allowed">
+                                    className="w-full mt-auto px-6 py-3 text-xl font-bold text-slate-900 bg-green-500 rounded-lg shadow-lg hover:bg-green-400 disabled:bg-slate-500 disabled:text-slate-300 disabled:cursor-not-allowed">
                                     {buttonText}
                                 </button>
                                 <button onClick={handleCloseModal} className="w-full mt-2 text-sm text-slate-400 hover:text-white">Cancel</button>
@@ -302,7 +341,6 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 }
 
                 if (powerPlay.selectionType === 'letter') {
-                    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
                     const handleLetterSelect = (letter: string) => {
                         dispatch({ type: 'COMPLETE_POWER_PLAY_ACTIVATION', payload: { powerPlay, option: { letter } } });
                     };
@@ -312,17 +350,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                             <div className={`${modalBoxBaseClass} border-green-400`}>
                                 <h2 className="text-3xl font-bold text-green-400 mb-2 text-center">{title}</h2>
                                 <p className="text-slate-300 text-center mb-4">{powerPlay.description}</p>
-                                <div className="grid grid-cols-6 gap-2 my-4">
-                                    {alphabet.map(letter => (
-                                        <button 
-                                            key={letter} 
-                                            onClick={() => handleLetterSelect(letter)}
-                                            className="w-full h-12 text-xl font-bold text-slate-100 bg-slate-700 rounded-lg shadow-lg hover:bg-slate-600 transition-colors"
-                                        >
-                                            {letter}
-                                        </button>
-                                    ))}
-                                </div>
+                                <LetterPicker key={powerPlay.id} onConfirm={handleLetterSelect} />
                                 <button onClick={handleCloseModal} className="w-full mt-2 text-sm text-slate-400 hover:text-white">Cancel</button>
                             </div>
                         </div>
@@ -347,8 +375,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                                         </div>
                                     ))}
                                 </div>
-                                <button onClick={handleExecuteSwap} disabled={!canExecute} className="w-full mt-auto px-6 py-3 text-xl font-bold text-slate-900 bg-green-500 rounded-lg shadow-lg hover:bg-green-400 disabled:bg-slate-500 disabled:cursor-not-allowed">
-                                    Confirm Swap ({(tilesToSwap?.length ?? 0)}/{max})
+                                <button onClick={handleExecuteSwap} disabled={!canExecute} className="w-full mt-auto px-6 py-3 text-xl font-bold text-slate-900 bg-green-500 rounded-lg shadow-lg hover:bg-green-400 disabled:bg-slate-500 disabled:text-slate-300 disabled:cursor-not-allowed">
+                                    {(tilesToSwap?.length ?? 0) === 0
+                                      ? `Tap ${min === max ? min : `${min}-${max}`} ${max === 1 ? 'tile' : 'tiles'} to pick`
+                                      : `Swap ${(tilesToSwap?.length ?? 0)} of ${max}${canExecute ? '' : ` (pick ${min === max ? min : `${min}-${max}`})`}`}
                                 </button>
                                 <button onClick={handleCloseModal} className="w-full mt-2 text-sm text-slate-400 hover:text-white">Cancel</button>
                             </div>
@@ -495,17 +525,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                                             <div className="w-14 h-14"><PickTile tile={tileToTransform.tile} tileClass={tileClass} selected onClick={() => {}} /></div>
                                             <p className="text-amber-300 font-semibold text-left">Changing this {tileToTransform.tile.letter}. Now pick its new letter:</p>
                                         </div>
-                                        <div className="grid grid-cols-6 gap-2 my-4">
-                                            {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => (
-                                                <button 
-                                                    key={letter} 
-                                                    onClick={() => handleLetterSelect(letter)}
-                                                    className="w-full h-12 text-xl font-bold text-slate-100 bg-slate-700 rounded-lg shadow-lg hover:bg-slate-600 transition-colors"
-                                                >
-                                                    {letter}
-                                                </button>
-                                            ))}
-                                        </div>
+                                        <LetterPicker key={tileToTransform.originalIndex} tone="purple" onConfirm={handleLetterSelect} />
                                         <button onClick={() => dispatch({ type: 'SELECT_TILE_TO_TRANSFORM', payload: null })} className="w-full mt-2 text-sm text-slate-400 hover:text-white">Back to tile selection</button>
                                     </>
                                 )}
