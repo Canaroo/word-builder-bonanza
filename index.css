@@ -852,3 +852,40 @@ body {
 /* Horizontal tab strips that scroll without a visible bar. */
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Pack panel tints.
+   On a phone the game panel covers almost the whole screen, so each pack also tints the
+   panel itself. Status boxes inside are semi-transparent, so the tint shows through them.
+   Packs with an animated background (grid, forest, vortex) keep a little transparency. */
+.frame-rustic-workbench { /* Library Card: lamplit wood */
+  background: radial-gradient(ellipse at 50% 0%, rgba(251, 191, 36, 0.14), transparent 60%),
+              linear-gradient(180deg, #3a2414 0%, #1c120b 100%);
+}
+.frame-command-console { /* Mainframe: deep terminal blue */
+  background: linear-gradient(180deg, rgba(7, 26, 51, 0.86) 0%, rgba(3, 12, 26, 0.9) 100%);
+}
+.frame-gilded { /* Midas Touch: black and gold */
+  background: radial-gradient(ellipse at 50% 0%, rgba(250, 204, 21, 0.16), transparent 55%),
+              linear-gradient(180deg, #221804 0%, #0d0a03 100%);
+}
+.frame-hawkins-lab { /* Hawkins Horror: Upside Down red */
+  background: radial-gradient(ellipse at 50% 100%, rgba(239, 68, 68, 0.18), transparent 60%),
+              linear-gradient(180deg, rgba(42, 8, 8, 0.9) 0%, rgba(13, 3, 3, 0.94) 100%);
+}
+.frame-starship-hull { /* Galactic Saga: hull plating in deep space */
+  background: radial-gradient(ellipse at 50% 0%, rgba(103, 232, 249, 0.12), transparent 55%),
+              linear-gradient(180deg, #1f2937 0%, #0b0f19 100%);
+}
+.frame-90s-throwback { /* '90s Throwback: windbreaker purple and teal */
+  background: linear-gradient(160deg, rgba(58, 18, 82, 0.9) 0%, rgba(15, 42, 58, 0.9) 100%);
+}
+.frame-fifth-dimension { /* The Fifth Dimension: black and white TV */
+  background: radial-gradient(ellipse at 50% 40%, rgba(255, 255, 255, 0.08), transparent 65%),
+              linear-gradient(180deg, rgba(28, 28, 28, 0.82) 0%, rgba(5, 5, 5, 0.88) 100%);
+}
+.frame-heroic-emblem { /* World's Finest: Gotham blue meets Metropolis red, with ink crosshatching */
+  background:
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.12) 0, rgba(0, 0, 0, 0.12) 1px, transparent 1px, transparent 8px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.12) 0, rgba(0, 0, 0, 0.12) 1px, transparent 1px, transparent 8px),
+    linear-gradient(105deg, #13204a 49.9%, #4a1216 50.1%);
+}
