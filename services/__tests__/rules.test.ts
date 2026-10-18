@@ -2,7 +2,8 @@ import { describe, test, expect } from 'vitest';
 import { GAMEPLAY } from '../../config/gameplay';
 import {
     timeForWord, clampTime, lengthMultiplier, combineMultipliers, addWordMultiplier,
-    refillCount, advancePowerPlayMeter,
+    refillCount, advancePowerPlayMeter, levelFor, clockSpeedFor, tickMsFor, timeForWordAtLevel,
+    taxWordTime, snitchTargetFor,
 } from '../rules';
 
 describe('time bank', () => {
@@ -52,5 +53,33 @@ describe('rack, meter and strikes', () => {
     test('PowerPlay meter fills from letters played', () => {
         expect(advancePowerPlayMeter(10, 5)).toEqual({ letters: 15, full: false });
         expect(advancePowerPlayMeter(22, 5)).toEqual({ letters: GAMEPLAY.powerPlayMeterLetters, full: true });
+    });
+});
+
+describe('time pressure', () => {
+    test('the level goes up every 15 valid words', () => {
+        expect([0, 14, 15, 29, 30, 75].map(levelFor)).toEqual([1, 1, 2, 2, 3, 6]);
+    });
+
+    test('the clock speeds up 10% per level, capped at 1.5x', () => {
+        expect([1, 2, 3, 6, 9].map(clockSpeedFor)).toEqual([1, 1.1, 1.2, 1.5, 1.5]);
+        expect(tickMsFor(1)).toBe(1000);
+        expect(tickMsFor(6)).toBe(667);
+    });
+
+    test('3-letter words stop adding time from level 3', () => {
+        expect(timeForWordAtLevel(3, 2)).toBe(2);
+        expect(timeForWordAtLevel(3, 3)).toBe(0);
+        expect(timeForWordAtLevel(5, 3)).toBe(5);
+    });
+
+    test('above 60s, words add half their time (rounded down)', () => {
+        expect(taxWordTime(5, 60)).toBe(5);
+        expect(taxWordTime(5, 61)).toBe(2);
+        expect(taxWordTime(10, 90)).toBe(5);
+    });
+
+    test('the Golden Snitch needs 5, then 8, then 12 in a row, then it is gone', () => {
+        expect([0, 1, 2, 3].map(snitchTargetFor)).toEqual([5, 8, 12, null]);
     });
 });

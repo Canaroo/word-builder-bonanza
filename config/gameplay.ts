@@ -11,7 +11,26 @@ export const GAMEPLAY = {
     invalidPenalty: 5,
     /** Seconds added for a valid word, by length. Longer words use the last entry. */
     secondsByLength: { 3: 2, 4: 3, 5: 5, 6: 7, 7: 10 } as Record<number, number>,
+    /** Overflow tax: above this many seconds, a word adds only half its time (rounded down). */
+    overflowAbove: 60,
+    /** From this level on, 3-letter words add no time. */
+    shortWordTimeStopsAtLevel: 3,
+    /** Seconds a paid shuffle costs (never takes the clock below 1s). */
+    shuffleCost: 3,
   },
+
+  /** Speed-up levels: every this many valid words the level goes up and the clock ticks faster. */
+  levels: {
+    wordsPerLevel: 15,
+    /** Extra clock speed per level (0.1 = 10% faster each level). */
+    speedUpPerLevel: 0.1,
+    /** The clock never runs faster than this. */
+    maxSpeed: 1.5,
+  },
+
+  /** Golden Snitch charm: valid words in a row for each catch. After the last catch it flies away. */
+  snitchCatchTargets: [5, 8, 12] as readonly number[],
+  snitchBonus: 500,
 
   /** The Golden Round's own clock. Running out ends the Golden Round, not the run. */
   goldenRoundSeconds: 30,
@@ -26,8 +45,6 @@ export const GAMEPLAY = {
   powerPlayMeterLetters: 25,
   /** Fallback: also offer a PowerPlay every this many words. */
   powerPlayEveryWords: 35,
-
-  /** Valid words in a row that win back one strike. */
 } as const;
 
 // Charm bonus values. Charm descriptions (data/charms.ts) read these too, so the text

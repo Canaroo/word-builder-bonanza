@@ -17,7 +17,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, timeForWord, advancePowerPlayMeter, bankMax, handSizeFor } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 
@@ -123,7 +123,7 @@ const initialGameState: GameState = {
 
 export type GameScreenState = {
   /** Last change to the time bank, shown as a floating +Ns / -Ns next to the clock. */
-  timeGain?: { seconds: number; key: number };
+  timeGain?: { seconds: number; key: number; taxed?: boolean };
   gameState: GameState;
   time: number;
   hand: (Tile | null)[];
@@ -247,15 +247,29 @@ const WORD_COUNTDOWN_POWER_PLAYS = ['konamiCode', 'bigHeadMode', 'ludicrousSpeed
 
 // Time bank (config/gameplay.ts): the clock never resets between words. A Golden Round runs on
 // its own short clock; the bank is set aside when it starts and given back when it ends.
+// A word's time is taxed (halved) when it lands on a bank that's already above the overflow line.
 const settleTimeBank = (time: number, gs: GameState): { time: number; gs: GameState } => {
     const pending = gs.pendingTimeBonus ?? 0;
     if (gs.roundType === 'golden' && gs.bankedTime == null) {
-        return { time: GAMEPLAY.goldenRoundSeconds, gs: { ...gs, bankedTime: clampTime(time + pending, bankMax(gs)), pendingTimeBonus: 0 } };
+        return { time: GAMEPLAY.goldenRoundSeconds, gs: { ...gs, bankedTime: clampTime(time + taxWordTime(pending, time), bankMax(gs)), pendingTimeBonus: 0 } };
     }
     if (gs.roundType !== 'golden' && gs.bankedTime != null) {
-        return { time: clampTime(gs.bankedTime + pending, bankMax(gs)), gs: { ...gs, bankedTime: null, pendingTimeBonus: 0 } };
+        return { time: clampTime(gs.bankedTime + taxWordTime(pending, gs.bankedTime), bankMax(gs)), gs: { ...gs, bankedTime: null, pendingTimeBonus: 0 } };
     }
     return { time, gs };
+};
+
+// Speed-up levels: every few words the clock runs a little faster. Announced when this word crosses a level.
+const levelUpModal = (wordsBefore: number) => {
+    const level = levelFor(wordsBefore + 1);
+    if (level <= levelFor(wordsBefore)) return null;
+    const shortWordsStop = level === GAMEPLAY.timeBank.shortWordTimeStopsAtLevel;
+    return {
+        type: 'info' as const,
+        title: `⏩ Level ${level} · Speed Up!`,
+        content: `The clock now runs at x${clockSpeedFor(level)} speed.${shortWordsStop ? ' 3-letter words add no more time.' : ''}`,
+        autoClose: 2500,
+    };
 };
 
 export function gameReducer(state: GameScreenState, action: GameAction): GameScreenState {
@@ -509,6 +523,9 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             }
 
             let newHand = action.payload.hand;
+
+            // A paid shuffle costs a few seconds, but never runs the clock out on its own.
+            const shuffleTime = action.payload.isFree ? state.time : Math.max(Math.min(state.time, 1), state.time - GAMEPLAY.timeBank.shuffleCost);
             
             const newConsecutiveValidWords = action.payload.isFromChallengeWin 
                 ? state.gameState.consecutiveValidWords 
@@ -521,6 +538,8 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 buildRow: Array(BUILD_ROW_SIZE).fill(null),
                 longWordBonusNotified: false,
                 highlightedTileIds: { first: null, rest: [] },
+                time: shuffleTime,
+                timeGain: shuffleTime !== state.time ? { seconds: shuffleTime - state.time, key: Date.now() } : state.timeGain,
                 gameState: { 
                   ...newGameState, 
                   shuffleCount: action.payload.isFree ? state.gameState.shuffleCount : state.gameState.shuffleCount - 1,
@@ -657,7 +676,9 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             // Time bank: keep the clock and add what the last word earned, plus charm/PowerPlay bonuses below.
             const settled = settleTimeBank(state.time, { ...state.gameState });
             let newGameState = settled.gs;
-            let timerDuration = settled.time + (newGameState.pendingTimeBonus ?? 0);
+            const wordTime = newGameState.pendingTimeBonus ?? 0;
+            const taxedWordTime = taxWordTime(wordTime, settled.time);
+            let timerDuration = settled.time + taxedWordTime;
             newGameState.pendingTimeBonus = 0;
     
             // Clean up temporary effects from previous round
@@ -836,7 +857,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 modalContent: null,
                 isPaused: false,
                 time: clampTime(timerDuration, bankMax(newGameState)),
-                timeGain: { seconds: clampTime(timerDuration, bankMax(newGameState)) - settled.time, key: Date.now() },
+                timeGain: { seconds: clampTime(timerDuration, bankMax(newGameState)) - settled.time, key: Date.now(), taxed: taxedWordTime < wordTime },
                 gameState: { ...newGameState, wordsThisRound: 0 }
             };
         }
@@ -2218,12 +2239,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         soundService.playTick();
       }
 
+      // Speed-up levels make the bank drain faster; the Golden Round's own clock stays at real time.
+      const tickMs = gameState.roundType === 'golden' ? 1000 : tickMsFor(levelFor(totalWords));
       const interval = setInterval(() => {
           dispatch({ type: 'TICK_TIMER' });
-      }, 1000);
+      }, tickMs);
 
       return () => clearInterval(interval);
-  }, [gameState, time, onGameOver, isPaused, isLoading, isVisible, showMessage, maxStrikes, endGoldenRound]);
+  }, [gameState, time, onGameOver, isPaused, isLoading, isVisible, showMessage, maxStrikes, endGoldenRound, totalWords]);
   
   useEffect(() => {
     if (gameState?.lastPowerPlayResult) {
@@ -2339,7 +2362,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             newState.goldenRoundThreshold += 5;
             newState.goldenTileId = null;
             newState.consecutiveValidWords = 0; // Reset streak after successful Golden Round
-            newState.pendingTimeBonus = timeForWord(word.length); // Added back onto the time bank
+            newState.pendingTimeBonus = timeForWordAtLevel(word.length, levelFor(totalWords)); // Added back onto the time bank
+            const levelUp = levelUpModal(totalWords);
+            if (levelUp) modalQueue.push(levelUp);
 
             showMessage(`Golden Word: ${word.toUpperCase()}! +${turnScore}. Hand reshuffled!`, 3000);
             
@@ -2367,7 +2392,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       // --- B: NORMAL ROUND SUBMISSION ---
       // The word's time is added to the bank when the next round starts.
-      newState.pendingTimeBonus = timeForWord(word.length);
+      newState.pendingTimeBonus = timeForWordAtLevel(word.length, levelFor(totalWords));
+
+      const levelUp = levelUpModal(totalWords);
+      if (levelUp) modalQueue.push(levelUp);
 
       if (word.length >= 5 && !isChallengeLock) {
           showToast(`Length bonus x${lengthMultiplier(word.length)}!`);
@@ -2660,13 +2688,24 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
       
       // Golden Snitch check
+      // Each catch needs a longer streak (5, 8, 12); after the last one the Snitch flies away.
       const snitchCharmActive = newState.activeCharms.some(c => c.id === 'goldenSnitch');
-      if (snitchCharmActive && newState.consecutiveSuccesses >= 5) {
-          const snitchBonus = 500;
+      const snitchCatches = newState.snitchCatches ?? 0;
+      const snitchTarget = snitchTargetFor(snitchCatches);
+      if (snitchCharmActive && snitchTarget !== null && newState.consecutiveSuccesses >= snitchTarget) {
+          const snitchBonus = GAMEPLAY.snitchBonus;
           runningScore += snitchBonus;
           scoreResult.bonuses.push({ name: "Golden Snitch", description: `+${snitchBonus} pts`});
           shouldResetStreak = true;
-          modalQueue.push({ type: 'info', title: '🕊️ Golden Snitch Caught!', content: '5 words in a row! +500 points. The Snitch is loose again: catch it for another 5.' });
+          newState.snitchCatches = snitchCatches + 1;
+          const nextTarget = snitchTargetFor(snitchCatches + 1);
+          if (nextTarget === null) {
+              newState.activeCharms = newState.activeCharms.filter(c => c.id !== 'goldenSnitch');
+              newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'goldenSnitch');
+              modalQueue.push({ type: 'info', title: '🕊️ Golden Snitch Caught!', content: `${snitchTarget} words in a row! +${snitchBonus} points. That was the last catch: the Snitch flies away and frees up its charm slot.` });
+          } else {
+              modalQueue.push({ type: 'info', title: '🕊️ Golden Snitch Caught!', content: `${snitchTarget} words in a row! +${snitchBonus} points. It's faster now: catch it again with ${nextTarget} in a row.` });
+          }
       }
 
       if (shouldResetStreak) {
@@ -2951,6 +2990,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (newState.wordMilestoneProgress.count >= newState.wordMilestoneProgress.nextUnlock) {
           const charmsToOfferFrom = CHARMS_LIST.filter(c => 
               !newState.activeCharms.some(ac => ac.id === c.id) &&
+              !(c.id === 'goldenSnitch' && snitchTargetFor(newState.snitchCatches ?? 0) === null) &&
               !newState.charmCooldowns[c.id]
           );
           const { offeredItems: offeredCharms, offerDetails } = gameUtils.getOffer(charmsToOfferFrom, 3, newState);

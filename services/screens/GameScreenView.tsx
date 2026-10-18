@@ -11,6 +11,7 @@ import { MILESTONES_LIST } from '../../data/milestones';
 import DurationBadge from '../../ui/DurationBadge';
 import { RACK_SIZE, HAND_SIZE } from '../../constants';
 import { GAMEPLAY, CHARM_SLOTS } from '../../config/gameplay';
+import { levelFor, clockSpeedFor, snitchTargetFor } from '../rules';
 
 export type ModalContent = {
   type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log';
@@ -25,7 +26,7 @@ const BUILD_ROW_SIZE = 8;
 export interface GameScreenViewProps {
   gameState: GameState;
   time: number;
-  timeGain?: { seconds: number; key: number };
+  timeGain?: { seconds: number; key: number; taxed?: boolean };
   /** Short game feedback (PowerPlay results, combos, hints). Empty when nothing to say. */
   message?: string;
   hand: (Tile | null)[];
@@ -555,10 +556,15 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 className={`time-gain absolute left-1/2 -bottom-5 font-osd text-2xl leading-none pointer-events-none ${timeGain.seconds > 0 ? 'text-neon-green' : 'text-neon-red'}`}
                 aria-live="polite"
               >
-                {timeGain.seconds > 0 ? '+' : '−'}{Math.abs(timeGain.seconds)}s
+                {timeGain.seconds > 0 ? '+' : '−'}{Math.abs(timeGain.seconds)}s{timeGain.taxed && <span className="text-neon-yellow text-lg"> ½</span>}
               </span>
             )}
           </div>
+          {gameState?.roundType !== 'golden' && (
+            <div className="osd-text text-sm leading-none text-neon-cyan/80 mt-0.5" title="Every 15 words the level goes up and the clock runs faster">
+              LV {levelFor(totalWords ?? 0)}{clockSpeedFor(levelFor(totalWords ?? 0)) > 1 && <span className="text-neon-orange"> · x{clockSpeedFor(levelFor(totalWords ?? 0))}</span>}
+            </div>
+          )}
         </div>
 
         {/* Strikes & Save Display */}
@@ -668,7 +674,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                   const buffs = gameState?.activeBuffs ?? [];
                   // Running PowerPlay effects get their name (and what's left); charms are compact icons.
                   const progressFor = (buff: Charm | PowerPlay): string => {
-                      if (buff.id === 'goldenSnitch') return `${gameState?.consecutiveSuccesses ?? 0}/5`;
+                      if (buff.id === 'goldenSnitch') return `${gameState?.consecutiveSuccesses ?? 0}/${snitchTargetFor(gameState?.snitchCatches ?? 0) ?? '-'}`;
                       if (buff.id === 'drMariosCure') return `${gameState?.drMarioCureStreak ?? 0}/3`;
                       if (buff.id === 'thrillerNight') return `${totalWords % 4}/4`;
                       const countdown = (gameState?.activePowerPlays as any)?.[buff.id];

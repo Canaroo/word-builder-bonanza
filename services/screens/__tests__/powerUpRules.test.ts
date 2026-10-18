@@ -72,6 +72,25 @@ describe('charm slots', () => {
     });
 });
 
+describe('Time pressure', () => {
+    const shuffle = (s: GameScreenState, isFree = false) =>
+        gameReducer(s, { type: 'PERFORM_SHUFFLE', payload: { hand: s.hand, tileBag: s.tileBag, isFree } });
+
+    test('a paid shuffle costs 3s, a free one costs nothing, and it never empties the clock', () => {
+        expect(shuffle(start({}, 40)).time).toBe(40 - GAMEPLAY.timeBank.shuffleCost);
+        expect(shuffle(start({}, 40), true).time).toBe(40);
+        expect(shuffle(start({}, 2)).time).toBe(1);
+    });
+
+    test('word time is halved when it lands on a bank above 60s', () => {
+        const next = (time: number) => gameReducer(start({ pendingTimeBonus: 7 }, time), { type: 'START_NEXT_ROUND' });
+        expect(next(50).time).toBe(57);
+        const taxed = next(70);
+        expect(taxed.time).toBe(73);
+        expect(taxed.timeGain?.taxed).toBe(true);
+    });
+});
+
 describe('PowerPlay keep-or-swap', () => {
     test('picking a new one swaps out the held one', () => {
         const s = start({ availablePowerPlays: [pp('biglyScore')] });

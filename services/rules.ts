@@ -13,6 +13,31 @@ const lookupByLength = (table: Record<number, number>, length: number, below: nu
 export const timeForWord = (length: number): number =>
     lookupByLength(GAMEPLAY.timeBank.secondsByLength, length, 0);
 
+/** Run level (starts at 1) after this many valid words. */
+export const levelFor = (validWords: number): number =>
+    1 + Math.floor(Math.max(0, validWords) / GAMEPLAY.levels.wordsPerLevel);
+
+/** How fast the clock runs at this level: 1 = real time, capped at maxSpeed. */
+export const clockSpeedFor = (level: number): number => {
+    const { speedUpPerLevel, maxSpeed } = GAMEPLAY.levels;
+    return Math.min(maxSpeed, Math.round((1 + speedUpPerLevel * (Math.max(1, level) - 1)) * 100) / 100);
+};
+
+/** Milliseconds per clock tick at this level. */
+export const tickMsFor = (level: number): number => Math.round(1000 / clockSpeedFor(level));
+
+/** Seconds a valid word earns at this level, before the overflow tax: 3-letter words stop paying later on. */
+export const timeForWordAtLevel = (length: number, level: number): number =>
+    length <= 3 && level >= GAMEPLAY.timeBank.shortWordTimeStopsAtLevel ? 0 : timeForWord(length);
+
+/** Overflow tax: while the bank is above overflowAbove, word time is halved (rounded down). */
+export const taxWordTime = (seconds: number, bank: number): number =>
+    seconds > 0 && bank > GAMEPLAY.timeBank.overflowAbove ? Math.floor(seconds / 2) : seconds;
+
+/** Words in a row the Golden Snitch needs for its next catch, or null once it has flown away. */
+export const snitchTargetFor = (catches: number): number | null =>
+    GAMEPLAY.snitchCatchTargets[catches] ?? null;
+
 /** Keeps the time bank between 0 and its maximum (90s, or more with the Power Glove charm). */
 export const clampTime = (seconds: number, max: number = GAMEPLAY.timeBank.max): number =>
     Math.max(0, Math.min(max, Math.round(seconds)));
