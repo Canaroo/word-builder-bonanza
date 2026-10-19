@@ -86,7 +86,7 @@ export const PowerPlayOffer: React.FC<{
         <p className="osd-text text-lg leading-none text-neon-yellow mb-1">🎒 IN YOUR POCKET · YOU CAN HOLD ONE</p>
         <ItemCard item={held} tag={<Tag tone="yellow">HOLDING</Tag>} />
         <p className="text-sm text-slate-300 text-center mt-2">
-          Tap a <span className="text-neon-green">SWAP</span> card to trade it in, or keep what you've got. <span className="text-neon-cyan">INSTANT</span> cards fire right away, and you keep yours.
+          Tap a card to swap it in, or keep what you've got. <span className="text-neon-cyan">INSTANT</span> cards fire right away.
         </p>
       </div>
     ) : (
@@ -98,7 +98,7 @@ export const PowerPlayOffer: React.FC<{
         const instant = INSTANT_POWER_PLAY_IDS.has(pp.id);
         const tag = instant ? <Tag tone="cyan">INSTANT</Tag> : held ? <Tag tone="green">SWAP</Tag> : <Tag tone="green">TAKE</Tag>;
         const note = !held ? null : instant
-          ? <span className="text-neon-cyan">⚡ FIRES NOW · YOU KEEP {held.icon} {held.name.toUpperCase()}</span>
+          ? <span className="text-neon-cyan">⚡ FIRES NOW · REPLACES {held.icon} {held.name.toUpperCase()}</span>
           : <span className="text-neon-green">🔄 REPLACES {held.icon} {held.name.toUpperCase()}</span>;
         return <ItemCard key={pp.id} item={pp} tag={tag} note={note} onClick={() => onChoose(pp)} />;
       })}

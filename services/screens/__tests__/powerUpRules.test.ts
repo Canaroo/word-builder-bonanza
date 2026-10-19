@@ -107,10 +107,10 @@ describe('PowerPlay keep-or-swap', () => {
         expect(after.gameState.availablePowerPlays.map(p => p.id)).toEqual(['konamiCode']);
     });
 
-    test('an instant one fires and you keep what you hold', () => {
+    test('an instant one fires right away and swaps out what you hold', () => {
         const s = start({ availablePowerPlays: [pp('biglyScore')] });
         const after = gameReducer(s, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('wildcardWake'), allOffered: [pp('wildcardWake')] } });
-        expect(after.gameState.availablePowerPlays.map(p => p.id)).toEqual(['biglyScore']);
+        expect(after.gameState.availablePowerPlays).toEqual([]);
         expect(after.gameState.shuffleCount).toBe(s.gameState.shuffleCount + 2);
     });
 

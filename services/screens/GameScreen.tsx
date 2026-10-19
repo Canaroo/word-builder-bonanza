@@ -951,16 +951,21 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
         case 'CHOOSE_POWER_PLAY': {
             const { powerPlay, allOffered } = action.payload;
             // The PowerPlay in the player's pocket, if any: every outcome says what happened to it.
+            // You hold one PowerPlay at a time: picking ANY card (instant ones too) swaps the held one out.
+            // Once-per-run PowerPlays are spent when taken; one swapped away unused can be offered again.
             const held = gameState.availablePowerPlays[0] ?? null;
-            const stillHolding = held ? ` You're still holding ${held.icon} ${held.name}.` : '';
-            // Once-per-run PowerPlays are spent when taken. Instant ones keep the held one; any other
-            // pick swaps it out, and a once-per-run one swapped away unused can be offered again.
-            const swapsHeld = !!held && held.id !== powerPlay.id && !INSTANT_POWER_PLAY_IDS.has(powerPlay.id);
+            const swapped = !!held && held.id !== powerPlay.id;
+            const swappedOut = swapped ? ` ${held.icon} ${held.name} was swapped out.` : '';
             const oncePerRunTaken = [
-                ...(gameState.oncePerRunTaken ?? []).filter(id => !(swapsHeld && held?.oncePerRun && id === held.id)),
+                ...(gameState.oncePerRunTaken ?? []).filter(id => !(swapped && held?.oncePerRun && id === held.id)),
                 ...(powerPlay.oncePerRun ? [powerPlay.id] : []),
             ];
-            gameState = { ...gameState, oncePerRunTaken };
+            const swapLog: EventLogEntry[] = swapped ? [{
+                type: 'event', id: `pp-swap-${Date.now()}`, name: 'PowerPlay Swap', icon: '🔄',
+                description: `Swapped ${held.icon} ${held.name} for ${powerPlay.icon} ${powerPlay.name}.`,
+                scoreChange: 0, cumulativeScore: gameState.score,
+            }] : [];
+            gameState = { ...gameState, oncePerRunTaken, availablePowerPlays: [], log: [...gameState.log, ...swapLog] };
 
             const resetProgress = {
                 targetDigit: null,
@@ -996,7 +1001,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                     powerPlayProgress: resetProgress,
                     powerPlayCooldowns: newPowerPlayCooldowns,
                 };
-                const newModalContent: ModalContent = { type: 'info', title: 'Thwomped!', content: `You got an extra Challenge!${stillHolding}`, autoClose: 2500 };
+                const newModalContent: ModalContent = { type: 'info', title: 'Thwomped!', content: `You got an extra Challenge!${swappedOut}`, autoClose: 2500 };
                 return {
                     ...state,
                     gameState: newGameState,
@@ -1025,7 +1030,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                     powerPlayProgress: resetProgress,
                     powerPlayCooldowns: newPowerPlayCooldowns,
                 };
-                const newModalContent: ModalContent = { type: 'info', title: 'Fluncle is Proud', content: `Fluncle is very proud of you. You gain 300 points!${stillHolding}`, autoClose: 2500 };
+                const newModalContent: ModalContent = { type: 'info', title: 'Fluncle is Proud', content: `Fluncle is very proud of you. You gain 300 points!${swappedOut}`, autoClose: 2500 };
                 return {
                     ...state,
                     gameState: newGameState,
@@ -1044,7 +1049,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 const changes = powerPlay.activate(newGameState);
                 newGameState = { ...newGameState, ...changes };
                 if (!changes.lastPowerPlayResult) {
-                    newGameState.lastPowerPlayResult = { message: `⚡ ${powerPlay.icon} ${powerPlay.name} fired!${stillHolding}`, scoreChange: 0 };
+                    newGameState.lastPowerPlayResult = { message: `⚡ ${powerPlay.icon} ${powerPlay.name} fired!${swappedOut}`, scoreChange: 0 };
                 }
                 
                 return {
@@ -1053,17 +1058,10 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 };
             } 
             
-            const swapped = held && held.id !== powerPlay.id;
-            const swapLog: EventLogEntry[] = swapped ? [{
-                type: 'event', id: `pp-swap-${Date.now()}`, name: 'PowerPlay Swap', icon: '🔄',
-                description: `Swapped ${held.icon} ${held.name} for ${powerPlay.icon} ${powerPlay.name}.`,
-                scoreChange: 0, cumulativeScore: gameState.score,
-            }] : [];
             return {
                 ...state,
                 gameState: {
                     ...gameState,
-                    log: [...gameState.log, ...swapLog],
                     lastPowerPlayResult: {
                         message: swapped
                             ? `🔄 Swapped! ${held.icon} ${held.name} out, ${powerPlay.icon} ${powerPlay.name} in your pocket.`

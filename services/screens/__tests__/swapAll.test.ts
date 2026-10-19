@@ -25,14 +25,10 @@ describe('PowerPlay keep-or-swap, every PowerPlay', () => {
         const s = start({ availablePowerPlays: [held] });
         const after = gameReducer(s, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp, allOffered: [pp] } });
         const ids = after.gameState.availablePowerPlays.map(p => p.id);
-        if (INSTANT_POWER_PLAY_IDS.has(pp.id)) {
-            expect(ids).toEqual([held.id]);
-        } else {
-            expect(ids).toEqual([pp.id]);
-            // The swap is confirmed on screen and in the event log.
-            expect(after.gameState.lastPowerPlayResult?.message).toContain(`${held.name} out`);
-            expect(after.gameState.log.at(-1)).toMatchObject({ name: 'PowerPlay Swap' });
-        }
+        // Any pick swaps the held one out; instant ones fire instead of going in the pocket.
+        expect(ids).toEqual(INSTANT_POWER_PLAY_IDS.has(pp.id) ? [] : [pp.id]);
+        expect(after.gameState.log.some(e => e.type === 'event' && e.name === 'PowerPlay Swap')).toBe(true);
+        if (!INSTANT_POWER_PLAY_IDS.has(pp.id)) expect(after.gameState.lastPowerPlayResult?.message).toContain(`${held.name} out`);
     });
 
     test('keeping leaves the held one', () => {
@@ -57,11 +53,13 @@ describe('Charm swap, every charm', () => {
     });
 });
 
-test('picking an INSTANT PowerPlay while holding one says you still have it', () => {
-    const held = POWER_PLAYS_LIST.find(p => p.id === 'biglyScore')!;
-    const instant = POWER_PLAYS_LIST.find(p => p.id === 'strikeShield')!;
-    const after = gameReducer(start({ availablePowerPlays: [held] }), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: instant, allOffered: [instant] } });
-    expect(after.gameState.lastPowerPlayResult?.message).toContain('still holding');
+test('Heisenberg swapped for Time Turner: Time Turner fires and Heisenberg is gone', () => {
+    const held = POWER_PLAYS_LIST.find(p => p.id === 'heisenberg')!;
+    const timeTurner = POWER_PLAYS_LIST.find(p => p.id === 'timeTurner')!;
+    const after = gameReducer(start({ availablePowerPlays: [held] }), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: timeTurner, allOffered: [timeTurner] } });
+    expect(after.gameState.availablePowerPlays).toEqual([]);
+    expect(after.gameState.activePowerPlays.timeTurner).toBeTruthy();
+    expect(after.gameState.lastPowerPlayResult?.message).toContain('Heisenberg was swapped out');
 });
 
 describe('Once-per-run PowerPlays', () => {
@@ -85,10 +83,10 @@ describe('Once-per-run PowerPlays', () => {
         expect(choose(holding, 'biglyScore').gameState.oncePerRunTaken).toEqual([]);
     });
 
-    test('an instant once-per-run pick is spent, and the held one stays spent too', () => {
+    test('an instant once-per-run pick is spent, and the one it swapped out (unused) is freed', () => {
         const holding = choose(start(), 'whoYouGonnaCall');
         const after = choose(holding, 'lifeFindsAWay');
-        expect(after.gameState.oncePerRunTaken?.sort()).toEqual(['lifeFindsAWay', 'whoYouGonnaCall']);
-        expect(after.gameState.availablePowerPlays.map(p => p.id)).toEqual(['whoYouGonnaCall']);
+        expect(after.gameState.oncePerRunTaken).toEqual(['lifeFindsAWay']);
+        expect(after.gameState.availablePowerPlays).toEqual([]);
     });
 });
