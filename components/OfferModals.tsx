@@ -38,6 +38,9 @@ const ItemCard: React.FC<{
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-display text-sm text-white leading-tight">{item.name}</span>
             <DurationBadge tag={item.durationTag} />
+            {'oncePerRun' in item && item.oncePerRun && (
+              <span className="osd-text text-sm leading-none px-1.5 py-0.5 rounded-md ring-1 ring-neon-orange text-neon-orange whitespace-nowrap">1× PER RUN</span>
+            )}
           </div>
           <p className="text-sm text-slate-200 leading-snug mt-0.5">{item.description}</p>
           <p className="text-xs text-slate-500 italic mt-0.5">“{item.flavorText}”</p>

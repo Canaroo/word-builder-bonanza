@@ -953,6 +953,14 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             // The PowerPlay in the player's pocket, if any: every outcome says what happened to it.
             const held = gameState.availablePowerPlays[0] ?? null;
             const stillHolding = held ? ` You're still holding ${held.icon} ${held.name}.` : '';
+            // Once-per-run PowerPlays are spent when taken. Instant ones keep the held one; any other
+            // pick swaps it out, and a once-per-run one swapped away unused can be offered again.
+            const swapsHeld = !!held && held.id !== powerPlay.id && !INSTANT_POWER_PLAY_IDS.has(powerPlay.id);
+            const oncePerRunTaken = [
+                ...(gameState.oncePerRunTaken ?? []).filter(id => !(swapsHeld && held?.oncePerRun && id === held.id)),
+                ...(powerPlay.oncePerRun ? [powerPlay.id] : []),
+            ];
+            gameState = { ...gameState, oncePerRunTaken };
 
             const resetProgress = {
                 targetDigit: null,
@@ -2983,6 +2991,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               const powerPlaysToOfferFrom = POWER_PLAYS_LIST.filter(pp => 
                   !newState.activeBuffs.some(ab => ab.id === pp.id) &&
                   !newState.availablePowerPlays.some(held => held.id === pp.id) &&
+                  !(newState.oncePerRunTaken ?? []).includes(pp.id) &&
                   !newState.powerPlayCooldowns[pp.id]
               );
               const { offeredItems: offeredPowerPlays, offerDetails } = gameUtils.getOffer(powerPlaysToOfferFrom, 3, newState);

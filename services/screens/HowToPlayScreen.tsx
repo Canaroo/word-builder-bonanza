@@ -118,7 +118,8 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             <Key>{GAMEPLAY.powerPlayMeterLetters} letters</Key> (or every {GAMEPLAY.powerPlayEveryWords} words) to pick one of
             three. You can <Key>hold one</Key> in your Buffs tray; tap it to use it. Earn another while holding one and
             you choose: <Key>keep</Key> yours or <Key>swap</Key>. <Key>Instant</Key> ones fire right away, so you keep
-            the one in your pocket.
+            the one in your pocket. The biggest lifesavers (like Happy Place) are marked <Key>1× PER RUN</Key>: once you
+            take one, it won't be offered again that run.
           </p>
         </Section>
 
