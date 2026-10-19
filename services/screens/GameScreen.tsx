@@ -511,10 +511,6 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
 
         case 'PERFORM_SHUFFLE': {
             let newGameState = { ...gameState };
-            let newPowerSurgeProgress = newGameState.powerSurgeProgress;
-            if (!action.payload.isFree && newPowerSurgeProgress > 0) {
-                newPowerSurgeProgress = 0;
-            }
 
             const allTilesInPlay = [...state.hand, ...state.buildRow.map(item => item?.tile)].filter((t): t is Tile => t != null);
             if (allTilesInPlay.some(tile => tile.tempPoints === 25)) {
@@ -524,12 +520,8 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
 
             let newHand = action.payload.hand;
 
-            // A paid shuffle costs a few seconds, but never runs the clock out on its own.
-            const shuffleTime = action.payload.isFree ? state.time : Math.max(Math.min(state.time, 1), state.time - GAMEPLAY.timeBank.shuffleCost);
-            
-            const newConsecutiveValidWords = action.payload.isFromChallengeWin 
-                ? state.gameState.consecutiveValidWords 
-                : 0;
+            // Shuffles are a lifeline: fresh tiles plus a few seconds, and streaks carry on.
+            const shuffleTime = clampTime(state.time + GAMEPLAY.timeBank.shuffleTimeBonus, bankMax(gameState));
 
             return {
                 ...state,
@@ -543,10 +535,6 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 gameState: { 
                   ...newGameState, 
                   shuffleCount: action.payload.isFree ? state.gameState.shuffleCount : state.gameState.shuffleCount - 1,
-                  powerSurgeProgress: newPowerSurgeProgress,
-                  consecutiveSuccesses: 0,
-                  consecutiveValidWords: newConsecutiveValidWords,
-                  perfectChainProgress: 0,
                   wordsThisRound: 0,
                 }
             };
@@ -2282,16 +2270,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     const allTilesInPlay = [...(hand ?? []), ...(buildRow ?? []).map(item => item?.tile)].filter((t): t is Tile => t != null);
     if (allTilesInPlay.some(tile => tile && tile.tempPoints === 25)) {
         showMessage("👑 'One Tile' effect lost on shuffle.", 2000);
-    }
-
-    if (!isFree) {
-        if ((gameState?.powerSurgeProgress ?? 0) === 3 || (gameState?.powerSurgeProgress ?? 0) === 4) {
-            soundService.playComboDrop();
-            showMessage("Combo Lost! Don't worry, even Jack couldn’t fix this one.", 3000);
-        } else if ((gameState?.powerSurgeProgress ?? 0) > 0) {
-            soundService.playComboDrop();
-            showMessage('😵 Combo Dropped!', 2500);
-        }
     }
 
     const tilesToReturn = [...(hand ?? []), ...(buildRow ?? []).map(item => item?.tile)].filter((t): t is Tile => t != null);

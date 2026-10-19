@@ -15,17 +15,17 @@ export const GAMEPLAY = {
     overflowAbove: 60,
     /** From this level on, 3-letter words add no time. */
     shortWordTimeStopsAtLevel: 3,
-    /** Seconds a paid shuffle costs (never takes the clock below 1s). */
-    shuffleCost: 3,
+    /** Seconds a shuffle adds: shuffles are the player's limited time lifeline. */
+    shuffleTimeBonus: 5,
   },
 
   /** Speed-up levels: every this many valid words the level goes up and the clock ticks faster. */
   levels: {
-    wordsPerLevel: 15,
-    /** Extra clock speed per level (0.1 = 10% faster each level). */
-    speedUpPerLevel: 0.1,
+    wordsPerLevel: 25,
+    /** Extra clock speed per level (0.05 = 5% faster each level). */
+    speedUpPerLevel: 0.05,
     /** The clock never runs faster than this. */
-    maxSpeed: 1.5,
+    maxSpeed: 1.3,
   },
 
   /** Golden Snitch charm: valid words in a row for each catch. After the last catch it flies away. */

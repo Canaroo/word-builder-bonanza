@@ -76,10 +76,19 @@ describe('Time pressure', () => {
     const shuffle = (s: GameScreenState, isFree = false) =>
         gameReducer(s, { type: 'PERFORM_SHUFFLE', payload: { hand: s.hand, tileBag: s.tileBag, isFree } });
 
-    test('a paid shuffle costs 3s, a free one costs nothing, and it never empties the clock', () => {
-        expect(shuffle(start({}, 40)).time).toBe(40 - GAMEPLAY.timeBank.shuffleCost);
-        expect(shuffle(start({}, 40), true).time).toBe(40);
-        expect(shuffle(start({}, 2)).time).toBe(1);
+    test('every shuffle (paid or free) adds 5s, up to the bank max, and only a paid one uses a shuffle', () => {
+        const paid = shuffle(start({ shuffleCount: 3 }, 40));
+        expect(paid.time).toBe(40 + GAMEPLAY.timeBank.shuffleTimeBonus);
+        expect(paid.gameState.shuffleCount).toBe(2);
+        const free = shuffle(start({ shuffleCount: 3 }, 40), true);
+        expect(free.time).toBe(45);
+        expect(free.gameState.shuffleCount).toBe(3);
+        expect(shuffle(start({}, GAMEPLAY.timeBank.max - 2)).time).toBe(GAMEPLAY.timeBank.max);
+    });
+
+    test('a shuffle keeps your streaks going', () => {
+        const s = shuffle(start({ consecutiveSuccesses: 4, consecutiveValidWords: 6, powerSurgeProgress: 3, perfectChainProgress: 2 }));
+        expect(s.gameState).toMatchObject({ consecutiveSuccesses: 4, consecutiveValidWords: 6, powerSurgeProgress: 3, perfectChainProgress: 2 });
     });
 
     test('word time is halved when it lands on a bank above 60s', () => {

@@ -57,14 +57,14 @@ describe('rack, meter and strikes', () => {
 });
 
 describe('time pressure', () => {
-    test('the level goes up every 15 valid words', () => {
-        expect([0, 14, 15, 29, 30, 75].map(levelFor)).toEqual([1, 1, 2, 2, 3, 6]);
+    test('the level goes up every 25 valid words', () => {
+        expect([0, 24, 25, 49, 50, 150].map(levelFor)).toEqual([1, 1, 2, 2, 3, 7]);
     });
 
-    test('the clock speeds up 10% per level, capped at 1.5x', () => {
-        expect([1, 2, 3, 6, 9].map(clockSpeedFor)).toEqual([1, 1.1, 1.2, 1.5, 1.5]);
+    test('the clock speeds up 5% per level, capped at 1.3x', () => {
+        expect([1, 2, 3, 7, 9].map(clockSpeedFor)).toEqual([1, 1.05, 1.1, 1.3, 1.3]);
         expect(tickMsFor(1)).toBe(1000);
-        expect(tickMsFor(6)).toBe(667);
+        expect(tickMsFor(7)).toBe(769);
     });
 
     test('3-letter words stop adding time from level 3', () => {
