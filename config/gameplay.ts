@@ -27,7 +27,7 @@ export const GAMEPLAY = {
     /** Extra clock speed per level (0.05 = 5% faster each level). */
     speedUpPerLevel: 0.05,
     /** The clock never runs faster than this. */
-    maxSpeed: 1.3,
+    maxSpeed: 1.75,
   },
 
   /** Golden Snitch charm: valid words in a row for each catch. After the last catch it flies away. */
