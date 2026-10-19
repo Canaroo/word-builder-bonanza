@@ -843,7 +843,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             onClick={() => handleShuffle(false)}
             disabled={(gameState?.shuffleCount ?? 0) <= 0 || isPaused || isChallengeLock || isLoading || (gameState?.roundType === 'golden')}
           >
-            Shuffle ({(gameState?.shuffleCount ?? 0)})
+            Shuffle +{GAMEPLAY.timeBank.shuffleTimeBonus}s ({(gameState?.shuffleCount ?? 0)})
           </ArcadeButton>
           <ArcadeButton
             color="slate"
