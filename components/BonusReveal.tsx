@@ -16,6 +16,20 @@ interface BonusRevealProps {
   onClose: () => void;
 }
 
+/** The word that set it off, spelled out in tiles. */
+const PlayedWord: React.FC<{ word: string }> = ({ word }) => (
+  <div className="flex flex-col items-center gap-1.5">
+    <div className="osd-text text-lg leading-none text-neon-cyan">YOU PLAYED</div>
+    <div className="flex gap-1" aria-label={`You played ${word}`}>
+      {word.split('').map((ch, i) => (
+        <span key={i} className="tile-3d w-9 h-10 rounded-md grid place-items-center font-tile font-extrabold text-2xl bg-gradient-to-b from-[#fff4d6] to-[#f5d48a] text-crt-900" aria-hidden="true">
+          {ch}
+        </span>
+      ))}
+    </div>
+  </div>
+);
+
 /** The triggering score as a VCR readout, with the digits that matched lit up. */
 const ScoreExplanation: React.FC<{ score: number; pattern: ScorePattern }> = ({ score, pattern }) => {
   const m = matchScorePattern(score, pattern);
@@ -136,6 +150,7 @@ const BonusReveal: React.FC<BonusRevealProps> = ({ egg, onClose }) => {
         {media === 'cartridge' && <Cartridge {...props} />}
         {media === 'cd' && <Disc {...props} />}
         {media === 'arcade' && <Marquee icon={icon} title={title} />}
+        {egg.word && <PlayedWord word={egg.word} />}
         {egg.scorePattern && egg.triggerScore !== undefined && <ScoreExplanation score={egg.triggerScore} pattern={egg.scorePattern} />}
         <p className="text-slate-200 text-base leading-snug px-2">{egg.reward.message}</p>
         {egg.reward.points ? (

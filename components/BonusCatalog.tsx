@@ -125,7 +125,7 @@ const BonusCatalog: React.FC = () => {
         {status === 'blocked' && <p className="text-xs text-neon-red">This word is in words/blocked.txt, so it can never be played.</p>}
         {status === 'unknown' && <p className="text-xs text-neon-red">Not in the dictionary. Add it to words/custom.txt.</p>}
         {own.map(p => <p key={p} className="text-xs text-neon-red">{p}</p>)}
-        <p className="text-sm text-slate-300 leading-snug">{b.message}</p>
+        <p className="text-sm text-slate-300 leading-snug">{b.hint ?? b.message}</p>
         <p className="text-xs text-neon-cyan/80 leading-snug">CLUE: {hintFor(b)}</p>
       </Card>
     );

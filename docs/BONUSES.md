@@ -71,8 +71,8 @@ Every secret bonus is one entry in
 | `name` | yes | Title on the reveal. Start it with an emoji. |
 | `description` | yes | A short summary of the bonus. |
 | `points` / `shuffle` | at least one | Bonus points (added on top of the word's normal score), free shuffles, or both. |
-| `message` | yes | What the player reads when it fires. |
-| `hint` | no | The clue shown in the player's Collection before they find it, e.g. `"A Hylian hero."`. Without one, the game writes a clue from the word length and `source` ("A 4-letter word from The Legend of Zelda."), or the first letter if there's no source. Score bonuses never reveal their number. |
+| `message` | yes | Fallback reveal line, used only when there's no `hint`. |
+| `hint` | no | The punny clue. Shown in the player's Collection before they find it, and on the reveal (next to the word that set it off) when it fires, e.g. `"A Hylian hero."`. Without one, the game writes a clue from the word length and `source` ("A 4-letter word from The Legend of Zelda."), or the first letter if there's no source. Score bonuses never reveal their number. |
 | `media` | no | Reveal art: `"vhs"` (movies, TV), `"cartridge"` (games), `"cd"` (music), `"arcade"` (anything else; the default). |
 | `source` | with vhs / cartridge / cd | Printed on the label, e.g. `"Back to the Future"`. |
 

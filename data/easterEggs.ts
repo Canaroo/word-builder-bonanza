@@ -12,7 +12,8 @@ export const toEasterEgg = (b: SecretBonus): EasterEgg => {
     word,
     scorePattern: b.score,
     trigger: b.score ? scoreTrigger(b.score) : (submitted) => submitted.toUpperCase() === word,
-    reward: { points: b.points, shuffle: b.shuffle, message: b.message },
+    // The punny clue doubles as the reveal line once the word is shown; message is the fallback.
+    reward: { points: b.points, shuffle: b.shuffle, message: b.hint ?? b.message },
   };
 };
 
