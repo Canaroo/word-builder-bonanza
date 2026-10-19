@@ -49,6 +49,8 @@ export interface PowerPlay {
   selectionType?: 'letter' | 'tile_swap' | 'custom' | 'tile_transform';
   swapConfig?: { min: number, max: number };
   maxUses?: number;
+  /** Too strong to repeat: once taken from an offer, it isn't offered again this run. */
+  oncePerRun?: boolean;
   durationTag: DurationTag;
   activate: (gameState: GameState, options?: any) => Partial<GameState>;
 }
@@ -180,6 +182,8 @@ export interface GameState {
   // Charm and PowerPlay states
   charmUses: { [charmId: string]: number };
   powerPlayUses: { [powerPlayId: string]: number };
+  /** Once-per-run PowerPlays already taken this run (swapping one away unused frees it again). */
+  oncePerRunTaken?: string[];
   activePowerPlays: { 
     [powerPlayId: string]: any;
   };

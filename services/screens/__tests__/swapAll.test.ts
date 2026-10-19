@@ -63,3 +63,32 @@ test('picking an INSTANT PowerPlay while holding one says you still have it', ()
     const after = gameReducer(start({ availablePowerPlays: [held] }), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: instant, allOffered: [instant] } });
     expect(after.gameState.lastPowerPlayResult?.message).toContain('still holding');
 });
+
+describe('Once-per-run PowerPlays', () => {
+    const get = (id: string) => POWER_PLAYS_LIST.find(p => p.id === id)!;
+    const choose = (s: GameScreenState, id: string) => gameReducer(s, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: get(id), allOffered: [get(id)] } });
+
+    test('exactly the run-saving ones are flagged', () => {
+        expect(POWER_PLAYS_LIST.filter(p => p.oncePerRun).map(p => p.id).sort())
+            .toEqual(['chubbsPepTalk', 'groundhogsDay', 'happyPlace', 'lifeFindsAWay', 'sliders', 'whoYouGonnaCall']);
+    });
+
+    test('taking one marks it spent for the run, even after it is used up', () => {
+        const after = choose(start(), 'happyPlace');
+        expect(after.gameState.oncePerRunTaken).toEqual(['happyPlace']);
+        const used = { ...after, gameState: { ...after.gameState, availablePowerPlays: [] } };
+        expect(choose(used, 'biglyScore').gameState.oncePerRunTaken).toEqual(['happyPlace']);
+    });
+
+    test('swapping one away unused lets it come back', () => {
+        const holding = choose(start(), 'happyPlace');
+        expect(choose(holding, 'biglyScore').gameState.oncePerRunTaken).toEqual([]);
+    });
+
+    test('an instant once-per-run pick is spent, and the held one stays spent too', () => {
+        const holding = choose(start(), 'whoYouGonnaCall');
+        const after = choose(holding, 'lifeFindsAWay');
+        expect(after.gameState.oncePerRunTaken?.sort()).toEqual(['lifeFindsAWay', 'whoYouGonnaCall']);
+        expect(after.gameState.availablePowerPlays.map(p => p.id)).toEqual(['whoYouGonnaCall']);
+    });
+});
