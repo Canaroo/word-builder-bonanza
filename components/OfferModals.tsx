@@ -27,7 +27,9 @@ const ItemCard: React.FC<{
   onClick?: () => void;
   selected?: boolean;
   dim?: boolean;
-}> = ({ item, tag, onClick, selected, dim }) => {
+  /** Extra line under the description (e.g. what happens to the PowerPlay you're holding). */
+  note?: React.ReactNode;
+}> = ({ item, tag, onClick, selected, dim, note }) => {
   const body = (
     <>
       <div className="flex items-start gap-2">
@@ -39,6 +41,7 @@ const ItemCard: React.FC<{
           </div>
           <p className="text-sm text-slate-200 leading-snug mt-0.5">{item.description}</p>
           <p className="text-xs text-slate-500 italic mt-0.5">“{item.flavorText}”</p>
+          {note && <p className="osd-text text-base leading-tight mt-1">{note}</p>}
         </div>
         {tag && <span className="shrink-0 self-center">{tag}</span>}
       </div>
@@ -80,7 +83,7 @@ export const PowerPlayOffer: React.FC<{
         <p className="osd-text text-lg leading-none text-neon-yellow mb-1">🎒 IN YOUR POCKET · YOU CAN HOLD ONE</p>
         <ItemCard item={held} tag={<Tag tone="yellow">HOLDING</Tag>} />
         <p className="text-sm text-slate-300 text-center mt-2">
-          Swap it for one below, or keep what you've got. <span className="text-neon-cyan">INSTANT</span> ones fire now, so you keep yours too.
+          Tap a <span className="text-neon-green">SWAP</span> card to trade it in, or keep what you've got. <span className="text-neon-cyan">INSTANT</span> cards fire right away, and you keep yours.
         </p>
       </div>
     ) : (
@@ -91,7 +94,10 @@ export const PowerPlayOffer: React.FC<{
       {offered.map(pp => {
         const instant = INSTANT_POWER_PLAY_IDS.has(pp.id);
         const tag = instant ? <Tag tone="cyan">INSTANT</Tag> : held ? <Tag tone="green">SWAP</Tag> : <Tag tone="green">TAKE</Tag>;
-        return <ItemCard key={pp.id} item={pp} tag={tag} onClick={() => onChoose(pp)} />;
+        const note = !held ? null : instant
+          ? <span className="text-neon-cyan">⚡ FIRES NOW · YOU KEEP {held.icon} {held.name.toUpperCase()}</span>
+          : <span className="text-neon-green">🔄 REPLACES {held.icon} {held.name.toUpperCase()}</span>;
+        return <ItemCard key={pp.id} item={pp} tag={tag} note={note} onClick={() => onChoose(pp)} />;
       })}
     </div>
 

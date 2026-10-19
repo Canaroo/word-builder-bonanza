@@ -868,6 +868,15 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             let newTime = state.time;
 
             // Charm slots: a new charm beyond the limit must replace one.
+            const droppedCharm = replaceId ? newGameState.activeCharms.find(c => c.id === replaceId) : undefined;
+            if (droppedCharm) {
+                newGameState.log = [...newGameState.log, {
+                    type: 'event', id: `charm-swap-${Date.now()}`, name: 'Charm Swap', icon: '🔄',
+                    description: `Swapped ${droppedCharm.icon} ${droppedCharm.name} for ${charm.icon} ${charm.name}.`,
+                    scoreChange: 0, cumulativeScore: newGameState.score,
+                } as EventLogEntry];
+                newGameState.lastPowerPlayResult = { message: `🔄 Charm swapped! ${droppedCharm.icon} ${droppedCharm.name} out, ${charm.icon} ${charm.name} in.`, scoreChange: 0 };
+            }
             if (replaceId) {
                 newGameState.activeCharms = newGameState.activeCharms.filter(c => c.id !== replaceId);
                 newGameState.activeBuffs = newGameState.activeBuffs.filter(b => b.id !== replaceId);
@@ -941,6 +950,9 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
 
         case 'CHOOSE_POWER_PLAY': {
             const { powerPlay, allOffered } = action.payload;
+            // The PowerPlay in the player's pocket, if any: every outcome says what happened to it.
+            const held = gameState.availablePowerPlays[0] ?? null;
+            const stillHolding = held ? ` You're still holding ${held.icon} ${held.name}.` : '';
 
             const resetProgress = {
                 targetDigit: null,
@@ -976,7 +988,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                     powerPlayProgress: resetProgress,
                     powerPlayCooldowns: newPowerPlayCooldowns,
                 };
-                const newModalContent: ModalContent = { type: 'info', title: 'Thwomped!', content: 'You got an extra Challenge!', autoClose: 2000 };
+                const newModalContent: ModalContent = { type: 'info', title: 'Thwomped!', content: `You got an extra Challenge!${stillHolding}`, autoClose: 2500 };
                 return {
                     ...state,
                     gameState: newGameState,
@@ -1005,7 +1017,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                     powerPlayProgress: resetProgress,
                     powerPlayCooldowns: newPowerPlayCooldowns,
                 };
-                const newModalContent: ModalContent = { type: 'info', title: 'Fluncle is Proud', content: `Fluncle is very proud of you. You gain 300 points!`, autoClose: 2500 };
+                const newModalContent: ModalContent = { type: 'info', title: 'Fluncle is Proud', content: `Fluncle is very proud of you. You gain 300 points!${stillHolding}`, autoClose: 2500 };
                 return {
                     ...state,
                     gameState: newGameState,
@@ -1023,6 +1035,9 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 
                 const changes = powerPlay.activate(newGameState);
                 newGameState = { ...newGameState, ...changes };
+                if (!changes.lastPowerPlayResult) {
+                    newGameState.lastPowerPlayResult = { message: `⚡ ${powerPlay.icon} ${powerPlay.name} fired!${stillHolding}`, scoreChange: 0 };
+                }
                 
                 return {
                     ...state,
@@ -1030,10 +1045,23 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 };
             } 
             
+            const swapped = held && held.id !== powerPlay.id;
+            const swapLog: EventLogEntry[] = swapped ? [{
+                type: 'event', id: `pp-swap-${Date.now()}`, name: 'PowerPlay Swap', icon: '🔄',
+                description: `Swapped ${held.icon} ${held.name} for ${powerPlay.icon} ${powerPlay.name}.`,
+                scoreChange: 0, cumulativeScore: gameState.score,
+            }] : [];
             return {
                 ...state,
                 gameState: {
                     ...gameState,
+                    log: [...gameState.log, ...swapLog],
+                    lastPowerPlayResult: {
+                        message: swapped
+                            ? `🔄 Swapped! ${held.icon} ${held.name} out, ${powerPlay.icon} ${powerPlay.name} in your pocket.`
+                            : `🎒 ${powerPlay.icon} ${powerPlay.name} is in your pocket. Tap ▶ USE when you're ready.`,
+                        scoreChange: 0,
+                    },
                     // You hold one PowerPlay at a time: a new pick swaps out the old one.
                     availablePowerPlays: [powerPlay],
                     powerPlayOffer: [],
