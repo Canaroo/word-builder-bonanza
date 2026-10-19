@@ -259,6 +259,8 @@ const settleTimeBank = (time: number, gs: GameState): { time: number; gs: GameSt
     return { time, gs };
 };
 
+const LIFELINE_TIP_KEY = 'wordNerdLifelineTipSeen';
+
 // Speed-up levels: every few words the clock runs a little faster. Announced when this word crosses a level.
 const levelUpModal = (wordsBefore: number) => {
     const level = levelFor(wordsBefore + 1);
@@ -2236,6 +2238,18 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       return () => clearInterval(interval);
   }, [gameState, time, onGameOver, isPaused, isLoading, isVisible, showMessage, maxStrikes, endGoldenRound, totalWords]);
   
+  // First time a player's clock runs low (ever), point them at the Shuffle lifeline.
+  const lowOnTime = !!gameState && gameState.roundType !== 'golden' && !isPaused && !isLoading
+      && time > 0 && time <= GAMEPLAY.timeBank.lifelineHintBelow && gameState.shuffleCount > 0;
+  useEffect(() => {
+    if (!lowOnTime) return;
+    try {
+      if (localStorage.getItem(LIFELINE_TIP_KEY)) return;
+      localStorage.setItem(LIFELINE_TIP_KEY, '1');
+    } catch { return; }
+    showMessage(`⏱ Running low? Shuffle for +${GAMEPLAY.timeBank.shuffleTimeBonus} seconds!`, 3500);
+  }, [lowOnTime, showMessage]);
+
   useEffect(() => {
     if (gameState?.lastPowerPlayResult) {
         showMessage(gameState.lastPowerPlayResult.message, 3000);
