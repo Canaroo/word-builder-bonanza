@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import ArcadeButton from '../../components/ArcadeButton';
+import ShuffleButton from '../../components/ShuffleButton';
 import BonusReveal from '../../components/BonusReveal';
 import { PowerPlayOffer, CharmOffer } from '../../components/OfferModals';
 import { GameState, Tile, WordData, Milestone, Charm, PowerPlay } from '../../types';
@@ -134,6 +135,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     handleActivatePowerPlay, handleActivateCharm, handleChoosePowerPlay, handleChooseCharm, handlePassCharm, handleKeepPowerPlay,
     handleAddTileToSwap, handleRemoveTileFromSwap, handleExecuteSwap, dispatch
 }) => {
+    const timerRef = useRef<HTMLDivElement>(null);
 
     const renderModal = () => {
         if (!modalContent) return null;
@@ -585,12 +587,12 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
         {/* Timer Display */}
         <div className="text-center">
-          <div className="relative">
+          <div className="relative" ref={timerRef}>
             <Timer time={time ?? 0} golden={gameState?.roundType === 'golden'} />
             {timeGain && timeGain.seconds !== 0 && (
               <span
                 key={timeGain.key}
-                className={`time-gain absolute left-1/2 -bottom-5 font-osd text-2xl leading-none pointer-events-none ${timeGain.seconds > 0 ? 'text-neon-green' : 'text-neon-red'}`}
+                className={`time-gain-side absolute left-full top-1/2 ml-1 whitespace-nowrap font-osd text-2xl leading-none pointer-events-none ${timeGain.seconds > 0 ? 'text-neon-green' : 'text-neon-red'}`}
                 aria-live="polite"
               >
                 {timeGain.seconds > 0 ? '+' : '−'}{Math.abs(timeGain.seconds)}s{timeGain.taxed && <span className="text-neon-yellow text-lg"> ½</span>}
@@ -838,13 +840,14 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           >
             Submit
           </ArcadeButton>
-          <ArcadeButton
-            color="cyan"
-            onClick={() => handleShuffle(false)}
+          <ShuffleButton
+            count={gameState?.shuffleCount ?? 0}
+            seconds={GAMEPLAY.timeBank.shuffleTimeBonus}
             disabled={(gameState?.shuffleCount ?? 0) <= 0 || isPaused || isChallengeLock || isLoading || (gameState?.roundType === 'golden')}
-          >
-            Shuffle +{GAMEPLAY.timeBank.shuffleTimeBonus}s ({(gameState?.shuffleCount ?? 0)})
-          </ArcadeButton>
+            lowTime={gameState?.roundType !== 'golden' && (time ?? 0) <= GAMEPLAY.timeBank.lifelineHintBelow}
+            timerRef={timerRef}
+            onShuffle={() => handleShuffle(false)}
+          />
           <ArcadeButton
             color="slate"
             onClick={handleClear}

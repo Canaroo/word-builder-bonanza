@@ -17,6 +17,8 @@ export const GAMEPLAY = {
     shortWordTimeStopsAtLevel: 3,
     /** Seconds a shuffle adds: shuffles are the player's limited time lifeline. */
     shuffleTimeBonus: 5,
+    /** At or below this many seconds, the Shuffle button pulses (and first-timers get a tip). */
+    lifelineHintBelow: 15,
   },
 
   /** Speed-up levels: every this many valid words the level goes up and the clock ticks faster. */
