@@ -756,7 +756,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'captainPlanet',
     name: 'Captain Planet',
-    description: 'Pick a tile on your rack: it is worth 20 points until you play it.',
+    description: 'Pick a tile on your rack: it is worth 20 points for your next word.',
     flavorText: 'The power is yours!',
     icon: '🌎',
     subtheme: 'rack',

@@ -9,10 +9,8 @@ export interface Tile {
   isCombo?: boolean;
   multiplier?: number; // For charms/powerplays like 'Letter Upgrade'
   tempPoints?: number; // For charms like 'One Tile to Rule Them All'
-  /** Shown in the score breakdown when tempPoints changes this tile's value (e.g. "Captain Planet"). */
+  /** The power-up that set tempPoints (e.g. "Captain Planet"); shown in the score breakdown. */
   tempPointsSource?: string;
-  /** tempPoints stay until the tile is played, instead of clearing after the next word (Captain Planet). */
-  tempPointsKeep?: boolean;
   isDuplicate?: boolean; // For Hookshot powerplay
   isSuper?: boolean; // For Mutation Protocol
   isLocked?: boolean; // For Rescue Drop powerplay
