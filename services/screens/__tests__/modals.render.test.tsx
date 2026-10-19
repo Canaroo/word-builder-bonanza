@@ -105,3 +105,12 @@ describe('pick-a-letter pop-ups wait for Confirm', () => {
         expect(html.match(/aria-pressed="false"/g)).toHaveLength(26);
     });
 });
+
+describe('secret bonus reveal', () => {
+    test('a word bonus shows the word that set it off and its punny clue', () => {
+        const egg = EASTER_EGGS.find(e => e.id === 'hogwartsHousePoints')!;
+        const html = renderToString(<GameScreenView {...props({ type: 'easter-egg', title: egg.name, content: '', data: egg })} />);
+        expect(html).toContain('You played BOOK');
+        expect(html).toContain('It has a spine but no backbone');
+    });
+});
