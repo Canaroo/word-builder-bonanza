@@ -260,6 +260,7 @@ const settleTimeBank = (time: number, gs: GameState): { time: number; gs: GameSt
 };
 
 const LIFELINE_TIP_KEY = 'wordNerdLifelineTipSeen';
+const CAPTAIN_PLANET_POINTS = 20;
 
 // Speed-up levels: every few words the clock runs a little faster. Announced when this word crosses a level.
 const levelUpModal = (wordsBefore: number) => {
@@ -677,7 +678,12 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 
                 // isLocked, isDuplicate and tempPoints are single-turn effects.
                 // isSuper should persist until the tile is used.
-                const { isLocked, isDuplicate, tempPoints, ...restOfTile } = tile;
+                // Tiles marked tempPointsKeep (Captain Planet) hold their value until played.
+                if (tile.tempPointsKeep) {
+                    const { isLocked, isDuplicate, ...keptTile } = tile;
+                    return isLocked || isDuplicate ? keptTile as Tile : tile;
+                }
+                const { isLocked, isDuplicate, tempPoints, tempPointsSource, ...restOfTile } = tile;
                 
                 // Only create a new object if a property was actually removed to be more efficient.
                 if (isLocked || isDuplicate || tempPoints !== undefined) {
@@ -1611,10 +1617,18 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             let newGameState = { ...state.gameState };
             const handCopy = [...state.hand];
             const tileIndex = state.tileForSelection.originalIndex;
-            if (handCopy[tileIndex]) {
-                handCopy[tileIndex] = { ...handCopy[tileIndex]!, tempPoints: 20 };
+            const picked = handCopy[tileIndex];
+            if (picked) {
+                handCopy[tileIndex] = { ...picked, tempPoints: CAPTAIN_PLANET_POINTS, tempPointsSource: powerPlay.name, tempPointsKeep: true };
             }
-              const changes = powerPlay.activate(state.gameState);
+            const changes = powerPlay.activate(state.gameState);
+            const letter = picked?.letter ?? '?';
+            newGameState.log = [...newGameState.log, {
+                type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon,
+                description: `Your ${letter} tile is worth ${CAPTAIN_PLANET_POINTS} points until you play it.`,
+                scoreChange: 0, cumulativeScore: newGameState.score,
+            } as EventLogEntry];
+            newGameState.lastPowerPlayResult = { message: `🌎 The power is yours! ${letter} is now worth ${CAPTAIN_PLANET_POINTS} points until you play it.`, scoreChange: 0 };
             return {
                 ...state,
                 hand: handCopy,
@@ -1622,8 +1636,8 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 isPaused: false,
                 tileForSelection: null,
                 gameState: {
-                    ...newGameState,
                     ...changes,
+                    ...newGameState,
                     availablePowerPlays: newGameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
                     powerPlayToActivate: null,
                 }
@@ -2284,6 +2298,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     const allTilesInPlay = [...(hand ?? []), ...(buildRow ?? []).map(item => item?.tile)].filter((t): t is Tile => t != null);
     if (allTilesInPlay.some(tile => tile && tile.tempPoints === 25)) {
         showMessage("👑 'One Tile' effect lost on shuffle.", 2000);
+    }
+    const keptBoost = allTilesInPlay.find(tile => tile.tempPointsKeep);
+    if (keptBoost) {
+        showMessage(`🌎 Your ${keptBoost.tempPoints}-point ${keptBoost.letter} went back in the bag.`, 2500);
     }
 
     const tilesToReturn = [...(hand ?? []), ...(buildRow ?? []).map(item => item?.tile)].filter((t): t is Tile => t != null);
@@ -3188,10 +3206,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       newState.activePowerPlays = consumedPPs;
       newState.activeBuffs = consumedBuffs;
-
-      if (submittedTiles.some(t => t.tempPoints === 20)) { // Captain Planet
-          // This will automatically clear as the tempPoints are on the tile, which is now gone.
-      }
 
 
       dispatch({ type: 'HANDLE_SUBMIT_SUCCESS', payload: { gameState: newState, hand: sanitizeHand(finalHand), tileBag: finalBag, modalQueue }});

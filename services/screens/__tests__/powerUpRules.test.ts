@@ -204,3 +204,33 @@ describe('resuming a saved game', () => {
         expect(typeof gs.activeBuffs[0].activate).toBe('function');
     });
 });
+
+describe('Captain Planet', () => {
+    const activate = () => {
+        const s = start({ availablePowerPlays: [pp('captainPlanet')] });
+        const idx = s.hand.findIndex(Boolean);
+        const tile = s.hand[idx]!;
+        const after = gameReducer({ ...s, tileForSelection: { tile, originalIndex: idx } }, { type: 'COMPLETE_POWER_PLAY_ACTIVATION', payload: { powerPlay: pp('captainPlanet') } });
+        return { after, idx, tile };
+    };
+
+    test('the picked tile is worth 20, it is logged, and the PowerPlay is used up', () => {
+        const { after, idx, tile } = activate();
+        expect(after.hand[idx]).toMatchObject({ letter: tile.letter, tempPoints: 20, tempPointsKeep: true });
+        expect(after.gameState.availablePowerPlays).toHaveLength(0);
+        expect(after.gameState.log.at(-1)).toMatchObject({ type: 'event', name: 'Captain Planet' });
+        expect(after.gameState.lastPowerPlayResult?.message).toContain('20 points');
+    });
+
+    test('the 20 points stay until the tile is played, instead of clearing after the next word', () => {
+        const { after, idx } = activate();
+        const next = gameReducer(after, { type: 'START_NEXT_ROUND' });
+        expect(next.hand[idx]?.tempPoints).toBe(20);
+    });
+
+    test('the score breakdown shows the boosted tile', () => {
+        const { after, idx } = activate();
+        const result = calculateScore(after.hand[idx]!.letter.repeat(3), [after.hand[idx]!, ...after.hand.filter((t, i) => t && i !== idx).slice(0, 2) as Tile[]], after.gameState);
+        expect(result.bonuses.some(b => b.name.startsWith('Captain Planet'))).toBe(true);
+    });
+});

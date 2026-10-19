@@ -386,6 +386,9 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     tiles.forEach((tile, index) => {
         let tilePoints = tile.tempPoints ?? tile.points;
         let tileMultiplier = 1;
+        if (tile.tempPoints !== undefined && tile.tempPoints !== tile.points && tile.tempPointsSource) {
+            bonuses.push({ name: `${tile.tempPointsSource} (${tile.letter})`, description: `${tile.points} → ${tile.tempPoints} pts`, source: 'tile' });
+        }
 
         // PowerPlay: The Upside Down (common letters worth more, rare ones less)
         if (gameState.activePowerPlays.upsideDown && tile.tempPoints === undefined) {

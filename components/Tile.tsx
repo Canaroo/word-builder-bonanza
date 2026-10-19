@@ -41,7 +41,7 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
       onClick={handleInteraction}
       disabled={tile.isLocked}
       className={`tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none ${tileStyle} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-      aria-label={`Tile ${tile.letter} with ${tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${tile.isLocked ? ' (locked for this turn)' : ''}`}
+      aria-label={`Tile ${tile.letter} with ${tile.tempPoints ?? tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${tile.isLocked ? ' (locked for this turn)' : ''}`}
     >
       {/* Rings and glows are overlays: the tile's own box-shadow is its 3D edge. */}
       {isSuperLook && <span className="tile-overlay ring-4 ring-red-400 animate-pulse" aria-hidden="true" />}
