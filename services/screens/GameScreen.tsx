@@ -261,6 +261,8 @@ const settleTimeBank = (time: number, gs: GameState): { time: number; gs: GameSt
 
 const LIFELINE_TIP_KEY = 'wordNerdLifelineTipSeen';
 const CAPTAIN_PLANET_POINTS = 20;
+const ONE_TILE_NAME = 'One Tile to Rule Them All';
+const TREEHOUSE_NAME = 'Treehouse of Horror';
 
 // Speed-up levels: every few words the clock runs a little faster. Announced when this word crosses a level.
 const levelUpModal = (wordsBefore: number) => {
@@ -516,7 +518,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             let newGameState = { ...gameState };
 
             const allTilesInPlay = [...state.hand, ...state.buildRow.map(item => item?.tile)].filter((t): t is Tile => t != null);
-            if (allTilesInPlay.some(tile => tile.tempPoints === 25)) {
+            if (allTilesInPlay.some(tile => tile.tempPointsSource === ONE_TILE_NAME)) {
                 newGameState.activeCharms = newGameState.activeCharms.filter(c => c.id !== 'oneTileToRuleThemAll');
                 newGameState.activeBuffs = newGameState.activeBuffs.filter(b => b.id !== 'oneTileToRuleThemAll');
             }
@@ -678,11 +680,6 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 
                 // isLocked, isDuplicate and tempPoints are single-turn effects.
                 // isSuper should persist until the tile is used.
-                // Tiles marked tempPointsKeep (Captain Planet) hold their value until played.
-                if (tile.tempPointsKeep) {
-                    const { isLocked, isDuplicate, ...keptTile } = tile;
-                    return isLocked || isDuplicate ? keptTile as Tile : tile;
-                }
                 const { isLocked, isDuplicate, tempPoints, tempPointsSource, ...restOfTile } = tile;
                 
                 // Only create a new object if a property was actually removed to be more efficient.
@@ -699,7 +696,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             // Rescue Drop return logic
             if (newGameState.activePowerPlays.rescueDrop) {
                 const rescuedTile = newGameState.activePowerPlays.rescueDrop.tile;
-                const returnedTile = { ...rescuedTile, tempPoints: 20 };
+                const returnedTile = { ...rescuedTile, tempPoints: 20, tempPointsSource: 'Rescue Drop' };
                 const emptySlotIndex = hand.indexOf(null);
                 if (emptySlotIndex !== -1) {
                     hand[emptySlotIndex] = returnedTile;
@@ -795,7 +792,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 const newTreehouseState = { rounds: newGameState.activePowerPlays.treehouseOfHorror.rounds - 1 };
                 if (newTreehouseState.rounds >= 0) {
                     // There are still rounds left (including this one, which is the last one if rounds is 0 now).
-                    hand = hand.map(tile => tile ? { ...tile, tempPoints: Math.floor(Math.random() * 10) + 1 } : null);
+                    hand = hand.map(tile => tile ? { ...tile, tempPoints: Math.floor(Math.random() * 10) + 1, tempPointsSource: TREEHOUSE_NAME } : null);
                     if (newTreehouseState.rounds > 0) {
                        newGameState.activePowerPlays = { ...newGameState.activePowerPlays, treehouseOfHorror: newTreehouseState };
                     } else {
@@ -1406,7 +1403,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 if (slots.length > 0) {
                     const chosen = slots[Math.floor(Math.random() * slots.length)];
                     newHand = [...newHand];
-                    newHand[chosen.index] = { ...chosen.tile, tempPoints: 30 };
+                    newHand[chosen.index] = { ...chosen.tile, tempPoints: 30, tempPointsSource: powerPlay.name };
                     newModalContent = { type: 'info', title: '💍 One Tile to Rule Them All', content: `Your '${chosen.tile.letter}' tile is worth 30 points this round.`, autoClose: 2200 };
                     shouldPause = true;
                 }
@@ -1619,16 +1616,16 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             const tileIndex = state.tileForSelection.originalIndex;
             const picked = handCopy[tileIndex];
             if (picked) {
-                handCopy[tileIndex] = { ...picked, tempPoints: CAPTAIN_PLANET_POINTS, tempPointsSource: powerPlay.name, tempPointsKeep: true };
+                handCopy[tileIndex] = { ...picked, tempPoints: CAPTAIN_PLANET_POINTS, tempPointsSource: powerPlay.name };
             }
             const changes = powerPlay.activate(state.gameState);
             const letter = picked?.letter ?? '?';
             newGameState.log = [...newGameState.log, {
                 type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon,
-                description: `Your ${letter} tile is worth ${CAPTAIN_PLANET_POINTS} points until you play it.`,
+                description: `Your ${letter} tile is worth ${CAPTAIN_PLANET_POINTS} points for your next word.`,
                 scoreChange: 0, cumulativeScore: newGameState.score,
             } as EventLogEntry];
-            newGameState.lastPowerPlayResult = { message: `🌎 The power is yours! ${letter} is now worth ${CAPTAIN_PLANET_POINTS} points until you play it.`, scoreChange: 0 };
+            newGameState.lastPowerPlayResult = { message: `🌎 The power is yours! ${letter} is worth ${CAPTAIN_PLANET_POINTS} points: play it in your next word!`, scoreChange: 0 };
             return {
                 ...state,
                 hand: handCopy,
@@ -1958,7 +1955,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     let newTiles = [...tiles]; // Work on a copy
 
     if (gameState?.activePowerPlays?.treehouseOfHorror) {
-        newTiles = newTiles.map((tile): Tile | null => tile ? { ...tile, tempPoints: Math.floor(Math.random() * 10) + 1 } : null).filter((t): t is Tile => t !== null);
+        newTiles = newTiles.map((tile): Tile | null => tile ? { ...tile, tempPoints: Math.floor(Math.random() * 10) + 1, tempPointsSource: TREEHOUSE_NAME } : null).filter((t): t is Tile => t !== null);
     }
 
     const mutationActive = gameState?.activePowerPlays?.mutationProtocol && gameState.activePowerPlays.mutationProtocol.rounds >= 1;
@@ -2296,12 +2293,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     soundService.playShuffle();
 
     const allTilesInPlay = [...(hand ?? []), ...(buildRow ?? []).map(item => item?.tile)].filter((t): t is Tile => t != null);
-    if (allTilesInPlay.some(tile => tile && tile.tempPoints === 25)) {
-        showMessage("👑 'One Tile' effect lost on shuffle.", 2000);
-    }
-    const keptBoost = allTilesInPlay.find(tile => tile.tempPointsKeep);
-    if (keptBoost) {
-        showMessage(`🌎 Your ${keptBoost.tempPoints}-point ${keptBoost.letter} went back in the bag.`, 2500);
+    // One-turn tile boosts (One Tile, Captain Planet, Rescue Drop) go back in the bag on a shuffle.
+    const boosted = allTilesInPlay.find(tile => tile.tempPointsSource && tile.tempPointsSource !== TREEHOUSE_NAME);
+    if (boosted) {
+        showMessage(`${boosted.tempPointsSource}: your ${boosted.tempPoints}-point ${boosted.letter} went back in the bag.`, 2500);
     }
 
     const tilesToReturn = [...(hand ?? []), ...(buildRow ?? []).map(item => item?.tile)].filter((t): t is Tile => t != null);
