@@ -682,6 +682,33 @@ body {
   }
 }
 
+/* The Golden Tile: solid metallic gold with a darker edge and a shine that sweeps across it,
+   so it stands out from the cream tiles even inside the gold Golden Round frame. */
+.golden-tile {
+  background: linear-gradient(145deg, #fff6c2 0%, #ffd23f 35%, #e9a100 65%, #ffe27a 100%);
+  color: #3b2300;
+  overflow: hidden;
+}
+.golden-tile.tile-3d {
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.7), inset 0 -3px 0 rgba(120, 70, 0, 0.35), 0 4px 0 #8a5a00, 0 0 14px rgba(255, 210, 63, 0.9);
+}
+.golden-tile::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.85) 50%, transparent 60%);
+  transform: translateX(-120%);
+  animation: golden-sheen-sweep 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes golden-sheen-sweep {
+  0%, 55% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .golden-tile::after { animation: none; display: none; }
+}
+
 /* Golden Round: gold frame around the whole screen and a banner under the HUD. */
 .golden-frame {
   position: absolute;
