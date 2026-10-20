@@ -661,6 +661,79 @@ body {
   background: radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, 0.35) 100%);
 }
 
+/* Player bling: badge frames and title styles by rarity (data/cosmetics.ts). */
+.bling-badge {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #221c46, #120f29);
+  box-shadow: inset 0 0 0 1px rgba(34, 228, 255, 0.45), 0 0 8px rgba(34, 228, 255, 0.25);
+}
+.bling-shine::after,
+.bling-gold::after,
+.bling-legend::after {
+  content: '';
+  position: absolute;
+  inset: -30%;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.7) 50%, transparent 60%);
+  transform: translateX(-120%);
+  animation: golden-sheen-sweep 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+.bling-gold {
+  background: linear-gradient(145deg, #5a3a00, #2b1c00);
+  box-shadow: inset 0 0 0 2px #ffd23f, 0 0 12px rgba(255, 210, 63, 0.6);
+}
+.bling-legend {
+  background: linear-gradient(145deg, #3a0f5c, #0f2a5c);
+  box-shadow: inset 0 0 0 2px transparent, 0 0 14px rgba(180, 92, 255, 0.7);
+  animation: legend-ring 3s linear infinite;
+}
+@keyframes legend-ring {
+  0% { box-shadow: inset 0 0 0 2px #ff3ea5, 0 0 14px rgba(255, 62, 165, 0.7); }
+  33% { box-shadow: inset 0 0 0 2px #22e4ff, 0 0 14px rgba(34, 228, 255, 0.7); }
+  66% { box-shadow: inset 0 0 0 2px #ffd23f, 0 0 14px rgba(255, 210, 63, 0.7); }
+  100% { box-shadow: inset 0 0 0 2px #ff3ea5, 0 0 14px rgba(255, 62, 165, 0.7); }
+}
+.bling-title { color: #e9d5ff; }
+.bling-title-shine { color: #a5f3fc; text-shadow: 0 0 6px rgba(34, 228, 255, 0.7); }
+.bling-title-gold { color: #ffd23f; text-shadow: 0 0 6px rgba(255, 210, 63, 0.7); }
+.bling-title-legend {
+  background: linear-gradient(90deg, #ff3ea5, #ffd23f, #22e4ff, #b45cff, #ff3ea5);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: legend-text 3s linear infinite;
+}
+@keyframes legend-text { to { background-position: 200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .bling-shine::after, .bling-gold::after, .bling-legend::after { display: none; }
+  .bling-legend, .bling-title-legend { animation: none; }
+}
+
+/* Midnight Arcade (30-day streak reward): the arcade after hours. Moonlit teal sky, cyan grid,
+   chrome tiles. Layers on top of .theme-arcade / .frame-arcade. */
+.theme-midnight {
+  background:
+    radial-gradient(circle at 78% 18%, rgba(220, 240, 255, 0.35) 0, rgba(220, 240, 255, 0.08) 6%, transparent 14%),
+    radial-gradient(ellipse at 50% 120%, rgba(34, 228, 255, 0.28), transparent 60%),
+    linear-gradient(180deg, #02040c 0%, #071a2e 55%, #0b2a3f 100%);
+}
+.theme-midnight::before {
+  background-image:
+    linear-gradient(rgba(34, 228, 255, 0.45) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 228, 255, 0.45) 1px, transparent 1px);
+}
+.frame-midnight {
+  background: linear-gradient(180deg, #050b16 0%, #0a1a2b 100%) !important;
+  border-color: rgba(190, 220, 255, 0.6);
+  box-shadow: 0 0 0 1px rgba(34, 228, 255, 0.3), 0 0 24px rgba(190, 220, 255, 0.2), inset 0 0 40px rgba(0, 0, 0, 0.6);
+}
+.tile-midnight {
+  background: linear-gradient(180deg, #f4f7fb 0%, #c3ccd8 55%, #8f9bab 100%);
+  color: #0b1626;
+}
+
 /* Arcade tiles: warm ivory with a physical bottom edge. */
 .tile-arcade {
   background: linear-gradient(180deg, #fff6d6 0%, #ffd97a 100%);

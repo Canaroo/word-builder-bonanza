@@ -20,6 +20,10 @@ import { explainScoreBonus } from '../scoreBonus';
 import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, bonusTime } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
+import { recordMissionEvent } from '../missions';
+import { currentStreak, powerWordBonusFor } from '../progression';
+import { getBonusMedia } from '../../data/bonusMedia';
+import type { MissionEvent } from '../../data/missions';
 
 
 interface GameScreenProps {
@@ -30,7 +34,8 @@ interface GameScreenProps {
   onTimeLow: (isLow: boolean) => void;
   onGoldenRoundChange: (isGolden: boolean) => void;
   onScoreUpdate: (oldScore: number, newScore: number) => void;
-  onLexCoinChange: (amount: number) => void;
+  /** Credits earned (or spent, if negative); label replaces the default toast. */
+  onLexCoinChange: (amount: number, label?: string) => void;
   tileClass: string;
   powerWord?: string;
 }
@@ -2004,6 +2009,24 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
   }, [gameState.score, onScoreUpdate]);
   const [isMuted, setIsMuted] = useState(soundService.getMuteState());
+
+  // Daily missions: every run gets an id (kept in saves) so "in one run" missions can tell runs apart.
+  const fallbackRunId = React.useRef(`run-${Date.now()}`);
+  const runKey = gameState.runId ?? fallbackRunId.current;
+  useEffect(() => {
+      if (!gameState.runId) dispatch({ type: 'UPDATE_GAME_STATE', payload: { runId: fallbackRunId.current } });
+  }, [gameState.runId]);
+  const trackMission = useCallback((event: MissionEvent) => {
+      const payout = recordMissionEvent(event, runKey);
+      if (payout.total <= 0) return;
+      const [first] = payout.completed;
+      const label = payout.completed.length === 1
+          ? `✅ Mission complete: ${first.template.text}! +${payout.total} 🪙`
+          : payout.completed.length > 1
+              ? `✅ ${payout.completed.length} missions complete! +${payout.total} 🪙`
+              : `🧹 Daily sweep! +${payout.total} 🪙`;
+      onLexCoinChange(payout.total, payout.sweepBonus && payout.completed.length ? `${label} 🧹 Daily sweep!` : label);
+  }, [runKey, onLexCoinChange]);
   
   const wordFromBuildRow = useMemo(() => (buildRow ?? []).filter(i => i).map(item => item!.tile.letter).join(''), [buildRow]);
   const totalWords = useMemo(() => (gameState?.log ?? []).filter(e => e.type === 'word' && e.status === 'valid').length, [gameState?.log]);
@@ -2471,6 +2494,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 showMessage(balancingMessage, 1500);
             }
 
+            trackMission({ type: 'word', word, score: turnScore });
             // Dispatch success with the new shuffled hand.
             dispatch({ type: 'HANDLE_SUBMIT_SUCCESS', payload: { gameState: newState, hand: sanitizeHand(finalHand), tileBag: processedBag, modalQueue } });
             dispatch({ type: 'SET_IS_LOADING', payload: false });
@@ -2520,7 +2544,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
 
       // --- 2. WORD COMBO LOGIC ---
-      if (newState.powerSurgeProgress === 4) { // This is the 5th word in the streak.
+      const comboFilled = newState.powerSurgeProgress === 4;
+      if (comboFilled) { // This is the 5th word in the streak.
           scoreResult = addWordMultiplier(scoreResult, 2);
           scoreResult.bonuses.push({ name: "⚡ 5-Word Combo!", description: "x2 Score"});
           newState.powerSurgeProgress = 0;
@@ -2535,7 +2560,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // Power Word Bonus
       if (powerWord && word.toUpperCase() === powerWord.toUpperCase() && !newState.powerWordUsed) {
           newState.powerWordUsed = true; // Mark as used for this run
-          const powerWordBonus = 500;
+          const powerWordBonus = powerWordBonusFor(currentStreak());
           scoreResult.totalScore += powerWordBonus;
           scoreResult.bonuses.push({ name: "Power Word!", description: `+${powerWordBonus} pts`});
           const tempRunningScore = runningScore + scoreResult.totalScore;
@@ -2901,6 +2926,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               // Saved to the device's Bonus Collection straight away, so it survives an abandoned run.
               const firstFind = recordFound(egg.id);
               modalQueue.push({ type: 'easter-egg', title: egg.name, content: egg.reward.message, data: { ...egg, triggerScore, firstFind, collection: collectionProgress() } });
+              trackMission({ type: 'secret', id: egg.id, firstFind, media: getBonusMedia(egg.id).media, isScore: !!egg.scorePattern });
               const eggIcon = egg.name.split(' ')[0];
               eventLogQueue.push({ type: 'event', id: `egg-${egg.id}`, name: egg.name, icon: eggIcon, description: explanation ? `${explanation} ${egg.reward.message}` : egg.reward.message, scoreChange: eggScoreChange, cumulativeScore: runningScore });
           }
@@ -3222,6 +3248,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
       }
 
+      trackMission({ type: 'word', word, score: wordLogEntry.score, comboFilled, goldenStarted: newState.consecutiveValidWords + 1 >= newState.goldenRoundThreshold });
+
       // --- 9. GOLDEN ROUND TRIGGER LOGIC ---
       newState.consecutiveValidWords++;
       if (newState.consecutiveValidWords >= newState.goldenRoundThreshold) {
@@ -3297,7 +3325,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (modalQueue.length === 0) {
           handleStartNextRound();
       }
-  }, [gameState, hand, tileBag, applyMutation, showMessage, handleStartNextRound, onScoreUpdate, isChallengeLock, totalWords, powerWord]);
+  }, [gameState, hand, tileBag, applyMutation, showMessage, handleStartNextRound, onScoreUpdate, isChallengeLock, totalWords, powerWord, trackMission]);
   
    const handleSubmit = async () => {
     const word = (buildRow ?? []).filter(i => i).map(item => item!.tile.letter).join('');
@@ -3617,6 +3645,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     };
 
     const handleActivatePowerPlay = (powerPlay: PowerPlay) => {
+        if (!(powerPlay.id === 'buyAVowel' && gameState.score < POWER_PLAY_VALUES.buyAVowelCost)) {
+            trackMission({ type: 'powerplay', id: powerPlay.id, subtheme: powerPlay.subtheme });
+        }
         if (powerPlay.id === 'withGreatPower') {
             soundService.playPowerUp();
             if (strikesRemaining > 1) {
@@ -3847,12 +3878,19 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     
     const handleChoosePowerPlay = (powerPlay: PowerPlay, allOffered: PowerPlay[]) => {
         soundService.playUIClick();
+        const held = gameState.availablePowerPlays[0];
+        if (held && held.id !== powerPlay.id) trackMission({ type: 'powerplaySwap' });
+        // Instant PowerPlays are used the moment they're picked.
+        if (INSTANT_POWER_PLAY_IDS.has(powerPlay.id)) trackMission({ type: 'powerplay', id: powerPlay.id, subtheme: powerPlay.subtheme });
         dispatch({ type: 'CHOOSE_POWER_PLAY', payload: { powerPlay, allOffered } });
         handleCloseModal();
     };
 
     const handleChooseCharm = (charm: Charm, allOffered: Charm[], replaceId?: string) => {
         soundService.playUIClick();
+        const alreadyOn = gameState.activeCharms.some(c => c.id === charm.id);
+        const equippedCount = Math.min(CHARM_SLOTS, gameState.activeCharms.length + (replaceId || alreadyOn ? 0 : 1));
+        trackMission({ type: 'charm', equippedCount, swapped: !!replaceId });
         dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand: hand ?? [], allOffered, replaceId } });
         handleCloseModal();
     };

@@ -1,4 +1,5 @@
 import { Pack } from '../types';
+import { THEME_PRICES } from '../config/progression';
 
 export const PACKS_LIST: Pack[] = [
   {
@@ -14,7 +15,7 @@ export const PACKS_LIST: Pack[] = [
   {
     id: 'classic',
     name: 'Library Card',
-    cost: 5,
+    cost: THEME_PRICES['classic'],
     tileClass: 'bg-yellow-700 text-stone-100',
     themeClass: 'theme-the-library',
     frameClass: 'frame-rustic-workbench',
@@ -24,7 +25,7 @@ export const PACKS_LIST: Pack[] = [
   {
     id: 'future',
     name: 'Mainframe',
-    cost: 5,
+    cost: THEME_PRICES['future'],
     tileClass: 'bg-blue-800 text-cyan-300',
     themeClass: 'theme-digital-grid',
     frameClass: 'frame-command-console',
@@ -34,7 +35,7 @@ export const PACKS_LIST: Pack[] = [
   {
     id: 'golden',
     name: 'Midas Touch',
-    cost: 5,
+    cost: THEME_PRICES['golden'],
     tileClass: 'bg-zinc-800 text-amber-400',
     themeClass: 'theme-cosmic-void',
     frameClass: 'frame-gilded',
@@ -44,7 +45,7 @@ export const PACKS_LIST: Pack[] = [
   {
     id: 'hawkins-horror',
     name: 'Hawkins Horror',
-    cost: 5,
+    cost: THEME_PRICES['hawkins-horror'],
     tileClass: 'tile-hawkins',
     themeClass: 'theme-hawkins-horror',
     frameClass: 'frame-hawkins-lab',
@@ -54,7 +55,7 @@ export const PACKS_LIST: Pack[] = [
   {
     id: 'galactic-saga',
     name: 'Galactic Saga',
-    cost: 5,
+    cost: THEME_PRICES['galactic-saga'],
     tileClass: 'tile-lightsaber',
     themeClass: 'theme-galactic-saga',
     frameClass: 'frame-starship-hull',
@@ -64,7 +65,7 @@ export const PACKS_LIST: Pack[] = [
   {
     id: '90s-throwback',
     name: "'90s Throwback",
-    cost: 5,
+    cost: THEME_PRICES['90s-throwback'],
     tileClass: 'tile-90s-throwback',
     themeClass: 'theme-90s-throwback',
     frameClass: 'frame-90s-throwback',
@@ -74,7 +75,7 @@ export const PACKS_LIST: Pack[] = [
   {
     id: 'fifth-dimension',
     name: 'The Fifth Dimension',
-    cost: 5,
+    cost: THEME_PRICES['fifth-dimension'],
     tileClass: 'tile-monochrome',
     themeClass: 'theme-fifth-dimension',
     frameClass: 'frame-fifth-dimension',
@@ -84,11 +85,22 @@ export const PACKS_LIST: Pack[] = [
   {
     id: 'worlds-finest',
     name: 'World\'s Finest',
-    cost: 5,
+    cost: THEME_PRICES['worlds-finest'],
     tileClass: 'tile-comic-book',
     themeClass: 'theme-worlds-finest',
     frameClass: 'frame-heroic-emblem',
     previewClass: 'theme-worlds-finest',
     description: 'From the dark alleys of Gotham to the bright skies of Metropolis. A theme for heroes.'
+  },
+  {
+    id: 'midnight-arcade',
+    name: 'Midnight Arcade',
+    cost: 0,
+    streakDay: 30,
+    tileClass: 'tile-midnight',
+    themeClass: 'theme-arcade theme-midnight',
+    frameClass: 'frame-arcade frame-midnight',
+    previewClass: 'theme-arcade theme-midnight',
+    description: 'After hours, when only the regulars are left. Chrome tiles, a moonlit grid. Earned with a 30-day streak.'
   },
 ];

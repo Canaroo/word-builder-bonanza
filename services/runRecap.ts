@@ -25,8 +25,13 @@ export const pickNextHint = (collectedIds: ReadonlySet<string>, pick = (n: numbe
 export const secretIcon = (egg: Pick<EasterEgg, 'id'>) => MEDIA_ICON[getBonusMedia(egg.id).media];
 
 /** The short text players can share, ending with the game's link. */
-export const buildShareText = (game: Pick<FinalGameState, 'score' | 'highestScoringWord' | 'foundEasterEggs'>, recap: RunRecap, isNewBest: boolean, url: string): string => {
+export const buildShareText = (
+    game: Pick<FinalGameState, 'score' | 'highestScoringWord' | 'foundEasterEggs'>, recap: RunRecap, isNewBest: boolean, url: string,
+    flair: { streak?: number; title?: string; badge?: string } = {},
+): string => {
     const lines = [`WORD NERD 🕹️ ${game.score.toLocaleString('en-US')} pts`];
+    const who = [flair.badge, flair.title].filter(Boolean).join(' ');
+    if (who || flair.streak) lines.push([who, flair.streak ? `🔥 ${flair.streak}-day streak` : ''].filter(Boolean).join(' · '));
     if (isNewBest) lines.push('★ New personal best!');
     if (game.highestScoringWord) {
         lines.push(`🏆 Top word: ${game.highestScoringWord.word.toUpperCase()} (${game.highestScoringWord.score.toLocaleString('en-US')})`);

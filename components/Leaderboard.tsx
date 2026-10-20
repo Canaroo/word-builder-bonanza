@@ -3,6 +3,7 @@ import { LeaderboardEntry } from '../types';
 import { soundService } from '../services/soundService';
 import { leaderboardService, LeaderboardSource } from '../services/leaderboardService';
 import ArcadeButton from './ArcadeButton';
+import { BadgeIcon, TitleText, StreakFlame } from './PlayerPlate';
 
 interface LeaderboardProps {
   data: LeaderboardEntry[];
@@ -82,11 +83,17 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
                     <span className={`font-osd w-10 text-center mr-2 text-2xl leading-none ${rank === 1 ? 'text-neon-yellow' : rank === 2 ? 'text-slate-200' : rank === 3 ? 'text-neon-orange' : 'text-slate-500'}`}>
                       {isFirst ? '👑' : rank}
                     </span>
-                    <div className="text-left min-w-0">
-                      <span className={`font-osd text-2xl leading-none uppercase tracking-wider block truncate ${isFirst ? 'text-neon-yellow' : 'text-slate-100'}`}>
-                        {entry.name}
+                    <BadgeIcon id={entry.badge} size="sm" />
+                    <div className="text-left min-w-0 ml-1.5">
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <span className={`font-osd text-2xl leading-none uppercase tracking-wider truncate ${isFirst ? 'text-neon-yellow' : 'text-slate-100'}`}>
+                          {entry.name}
+                        </span>
+                        <StreakFlame count={entry.streak ?? 0} className="text-base" />
                       </span>
-                      <p className="osd-text text-sm leading-none text-slate-500">{formatDate(entry.date)}</p>
+                      {entry.title
+                        ? <TitleText id={entry.title} className="text-sm leading-none block truncate" />
+                        : <p className="osd-text text-sm leading-none text-slate-500">{formatDate(entry.date)}</p>}
                     </div>
                   </div>
                   <span className={`font-osd text-3xl leading-none tabular-nums ${isFirst ? 'text-neon-yellow' : 'text-neon-cyan'}`}>
