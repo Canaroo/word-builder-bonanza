@@ -25,13 +25,13 @@ export type ModalContent = {
 const BUILD_ROW_SIZE = 8;
 
 // A–Z grid for "pick a letter" pop-ups: tap to pick (it lights up), tap Confirm to use it.
-const LetterPicker: React.FC<{ onConfirm: (letter: string) => void; tone?: 'green' | 'purple' }> = ({ onConfirm, tone = 'green' }) => {
+const LetterPicker: React.FC<{ onConfirm: (letter: string) => void; tone?: 'green' | 'purple'; letters?: string }> = ({ onConfirm, tone = 'green', letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' }) => {
   const [picked, setPicked] = useState<string | null>(null);
   const confirmColor = tone === 'green' ? 'bg-green-500 hover:bg-green-400' : 'bg-purple-500 hover:bg-purple-400';
   return (
     <>
       <div className="grid grid-cols-6 gap-2 my-4">
-        {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => {
+        {letters.split('').map(letter => {
           const selected = picked === letter;
           return (
             <button
@@ -348,7 +348,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                             <div className={`${modalBoxBaseClass} border-green-400`}>
                                 <h2 className="text-3xl font-bold text-green-400 mb-2 text-center">{title}</h2>
                                 <p className="text-slate-300 text-center mb-4">{powerPlay.description}</p>
-                                <LetterPicker key={powerPlay.id} onConfirm={handleLetterSelect} />
+                                <LetterPicker key={powerPlay.id} letters={powerPlay.selectionLetters} onConfirm={handleLetterSelect} />
                                 <button onClick={handleCloseModal} className="w-full mt-2 text-sm text-slate-400 hover:text-white">Cancel</button>
                             </div>
                         </div>
@@ -713,6 +713,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                   const progressFor = (buff: Charm | PowerPlay): string => {
                       if (buff.id === 'goldenSnitch') return `${gameState?.consecutiveSuccesses ?? 0}/${snitchTargetFor(gameState?.snitchCatches ?? 0) ?? '-'}`;
                       if (buff.id === 'drMariosCure') return `${gameState?.drMarioCureStreak ?? 0}/3`;
+                      if (buff.id === 'mixtape') return gameState?.mixtapeChain?.next ? `→${gameState.mixtapeChain.next}` : '';
                       if (buff.id === 'thrillerNight') return `${totalWords % 4}/4`;
                       const countdown = (gameState?.activePowerPlays as any)?.[buff.id];
                       if (countdown?.words) return `${countdown.words} ${countdown.words === 1 ? 'word' : 'words'}`;

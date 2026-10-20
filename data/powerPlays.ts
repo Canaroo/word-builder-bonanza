@@ -1,7 +1,7 @@
 
 import { PowerPlay, GameState, EventLogEntry } from '../types';
 import { labelize } from '../services/durationTags';
-import { TIME_BONUS } from '../config/gameplay';
+import { TIME_BONUS, POWER_PLAY_VALUES } from '../config/gameplay';
 
 // The 'activate' function is for declaring the state change that should happen upon activation.
 // The actual logic is handled in the GameScreen reducer based on the power play's `effectType` and ID.
@@ -1021,5 +1021,40 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
             activeBuffs: [...gameState.activeBuffs, powerPlay]
         };
     }
+  },
+  {
+    id: 'holdOntoYourButts',
+    name: 'Hold Onto Your Butts',
+    description: `Next word only: ${POWER_PLAY_VALUES.rareLetters.split('').join(', ')} tiles are worth ${POWER_PLAY_VALUES.rareLetterMultiplier}x.`,
+    flavorText: 'Hold onto your butts.',
+    icon: '🦖',
+    subtheme: 'score',
+    effectType: 'next_word',
+    durationTag: 'ONE_TIME',
+    activate: arm('holdOntoYourButts'),
+  },
+  {
+    id: 'buyAVowel',
+    name: 'Buy a Vowel',
+    description: `Pay ${POWER_PLAY_VALUES.buyAVowelCost} points and pick any vowel (A, E, I, O, U) to add to your hand.`,
+    flavorText: "I'd like to buy a vowel, Pat.",
+    icon: '🎡',
+    subtheme: 'rack',
+    effectType: 'selection',
+    selectionType: 'letter',
+    selectionLetters: 'AEIOU',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (adds the tile and charges the points)
+  },
+  {
+    id: 'shakeItLikeAPolaroid',
+    name: 'Shake It Like a Polaroid',
+    description: 'Keep your vowels and redraw every consonant. Free, but adds no time.',
+    flavorText: 'Shake it, shake it, shake it…',
+    icon: '📸',
+    subtheme: 'rack',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (redraws the consonants)
   },
 ];
