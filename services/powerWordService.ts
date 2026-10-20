@@ -2,6 +2,7 @@ import { PowerWordData } from '../types';
 import { curatedWords } from './curatedWords';
 
 import { storage, STORAGE_KEYS } from './storage';
+import { dayKey } from './progression';
 
 const POWER_WORD_KEY = STORAGE_KEYS.powerWord;
 
@@ -41,13 +42,13 @@ const getNextSpinTime = (timestamp: number): Date => {
     return nextSpinDate;
 }
 
-const canSpin = (): boolean => {
+/** True when the last spin was before today's 8 AM reset (same day boundary as missions and streaks). */
+const canSpin = (now: Date = new Date()): boolean => {
     const data = getPowerWordData();
-    if (!data) {
+    if (!data || typeof data.spinTimestamp !== 'number') {
         return true; // Never spun before
     }
-    const nextSpinTime = getNextSpinTime(data.spinTimestamp);
-    return Date.now() >= nextSpinTime.getTime();
+    return dayKey(new Date(data.spinTimestamp)) !== dayKey(now);
 };
 
 const getCooldownMessage = (): string => {

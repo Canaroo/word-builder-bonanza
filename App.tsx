@@ -89,18 +89,24 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Load Power Word data on initial app load
-    const data = powerWordService.getPowerWordData();
-    const canUserSpin = powerWordService.canSpin();
-    
-    if (canUserSpin) {
-      // Cooldown is over, don't show the old word
-      setPowerWordData(null);
-    } else {
-      // Still in cooldown, show the current word
-      setPowerWordData(data);
-    }
-    setCanSpin(canUserSpin);
+    // Check the Power Word on load, and again whenever the app comes back to the foreground or a
+    // minute passes, so the 8 AM reset shows up even if the app was left open overnight.
+    const refresh = () => {
+      const canUserSpin = powerWordService.canSpin();
+      // Once the reset has passed, hide yesterday's word.
+      setPowerWordData(canUserSpin ? null : powerWordService.getPowerWordData());
+      setCanSpin(canUserSpin);
+    };
+    refresh();
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', refresh);
+    const timer = setInterval(refresh, 60_000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', refresh);
+      clearInterval(timer);
+    };
   }, []);
 
   useEffect(() => {
