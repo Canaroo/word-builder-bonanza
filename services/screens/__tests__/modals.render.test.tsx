@@ -60,7 +60,7 @@ const cases: [string, ModalContent][] = [
     ['powerplay-selection', { type: 'powerplay-selection', title: 'PowerPlay Earned!', content: 'Meter full', data: POWER_PLAYS_LIST.slice(1, 4) }],
     ['charm-selection', { type: 'charm-selection', title: 'Charm Earned!', content: '10 words', data: CHARMS_LIST.slice(6, 9) }],
     ['buff-info', { type: 'buff-info', title: 'Buff', data: CHARMS_LIST[0] }],
-    ['super-hand', { type: 'super-hand', title: '✨ SUPER HAND! ✨', content: 'Snap', data: { points: 50, gauntletBonus: 150 } }],
+    ['super-hand', { type: 'super-hand', title: '✨ SUPER HAND! ✨', content: 'Snap', data: { points: 50 } }],
     ['save-confirmation', { type: 'save-confirmation', title: 'Save' }],
     ['charm-activation (Shapeshifter)', { type: 'charm-activation', title: 'Activate', data: POWER_PLAYS_LIST.find(p => p.id === 'shapeshiftersTongue') }],
     ['milestone-info', { type: 'milestone-info', title: 'Milestone', data: MILESTONES_LIST[1] }],

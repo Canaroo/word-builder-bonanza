@@ -151,15 +151,15 @@ export const CHARMS_LIST: Charm[] = [
     activate: createPassiveBuff('bulletTime')
   },
   { 
-    id: 'infinityGauntlet', 
-    name: 'Infinity Gauntlet', 
-    description: `Use every tile in your hand in one word and the Super Hand bonus gets an extra +${CHARM_BONUS.infinityGauntlet} points.`, 
-    flavorText: 'Balance is achieved. Snap!',
-    icon: '🧤',
+    id: 'perfectlyBalanced',
+    name: 'Perfectly Balanced',
+    description: `Words with as many vowels as consonants (TEAM, ROAD, BANANA) earn +${CHARM_BONUS.perfectlyBalanced} points.`,
+    flavorText: 'Perfectly balanced, as all things should be.',
+    icon: '⚖️',
     subtheme: 'score',
     effectType: 'triggered',
     durationTag: 'PERSISTENT',
-    activate: createPassiveBuff('infinityGauntlet')
+    activate: createPassiveBuff('perfectlyBalanced')
   },
   {
     id: 'batSignal',

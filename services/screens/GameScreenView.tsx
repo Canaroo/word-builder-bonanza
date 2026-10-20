@@ -151,11 +151,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     <div className={`${modalBoxBaseClass} border-neon-yellow shadow-glow-yellow bonus-insert`}>
                         <h2 className="font-display text-2xl text-neon-yellow drop-shadow-glow-yellow mb-2 text-center">{cardTitle}</h2>
                         <div className="text-slate-200 text-center my-4 whitespace-pre-line">{cardContent}</div>
-                        {cardData && (cardData.reward?.points || cardData.gauntletBonus) ? (
-                            <div className="font-display text-neon-green text-3xl my-4 text-center">
-                                {cardData.reward?.points ? `+${cardData.reward.points}` : null}
-                                {cardData.gauntletBonus ? `+${cardData.gauntletBonus}` : null}
-                            </div>
+                        {cardData?.reward?.points ? (
+                            <div className="font-display text-neon-green text-3xl my-4 text-center">+{cardData.reward.points}</div>
                         ) : null}
                         <ArcadeButton color="yellow" className="w-full mt-2" onClick={handleCloseModal}>Continue</ArcadeButton>
                     </div>
@@ -196,11 +193,6 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         <div className={`${modalBoxBaseClass} border-amber-400 max-w-md`}>
                             <h2 className="text-3xl font-bold text-amber-400 mb-4 text-center">{title}</h2>
                             <div className="text-slate-200 text-center my-4">{content}</div>
-                            {data && data.gauntletBonus > 0 && (
-                                <div className="text-green-400 font-bold text-xl my-2 text-center">
-                                    {`+${data.gauntletBonus} Infinity Gauntlet bonus!`}
-                                </div>
-                            )}
                             <button onClick={handleCloseModal} className="w-full mt-4 px-6 py-3 text-xl font-bold text-slate-900 bg-amber-400 rounded-lg shadow-lg hover:bg-amber-300">CLOSE</button>
                         </div>
                     </div>

@@ -96,7 +96,7 @@ export const CHARM_BONUS = {
   thrillerNight: 100,
   totallyClueless: 50,
   totallyCluelessBelow: 20,
-  infinityGauntlet: 150,
+  perfectlyBalanced: 75,  // words with as many vowels as consonants
   lenaPercent: 20,
   nicolesGracePercent: 25,
   christiansHoodiePercent: 25,
