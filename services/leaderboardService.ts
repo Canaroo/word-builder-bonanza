@@ -27,6 +27,20 @@ export interface SubmittedScore {
 }
 
 const MAX_NAME_LENGTH = 20;
+
+/**
+ * Cleans a name to what the online board accepts: letters, numbers, spaces and _ . ' -
+ * Accents are dropped (José → Jose), curly apostrophes straightened, anything else removed.
+ */
+export const sanitizeName = (raw: string): string =>
+    raw
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[\u2018\u2019\u02BC]/g, "'")
+        .replace(/[^A-Za-z0-9 _.'-]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, MAX_NAME_LENGTH)
+        .trim() || 'Player';
 // After the online board fails, use the device board for a while instead of waiting again.
 const RETRY_ONLINE_AFTER_MS = 60_000;
 let onlineFailedAt = 0;
@@ -46,7 +60,7 @@ const noteOnlineFailure = (error: unknown, what: string) => {
  * Falls back to the device board if the online one can't be reached.
  */
 const submitScore = async (rawName: string, score: number, flair?: PlayerFlair): Promise<SubmitResult> => {
-    const name = rawName.trim().slice(0, MAX_NAME_LENGTH) || 'Player';
+    const name = sanitizeName(rawName);
     const entry: LeaderboardEntry = { name, score, date: new Date().toISOString(), ...(flair ?? {}) };
     const localRank = localLeaderboard.submit(entry);
     const last: SubmittedScore = { name, score, date: entry.date };
