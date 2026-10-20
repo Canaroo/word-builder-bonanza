@@ -34,6 +34,16 @@ export const timeForWordAtLevel = (length: number, level: number): number =>
 export const taxWordTime = (seconds: number, bank: number): number =>
     seconds > 0 && bank > GAMEPLAY.timeBank.overflowAbove ? Math.floor(seconds / 2) : seconds;
 
+/** How much of a charm/PowerPlay time bonus survives at this level (1 at level 1, down to half). */
+export const bonusTimeScale = (level: number): number => {
+    const { bonusShrinkPerLevel, bonusMinScale } = GAMEPLAY.timeBank;
+    return Math.max(bonusMinScale, Math.round((1 - bonusShrinkPerLevel * (Math.max(1, level) - 1)) * 100) / 100);
+};
+
+/** Seconds a charm/PowerPlay time bonus actually adds: shrunk by level, then halved above the overflow line. */
+export const bonusTime = (seconds: number, bank: number, level: number): number =>
+    seconds <= 0 ? seconds : taxWordTime(Math.max(1, Math.round(seconds * bonusTimeScale(level))), bank);
+
 /** Words in a row the Golden Snitch needs for its next catch, or null once it has flown away. */
 export const snitchTargetFor = (catches: number): number | null =>
     GAMEPLAY.snitchCatchTargets[catches] ?? null;

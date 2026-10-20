@@ -68,7 +68,7 @@ describe('Once-per-run PowerPlays', () => {
 
     test('exactly the run-saving ones are flagged', () => {
         expect(POWER_PLAYS_LIST.filter(p => p.oncePerRun).map(p => p.id).sort())
-            .toEqual(['chubbsPepTalk', 'groundhogsDay', 'happyPlace', 'lifeFindsAWay', 'sliders', 'whoYouGonnaCall']);
+            .toEqual(['chubbsPepTalk', 'groundhogsDay', 'happyPlace', 'lifeFindsAWay', 'sliders', 'timeTurner', 'whoYouGonnaCall']);
     });
 
     test('taking one marks it spent for the run, even after it is used up', () => {

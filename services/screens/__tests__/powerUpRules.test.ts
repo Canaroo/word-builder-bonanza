@@ -256,3 +256,17 @@ describe('tile point boosts are labeled in the score breakdown', () => {
         expect(result.bonuses).toContainEqual(expect.objectContaining({ name: `${source} (E)`, description: `1 → ${points} pts` }));
     });
 });
+
+describe('Time PowerPlays follow the bonus-time rules', () => {
+    test('Time Turner adds +10s per round (not 30), halved above 60s', () => {
+        const low = gameReducer(start({ activePowerPlays: { timeTurner: { rounds: 2 } } }, 30), { type: 'START_NEXT_ROUND' });
+        expect(low.time).toBe(40);
+        const high = gameReducer(start({ activePowerPlays: { timeTurner: { rounds: 2 } } }, 70), { type: 'START_NEXT_ROUND' });
+        expect(high.time).toBe(75);
+    });
+
+    test('Time Boost adds 10s', () => {
+        const s = start({}, 30);
+        expect(gameReducer(s, { type: 'ACTIVATE_POWER_PLAY', payload: pp('timeBoost') }).time).toBe(40);
+    });
+});
