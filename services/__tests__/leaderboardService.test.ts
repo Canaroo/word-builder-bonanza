@@ -24,7 +24,7 @@ vi.mock('../onlineLeaderboard', () => ({
     },
 }));
 
-const { leaderboardService, MAX_LEADERBOARD_ENTRIES } = await import('../leaderboardService');
+const { leaderboardService, MAX_LEADERBOARD_ENTRIES, sanitizeName } = await import('../leaderboardService');
 
 beforeEach(() => {
     localStorage.clear();
@@ -110,5 +110,23 @@ describe('online leaderboard', () => {
         expect((await leaderboardService.getLeaderboard()).source).toBe('local');
         leaderboardService.resetOnlineBackoff();
         expect((await leaderboardService.getLeaderboard()).source).toBe('online');
+    });
+});
+
+describe('name cleanup (matches the online board rules)', () => {
+    test('keeps allowed characters, strips the rest', () => {
+        expect(sanitizeName('Tex!! 🔥')).toBe('Tex');
+        expect(sanitizeName("D'Angelo-Smith_Jr.")).toBe("D'Angelo-Smith_Jr.");
+        expect(sanitizeName('José   Núñez')).toBe('Jose Nunez');
+        expect(sanitizeName('O\u2019Brien')).toBe("O'Brien");
+        expect(sanitizeName('🎮🎮')).toBe('Player');
+        expect(sanitizeName('A'.repeat(40))).toHaveLength(20);
+        for (const n of ['Tex!! 🔥', 'José', '<script>', '   ']) expect(sanitizeName(n)).toMatch(/^[A-Za-z0-9 _.'-]{1,30}$/);
+    });
+
+    test('the cleaned name is what gets posted online', async () => {
+        online.enabled = true;
+        await leaderboardService.submitScore('Tex ⚡️!', 500);
+        expect(online.rows[0].name).toBe('Tex');
     });
 });
