@@ -74,6 +74,10 @@ describe('cosmetics and shop', () => {
     COSMETICS.forEach(c => expect(c.cost === undefined).toBe(c.streakDay !== undefined));
   });
 
+  test('every id passes the live leaderboard rules (docs/LEADERBOARD.md)', () => {
+    COSMETICS.forEach(c => expect(c.id).toMatch(c.kind === 'badge' ? /^[bs]_[A-Za-z]{1,24}$/ : /^[ts]_[A-Za-z]{1,24}$/));
+  });
+
   test('buying charges once and wears it; equipping needs ownership', () => {
     expect(buyCosmetic('b_vhs', 10)).toBe(0);
     expect(buyCosmetic('b_vhs', 100)).toBe(40);
