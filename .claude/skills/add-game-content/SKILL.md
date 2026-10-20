@@ -1,9 +1,9 @@
 ---
 name: add-game-content
-description: Add new secret bonus words, PowerPlays or charms to the Word Nerd game (this repo), from idea to live site. Use this whenever the user wants new or replacement game content, such as "add 3 bonus words", "make a charm about Back to the Future", "I need a new PowerPlay", "replace this charm with something that fits", "add the word TEX as an easter egg", or asks for pop-culture words, power-ups, buffs or easter eggs, even if they don't say "skill". Covers checking for duplicates and dictionary problems, proposing names, effects, flavor text and themes for review, wiring the mechanics, tests, and shipping.
+description: Add new secret bonus words, PowerPlays, charms, cosmetics (badges, titles, themes, streak rewards) or daily missions to the Word Nerd game (this repo), from idea to live site. Use this whenever the user wants new or replacement game content, such as "add 3 bonus words", "make a charm about Back to the Future", "I need a new PowerPlay", "add 5 new titles to the shop", "a badge for a 200-day streak", "more mission ideas", "add the word TEX as an easter egg", or asks for pop-culture words, power-ups, buffs, bling, shop items or easter eggs, even if they don't say "skill". Covers checking for duplicates and dictionary problems, proposing names, effects, prices, flavor text and themes for review, wiring the mechanics, tests, and shipping.
 ---
 
-# Add game content: bonus words, PowerPlays, charms
+# Add game content: bonus words, PowerPlays, charms, cosmetics, missions
 
 Word Nerd is a retro arcade/VHS word game: 90s/2000s pop culture, neon, punny. New content
 should feel like it was always there. This skill is the path from "add some X" to live on
@@ -11,8 +11,9 @@ https://wordnerd-game.netlify.app.
 
 ## 1. Look before you propose
 
-Run the helper from the repo root. It lists every current bonus word, PowerPlay and charm, and
-checks candidate bonus words against the dictionary, the block list and existing bonuses:
+Run the helper from the repo root. It lists every current bonus word, PowerPlay, charm, cosmetic
+(with prices) and mission template, checks candidate bonus words against the dictionary, the block
+list and existing bonuses, and flags cosmetic ids the live leaderboard rules would reject:
 
 ```bash
 node .claude/skills/add-game-content/scripts/content-check.mjs            # list everything
@@ -39,6 +40,9 @@ Use one table per type. Include what a reviewer needs to judge it:
 | Bonus words | Word · Name (with emoji) · Theme / reveal art (vhs, cartridge, cd, arcade) · Clue · Reward |
 | PowerPlays | Name (with emoji) · What it does · Flavor text · Theme |
 | Charms | Name (with emoji) · What it does · Flavor text · Theme |
+| Badges / titles | Name (+ emoji for badges) · Price or streak day · Style (plain, shine, gold, legend) · Flavor text · Reference |
+| Themes | Name · Price or streak day · Look (tiles, background, frame) · Description |
+| Missions | Text · Category · Tier (easy/medium/hard → reward) · Target · One run or all day · Which game event counts |
 
 End the proposal with short notes on balance (see section 4) and an invitation to keep, swap or
 reword anything.
@@ -71,6 +75,18 @@ These come from playtesting. Ignoring them broke the game before.
   trigger, the bigger the payout. A charm that fires on most words should pay small.
 - **PowerPlays** are one-time or last a few words. Anything that costs points or a strike should
   say so up front in the description.
+- **Credits are scarce on purpose.** Players earn about 20–30 a day (missions 🪙4/6/10 by tier,
+  +6 for all three, plus 1 per 5,000 points). Price bling against that budget: a common badge or
+  title is about a day (15–50), mid-tier a few days (60–100), top shop items a week or more
+  (150–200, use `style: 'shine'`). Themes are 60–120. `gold` and `legend` styles are reserved for
+  streak rewards, so bought bling never outshines earned bling.
+- **Streak rewards are never sold.** A cosmetic has either `cost` or `streakDay`, never both (a
+  test enforces this). New milestones should sit past the current ladder (3, 7, 14, 21, 30, 50, 60,
+  100) or fill a real gap, with credits rising with the day.
+- **Missions must be doable in a normal day.** Easy: one ordinary run. Medium: a focused run.
+  Hard: a good run or two. No mission should depend on luck alone (a specific secret word, a
+  specific charm being offered). Mission rewards come from `MISSION_REWARD` by tier; don't add
+  per-mission payouts.
 - **Avoid dead mechanics**: hands are 8 tiles, so "use all your tiles" almost never happens (that's
   why Infinity Gauntlet was replaced).
 
@@ -86,6 +102,10 @@ The short version:
 | Bonus word | `data/secretBonuses.ts` | None, it's data only | Points in the entry |
 | PowerPlay | `data/powerPlays.ts` | Scoring: `services/gameUtils.ts` `calculateScore`. Effects: `GameScreen.tsx` reducer | `POWER_PLAY_VALUES` / `TIME_BONUS` |
 | Charm | `data/charms.ts` | Scoring: `calculateScore`. State: `types.ts` + `completeSubmission` | `CHARM_BONUS` |
+| Badge / title | `data/cosmetics.ts` `COSMETICS` | None, it's data only (shop, leaderboard, share card are automatic) | `cost` in the entry |
+| Streak reward | `data/cosmetics.ts` (`streakDay`) + `STREAK_MILESTONES` | Automatic: paid and unlocked in `recordRunFinished` | Credits in the milestone |
+| Theme | `data/packs.ts` + CSS in `index.css` | None | `THEME_PRICES` in `config/progression.ts` |
+| Mission | `data/missions.ts` `MISSION_TEMPLATES` | Uses existing game events; a new kind of event needs a `trackMission(...)` call in `GameScreen.tsx` | `MISSION_REWARD` by tier |
 
 If a bonus word isn't in the dictionary, add it to `words/custom.txt` and run `npm run words`.
 Check it with the helper again.
@@ -97,6 +117,12 @@ already there:
 - PowerPlays and charms that change scoring: call `calculateScore` and check the bonus line.
 - Ones that change state: run `gameReducer` with the action.
 - Include a case where it should *not* fire.
+
+Cosmetics, streak rewards and missions are tested in `services/__tests__/progression.test.ts`. It
+already checks every cosmetic id against the live leaderboard rules, price vs. streak exclusivity,
+that the milestone ladder lists the expected days, and that missions never repeat the day before.
+Update the ladder test when you add a milestone. For a new mission, add a case that feeds
+`recordMissionEvent` the event that should complete it and one that shouldn't.
 
 Some suites cover every item automatically. `swapAll.test.ts` tests keep-or-swap and charm-slot
 swaps. `effects.smoke.test.ts` checks that every PowerPlay does something visible. Bonus data is
@@ -115,6 +141,9 @@ Playwright setup the repo uses (`/opt/pw-browsers`, `npx vite preview --port 417
 
 The user wants content live right away:
 1. Bump the minor version (`npm version <x.y+1.0> --no-git-tag-version`) for a content drop.
+   Adding or removing mission templates reshuffles every day's picks, today's included, so
+   players' mission progress for today resets. Tell the user, and suggest shipping right after the
+   8 AM reset if they care.
 2. Commit with a message listing every item, then push to the working branch.
 3. Open a PR and merge it. Netlify deploys `main` automatically.
 4. Fast-forward the working branch to `origin/main` and push.
@@ -126,3 +155,6 @@ Keep it skimmable:
 - How it was checked (tests, phone-size browser).
 - Where to tweak numbers later (the config constant or data file).
 - Any balance concern worth watching.
+- For cosmetics: whether the Firebase leaderboard rules still accept the ids (they do if the id is
+  `b_`/`t_`/`s_` + letters). If the rules ever need changing, give the user the exact text and
+  update `docs/LEADERBOARD.md` to match.
