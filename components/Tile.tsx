@@ -23,7 +23,9 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
     onClick();
   };
   
-  const tileStyle = tile.isCombo
+  const tileStyle = isGolden
+    ? 'golden-tile'
+    : tile.isCombo
     ? 'bg-green-500 text-white'
     : (tile.isSuper || (hasMultiplier && tile.multiplier === 4)
         ? 'bg-red-600 text-white' 
@@ -45,7 +47,11 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
     >
       {/* Rings and glows are overlays: the tile's own box-shadow is its 3D edge. */}
       {isSuperLook && <span className="tile-overlay ring-4 ring-red-400 animate-pulse" aria-hidden="true" />}
-      {isGolden && <span className="tile-overlay golden-special" aria-hidden="true" />}
+      {isGolden && (
+        <span className="absolute top-0.5 left-1 z-20 text-[11px] font-extrabold leading-none px-1 py-0.5 rounded-full bg-[#3b2300] text-[#ffd23f] shadow-md" aria-hidden="true">
+          ★6X
+        </span>
+      )}
       {hintOrder !== undefined && (
         <>
           <span className={`tile-overlay ring-4 ${hintOrder === 1 ? 'ring-neon-red' : 'ring-neon-cyan'} animate-pulse`} aria-hidden="true" />

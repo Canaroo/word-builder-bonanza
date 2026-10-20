@@ -136,6 +136,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     handleAddTileToSwap, handleRemoveTileFromSwap, handleExecuteSwap, dispatch
 }) => {
     const timerRef = useRef<HTMLDivElement>(null);
+    // The Golden Tile's letter, wherever it sits (rack or word row), for the Golden Round banner.
+    const goldenLetter = gameState?.goldenTileId
+      ? [...(hand ?? []), ...(buildRow ?? []).map(i => i?.tile)].find(t => t?.id === gameState.goldenTileId)?.letter
+      : undefined;
 
     const renderModal = () => {
         if (!modalContent) return null;
@@ -617,7 +621,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       {gameState?.roundType === 'golden' && (
         <div className="golden-banner flex-shrink-0 rounded-lg px-3 py-1.5 text-center" role="status">
           <div className="font-display text-lg leading-none text-crt-900">★ GOLDEN ROUND ★</div>
-          <div className="osd-text text-base leading-tight text-crt-900/80">TILES 2X · GOLDEN TILE 6X · NO STRIKES</div>
+          <div className="osd-text text-base leading-tight text-crt-900/80">
+            TILES 2X · <span className="text-crt-900 font-bold">★ GOLDEN {goldenLetter ?? 'TILE'} = 6X</span> · NO STRIKES
+          </div>
         </div>
       )}
 
@@ -791,7 +797,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     >
                       {item && (
                         <div className="w-full h-full">
-                          <TileComponent tile={item.tile} onClick={() => handleReturnToHand(index)} packTileClass={tileClass} />
+                          <TileComponent tile={item.tile} onClick={() => handleReturnToHand(index)} packTileClass={tileClass} isGolden={item.tile.id === gameState?.goldenTileId} />
                         </div>
                       )}
                     </div>
