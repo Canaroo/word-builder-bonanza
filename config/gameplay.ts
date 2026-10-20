@@ -17,13 +17,20 @@ export const GAMEPLAY = {
     shortWordTimeStopsAtLevel: 3,
     /** Seconds a shuffle adds: shuffles are the player's limited time lifeline. */
     shuffleTimeBonus: 5,
+    /**
+     * Bonus time from charms and PowerPlays follows the clock rules too: it is halved above
+     * overflowAbove (like word time) and shrinks 5% per level after the first, down to half.
+     * Shuffles and the once-per-run rescues (Happy Place, Life Finds a Way) are exempt.
+     */
+    bonusShrinkPerLevel: 0.05,
+    bonusMinScale: 0.5,
     /** At or below this many seconds, the Shuffle button pulses (and first-timers get a tip). */
     lifelineHintBelow: 15,
   },
 
   /** Speed-up levels: every this many valid words the level goes up and the clock ticks faster. */
   levels: {
-    wordsPerLevel: 25,
+    wordsPerLevel: 20,
     /** Extra clock speed per level (0.05 = 5% faster each level). */
     speedUpPerLevel: 0.05,
     /** The clock never runs faster than this. */
@@ -51,6 +58,19 @@ export const GAMEPLAY = {
 
 // Charm bonus values. Charm descriptions (data/charms.ts) read these too, so the text
 // and the rules always match. Percentages are % of the word's score.
+// Seconds from the time PowerPlays and charms (before the bonus-time rules above).
+export const TIME_BONUS = {
+  timeTurner: 10,          // per word, for 2 words
+  timeBoost: 10,
+  multiverseCap: 15,       // Multiverse of Sadness: half the score as seconds, up to this
+  saveByTheBell: 5,        // per turn, for 3 turns
+  cleverGirl: 2,
+  cleverGirlLetters: 4,    // different R/A/P/T/O letters a word needs
+  executeOrder66: 3,
+  glitchInTheCode: 3,
+  rescue: 10,              // Rewind, Neo's Choice (time), Deep Freeze, Gump's Luck
+};
+
 export const CHARM_BONUS = {
   theValve: 20,            // per vowel tile
   oneRing: 30,             // per E tile
@@ -84,7 +104,7 @@ export const CHARM_BONUS = {
   pianoManPercent: 30,
   philsosophyWin: 100,
   philsosophyLoss: 25,
-  maxBankedShuffles: 5,    // L Train Shuffle stops adding shuffles at this many
+  maxBankedShuffles: 2,    // L Train Shuffle stops adding shuffles at this many
   maxBankedChallenges: 5,  // The Final Frontier stops adding Challenges at this many
 } as const;
 

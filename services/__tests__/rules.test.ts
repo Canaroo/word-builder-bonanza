@@ -3,7 +3,7 @@ import { GAMEPLAY } from '../../config/gameplay';
 import {
     timeForWord, clampTime, lengthMultiplier, combineMultipliers, addWordMultiplier,
     refillCount, advancePowerPlayMeter, levelFor, clockSpeedFor, tickMsFor, timeForWordAtLevel,
-    taxWordTime, snitchTargetFor,
+    taxWordTime, snitchTargetFor, bonusTimeScale, bonusTime,
 } from '../rules';
 
 describe('time bank', () => {
@@ -57,13 +57,13 @@ describe('rack, meter and strikes', () => {
 });
 
 describe('time pressure', () => {
-    test('the level goes up every 25 valid words', () => {
-        expect([0, 24, 25, 49, 50, 150].map(levelFor)).toEqual([1, 1, 2, 2, 3, 7]);
+    test('the level goes up every 20 valid words', () => {
+        expect([0, 19, 20, 39, 40, 120].map(levelFor)).toEqual([1, 1, 2, 2, 3, 7]);
     });
 
-    test('the clock speeds up 5% per level, capped at 1.75x (level 16, word 375)', () => {
+    test('the clock speeds up 5% per level, capped at 1.75x (level 16, word 300)', () => {
         expect([1, 2, 3, 7, 10, 15, 16, 20].map(clockSpeedFor)).toEqual([1, 1.05, 1.1, 1.3, 1.45, 1.7, 1.75, 1.75]);
-        expect(levelFor(375)).toBe(16);
+        expect(levelFor(300)).toBe(16);
         expect(tickMsFor(1)).toBe(1000);
         expect(tickMsFor(7)).toBe(769);
         expect(tickMsFor(16)).toBe(571);
@@ -83,5 +83,26 @@ describe('time pressure', () => {
 
     test('the Golden Snitch needs 5, then 8, then 12 in a row, then it is gone', () => {
         expect([0, 1, 2, 3].map(snitchTargetFor)).toEqual([5, 8, 12, null]);
+    });
+});
+
+describe('bonus time from charms and PowerPlays', () => {
+    test('shrinks 5% per level after the first, down to half', () => {
+        expect([1, 2, 5, 11, 20].map(bonusTimeScale)).toEqual([1, 0.95, 0.8, 0.5, 0.5]);
+    });
+
+    test('is halved above 60s, like word time', () => {
+        expect(bonusTime(10, 40, 1)).toBe(10);
+        expect(bonusTime(10, 70, 1)).toBe(5);
+    });
+
+    test('level and tax stack: Time Turner (+10) at level 11 with 70s banked adds 2s', () => {
+        expect(bonusTime(10, 70, 11)).toBe(2);
+        expect(bonusTime(10, 30, 11)).toBe(5);
+    });
+
+    test('never turns a bonus into nothing below the overflow line', () => {
+        expect(bonusTime(2, 30, 20)).toBe(1);
+        expect(bonusTime(0, 30, 1)).toBe(0);
     });
 });

@@ -17,8 +17,8 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor } from '../rules';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX } from '../../config/gameplay';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, bonusTime } from '../rules';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 
 
@@ -260,6 +260,8 @@ const settleTimeBank = (time: number, gs: GameState): { time: number; gs: GameSt
 };
 
 const LIFELINE_TIP_KEY = 'wordNerdLifelineTipSeen';
+/** The run's current level, from the valid words played so far. */
+const runLevel = (gs: GameState): number => levelFor(gs.log.filter(e => e.type === 'word' && e.status === 'valid').length);
 const CAPTAIN_PLANET_POINTS = 20;
 const ONE_TILE_NAME = 'One Tile to Rule Them All';
 const TREEHOUSE_NAME = 'Treehouse of Horror';
@@ -715,13 +717,16 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             }
 
 
+            // Charm/PowerPlay bonus seconds are collected here and added once at the end, through
+            // the bonus-time rules (shrunk by level, halved above the overflow line).
+            let bonusSeconds = 0;
             if(newGameState.glitchActive) {
-                timerDuration += 5;
+                bonusSeconds += TIME_BONUS.glitchInTheCode;
                 newGameState.glitchActive = false;
             }
             
             if(newGameState.multiverseTimeBonus > 0) {
-                timerDuration += newGameState.multiverseTimeBonus;
+                bonusSeconds += newGameState.multiverseTimeBonus;
                 newGameState.multiverseTimeBonus = 0; // Consume the bonus
             }
 
@@ -747,7 +752,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             }
     
             if (newGameState.activePowerPlays.timeTurner && newGameState.activePowerPlays.timeTurner.rounds > 0) {
-                timerDuration += 30;
+                bonusSeconds += TIME_BONUS.timeTurner;
                 const newTimeTurnerState = { rounds: newGameState.activePowerPlays.timeTurner.rounds - 1 };
                 if (newTimeTurnerState.rounds > 0) {
                     newGameState.activePowerPlays = { ...newGameState.activePowerPlays, timeTurner: newTimeTurnerState };
@@ -758,7 +763,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             }
             
             if (newGameState.activePowerPlays.saveByTheBell && newGameState.activePowerPlays.saveByTheBell.rounds > 0) {
-                timerDuration += 5;
+                bonusSeconds += TIME_BONUS.saveByTheBell;
                 const newSaveByTheBellState = { rounds: newGameState.activePowerPlays.saveByTheBell.rounds - 1 };
                 if (newSaveByTheBellState.rounds > 0) {
                     newGameState.activePowerPlays = { ...newGameState.activePowerPlays, saveByTheBell: newSaveByTheBellState };
@@ -843,14 +848,16 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 }
             }
     
+            const bonusApplied = bonusTime(bonusSeconds, timerDuration, runLevel(newGameState));
+
             return {
                 ...state,
                 hand,
                 tileBag,
                 modalContent: null,
                 isPaused: false,
-                time: clampTime(timerDuration, bankMax(newGameState)),
-                timeGain: { seconds: clampTime(timerDuration, bankMax(newGameState)) - settled.time, key: Date.now(), taxed: taxedWordTime < wordTime },
+                time: clampTime(timerDuration + bonusApplied, bankMax(newGameState)),
+                timeGain: { seconds: clampTime(timerDuration + bonusApplied, bankMax(newGameState)) - settled.time, key: Date.now(), taxed: taxedWordTime < wordTime || (bonusSeconds > 0 && bonusApplied < bonusSeconds) },
                 gameState: { ...newGameState, wordsThisRound: 0 }
             };
         }
@@ -1471,8 +1478,8 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
 
             const activationChanges = powerPlay.activate(state.gameState);
             let timeChange = 0;
-            if (powerPlay.id === 'timeBoost') timeChange = 15;
-            if (powerPlay.id === 'rewind') timeChange = 10;
+            if (powerPlay.id === 'timeBoost') timeChange = bonusTime(TIME_BONUS.timeBoost, state.time, runLevel(state.gameState));
+            if (powerPlay.id === 'rewind') timeChange = bonusTime(TIME_BONUS.rescue, state.time, runLevel(state.gameState));
             if (powerPlay.id === 'whoYouGonnaCall') timeChange = -Math.min(15, Math.max(0, state.time - 5));
 
             if (powerPlay.id === 'sonicSpeed') {
@@ -1564,7 +1571,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             let changes = {};
             let timeChange = 0;
             if (option.choice === 'time') {
-                timeChange = 10;
+                timeChange = bonusTime(TIME_BONUS.rescue, state.time, runLevel(gameState));
             } else if (option.choice === 'strike') {
                 changes = { strikes: Math.max(0, gameState.strikes - 1) };
             }
@@ -2132,7 +2139,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     }
 
     if (lastModalTitle.includes('Deep Freeze')) {
-      dispatch({ type: 'ADD_TIME', payload: 10 });
+      dispatch({ type: 'ADD_TIME', payload: bonusTime(TIME_BONUS.rescue, state.time, runLevel(state.gameState)) });
       dispatch({ type: 'CLOSE_MODAL' });
       return;
     }
@@ -2594,7 +2601,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
 
       if (newState.activePowerPlays.multiverseOfSadness) {
-          const timeBonus = Math.round(scoreResult.totalScore / 2);
+          const timeBonus = Math.min(TIME_BONUS.multiverseCap, Math.round(scoreResult.totalScore / 2));
           scoreResult.totalScore = Math.floor(scoreResult.totalScore / 2);
           newState.multiverseTimeBonus = timeBonus;
           scoreResult.bonuses.push({ name: "Multiverse of Sadness", description: `Multiverse: /2 Score, +${timeBonus}s next round`});
@@ -2652,9 +2659,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         const raptorLetters = new Set(['R', 'A', 'P', 'T', 'O']);
         const uniqueLettersInWord = new Set(word.toUpperCase().split(''));
         const matchingLetters = [...uniqueLettersInWord].filter(letter => raptorLetters.has(letter));
-        if (matchingLetters.length >= 3) {
-            newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + 5;
-            showMessage("🦖 Clever Girl! +5s next round.", 2500);
+        if (matchingLetters.length >= TIME_BONUS.cleverGirlLetters) {
+            newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + TIME_BONUS.cleverGirl;
+            showMessage(`🦖 Clever Girl! +${TIME_BONUS.cleverGirl}s next round.`, 2500);
         }
       }
       
@@ -2662,8 +2669,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (newState.activeCharms.some(c => c.id === 'executeOrder66')) {
         const hasDoubleLetter = /(.)\1/i.test(word);
         if (hasDoubleLetter) {
-          newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + 6;
-          showMessage("🛰️ Execute Order 66! +6s next round.", 2500);
+          newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + TIME_BONUS.executeOrder66;
+          showMessage(`🛰️ Execute Order 66! +${TIME_BONUS.executeOrder66}s next round.`, 2500);
         }
       }
       
@@ -2722,7 +2729,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           if (newState.consecutiveSuccesses >= 6) {
               newState.glitchActive = true;
               shouldResetStreak = true;
-              showMessage("🤖 Glitch in the Code! +5s next round.", 3000);
+              showMessage(`🤖 Glitch in the Code! +${TIME_BONUS.glitchInTheCode}s next round.`, 3000);
           }
       }
       
@@ -3604,9 +3611,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             let timeChange = 0;
             let gotStrike = false;
     
-            if (rand < 0.25) { // +10s
-                timeChange = 10;
-                outcomeMessage = "Life is like a box of chocolates... you got 10 extra seconds!";
+            if (rand < 0.25) { // bonus seconds
+                timeChange = bonusTime(TIME_BONUS.rescue, time, runLevel(gameState));
+                outcomeMessage = `Life is like a box of chocolates... you got ${timeChange} extra seconds!`;
             } else if (rand < 0.5) { // +20 score
                 changes.score = gameState.score + 20;
                 outcomeMessage = "Life is like a box of chocolates... you got a 20 point bonus!";

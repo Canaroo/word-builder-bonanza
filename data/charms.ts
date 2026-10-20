@@ -1,6 +1,6 @@
 import { Charm, GameState, EventLogEntry } from '../types';
 import { labelize } from '../services/durationTags';
-import { CHARM_BONUS, GAMEPLAY, POWER_GLOVE_BANK_MAX } from '../config/gameplay';
+import { CHARM_BONUS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS } from '../config/gameplay';
 
 // The 'activate' function is for effects that happen immediately upon selection for passive buffs.
 // For selection buffs, it's called after the player makes their choice.
@@ -384,7 +384,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'glitchInTheCode',
     name: 'Glitch in the Code',
-    description: 'After every 6th consecutive valid word, a 5-second bonus is added to the timer for the next word submission only.',
+    description: `After every 6th valid word in a row, your next round gets +${TIME_BONUS.glitchInTheCode} seconds.`,
     flavorText: 'Dodge the clock. One move at a time.',
     icon: '🤖',
     subtheme: 'game',
@@ -417,7 +417,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'executeOrder66',
     name: "Execute Order 66",
-    description: "If your word includes a double letter (like ‘LL’), add 6 seconds to your next round.",
+    description: `If your word includes a double letter (like ‘LL’), add ${TIME_BONUS.executeOrder66} seconds to your next round.`,
     flavorText: "Good soldiers follow orders.",
     icon: '🛰️',
     subtheme: 'game',
@@ -560,7 +560,7 @@ export const CHARMS_LIST: Charm[] = [
   { 
     id: 'cleverGirl', 
     name: 'Clever Girl', 
-    description: 'Play a word that contains at least three different letters from the word “RAPTOR” (R, A, P, T, O) to earn +5 seconds on the timer.', 
+    description: `Play a word with at least ${TIME_BONUS.cleverGirlLetters} different letters from “RAPTOR” (R, A, P, T, O) to earn +${TIME_BONUS.cleverGirl} seconds on the timer.`, 
     flavorText: 'They’ve figured out how to open doors… and score bonuses.',
     icon: '🦖',
     subtheme: 'game',

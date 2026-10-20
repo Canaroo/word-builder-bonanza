@@ -1,6 +1,7 @@
 
 import { PowerPlay, GameState, EventLogEntry } from '../types';
 import { labelize } from '../services/durationTags';
+import { TIME_BONUS } from '../config/gameplay';
 
 // The 'activate' function is for declaring the state change that should happen upon activation.
 // The actual logic is handled in the GameScreen reducer based on the power play's `effectType` and ID.
@@ -84,7 +85,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'deepFreeze',
     name: 'Deep Freeze',
-    description: 'Arms right away: the first time your clock hits 0, time freezes and you get 10 bonus seconds.',
+    description: `Arms right away: the first time your clock hits 0, time freezes and you get ${TIME_BONUS.rescue} bonus seconds.`,
     flavorText: 'Like a classic Chicago winter, everything stops—but only for a moment.',
     icon: '🧊',
     subtheme: 'timer',
@@ -239,7 +240,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'timeBoost', 
     name: 'Time Boost', 
-    description: 'Add 15 seconds to your timer.', 
+    description: `Add ${TIME_BONUS.timeBoost} seconds to your timer.`, 
     flavorText: 'Sometimes, all you need is a little more time on the clock.',
     icon: '⏳',
     subtheme: 'timer',
@@ -325,7 +326,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'multiverseOfSadness', 
     name: 'Multiverse of Sadness', 
-    description: 'Next word: half points, half becomes bonus time.', 
+    description: `Next word: half points, half becomes bonus time (up to ${TIME_BONUS.multiverseCap}s).`, 
     flavorText: 'Every choice creates a new timeline. Some are kinder than others.',
     icon: '🌀',
     subtheme: 'score',
@@ -370,7 +371,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'rewind', 
     name: 'Rewind', 
-    description: 'Remove your last strike and gain 10 seconds.', 
+    description: `Remove your last strike and gain ${TIME_BONUS.rescue} seconds.`, 
     flavorText: 'Backspace for real life.',
     icon: '⏪',
     subtheme: 'strike',
@@ -405,11 +406,12 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'timeTurner', 
     name: 'Time Turner', 
-    description: 'Your next 2 words each add an extra 30 seconds to your clock.',
+    description: `Your next 2 words each add an extra ${TIME_BONUS.timeTurner} seconds to your clock.`,
     flavorText: 'Like Hermione in third year, you\'ve got time to do it all—twice.',
     icon: '⌛',
     subtheme: 'timer',
     effectType: 'passive',
+    oncePerRun: true,
     durationTag: 'LIMITED',
     activate: (gameState) => {
       const powerPlay = POWER_PLAYS_LIST.find(p => p.id === 'timeTurner')!;
@@ -484,7 +486,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'neosChoice', 
     name: "Neo's Choice", 
-    description: 'Pick one: Freeze time for 10s or erase a strike.', 
+    description: `Pick one: +${TIME_BONUS.rescue}s on the clock, or erase a strike.`, 
     flavorText: 'Blue pill pauses the countdown for ten seconds; red pill deletes one strike from your record. Choose wisely—only one effect may be claimed.',
     icon: '💊',
     subtheme: 'utility',
@@ -600,7 +602,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'gumpLuck',
     name: "Gump Luck",
-    description: "25% chance 10s added to timer. 25% chance +20 to score. 25% chance +1 shuffle. 25% chance you earn a strike.",
+    description: `25% chance ${TIME_BONUS.rescue}s added to timer. 25% chance +20 to score. 25% chance +1 shuffle. 25% chance you earn a strike.`,
     flavorText: "Life is like a box of chocolates. You never know what you're gonna get.",
     icon: '🍫',
     subtheme: 'utility',
@@ -870,7 +872,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'saveByTheBell',
     name: 'Saved by the Bell',
-    description: 'Adds +5 seconds to your next 3 turns.',
+    description: `Adds +${TIME_BONUS.saveByTheBell} seconds to your next 3 turns.`,
     flavorText: 'Time’s on your side — for now.',
     icon: '🪩',
     subtheme: 'timer',
