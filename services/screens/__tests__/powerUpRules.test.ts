@@ -270,3 +270,12 @@ describe('Time PowerPlays follow the bonus-time rules', () => {
         expect(gameReducer(s, { type: 'ACTIVATE_POWER_PLAY', payload: pp('timeBoost') }).time).toBe(40);
     });
 });
+
+describe('Perfectly Balanced charm', () => {
+    const withCharm = () => ({ ...start().gameState, activeCharms: [charm('perfectlyBalanced')] });
+    const tilesFor = (w: string) => w.split('').map((letter, i) => ({ id: `t${i}`, letter, points: 1 })) as Tile[];
+    test.each([['team', true], ['road', true], ['tree', true], ['banana', true], ['idea', false], ['cat', false], ['strength', false]])('%s balanced: %s', (word, balanced) => {
+        const result = calculateScore(word, tilesFor(word.toUpperCase()), withCharm());
+        expect(result.bonuses.some(b => b.name === 'Perfectly Balanced')).toBe(balanced);
+    });
+});

@@ -725,6 +725,15 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         }
     }
 
+    // Charm: Perfectly Balanced (as many vowels as consonants)
+    if (gameState.activeCharms.some(c => c.id === 'perfectlyBalanced')) {
+        const vowelCount = lettersInWord.filter(l => VOWELS.has(l)).length;
+        if (vowelCount * 2 === lettersInWord.length) {
+            flatBonus += CHARM_BONUS.perfectlyBalanced;
+            bonuses.push({ name: 'Perfectly Balanced', description: `+${CHARM_BONUS.perfectlyBalanced} pts`, source: 'game' });
+        }
+    }
+
     // Charm: The Dude Abides
     if (gameState.activeCharms.some(c => c.id === 'theDudeAbides') && word.length === 3) {
         flatBonus += CHARM_BONUS.theDudeAbides;

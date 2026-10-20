@@ -2683,16 +2683,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           runningScore += superHandBonus;
           scoreResult.bonuses.push({ name: "Super Hand", description: `+${superHandBonus} pts`});
           eventLogQueue.push({ type: 'event', id: `super-hand-${Date.now()}`, name: 'Super Hand!', icon: '✨', description: 'Cleared the entire hand in one word!', scoreChange: superHandBonus, cumulativeScore: runningScore });
-          
-          let gauntletBonus = 0;
-          if (newState.activeCharms.some(c => c.id === 'infinityGauntlet')) {
-              gauntletBonus = CHARM_BONUS.infinityGauntlet;
-              runningScore += gauntletBonus;
-              scoreResult.bonuses.push({ name: "Infinity Gauntlet", description: `+${gauntletBonus} pts`});
-              eventLogQueue.push({ type: 'event', id: `gauntlet-${Date.now()}`, name: 'Infinity Gauntlet!', icon: '🧤', description: 'Super Hand bonus was enhanced!', scoreChange: gauntletBonus, cumulativeScore: runningScore });
-          }
+
           const superHandText = `You've assembled the perfect hand. Consider it a snap. +${SUPER_HAND_BONUS}`;
-          modalQueue.push({ type: 'super-hand', title: '✨ SUPER HAND! ✨', content: superHandText, data: { points: superHandBonus, gauntletBonus } });
+          modalQueue.push({ type: 'super-hand', title: '✨ SUPER HAND! ✨', content: superHandText, data: { points: superHandBonus } });
       }
 
       if (word.length === 8) {
