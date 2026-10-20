@@ -142,10 +142,27 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
           <p><Key>Strike Challenge:</Key> out of challenges? Gamble a strike for the same deal.</p>
         </Section>
 
+        <Section title="Missions, Streaks & Shop" icon="🔥" tone="text-neon-orange">
+          <p>
+            Every day brings <Key>3 new missions</Key>: a mix of word-building, PowerPlay, charm and secret-finding
+            goals (easy, medium and hard). Each pays <Key>credits</Key>, with a bonus for finishing all three. They
+            reset at 8:00 AM.
+          </p>
+          <p>
+            <Key>Finish a run each day</Key> to grow your 🔥 streak. Milestones at 3, 7, 14, 21, 30, 50, 60 and 100
+            days unlock titles, badges, credits and an exclusive theme. A <Key>Streak Freeze</Key> covers a missed day.
+          </p>
+          <p>
+            Spend credits in the <Key>Vibez Shop</Key> on themes, badges and titles. Your badge, title and streak show
+            on the Top 50 and your share card.
+          </p>
+        </Section>
+
         <Section title="Daily Power Word" icon="💥" tone="text-neon-orange">
           <p>
             Spin once a day on the main menu for a 4-letter <Key>Power Word</Key>. Play it during a run for{' '}
-            <Key>+500</Key> (once per run). The spin resets daily at 8:00 AM.
+            <Key>+500</Key>, plus 50 for every day of your streak (up to +1,000), once per run. The spin resets daily at
+            8:00 AM.
           </p>
         </Section>
       </div>

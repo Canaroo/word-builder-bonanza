@@ -7,6 +7,11 @@ import { showToast } from '../toast';
 import ArcadeButton from '../../components/ArcadeButton';
 import { buildShareText, secretIcon, RunRecap } from '../runRecap';
 import { splitName } from '../../components/BonusReveal';
+import MissionsPanel from '../../components/MissionsPanel';
+import { BadgeIcon } from '../../components/PlayerPlate';
+import { cosmeticById } from '../../data/cosmetics';
+import { PACKS_LIST } from '../../data/packs';
+import { getProfile, nextMilestone, type StreakUpdate } from '../progression';
 
 
 interface GameOverScreenProps {
@@ -19,6 +24,8 @@ interface GameOverScreenProps {
   isNewBest?: boolean;
   personalBest?: number;
   recap?: RunRecap | null;
+  /** What this run did to the daily streak. */
+  streak?: StreakUpdate | null;
 }
 
 const StatRow: React.FC<{ label: string; value: React.ReactNode; icon: string; isHighlighted?: boolean; }> = ({ label, value, icon, isHighlighted }) => {
@@ -37,7 +44,9 @@ const StatRow: React.FC<{ label: string; value: React.ReactNode; icon: string; i
 };
 
 
-const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, onPlayAgain, onSubmitScore, onGoToMenu, isNewBest = false, personalBest = 0, recap = null }) => {
+const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, onPlayAgain, onSubmitScore, onGoToMenu, isNewBest = false, personalBest = 0, recap = null, streak = null }) => {
+  const [showMilestones, setShowMilestones] = useState(() => (streak?.milestones.length ?? 0) > 0);
+  const next = streak ? nextMilestone(streak.count) : undefined;
   const [showWordLog, setShowWordLog] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [submissionName, setSubmissionName] = useState(playerName);
@@ -79,7 +88,8 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
   const handleShare = () => handleAction(async () => {
     if (!recap) return;
     const url = `${location.origin}${location.pathname}`;
-    const text = buildShareText(gameState, recap, isNewBest, url);
+    const p = getProfile();
+    const text = buildShareText(gameState, recap, isNewBest, url, { streak: streak?.count ?? 0, title: cosmeticById(p.title)?.name, badge: cosmeticById(p.badge)?.icon });
     try {
       if (navigator.share) {
         await navigator.share({ text });
@@ -164,6 +174,29 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
         </div>
       )}
 
+      {showMilestones && streak && (
+        <div className="absolute inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Streak milestone">
+          <div className="bg-crt-900 border-2 border-neon-orange rounded-2xl p-5 max-w-sm w-full text-center bonus-insert shadow-[0_0_24px_rgba(255,140,40,0.5)]">
+            <div className="text-6xl" aria-hidden="true">🔥</div>
+            <h2 className="font-display text-3xl text-neon-orange leading-none mt-1">{streak.count}-DAY STREAK!</h2>
+            <p className="osd-text text-lg text-slate-300 mt-1">MILESTONE REWARD{streak.milestones.length > 1 ? 'S' : ''} UNLOCKED</p>
+            <ul className="mt-3 space-y-2 text-left">
+              {streak.milestones.map(m => (
+                <li key={m.day} className="rounded-lg bg-crt-950/80 ring-1 ring-neon-orange/40 p-2 space-y-1">
+                  <p className="osd-text text-base leading-none text-neon-orange">DAY {m.day}</p>
+                  <p className="text-sm text-white">🏷️ Title: <strong>{cosmeticById(m.title)?.name}</strong></p>
+                  {m.badge && <p className="text-sm text-white flex items-center gap-2"><BadgeIcon id={m.badge} size="sm" /> Badge: <strong>{cosmeticById(m.badge)?.name}</strong></p>}
+                  {m.themeId && <p className="text-sm text-white">🎨 Theme: <strong>{PACKS_LIST.find(p => p.id === m.themeId)?.name}</strong></p>}
+                  <p className="text-sm text-neon-yellow">🪙 +{m.credits} credits</p>
+                </li>
+              ))}
+            </ul>
+            <p className="text-sm text-slate-400 mt-2">Wear your new bling from the Vibez Shop.</p>
+            <ArcadeButton color="yellow" className="w-full mt-3" onClick={() => { soundService.playUIClick(); setShowMilestones(false); }}>Sweet!</ArcadeButton>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex-shrink-0 pt-2">
           <h1 className="font-display text-4xl min-[375px]:text-5xl whitespace-nowrap tracking-wide neon-text-pink neon-flicker">GAME OVER</h1>
@@ -174,6 +207,14 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
           ) : null}
           <div className={`font-osd leading-none text-neon-yellow drop-shadow-glow-yellow mt-2 tabular-nums ${gameState.score >= 100000 ? 'text-6xl' : 'text-7xl'}`}>{gameState.score.toLocaleString()}</div>
           <p className="osd-text text-lg text-neon-cyan/80">FINAL SCORE</p>
+          {streak && (
+            <p className={`osd-text text-lg leading-tight mt-1 ${streak.extended ? 'text-neon-orange' : 'text-slate-400'}`}>
+              {streak.extended
+                ? `🔥 ${streak.count}-DAY STREAK${streak.count > 1 ? ' (+1)' : ' STARTED'}${streak.freezesUsed ? ` · 🧊 FREEZE USED` : ''}`
+                : `🔥 ${streak.count}-DAY STREAK · TODAY ALREADY BANKED`}
+              {next && <span className="text-slate-400"> · {next.day - streak.count} TO NEXT REWARD</span>}
+            </p>
+          )}
       </div>
 
       {/* Stats Panel */}
@@ -205,6 +246,9 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
               )}
             </div>
           )}
+          <div className="py-2 border-b border-dashed border-white/10">
+            <MissionsPanel compact />
+          </div>
           <div className="text-left">
               <StatRow icon="📝" label="Words Found" value={validWords.length} />
               <StatRow icon="📏" label="Longest Word" value={gameState.longestWord.toUpperCase() || '—'} />

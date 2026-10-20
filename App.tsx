@@ -34,6 +34,8 @@ import { showToast } from './services/toast';
 import { recordRunScore, getPersonalBest } from './services/personalBest';
 import { getCollection, recordFound } from './services/collection';
 import { pickNextHint, RunRecap } from './services/runRecap';
+import { recordRunFinished, buyCosmetic, equipCosmetic, buyFreeze, publicFlair, type StreakUpdate } from './services/progression';
+import { cosmeticById, type CosmeticKind } from './data/cosmetics';
 
 export enum Screen {
   Start,
@@ -52,6 +54,10 @@ const App: React.FC = () => {
   const [playerName, setPlayerName] = useState<string>(() => storage.getString(STORAGE_KEYS.playerName) || '');
   const [lastGameResult, setLastGameResult] = useState<FinalGameState | null>(null);
   const [lastRunIsNewBest, setLastRunIsNewBest] = useState(false);
+  // Streak change from the run that just ended (shown on the game-over screen).
+  const [lastStreakUpdate, setLastStreakUpdate] = useState<StreakUpdate | null>(null);
+  // Bumped whenever badges, titles or freezes change, so screens re-read the profile.
+  const [profileVersion, setProfileVersion] = useState(0);
   const [isResuming, setIsResuming] = useState(false);
   const [isTimeLow, setIsTimeLow] = useState(false);
   const [isGoldenRound, setIsGoldenRound] = useState(false);
@@ -153,13 +159,38 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const handleLexCoinChange = useCallback((amount: number) => {
+  const handleLexCoinChange = useCallback((amount: number, label?: string) => {
     setLexCoins(c => c + amount);
      if (amount > 0) {
-        showToast(`🪙 +${amount} ${amount === 1 ? 'Credit' : 'Credits'}!`);
+        showToast(label ?? `🪙 +${amount} ${amount === 1 ? 'Credit' : 'Credits'}!`, label ? 3200 : 2000);
         soundService.playMilestone();
     }
   }, []);
+
+  // Shop: badges, titles and streak freezes. The service checks ownership and price.
+  const handleBuyCosmetic = useCallback((id: string) => {
+    const cost = buyCosmetic(id, lexCoins);
+    if (!cost) return;
+    setLexCoins(c => c - cost);
+    setProfileVersion(v => v + 1);
+    showToast(`${cosmeticById(id)?.icon ?? '🏷️'} ${cosmeticById(id)?.name} unlocked and equipped!`);
+    soundService.playMilestone();
+  }, [lexCoins]);
+
+  const handleEquipCosmetic = useCallback((kind: CosmeticKind, id: string | null) => {
+    equipCosmetic(kind, id);
+    setProfileVersion(v => v + 1);
+    soundService.playUIClick();
+  }, []);
+
+  const handleBuyFreeze = useCallback(() => {
+    const cost = buyFreeze(lexCoins);
+    if (!cost) return;
+    setLexCoins(c => c - cost);
+    setProfileVersion(v => v + 1);
+    showToast('🧊 Streak Freeze ready. A missed day won\'t break your streak.');
+    soundService.playMilestone();
+  }, [lexCoins]);
 
   const handleUnlockPack = useCallback((packId: string, cost: number) => {
     if (lexCoins >= cost && !unlockedPackIds.includes(packId)) {
@@ -222,6 +253,15 @@ const App: React.FC = () => {
     
     // Auto-save the log on game over
     logService.autoSaveLog(finalState);
+
+    // Daily streak: a finished run banks today. New milestones pay credits and unlock rewards.
+    const streak = recordRunFinished();
+    const milestoneCredits = streak.milestones.reduce((sum, m) => sum + m.credits, 0);
+    if (milestoneCredits) setLexCoins(c => c + milestoneCredits);
+    const themeRewards = streak.milestones.map(m => m.themeId).filter((id): id is string => !!id);
+    if (themeRewards.length) setUnlockedPackIds(ids => [...new Set([...ids, ...themeRewards])]);
+    setLastStreakUpdate(streak);
+    setProfileVersion(v => v + 1);
     const previousBest = getPersonalBest();
     setLastRunIsNewBest(recordRunScore(finalState.score));
 
@@ -252,7 +292,7 @@ const App: React.FC = () => {
   const handleSubmitScore = useCallback(async (name: string) => {
     if (lastGameResult) {
       const score = lastGameResult.score;
-      const { rank } = await leaderboardService.submitScore(name, score);
+      const { rank } = await leaderboardService.submitScore(name, score, publicFlair());
       setPlayerName(name);
 
       if (rank > 0 && rank <= 10) {
@@ -333,6 +373,8 @@ const App: React.FC = () => {
           powerWordData={powerWordData}
           canSpin={canSpin}
           onSpin={handleSpin}
+          profileVersion={profileVersion}
+          onBuyFreeze={handleBuyFreeze}
           />;
       case Screen.Game:
         return <GameScreen 
@@ -355,6 +397,7 @@ const App: React.FC = () => {
             isNewBest={lastRunIsNewBest}
             personalBest={getPersonalBest()}
             recap={lastRunRecap}
+            streak={lastStreakUpdate}
             onPlayAgain={handlePlayAgain}
             onSubmitScore={handleSubmitScore}
             onGoToMenu={handleGoToMenu}
@@ -372,9 +415,13 @@ const App: React.FC = () => {
           selectedPackId={selectedPackId}
           onUnlockPack={handleUnlockPack}
           onSelectPack={handleSelectPack}
+          profileVersion={profileVersion}
+          onBuyCosmetic={handleBuyCosmetic}
+          onEquipCosmetic={handleEquipCosmetic}
+          onBuyFreeze={handleBuyFreeze}
           />;
       default:
-        return <StartScreen onPlay={handlePlay} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin}/>;
+        return <StartScreen onPlay={handlePlay} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin} profileVersion={profileVersion} onBuyFreeze={handleBuyFreeze}/>;
     }
   };
 

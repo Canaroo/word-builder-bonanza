@@ -212,6 +212,8 @@ export interface GameState {
   consecutiveSuccesses: number;
   /** Golden Snitch catches this run; it flies away after the last one. */
   snitchCatches?: number;
+  /** Identifies this run (kept in saves) for "in one run" daily missions. */
+  runId?: string;
   /** Mixtape charm: the letter the next word must start with, and how many links so far. */
   mixtapeChain?: { next: string; links: number } | null;
   longestStreak: number;
@@ -250,6 +252,17 @@ export interface LeaderboardEntry {
   score: number;
   rank?: number;
   date: string;
+  /** Equipped badge and title (cosmetic ids) and daily streak when the score was posted. */
+  badge?: string | null;
+  title?: string | null;
+  streak?: number;
+}
+
+/** Player bling sent with a score. */
+export interface PlayerFlair {
+  badge: string | null;
+  title: string | null;
+  streak: number;
 }
 
 export interface ScoreBonusInfo {
@@ -290,6 +303,8 @@ export interface Pack {
   name: string;
   description: string;
   cost: number;
+  /** Earned by reaching this streak length instead of bought. */
+  streakDay?: number;
   tileClass: string;
   themeClass: string;
   frameClass: string;

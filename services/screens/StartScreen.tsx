@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { soundService } from '../soundService';
 import { musicService } from '../musicService';
 import Leaderboard from '../../components/Leaderboard';
@@ -13,6 +13,10 @@ import RankingModal from '../../components/RankingModal';
 import ArcadeButton from '../../components/ArcadeButton';
 import { collectionProgress } from '../collection';
 import { storage, STORAGE_KEYS } from '../storage';
+import MissionsPanel from '../../components/MissionsPanel';
+import StreakPanel from '../../components/StreakPanel';
+import { BadgeIcon, TitleText } from '../../components/PlayerPlate';
+import { getProfile, currentStreak, playedToday, powerWordBonusFor } from '../progression';
 
 
 interface StartScreenProps {
@@ -29,6 +33,9 @@ interface StartScreenProps {
   powerWordData: PowerWordData | null;
   canSpin: boolean;
   onSpin: () => void;
+  /** Changes whenever badges, titles or freezes change, so the profile is re-read. */
+  profileVersion?: number;
+  onBuyFreeze: () => void;
 }
 
 const StartScreen: React.FC<StartScreenProps> = ({ 
@@ -44,8 +51,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
   setRankingModalData,
   powerWordData,
   canSpin,
-  onSpin
+  onSpin,
+  profileVersion = 0,
+  onBuyFreeze,
 }) => {
+  const profile = useMemo(() => getProfile(), [profileVersion]);
+  const streak = currentStreak(profile);
+  const bankedToday = playedToday(profile);
+  const [showStreak, setShowStreak] = useState(false);
   const [name, setName] = useState(() => storage.getString(STORAGE_KEYS.playerName) || '');
   const [isMuted, setIsMuted] = useState(soundService.getMuteState());
   const [collection] = useState(collectionProgress);
@@ -321,6 +334,18 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
       )}
 
+      {showStreak && (
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Daily streak">
+          <div className="bg-crt-900 border-2 border-neon-orange rounded-2xl p-4 shadow-2xl max-w-md w-full flex flex-col max-h-[92vh]">
+            <h2 className="font-display text-2xl text-neon-orange text-center leading-none mb-2">DAILY STREAK</h2>
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-1 -m-1">
+              <StreakPanel coins={lexCoins} onBuyFreeze={onBuyFreeze} />
+            </div>
+            <ArcadeButton color="yellow" className="w-full mt-3" onClick={() => { soundService.playUIClick(); setShowStreak(false); }}>Close</ArcadeButton>
+          </div>
+        </div>
+      )}
+
       {showPowerWordInfo && powerWordData && (
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-crt-900 border-2 border-neon-yellow rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col">
@@ -332,7 +357,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <p className="font-bold text-3xl text-white font-digital tracking-widest">{powerWordData.powerWord.toUpperCase()}</p>
               <p className="text-slate-300 italic mt-2 mb-4">"{powerWordData.definition}"</p>
               <p className="text-green-400 font-semibold bg-slate-900/50 p-3 rounded-lg">
-                Use this word during a run for a <strong className="font-bold">500 point bonus!</strong>
+                Use this word during a run for a <strong className="font-bold">{powerWordBonusFor(streak)} point bonus!</strong>
+                {streak > 0 && <span className="block text-sm text-neon-orange mt-1">🔥 Boosted by your {streak}-day streak</span>}
               </p>
             </div>
             <ArcadeButton color="yellow" className="w-full mt-4" onClick={handleClosePowerWordInfo}>Got It</ArcadeButton>
@@ -343,10 +369,20 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
       <div className="flex flex-col min-h-full p-4 text-center">
         <div className="flex justify-between items-center shrink-0">
-          <button onClick={onShowVibez} className="flex items-center gap-2 bg-crt-950/70 ring-1 ring-neon-purple/60 hover:ring-neon-purple text-purple-100 pl-2 pr-3 py-1.5 rounded-full transition-shadow shadow-md" aria-label={`Themes. ${lexCoins} LEX coins`}>
-              <span className="text-xl">🎨</span>
-              <span className="osd-text text-xl leading-none text-neon-yellow">CREDITS {lexCoins}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={onShowVibez} className="flex items-center gap-1.5 bg-crt-950/70 ring-1 ring-neon-purple/60 hover:ring-neon-purple pl-2 pr-3 py-1.5 rounded-full transition-shadow shadow-md" aria-label={`Shop. ${lexCoins} credits`}>
+                <span className="text-xl" aria-hidden="true">🛒</span>
+                <span className="osd-text text-xl leading-none text-neon-yellow">🪙 {lexCoins}</span>
+            </button>
+            <button
+              onClick={() => { soundService.playUIClick(); setShowStreak(true); }}
+              className={`flex items-center gap-1 pl-2 pr-3 py-1.5 rounded-full ring-1 shadow-md transition-shadow ${bankedToday ? 'bg-neon-orange/15 ring-neon-orange' : 'bg-crt-950/70 ring-neon-orange/50 hover:ring-neon-orange'}`}
+              aria-label={`Daily streak: ${streak} days${bankedToday ? ', today banked' : ''}`}
+            >
+                <span className={`text-xl ${streak > 0 && !bankedToday ? 'animate-pulse' : ''}`} aria-hidden="true">🔥</span>
+                <span className="osd-text text-xl leading-none text-neon-orange">{streak}</span>
+            </button>
+          </div>
           <button onClick={handleMuteToggle} className="text-2xl text-slate-400 hover:text-white p-2 transition-transform hover:scale-110">
             {isMuted ? '🔇' : '🔊'}
           </button>
@@ -375,6 +411,21 @@ const StartScreen: React.FC<StartScreenProps> = ({
               aria-label="Player name"
               className="w-full px-4 py-2 font-osd text-3xl uppercase tracking-widest text-center bg-crt-950/80 border-2 border-neon-cyan/50 rounded-lg focus:outline-none focus:border-neon-cyan focus:shadow-glow-cyan transition-shadow duration-200 text-neon-cyan placeholder:text-neon-cyan/40 placeholder:normal-case"
             />
+            <button
+              onClick={onShowVibez}
+              className="-mt-2 flex items-center justify-center gap-2 min-h-[2rem] px-3 rounded-lg hover:bg-white/5"
+              aria-label="Customize your badge and title"
+            >
+              {profile.badge || profile.title ? (
+                <>
+                  <BadgeIcon id={profile.badge} size="sm" />
+                  <TitleText id={profile.title} className="text-lg leading-none" />
+                  <span className="osd-text text-base leading-none text-slate-500">EDIT ›</span>
+                </>
+              ) : (
+                <span className="osd-text text-base leading-none text-neon-purple">🏷️ ADD A BADGE &amp; TITLE ›</span>
+              )}
+            </button>
             
             <div className="w-full flex flex-col gap-3 mt-2">
                 <ArcadeButton color="yellow" size="lg" className="w-full" disabled={!name.trim()} onClick={handlePlayClick}>
@@ -422,6 +473,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   <span className={`text-3xl ${canSpin ? 'animate-spin' : ''}`}>💥</span>
               </button>
             </div>
+
+            <MissionsPanel />
 
             <div className="w-full h-px bg-gradient-to-r from-transparent via-neon-pink/60 to-transparent my-1" />
             

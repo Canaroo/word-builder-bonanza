@@ -28,10 +28,13 @@ database rules below.
 Each score is one child of `/leaderboard`, written once and never updated:
 
 ```json
-{ "name": "Ann", "score": 4210, "timestamp": 1760716800000 }
+{ "name": "Ann", "score": 4210, "timestamp": 1760716800000, "badge": "b_vhs", "title": "s_arcadeRat", "streak": 9 }
 ```
 
 `timestamp` is set by the server (`serverTimestamp()`). Names are trimmed to 20 characters.
+`badge`, `title` and `streak` are optional: the player's equipped bling (ids from
+`data/cosmetics.ts`) and daily streak. The board ignores unknown ids. If the database rules don't
+allow these fields yet, the game posts the score without them, so nothing is lost.
 
 ## Recommended database rules
 
@@ -51,6 +54,9 @@ game download only the top 50 instead of the whole list.
         "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 20" },
         "score": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
         "timestamp": { ".validate": "newData.val() === now" },
+        "badge": { ".validate": "newData.isString() && newData.val().length <= 32" },
+        "title": { ".validate": "newData.isString() && newData.val().length <= 32" },
+        "streak": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999" },
         "$other": { ".validate": false }
       }
     }

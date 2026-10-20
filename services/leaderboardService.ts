@@ -1,4 +1,4 @@
-import { LeaderboardEntry } from '../types';
+import { LeaderboardEntry, PlayerFlair } from '../types';
 import { storage, STORAGE_KEYS } from './storage';
 import { localLeaderboard, MAX_LEADERBOARD_ENTRIES } from './localLeaderboard';
 import { onlineLeaderboard, isOnlineLeaderboardEnabled } from './onlineLeaderboard';
@@ -45,15 +45,15 @@ const noteOnlineFailure = (error: unknown, what: string) => {
  * Saves a score on this device and, when online play is enabled, to the online board.
  * Falls back to the device board if the online one can't be reached.
  */
-const submitScore = async (rawName: string, score: number): Promise<SubmitResult> => {
+const submitScore = async (rawName: string, score: number, flair?: PlayerFlair): Promise<SubmitResult> => {
     const name = rawName.trim().slice(0, MAX_NAME_LENGTH) || 'Player';
-    const entry: LeaderboardEntry = { name, score, date: new Date().toISOString() };
+    const entry: LeaderboardEntry = { name, score, date: new Date().toISOString(), ...(flair ?? {}) };
     const localRank = localLeaderboard.submit(entry);
     const last: SubmittedScore = { name, score, date: entry.date };
 
     if (shouldTryOnline()) {
         try {
-            last.id = await onlineLeaderboard.submit(name, score);
+            last.id = await onlineLeaderboard.submit(name, score, flair);
             storage.setJSON(STORAGE_KEYS.lastSubmittedScore, last);
             const board = await onlineLeaderboard.list();
             return { rank: board.findIndex(e => e.id === last.id) + 1, source: 'online' };
