@@ -1,5 +1,5 @@
 import { Tile, Charm, GameState, WordData, ScoreCalculationResult, ScoreBonusInfo, PowerPlay } from '../types';
-import { CHARM_BONUS } from '../config/gameplay';
+import { CHARM_BONUS, POWER_PLAY_VALUES } from '../config/gameplay';
 import { TILE_DISTRIBUTION, VOWELS, RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, COMBO_TILES, COMBO_TILE_CHANCE, OFFER_RECENCY_WINDOW, OFFER_EXPLORATION_BOOST, OFFER_REPEAT_PENALTY, OFFER_MAX_RECENCY_PENALTY } from '../constants';
 import { dictionaryService } from './dictionaryService';
 import { canBeMadeFromLetters } from './rackMatch';
@@ -45,6 +45,10 @@ export const shuffleArray = <T,>(array: T[]): T[] => {
   }
   return newArray;
 };
+
+/** Mixtape charm payout for this link number (1 = first chained word). */
+export const mixtapeBonus = (link: number): number =>
+    Math.min(CHARM_BONUS.mixtapeMax, CHARM_BONUS.mixtapeBase + CHARM_BONUS.mixtapeStep * (link - 1));
 
 export const createTileBag = (): string[] => {
   const bag: string[] = [];
@@ -402,6 +406,12 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
             tileMultiplier *= 2;
         }
 
+        // PowerPlay: Hold Onto Your Butts (rare letters score extra on the next word)
+        if (gameState.activePowerPlays.holdOntoYourButts && POWER_PLAY_VALUES.rareLetters.includes(tile.letter)) {
+            tileMultiplier *= POWER_PLAY_VALUES.rareLetterMultiplier;
+            bonuses.push({ name: `Hold Onto Your Butts (${tile.letter})`, description: `x${POWER_PLAY_VALUES.rareLetterMultiplier} tile`, source: 'tile' });
+        }
+
         // Charm: The Valve
         if (gameState.activeCharms.some(c => c.id === 'theValve') && VOWELS.has(tile.letter)) {
             tilePoints += CHARM_BONUS.theValve;
@@ -722,6 +732,29 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         if (vowelCount > consonantCount) {
              flatBonus += CHARM_BONUS.luna;
              bonuses.push({ name: 'LUNA', description: `+${CHARM_BONUS.luna} pts`, source: 'game' });
+        }
+    }
+
+    // Charm: Mixtape (each word starts with the last letter of the one before)
+    const chain = gameState.mixtapeChain;
+    if (gameState.activeCharms.some(c => c.id === 'mixtape') && chain?.next && wordUpper.startsWith(chain.next)) {
+        const bonus = mixtapeBonus(chain.links + 1);
+        flatBonus += bonus;
+        bonuses.push({ name: `Mixtape (link ${chain.links + 1})`, description: `+${bonus} pts`, source: 'game' });
+    }
+
+    // Charm: Rubik's Cube (6+ letters, no repeated letter)
+    if (gameState.activeCharms.some(c => c.id === 'rubiksCube') && lettersInWord.length >= 6 && new Set(lettersInWord).size === lettersInWord.length) {
+        flatBonus += CHARM_BONUS.rubiksCube;
+        bonuses.push({ name: "Rubik's Cube", description: `+${CHARM_BONUS.rubiksCube} pts`, source: 'game' });
+    }
+
+    // Charm: Sick Combo (longer than your last valid word)
+    if (gameState.activeCharms.some(c => c.id === 'sickCombo')) {
+        const last = [...(gameState.log ?? [])].reverse().find(e => e.type === 'word' && e.status === 'valid') as { word: string } | undefined;
+        if (last && wordUpper.length > last.word.length) {
+            flatBonus += CHARM_BONUS.sickCombo;
+            bonuses.push({ name: 'Sick Combo', description: `+${CHARM_BONUS.sickCombo} pts`, source: 'game' });
         }
     }
 

@@ -51,6 +51,8 @@ export interface PowerPlay {
   maxUses?: number;
   /** Too strong to repeat: once taken from an offer, it isn't offered again this run. */
   oncePerRun?: boolean;
+  /** For selectionType 'letter': only these letters can be picked (e.g. 'AEIOU'). */
+  selectionLetters?: string;
   durationTag: DurationTag;
   activate: (gameState: GameState, options?: any) => Partial<GameState>;
 }
@@ -210,6 +212,8 @@ export interface GameState {
   consecutiveSuccesses: number;
   /** Golden Snitch catches this run; it flies away after the last one. */
   snitchCatches?: number;
+  /** Mixtape charm: the letter the next word must start with, and how many links so far. */
+  mixtapeChain?: { next: string; links: number } | null;
   longestStreak: number;
   multiverseTimeBonus: number;
   duckHuntComboState: { streakLetters: Set<string> | null, streakCount: number };

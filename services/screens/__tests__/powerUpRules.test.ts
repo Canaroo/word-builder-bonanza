@@ -279,3 +279,70 @@ describe('Perfectly Balanced charm', () => {
         expect(result.bonuses.some(b => b.name === 'Perfectly Balanced')).toBe(balanced);
     });
 });
+
+describe('v6.13 additions', () => {
+    const tilesFor = (w: string, points = 1) => w.split('').map((letter, i) => ({ id: `t${i}`, letter, points })) as Tile[];
+    const gs = (over: Partial<GameState> = {}) => ({ ...start().gameState, ...over });
+    const has = (r: { bonuses: { name: string }[] }, name: string) => r.bonuses.some(b => b.name.startsWith(name));
+
+    test('Hold Onto Your Butts: rare letters score x3 on the next word', () => {
+        const plain = calculateScore('zax', tilesFor('ZAX', 10), gs());
+        const butts = calculateScore('zax', tilesFor('ZAX', 10), gs({ activePowerPlays: { holdOntoYourButts: true } }));
+        expect(has(butts, 'Hold Onto Your Butts (Z)')).toBe(true);
+        expect(has(butts, 'Hold Onto Your Butts (A)')).toBe(false);
+        expect(butts.totalScore).toBeGreaterThan(plain.totalScore);
+    });
+
+    test("Rubik's Cube: 6+ letters with no repeats", () => {
+        const charms = { activeCharms: [charm('rubiksCube')] };
+        expect(has(calculateScore('planet', tilesFor('PLANET'), gs(charms)), "Rubik's Cube")).toBe(true);
+        expect(has(calculateScore('banana', tilesFor('BANANA'), gs(charms)), "Rubik's Cube")).toBe(false);
+        expect(has(calculateScore('plane', tilesFor('PLANE'), gs(charms)), "Rubik's Cube")).toBe(false);
+    });
+
+    test('Sick Combo: longer than your last valid word', () => {
+        const log = [{ type: 'word', word: 'CAT', status: 'valid', score: 5 } as any];
+        const charms = { activeCharms: [charm('sickCombo')], log };
+        expect(has(calculateScore('tree', tilesFor('TREE'), gs(charms)), 'Sick Combo')).toBe(true);
+        expect(has(calculateScore('dog', tilesFor('DOG'), gs(charms)), 'Sick Combo')).toBe(false);
+    });
+
+    test('Mixtape: pays 40, 60, 80... up to 120 for chained words', () => {
+        const at = (links: number, word: string) => calculateScore(word.toLowerCase(), tilesFor(word), gs({ activeCharms: [charm('mixtape')], mixtapeChain: { next: 'T', links } }));
+        expect(at(0, 'TOP').bonuses.find(b => b.name.startsWith('Mixtape'))?.description).toBe('+40 pts');
+        expect(at(2, 'TOP').bonuses.find(b => b.name.startsWith('Mixtape'))?.description).toBe('+80 pts');
+        expect(at(9, 'TOP').bonuses.find(b => b.name.startsWith('Mixtape'))?.description).toBe('+120 pts');
+        expect(has(at(3, 'CAT'), 'Mixtape')).toBe(false);
+    });
+
+    test('Mixtape chain resets on a strike', () => {
+        const s = start({ mixtapeChain: { next: 'T', links: 3 } });
+        expect(gameReducer(s, { type: 'ADD_STRIKE' }).gameState.mixtapeChain).toBeNull();
+    });
+
+    test('Buy a Vowel: costs 100 and adds the vowel; too poor keeps it in the pocket', () => {
+        const rich = start({ score: 150, availablePowerPlays: [pp('buyAVowel')] });
+        const handWithGap = [...rich.hand]; handWithGap[7] = null;
+        const bought = gameReducer({ ...rich, hand: handWithGap }, { type: 'COMPLETE_POWER_PLAY_ACTIVATION', payload: { powerPlay: pp('buyAVowel'), option: { letter: 'E' } } });
+        expect(bought.gameState.score).toBe(50);
+        expect(bought.hand[7]?.letter).toBe('E');
+        expect(bought.gameState.availablePowerPlays).toEqual([]);
+
+        const poor = start({ score: 60, availablePowerPlays: [pp('buyAVowel')] });
+        const tried = gameReducer(poor, { type: 'ACTIVATE_POWER_PLAY', payload: pp('buyAVowel') });
+        expect(tried.gameState.availablePowerPlays.map(p => p.id)).toEqual(['buyAVowel']);
+        expect(tried.gameState.lastPowerPlayResult?.message).toContain('100 points');
+    });
+
+    test('Shake It Like a Polaroid keeps the vowels and redraws the rest', () => {
+        const s = start({ availablePowerPlays: [pp('shakeItLikeAPolaroid')] });
+        const letters = 'AEBCDFGH';
+        const hand = s.hand.map((t, i) => (t && i < 8 ? { ...t, letter: letters[i] } : t));
+        const after = gameReducer({ ...s, hand }, { type: 'ACTIVATE_POWER_PLAY', payload: pp('shakeItLikeAPolaroid') });
+        const tiles = after.hand.filter(Boolean);
+        expect(tiles).toHaveLength(8);
+        expect(tiles.slice(0, 2).map(t => t!.letter)).toEqual(['A', 'E']);
+        expect(after.time).toBe(s.time);
+        expect(after.gameState.availablePowerPlays).toEqual([]);
+    });
+});

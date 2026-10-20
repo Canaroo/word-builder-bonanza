@@ -58,6 +58,13 @@ export const GAMEPLAY = {
 
 // Charm bonus values. Charm descriptions (data/charms.ts) read these too, so the text
 // and the rules always match. Percentages are % of the word's score.
+// PowerPlay costs and values.
+export const POWER_PLAY_VALUES = {
+  buyAVowelCost: 100,
+  rareLetters: 'JKQXZ',    // Hold Onto Your Butts: these tiles score x3 on the next word
+  rareLetterMultiplier: 3,
+};
+
 // Seconds from the time PowerPlays and charms (before the bonus-time rules above).
 export const TIME_BONUS = {
   timeTurner: 10,          // per word, for 2 words
@@ -97,6 +104,11 @@ export const CHARM_BONUS = {
   totallyClueless: 50,
   totallyCluelessBelow: 20,
   perfectlyBalanced: 75,  // words with as many vowels as consonants
+  mixtapeBase: 40,         // first link in a Mixtape chain
+  mixtapeStep: 20,         // each further link pays this much more
+  mixtapeMax: 120,
+  rubiksCube: 100,         // 6+ letters, no repeated letter
+  sickCombo: 50,           // word longer than your last one
   lenaPercent: 20,
   nicolesGracePercent: 25,
   christiansHoodiePercent: 25,

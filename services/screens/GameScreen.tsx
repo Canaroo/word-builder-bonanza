@@ -18,7 +18,7 @@ import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
 import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, bonusTime } from '../rules';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 
 
@@ -454,7 +454,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
           let newHand = [...state.hand];
           let newTileBag = state.tileBag;
           
-          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress };
+          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, mixtapeChain: null };
           
           if ((actuallyGotAStrike || strikeBlockedByShield) && action.payload?.source === 'invalid_word') {
               // An invalid word costs time from the bank.
@@ -1367,6 +1367,22 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             let newBuildRow = state.buildRow;
 
             // Handle immediate tile-based effects
+            // Shake It Like a Polaroid: keep the vowels, redraw every consonant (no time added).
+            if (powerPlay.id === 'shakeItLikeAPolaroid') {
+                const allTiles = [...state.hand.filter((t): t is Tile => t !== null), ...state.buildRow.filter(i => i).map(item => item!.tile)];
+                const vowels = allTiles.filter(t => VOWELS.has(t.letter));
+                const consonantCount = allTiles.length - vowels.length;
+                const { newTiles, remainingBag } = gameUtils.drawTiles(consonantCount, state.tileBag);
+                const padded: (Tile | null)[] = Array(RACK_SIZE).fill(null);
+                [...vowels, ...newTiles].forEach((t, i) => { if (i < RACK_SIZE) padded[i] = t; });
+                newHand = padded;
+                newBag = remainingBag;
+                newBuildRow = Array(BUILD_ROW_SIZE).fill(null);
+                newModalContent = { type: 'info', title: '📸 Shake It Like a Polaroid!', content: `Kept your ${vowels.length} vowel${vowels.length === 1 ? '' : 's'} and redrew ${consonantCount} consonant${consonantCount === 1 ? '' : 's'}.`, autoClose: 2200 };
+                shouldPause = true;
+                newLog = [...newLog, { type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon, description: `Redrew ${consonantCount} consonants, kept the vowels.`, scoreChange: 0, cumulativeScore: state.gameState.score } as EventLogEntry];
+                changes = { ...changes, log: newLog };
+            }
             if (powerPlay.id === 'nuclearOption') {
                 const currentHandTiles = state.hand.filter((t): t is Tile => t !== null);
                 const buildRowTiles = state.buildRow.filter(i => i).map(item => item!.tile);
@@ -1492,6 +1508,10 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             }
             
             // If it's a selection type that requires a modal (e.g., has a selectionType)
+            // Buy a Vowel costs points: if the player can't afford it, keep it for later.
+            if (powerPlay.id === 'buyAVowel' && state.gameState.score < POWER_PLAY_VALUES.buyAVowelCost) {
+                return { ...state, gameState: { ...state.gameState, lastPowerPlayResult: { message: `🎡 You need ${POWER_PLAY_VALUES.buyAVowelCost} points to buy a vowel. It's still in your pocket.`, scoreChange: 0 } } };
+            }
             if (powerPlay.effectType === 'selection' && powerPlay.selectionType) {
                 return {
                     ...state,
@@ -1524,6 +1544,32 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
         
         case 'COMPLETE_POWER_PLAY_ACTIVATION': {
           const { powerPlay, option } = action.payload;
+
+          // Buy a Vowel: pay the cost, the picked vowel joins the hand.
+          if (powerPlay.id === 'buyAVowel' && option?.letter) {
+              const cost = POWER_PLAY_VALUES.buyAVowelCost;
+              const slot = state.hand.findIndex(t => t === null);
+              if (slot === -1 || gameState.score < cost) {
+                  return { ...state, modalContent: null, isPaused: false, gameState: { ...gameState, lastPowerPlayResult: { message: slot === -1 ? '🎡 Your hand is full. Play a word first.' : `🎡 You need ${cost} points to buy a vowel.`, scoreChange: 0 } } };
+              }
+              const hand = [...state.hand];
+              hand[slot] = gameUtils.createTile(option.letter);
+              const score = gameState.score - cost;
+              return {
+                  ...state,
+                  hand,
+                  modalContent: null,
+                  isPaused: false,
+                  gameState: {
+                      ...gameState,
+                      score,
+                      log: [...gameState.log, { type: 'event', id: `pp-buyAVowel-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon, description: `Bought an ${option.letter} for ${cost} points.`, scoreChange: -cost, cumulativeScore: score } as EventLogEntry],
+                      lastPowerPlayResult: { message: `🎡 One ${option.letter}, coming up! (−${cost} pts)`, scoreChange: -cost },
+                      availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                      powerPlayToActivate: null,
+                  },
+              };
+          }
           
           if (powerPlay.id === 'wordionaire' && option?.choice) {
             let changes: Partial<GameState> = {};
@@ -2654,6 +2700,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
       }
       
+      // Mixtape: remember the last letter (and grow the chain if this word continued it).
+      if (newState.activeCharms.some(c => c.id === 'mixtape')) {
+          const upper = word.toUpperCase();
+          const prev = newState.mixtapeChain;
+          const linked = !!prev?.next && upper.startsWith(prev.next);
+          newState.mixtapeChain = { next: upper.slice(-1), links: linked ? prev!.links + 1 : 0 };
+      }
+
       // Clever Girl check
       if (newState.activeCharms.some(c => c.id === 'cleverGirl')) {
         const raptorLetters = new Set(['R', 'A', 'P', 'T', 'O']);
@@ -3203,7 +3257,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
 
       if (wordLockActive) { delete consumedPPs.wordLock; consumedBuffs = consumedBuffs.filter(b => b.id !== 'wordLock'); }
-      ['biglyScore', 'multiverseOfSadness', 'nuclearOption', 'schruteBucks', 'redWedding', 'wakandaForever', 'heisenberg', 'skywalkerBloodline', 'leafOnTheWind', 'thanosGift', 'doubleOrNothing', 'cassiesClue', 'cowabunga', 'tetrisTouch', 'blueShellSurprise', 'pinkyAndTheBrain', 'letsGetDangerous', 'slimShadyShuffle', 'spaceInvader', 'upsideDown', 'comboBreaker'].forEach(id => { 
+      ['biglyScore', 'multiverseOfSadness', 'nuclearOption', 'schruteBucks', 'redWedding', 'wakandaForever', 'heisenberg', 'skywalkerBloodline', 'leafOnTheWind', 'thanosGift', 'doubleOrNothing', 'cassiesClue', 'cowabunga', 'holdOntoYourButts', 'tetrisTouch', 'blueShellSurprise', 'pinkyAndTheBrain', 'letsGetDangerous', 'slimShadyShuffle', 'spaceInvader', 'upsideDown', 'comboBreaker'].forEach(id => { 
           if ((consumedPPs as any)[id]) { 
               delete (consumedPPs as any)[id]; 
               consumedBuffs = consumedBuffs.filter(b => b.id !== id); 
