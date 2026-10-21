@@ -28,14 +28,24 @@ export const GAMEPLAY = {
     lifelineHintBelow: 15,
   },
 
-  /** Speed-up levels: every this many valid words the level goes up and the clock ticks faster. */
+  /**
+   * Speed-up levels: every this many valid words the level goes up. Each level the clock ticks
+   * faster, words pay a little less time, and the PowerPlay meter gets longer. The squeeze is
+   * gentle up to lateFromLevel, then steeper, so strong players feel the pressure late in a run.
+   */
   levels: {
-    wordsPerLevel: 20,
-    /** Extra clock speed per level (0.05 = 5% faster each level). */
+    wordsPerLevel: 18,
+    /** Levels after this one use the steeper "late" rates below (level 7 starts at word 108). */
+    lateFromLevel: 6,
+    /** Extra clock speed per level (0.05 = 5% faster each level), then per late level. */
     speedUpPerLevel: 0.05,
-    /** The clock never runs faster than this. */
-    maxSpeed: 1.75,
+    lateSpeedUpPerLevel: 0.07,
+    /** The clock never runs faster than this (reached at level 17, word 288). */
+    maxSpeed: 2.0,
   },
+
+  /** After lateFromLevel, words earn this share less time per level (a 7-letter word: 10s, then 9s at level 8…), down to min. */
+  wordTimeShrink: { perLateLevel: 0.04, min: 0.65 },
 
   /** Golden Snitch charm: valid words in a row for each catch. After the last catch it flies away. */
   snitchCatchTargets: [5, 8, 12] as readonly number[],
@@ -50,8 +60,10 @@ export const GAMEPLAY = {
   /** Tiles in hand after dealing or refilling. Power-ups can push the rack up to RACK_SIZE. */
   handSize: 8,
 
-  /** Letters played to fill the PowerPlay meter and earn an offer. */
+  /** Letters played to fill the PowerPlay meter and earn an offer (at level 1). */
   powerPlayMeterLetters: 25,
+  /** The meter gets longer with level: from fromLevel, + perLevel letters (perLateLevel after lateFromLevel), up to max. */
+  powerPlayMeterGrowth: { fromLevel: 4, perLevel: 5, perLateLevel: 6, max: 60 },
   /** Fallback: also offer a PowerPlay every this many words. */
   powerPlayEveryWords: 35,
 } as const;

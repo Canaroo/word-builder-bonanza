@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest';
 import { GAMEPLAY } from '../../config/gameplay';
 import {
     timeForWord, clampTime, lengthMultiplier, combineMultipliers, addWordMultiplier,
-    refillCount, advancePowerPlayMeter, levelFor, clockSpeedFor, tickMsFor, timeForWordAtLevel,
+    refillCount, advancePowerPlayMeter, levelFor, clockSpeedFor, tickMsFor, timeForWordAtLevel, wordTimeScaleFor, meterLettersFor,
     taxWordTime, snitchTargetFor, bonusTimeScale, bonusTime,
 } from '../rules';
 
@@ -57,16 +57,27 @@ describe('rack, meter and strikes', () => {
 });
 
 describe('time pressure', () => {
-    test('the level goes up every 20 valid words', () => {
-        expect([0, 19, 20, 39, 40, 120].map(levelFor)).toEqual([1, 1, 2, 2, 3, 7]);
+    test('the level goes up every 18 valid words', () => {
+        expect([0, 17, 18, 35, 36, 108].map(levelFor)).toEqual([1, 1, 2, 2, 3, 7]);
     });
 
-    test('the clock speeds up 5% per level, capped at 1.75x (level 16, word 300)', () => {
-        expect([1, 2, 3, 7, 10, 15, 16, 20].map(clockSpeedFor)).toEqual([1, 1.05, 1.1, 1.3, 1.45, 1.7, 1.75, 1.75]);
-        expect(levelFor(300)).toBe(16);
+    test('the clock speeds up 5% per level, then 7% after level 6, capped at 2x (level 17, word 288)', () => {
+        expect([1, 2, 6, 7, 10, 16, 17, 20].map(clockSpeedFor)).toEqual([1, 1.05, 1.25, 1.32, 1.53, 1.95, 2, 2]);
+        expect(levelFor(288)).toBe(17);
         expect(tickMsFor(1)).toBe(1000);
-        expect(tickMsFor(7)).toBe(769);
-        expect(tickMsFor(16)).toBe(571);
+        expect(tickMsFor(17)).toBe(500);
+    });
+
+    test('words earn full time up to level 6, then 4% less per level, down to 65%', () => {
+        expect([1, 6, 7, 8, 10, 15, 30].map(wordTimeScaleFor)).toEqual([1, 1, 0.96, 0.92, 0.84, 0.65, 0.65]);
+        expect([1, 6, 8, 10, 15].map(l => timeForWordAtLevel(7, l))).toEqual([10, 10, 9, 8, 7]);
+        expect(timeForWordAtLevel(4, 15)).toBe(2);
+    });
+
+    test('the PowerPlay meter grows from level 4, faster after level 6, up to 60 letters', () => {
+        expect([1, 3, 4, 6, 7, 9, 10, 20].map(meterLettersFor)).toEqual([25, 25, 30, 40, 46, 58, 60, 60]);
+        expect(advancePowerPlayMeter(36, 5, 6)).toEqual({ letters: 40, full: true });
+        expect(advancePowerPlayMeter(36, 5, 7)).toEqual({ letters: 41, full: false });
     });
 
     test('3-letter words stop adding time from level 3', () => {

@@ -64,8 +64,11 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
           </p>
           <p>
             <Key>Speed-up levels:</Key> every {GAMEPLAY.levels.wordsPerLevel} words the level goes up and the clock runs{' '}
-            {Math.round(GAMEPLAY.levels.speedUpPerLevel * 100)}% faster (up to x{GAMEPLAY.levels.maxSpeed}). From level{' '}
-            {timeBank.shortWordTimeStopsAtLevel}, 3-letter words add no time.
+            {Math.round(GAMEPLAY.levels.speedUpPerLevel * 100)}% faster. From level {timeBank.shortWordTimeStopsAtLevel}, 3-letter
+            words add no time. After level {GAMEPLAY.levels.lateFromLevel} it gets serious: the clock speeds up{' '}
+            {Math.round(GAMEPLAY.levels.lateSpeedUpPerLevel * 100)}% a level (up to x{GAMEPLAY.levels.maxSpeed}), and words earn{' '}
+            {Math.round(GAMEPLAY.wordTimeShrink.perLateLevel * 100)}% less time each level (down to{' '}
+            {Math.round(GAMEPLAY.wordTimeShrink.min * 100)}%).
           </p>
           <p>
             <Key>Overflow tax:</Key> above {timeBank.overflowAbove}s, words add only half their time (½ on the clock).
@@ -118,7 +121,8 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
           <p>
             <Key>PowerPlays</Key> are a button you press once, at the moment you choose. Fill the meter by playing{' '}
             <Key>{GAMEPLAY.powerPlayMeterLetters} letters</Key> (or every {GAMEPLAY.powerPlayEveryWords} words) to pick one of
-            three. You can <Key>hold one</Key> in your Buffs tray; tap it to use it. Earn another while holding one and
+            three. From level {GAMEPLAY.powerPlayMeterGrowth.fromLevel} the meter gets longer each level, up to{' '}
+            {GAMEPLAY.powerPlayMeterGrowth.max} letters. You can <Key>hold one</Key> in your Buffs tray; tap it to use it. Earn another while holding one and
             you choose: <Key>keep</Key> yours or <Key>swap</Key>. Either way you still hold just one: <Key>Instant</Key> ones fire right away and replace
             the one in your pocket too. The biggest lifesavers (like Happy Place) are marked <Key>1× PER RUN</Key>: once you
             take one, it won't be offered again that run.

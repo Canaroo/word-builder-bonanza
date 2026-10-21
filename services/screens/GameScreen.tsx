@@ -1,6 +1,6 @@
 // Game logic and state. Layout lives in GameScreenView.tsx.
 import React, { useReducer, useEffect, useCallback, useMemo, useState } from 'react';
-import { GameState, Tile, WordData, Milestone, Charm, PowerPlay, ScoreCalculationResult, ScoreBonusInfo, LogEntry, WordLogEntry, EventLogEntry, GameOverLogEntry } from '../../types';
+import { GameState, Tile, WordData, Milestone, Charm, PowerPlay, ScoreCalculationResult, ScoreBonusInfo, LogEntry, WordLogEntry, EventLogEntry, GameOverLogEntry, TimeLedger } from '../../types';
 import { RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, VOWELS, INITIAL_SHUFFLES, MAX_STRIKES_INITIAL, SUPER_HAND_BONUS, TILE_DISTRIBUTION, INITIAL_CHALLENGES, COMBO_TILES } from '../../constants';
 import * as gameUtils from '../gameUtils';
 import { MILESTONES_LIST } from '../../data/milestones';
@@ -17,7 +17,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, bonusTime } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, bonusTime, wordTimeScaleFor, meterLettersFor } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
@@ -256,12 +256,32 @@ const WORD_COUNTDOWN_POWER_PLAYS = ['konamiCode', 'bigHeadMode', 'ludicrousSpeed
 const settleTimeBank = (time: number, gs: GameState): { time: number; gs: GameState } => {
     const pending = gs.pendingTimeBonus ?? 0;
     if (gs.roundType === 'golden' && gs.bankedTime == null) {
-        return { time: GAMEPLAY.goldenRoundSeconds, gs: { ...gs, bankedTime: clampTime(time + taxWordTime(pending, time), bankMax(gs)), pendingTimeBonus: 0 } };
+        const bankedTime = clampTime(time + taxWordTime(pending, time), bankMax(gs));
+        return { time: GAMEPLAY.goldenRoundSeconds, gs: creditTime({ ...gs, bankedTime, pendingTimeBonus: 0 }, 'words', bankedTime - time) };
     }
     if (gs.roundType !== 'golden' && gs.bankedTime != null) {
-        return { time: clampTime(gs.bankedTime + taxWordTime(pending, gs.bankedTime), bankMax(gs)), gs: { ...gs, bankedTime: null, pendingTimeBonus: 0 } };
+        const restored = clampTime(gs.bankedTime + taxWordTime(pending, gs.bankedTime), bankMax(gs));
+        return { time: restored, gs: creditTime({ ...gs, bankedTime: null, pendingTimeBonus: 0 }, 'words', restored - gs.bankedTime) };
     }
     return { time, gs };
+};
+
+const EMPTY_LEDGER: TimeLedger = { words: 0, powerUps: 0, shuffles: 0, goldenRounds: 0 };
+
+/** Adds to the run's time ledger (seconds by source, or a Golden Round count). */
+const creditTime = (gs: GameState, key: keyof TimeLedger, amount: number): GameState =>
+    amount > 0 ? { ...gs, timeLedger: { ...EMPTY_LEDGER, ...gs.timeLedger, [key]: (gs.timeLedger?.[key] ?? 0) + amount } } : gs;
+
+// Actions whose time gain the ledger records by diffing the clock. Word time and START_NEXT_ROUND
+// bonuses are credited where they're added, since a Golden Round swaps the clock out.
+const TIME_GAIN_SOURCE: Partial<Record<GameAction['type'], keyof TimeLedger>> = {
+    PERFORM_SHUFFLE: 'shuffles',
+    ADD_TIME: 'powerUps',
+    ACTIVATE_POWER_PLAY: 'powerUps',
+    COMPLETE_POWER_PLAY_ACTIVATION: 'powerUps',
+    CHOOSE_CHARM: 'powerUps',
+    ADD_STRIKE: 'powerUps',
+    RESTART_ROUND_GROUNDHOG: 'powerUps',
 };
 
 const LIFELINE_TIP_KEY = 'wordNerdLifelineTipSeen';
@@ -275,16 +295,28 @@ const TREEHOUSE_NAME = 'Treehouse of Horror';
 const levelUpModal = (wordsBefore: number) => {
     const level = levelFor(wordsBefore + 1);
     if (level <= levelFor(wordsBefore)) return null;
-    const shortWordsStop = level === GAMEPLAY.timeBank.shortWordTimeStopsAtLevel;
+    const notes = [`The clock now runs at x${clockSpeedFor(level)} speed.`];
+    if (level === GAMEPLAY.timeBank.shortWordTimeStopsAtLevel) notes.push('3-letter words add no more time.');
+    if (wordTimeScaleFor(level) < wordTimeScaleFor(level - 1)) notes.push(`Words now earn ${Math.round(wordTimeScaleFor(level) * 100)}% of their time.`);
+    if (meterLettersFor(level) > meterLettersFor(level - 1)) notes.push(`PowerPlays now need ${meterLettersFor(level)} letters.`);
     return {
         type: 'info' as const,
         title: `⏩ Level ${level} · Speed Up!`,
-        content: `The clock now runs at x${clockSpeedFor(level)} speed.${shortWordsStop ? ' 3-letter words add no more time.' : ''}`,
-        autoClose: 2500,
+        content: notes.join(' '),
+        autoClose: notes.length > 2 ? 3500 : 2500,
     };
 };
 
+/** The game reducer, plus the time ledger: clock gains from shuffles and power-ups are recorded by source. */
 export function gameReducer(state: GameScreenState, action: GameAction): GameScreenState {
+    const next = baseGameReducer(state, action);
+    const source = TIME_GAIN_SOURCE[action.type];
+    const gained = next.time - state.time;
+    if (!source || gained <= 0 || !next.gameState || state.gameState?.roundType === 'golden' || next.gameState.roundType === 'golden') return next;
+    return { ...next, gameState: creditTime(next.gameState, source, gained) };
+}
+
+function baseGameReducer(state: GameScreenState, action: GameAction): GameScreenState {
     let { gameState } = state;
 
     switch (action.type) {
@@ -854,6 +886,10 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
             }
     
             const bonusApplied = bonusTime(bonusSeconds, timerDuration, runLevel(newGameState));
+            const finalTime = clampTime(timerDuration + bonusApplied, bankMax(newGameState));
+            const gained = finalTime - settled.time;
+            const fromWord = Math.max(0, Math.min(taxedWordTime, gained));
+            newGameState = creditTime(creditTime(newGameState, 'words', fromWord), 'powerUps', gained - fromWord);
 
             return {
                 ...state,
@@ -861,8 +897,8 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
                 tileBag,
                 modalContent: null,
                 isPaused: false,
-                time: clampTime(timerDuration + bonusApplied, bankMax(newGameState)),
-                timeGain: { seconds: clampTime(timerDuration + bonusApplied, bankMax(newGameState)) - settled.time, key: Date.now(), taxed: taxedWordTime < wordTime || (bonusSeconds > 0 && bonusApplied < bonusSeconds) },
+                time: finalTime,
+                timeGain: { seconds: gained, key: Date.now(), taxed: taxedWordTime < wordTime || (bonusSeconds > 0 && bonusApplied < bonusSeconds) },
                 gameState: { ...newGameState, wordsThisRound: 0 }
             };
         }
@@ -3055,7 +3091,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       newProgress.turnsSinceLastOffer++;
 
       // The PowerPlay meter fills from letters played (config/gameplay.ts).
-      const meter = advancePowerPlayMeter(newProgress.letters ?? 0, word.length);
+      const meter = advancePowerPlayMeter(newProgress.letters ?? 0, word.length, levelFor(totalWordsSubmitted));
       newProgress.letters = meter.letters;
 
       const triggeredByMeter = meter.full;
@@ -3097,7 +3133,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
                   soundService.playModalOpen();
                   const offerReason = triggeredByMeter
-                    ? `You played ${GAMEPLAY.powerPlayMeterLetters} letters and filled the PowerPlay meter!`
+                    ? `You played ${meterLettersFor(levelFor(totalWordsSubmitted))} letters and filled the PowerPlay meter!`
                     : `Milestone! You've submitted ${totalWordsSubmitted} words and earned a power-up!`;
                   modalQueue.push({ type: 'powerplay-selection', title: 'PowerPlay Earned!', content: offerReason, data: offeredPowerPlays });
               }
@@ -3256,6 +3292,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           soundService.playMilestone();
           
           newState.roundType = 'golden';
+          newState = creditTime(newState, 'goldenRounds', 1);
           const handTiles = finalHand.filter((t): t is Tile => t !== null);
           if (handTiles.length > 0) {
               const randomTile = handTiles[Math.floor(Math.random() * handTiles.length)];

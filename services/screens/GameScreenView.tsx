@@ -12,7 +12,7 @@ import { MILESTONES_LIST } from '../../data/milestones';
 import DurationBadge from '../../ui/DurationBadge';
 import { RACK_SIZE, HAND_SIZE } from '../../constants';
 import { GAMEPLAY, CHARM_SLOTS } from '../../config/gameplay';
-import { levelFor, clockSpeedFor, snitchTargetFor } from '../rules';
+import { levelFor, clockSpeedFor, snitchTargetFor, meterLettersFor } from '../rules';
 
 export type ModalContent = {
   type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log';
@@ -666,14 +666,15 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           {(() => {
             // PowerPlay meter: fills from letters played (config/gameplay.ts).
             const letters = gameState?.powerPlayProgress?.letters ?? 0;
-            const full = letters >= GAMEPLAY.powerPlayMeterLetters;
-            const pct = Math.min(100, (letters / GAMEPLAY.powerPlayMeterLetters) * 100);
+            const needed = meterLettersFor(levelFor(totalWords ?? 0));
+            const full = letters >= needed;
+            const pct = Math.min(100, (letters / needed) * 100);
             return (
-              <div className="bg-crt-950/60 ring-1 ring-white/5 px-2 rounded-lg h-10 flex items-center gap-2" aria-label={`PowerPlay meter ${letters} of ${GAMEPLAY.powerPlayMeterLetters} letters`}>
+              <div className="bg-crt-950/60 ring-1 ring-white/5 px-2 rounded-lg h-10 flex items-center gap-2" aria-label={`PowerPlay meter ${letters} of ${needed} letters`}>
                 <div className="flex-1 h-2.5 rounded-full bg-crt-600 overflow-hidden">
                   <div className={`h-full rounded-full transition-all duration-500 ${full ? 'bg-neon-green shadow-glow-cyan animate-pulse' : 'bg-neon-purple'}`} style={{ width: `${pct}%` }} />
                 </div>
-                <span className="font-osd text-lg leading-none text-slate-200 tabular-nums">{letters}/{GAMEPLAY.powerPlayMeterLetters}</span>
+                <span className="font-osd text-lg leading-none text-slate-200 tabular-nums">{letters}/{needed}</span>
               </div>
             );
           })()}
