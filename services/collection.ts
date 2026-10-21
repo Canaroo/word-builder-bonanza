@@ -49,6 +49,7 @@ export const hintFor = (b: SecretBonus): string => {
         const { kind, digits } = b.score;
         if (kind === 'equals') return `Land on one exact ${digits.length}-digit score.`;
         if (kind === 'endsWith') return `A score ending in a certain ${digits.length}-digit number.`;
+        if (kind === 'over') return `Push your score past a certain ${digits.length}-digit number.`;
         return `A score containing a certain ${digits.length}-digit number.`;
     }
     const word = b.word ?? '';

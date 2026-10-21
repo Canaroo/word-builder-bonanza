@@ -59,8 +59,9 @@ Every secret bonus is one entry in
   },
 ```
 
-`kind` is `"contains"`, `"endsWith"` or `"equals"`. The game explains the bonus to the player
-("Your score hit 742, which contains 42").
+`kind` is `"contains"`, `"endsWith"`, `"equals"` or `"over"` (fires once the score passes the
+number, like It's Over 9000). The game explains the bonus to the player ("Your score hit 742, which
+contains 42", "Your score hit 9,042, over 9,000!").
 
 ### The fields
 

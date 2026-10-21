@@ -4,7 +4,7 @@
 // Each entry has:
 //   id                 unique name in camelCase, never shown to players (e.g. 'heroOfHyrule')
 //   word  OR  score    what triggers it: a word (word: 'LINK') or a score number
-//                      (score: { kind: 'contains' | 'endsWith' | 'equals', digits: '42' })
+//                      (score: { kind: 'contains' | 'endsWith' | 'equals' | 'over', digits: '42' })
 //   name               title on the reveal; start it with an emoji
 //   description        one line for the bonus list
 //   points / shuffle   the reward: bonus points (added on top of the word's normal score),
@@ -78,6 +78,46 @@ export const SECRET_BONUSES: SecretBonus[] = [
     points: 1000,
     message: "Your total score is exactly 2763! It’s everywhere in BFDI — and now it’s here too.",
     hint: "An exact four-digit score Battle for Dream Island fans can't stop shouting. Zero chill.",
+  },
+  {
+    id: "jennysNumber",
+    score: { kind: "contains", digits: "867" },
+    name: "📞 “Jenny, I Got Your Number” 📞",
+    description: "Score includes 867 → +300 bonus.",
+    points: 300,
+    message: "Your total score contains 867! Jenny, don't change your number.",
+    hint: "For a good time, call… well, start with the first three digits.",
+    media: "cd",
+    source: "Tommy Tutone",
+  },
+  {
+    id: "bonusNotFound",
+    score: { kind: "contains", digits: "404" },
+    name: "🚫 “Bonus Not Found” 🚫",
+    description: "Score includes 404 → +300 bonus.",
+    points: 300,
+    message: "Your total score contains 404! Error: bonus not found. Just kidding, here it is.",
+    hint: "The page you were looking for doesn't exist. Have some points anyway.",
+  },
+  {
+    id: "leetHaxor",
+    score: { kind: "contains", digits: "1337" },
+    name: "👾 “1337 H4X0R” 👾",
+    description: "Score includes 1337 → +500 bonus.",
+    points: 500,
+    message: "Your total score contains 1337! U R 50 1337. GG, no re.",
+    hint: "Spell 'elite' like a 2003 LAN party.",
+  },
+  {
+    id: "over9000",
+    score: { kind: "over", digits: "9000" },
+    name: "💥 “It's Over 9000!” 💥",
+    description: "Score goes over 9000 → +300 bonus.",
+    points: 300,
+    message: "What, 9000?! There's no way that can be right! (It is. Here's a bonus.)",
+    hint: "Vegeta crushed his scouter over this power level.",
+    media: "vhs",
+    source: "Dragon Ball Z",
   },
   {
     id: "sex",
@@ -747,5 +787,27 @@ export const SECRET_BONUSES: SecretBonus[] = [
     hint: "Leslie Knope's breakfast of champions. Whipped cream is not optional.",
     media: "vhs",
     source: "Parks and Recreation",
+  },
+  {
+    id: "birdIsTheWord",
+    word: "WORD",
+    name: "🐦 “The Bird Is the Word” 🐦",
+    description: "When you submit the word \"WORD\".",
+    points: 200,
+    message: "Surfin' Bird, on repeat, forever. Peter would be so proud.",
+    hint: "Haven't you heard? Peter Griffin says everybody knows about the bird.",
+    media: "vhs",
+    source: "Family Guy",
+  },
+  {
+    id: "yeahBaby",
+    word: "GROOVY",
+    name: "🕺 “Yeah, Baby!” 🕺",
+    description: "When you submit the word \"GROOVY\".",
+    points: 150,
+    message: "Oh, behave! That word was positively shagadelic.",
+    hint: "Shagadelic spy-speak from the international man of mystery.",
+    media: "vhs",
+    source: "Austin Powers",
   },
 ];
