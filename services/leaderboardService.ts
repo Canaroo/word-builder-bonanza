@@ -10,6 +10,8 @@ export type LeaderboardSource = 'online' | 'local';
 export interface LeaderboardResult {
     entries: LeaderboardEntry[];
     source: LeaderboardSource;
+    /** Why the online board couldn't be used ("timed out", "no connection", …), when it couldn't. */
+    offlineReason?: string;
 }
 
 export interface SubmitResult {
@@ -44,6 +46,7 @@ export const sanitizeName = (raw: string): string =>
 // After the online board fails, use the device board for a while instead of waiting again.
 const RETRY_ONLINE_AFTER_MS = 60_000;
 let onlineFailedAt = 0;
+let lastOnlineError = '';
 
 const shouldTryOnline = (): boolean =>
     isOnlineLeaderboardEnabled() &&
@@ -52,6 +55,8 @@ const shouldTryOnline = (): boolean =>
 
 const noteOnlineFailure = (error: unknown, what: string) => {
     onlineFailedAt = Date.now();
+    const reason = (error as { reason?: unknown } | null)?.reason;
+    lastOnlineError = typeof reason === 'string' ? reason : 'unavailable';
     console.warn(`Online leaderboard unavailable; ${what}.`, error);
 };
 
@@ -80,16 +85,25 @@ const submitScore = async (rawName: string, score: number, flair?: PlayerFlair):
     return { rank: localRank, source: 'local' };
 };
 
-/** The online board when it's reachable, otherwise this device's scores. */
-const getLeaderboard = async (): Promise<LeaderboardResult> => {
+/**
+ * The online board when it's reachable, otherwise this device's scores.
+ * `retry` skips the back-off after a recent failure (the board's Retry button).
+ */
+const getLeaderboard = async ({ retry = false } = {}): Promise<LeaderboardResult> => {
+    if (retry) onlineFailedAt = 0;
     if (shouldTryOnline()) {
         try {
-            return { entries: await onlineLeaderboard.list(), source: 'online' };
+            const entries = await onlineLeaderboard.list();
+            lastOnlineError = '';
+            return { entries, source: 'online' };
         } catch (error) {
             noteOnlineFailure(error, 'showing this device');
         }
     }
-    return { entries: localLeaderboard.list(), source: 'local' };
+    const offline = isOnlineLeaderboardEnabled()
+        ? { offlineReason: typeof navigator !== 'undefined' && navigator.onLine === false ? 'no connection' : lastOnlineError || 'unavailable' }
+        : {};
+    return { entries: localLeaderboard.list(), source: 'local', ...offline };
 };
 
 const getLastSubmitted = (): SubmittedScore | null =>

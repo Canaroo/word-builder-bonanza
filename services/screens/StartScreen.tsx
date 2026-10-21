@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { soundService } from '../soundService';
 import { musicService } from '../musicService';
 import Leaderboard from '../../components/Leaderboard';
@@ -68,6 +68,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
   const [leaderboardSource, setLeaderboardSource] = useState<LeaderboardSource>('local');
+  const [leaderboardOfflineReason, setLeaderboardOfflineReason] = useState<string | undefined>();
 
   const [showEventLogsModal, setShowEventLogsModal] = useState(false);
   const [eventLogs, setEventLogs] = useState<FinalGameState[]>([]);
@@ -119,18 +120,18 @@ const StartScreen: React.FC<StartScreenProps> = ({
     }
   }, [name]);
   
+  const fetchLeaderboard = useCallback(async (retry = false) => {
+    setIsLoadingLeaderboard(true);
+    const { entries, source, offlineReason } = await leaderboardService.getLeaderboard({ retry });
+    setLeaderboardData(entries);
+    setLeaderboardSource(source);
+    setLeaderboardOfflineReason(offlineReason);
+    setIsLoadingLeaderboard(false);
+  }, []);
+
   useEffect(() => {
-    if (showLeaderboardModal) {
-      const fetchLeaderboard = async () => {
-        setIsLoadingLeaderboard(true);
-        const { entries, source } = await leaderboardService.getLeaderboard();
-        setLeaderboardData(entries);
-        setLeaderboardSource(source);
-        setIsLoadingLeaderboard(false);
-      };
-      fetchLeaderboard();
-    }
-  }, [showLeaderboardModal]);
+    if (showLeaderboardModal) fetchLeaderboard();
+  }, [showLeaderboardModal, fetchLeaderboard]);
 
   useEffect(() => {
     if (showEventLogsModal) {
@@ -258,16 +259,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
       )}
       
       {showLeaderboardModal && (
-        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-crt-900 border-2 border-neon-pink shadow-glow-pink rounded-2xl p-4 text-center max-w-md w-full flex flex-col max-h-[90vh] bonus-insert">
-            <Leaderboard data={leaderboardData} isLoading={isLoadingLeaderboard} source={leaderboardSource} />
+            <Leaderboard data={leaderboardData} isLoading={isLoadingLeaderboard} source={leaderboardSource} offlineReason={leaderboardOfflineReason} onRetry={() => fetchLeaderboard(true)} />
             <ArcadeButton color="yellow" className="w-full mt-4" onClick={handleCloseLeaderboard}>Close</ArcadeButton>
           </div>
         </div>
       )}
 
       {showEventLogsModal && (
-        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-crt-900 border-2 border-neon-green rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col max-h-[90vh]">
             {selectedRun ? (
                <>
@@ -311,7 +312,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
       )}
 
       {showMissedWordsModal && (
-        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-crt-900 border-2 border-neon-red rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col max-h-[90vh]">
             <h2 className="font-display text-2xl text-neon-pink mb-2">Missed Words ({missedWords.length}/{missedWordsService.MAX_WORDS})</h2>
             <p className="text-sm text-slate-400 mb-4">Your 10 most recent words from failed challenges.</p>
@@ -335,7 +336,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
       )}
 
       {showStreak && (
-        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Daily streak">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Daily streak">
           <div className="bg-crt-900 border-2 border-neon-orange rounded-2xl p-4 shadow-2xl max-w-md w-full flex flex-col max-h-[92vh]">
             <h2 className="font-display text-2xl text-neon-orange text-center leading-none mb-2">DAILY STREAK</h2>
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-1 -m-1">
@@ -347,7 +348,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
       )}
 
       {showPowerWordInfo && powerWordData && (
-        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-crt-900 border-2 border-neon-yellow rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col">
             <h2 className="font-display text-2xl text-neon-yellow mb-2 flex-shrink-0 flex items-center justify-center gap-3">
               <span className="text-4xl">💥</span>

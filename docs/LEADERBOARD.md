@@ -2,10 +2,18 @@
 
 Every submitted score is saved on the device (`services/localLeaderboard.ts`). When the online
 board is enabled it is also written to Firebase Realtime Database (`services/onlineLeaderboard.ts`),
-and **Top 50** shows the worldwide board. If Firebase can't be reached (offline, blocked, slow for
-more than 6 seconds) the game shows this device's scores instead, labelled as such.
+and **Top 50** shows the worldwide board. If Firebase can't be reached (offline, blocked, slower
+than 8 seconds) the game shows this device's scores instead, says why ("timed out", "no
+connection", "permission denied"), and offers a **Retry** button.
 
-The Firebase SDK is loaded only when the leaderboard is opened or a score is submitted.
+The game talks to Firebase over its plain REST API (`fetch` + JSON), not the Firebase SDK. That's
+the same request a browser makes when you open the database URL, so it works on networks where the
+SDK's live websocket is slow or blocked, and it adds nothing to the app's download size.
+
+**Quick health check:** open
+`https://scrabbleleaderboard-9b8d7-default-rtdb.firebaseio.com/leaderboard.json?orderBy="score"&limitToLast=3`
+in a browser. A few scores means the database and read rules are fine; "Permission denied" means
+the rules need fixing.
 
 ## Configuration
 
@@ -14,14 +22,10 @@ Settings live in `.env` (override locally in `.env.local`):
 | Variable                     | Purpose                                         |
 | ---------------------------- | ----------------------------------------------- |
 | `VITE_LEADERBOARD`           | `online` (default) or `local` (device only)     |
-| `VITE_FIREBASE_API_KEY`      | Firebase web config                             |
-| `VITE_FIREBASE_AUTH_DOMAIN`  | Firebase web config                             |
-| `VITE_FIREBASE_DATABASE_URL` | Realtime Database URL                           |
-| `VITE_FIREBASE_PROJECT_ID`   | Firebase web config                             |
-| `VITE_FIREBASE_APP_ID`       | Firebase web config                             |
+| `VITE_FIREBASE_DATABASE_URL` | Realtime Database URL (the only one the game uses) |
 
-Firebase web config values are public identifiers, not secrets. What protects the data is the
-database rules below.
+The other `VITE_FIREBASE_*` values in `.env` are kept for reference but no longer read. None of
+them are secrets: what protects the data is the database rules below.
 
 ## Data
 
@@ -31,7 +35,7 @@ Each score is one child of `/leaderboard`, written once and never updated:
 { "name": "Ann", "score": 4210, "timestamp": 1760716800000, "badge": "b_vhs", "title": "s_arcadeRat", "streak": 9 }
 ```
 
-`timestamp` is set by the server (`serverTimestamp()`). Before submitting, names are cleaned to
+`timestamp` is set by the server (`{".sv": "timestamp"}`). Before submitting, names are cleaned to
 what the rules accept (`sanitizeName()` in `services/leaderboardService.ts`): letters, numbers,
 spaces and `_ . ' -`, accents dropped, curly apostrophes straightened, at most 20 characters, and
 `Player` if nothing is left. `badge`, `title` and `streak` are optional: the player's equipped bling

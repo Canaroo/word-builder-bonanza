@@ -9,9 +9,12 @@ interface LeaderboardProps {
   data: LeaderboardEntry[];
   isLoading: boolean;
   source?: LeaderboardSource;
+  /** Why the worldwide board couldn't load, shown with a Retry button. */
+  offlineReason?: string;
+  onRetry?: () => void;
 }
 
-const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'local' }) => {
+const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'local', offlineReason, onRetry }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const SCORES_PER_PAGE = 10;
 
@@ -59,9 +62,22 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
   return (
     <div className="w-full bg-crt-950/80 ring-1 ring-neon-cyan/30 p-4 rounded-xl flex-grow flex flex-col">
       <h3 className="font-display text-2xl text-center neon-text-pink mb-1 shrink-0">HIGH SCORES</h3>
-      <p className="osd-text text-base text-center text-neon-cyan/80 mb-3 shrink-0">
-        {source === 'online' ? '🌐 Worldwide' : leaderboardService.isOnline() ? '📱 This device · online board offline' : '📱 This device'}
-      </p>
+      {source === 'online' || !leaderboardService.isOnline() ? (
+        <p className="osd-text text-base text-center text-neon-cyan/80 mb-3 shrink-0">
+          {source === 'online' ? '🌐 Worldwide' : '📱 This device'}
+        </p>
+      ) : (
+        <div className="flex items-center justify-center gap-2 mb-3 shrink-0">
+          <p className="osd-text text-base leading-tight text-center text-neon-orange">
+            📱 THIS DEVICE · WORLDWIDE BOARD {(offlineReason ?? 'unavailable').toUpperCase()}
+          </p>
+          {onRetry && (
+            <ArcadeButton color="cyan" size="sm" onClick={() => { soundService.initialize(); soundService.playUIClick(); onRetry(); }}>
+              ↻ Retry
+            </ArcadeButton>
+          )}
+        </div>
+      )}
       {data.length > 0 ? (
         <>
           <ol className="space-y-2 flex-grow overflow-y-auto p-2 -mx-2 min-h-[350px]">

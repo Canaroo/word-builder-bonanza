@@ -1,45 +1,42 @@
-// Online leaderboard on Firebase Realtime Database.
-// The SDK is loaded on first use, so it costs nothing until someone opens or submits to the board.
-import type { Database } from 'firebase/database';
+// Online leaderboard on Firebase Realtime Database, over its plain REST API (fetch + JSON).
+// No Firebase SDK or live socket: just the same web requests a browser makes when it opens the
+// database URL, which work on networks where the SDK's websocket is slow or blocked.
 import { LeaderboardEntry, PlayerFlair } from '../types';
 import { cosmeticById } from '../data/cosmetics';
 
 const LEADERBOARD_PATH = 'leaderboard';
 const TOP_N = 50;
-const TIMEOUT_MS = 5000;
+const TIMEOUT_MS = 8000;
 
 const env = import.meta.env;
-const firebaseConfig = {
-    apiKey: env.VITE_FIREBASE_API_KEY,
-    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
-    databaseURL: env.VITE_FIREBASE_DATABASE_URL,
-    projectId: env.VITE_FIREBASE_PROJECT_ID,
-    appId: env.VITE_FIREBASE_APP_ID,
-};
+const databaseURL = String(env.VITE_FIREBASE_DATABASE_URL ?? '').replace(/\/+$/, '');
 
 /** Online play is on when the database is configured and VITE_LEADERBOARD isn't "local". */
 export const isOnlineLeaderboardEnabled = (): boolean =>
-    env.VITE_LEADERBOARD !== 'local' && !!firebaseConfig.databaseURL && !!firebaseConfig.apiKey;
+    env.VITE_LEADERBOARD !== 'local' && !!databaseURL;
 
-let dbPromise: Promise<Database> | null = null;
-const getDb = (): Promise<Database> => {
-    dbPromise ??= (async () => {
-        const [{ initializeApp, getApps }, { getDatabase }] = await Promise.all([
-            import('firebase/app'),
-            import('firebase/database'),
-        ]);
-        const app = getApps()[0] ?? initializeApp(firebaseConfig);
-        return getDatabase(app);
-    })();
-    return dbPromise;
+/** A failed online request, with a short reason the board can show ("timed out", "permission denied"). */
+export class LeaderboardError extends Error {
+    constructor(public reason: string, public status = 0) {
+        super(`Online leaderboard: ${reason}`);
+    }
+}
+
+const request = async (path: string, init?: RequestInit): Promise<any> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    let res: Response;
+    try {
+        res = await fetch(`${databaseURL}/${path}`, { ...init, signal: controller.signal });
+    } catch (e) {
+        throw new LeaderboardError(controller.signal.aborted ? 'timed out' : 'no connection');
+    } finally {
+        clearTimeout(timer);
+    }
+    const body = await res.json().catch(() => null);
+    if (!res.ok) throw new LeaderboardError(String(body?.error ?? `error ${res.status}`).toLowerCase(), res.status);
+    return body;
 };
-
-// Realtime Database calls wait forever while offline; give up on the whole request so the game can fall back.
-const withTimeout = <T>(promise: Promise<T>): Promise<T> =>
-    Promise.race([
-        promise,
-        new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Leaderboard request timed out')), TIMEOUT_MS)),
-    ]);
 
 const toEntry = (id: string, row: any): LeaderboardEntry | null => {
     const ms = typeof row?.timestamp === 'number' ? row.timestamp
@@ -56,43 +53,41 @@ const toEntry = (id: string, row: any): LeaderboardEntry | null => {
 };
 
 /** Top scores, highest first. */
-const list = (): Promise<LeaderboardEntry[]> => withTimeout((async () => {
-    const db = await getDb();
-    const { ref, query, orderByChild, limitToLast, get } = await import('firebase/database');
-    const snapshot = await get(query(ref(db, LEADERBOARD_PATH), orderByChild('score'), limitToLast(TOP_N)));
-    const rows: LeaderboardEntry[] = [];
-    snapshot.forEach(child => {
-        const entry = toEntry(child.key!, child.val());
-        if (entry) rows.push(entry);
-    });
+const list = async (): Promise<LeaderboardEntry[]> => {
+    const data = await request(`${LEADERBOARD_PATH}.json?orderBy=%22score%22&limitToLast=${TOP_N}`);
+    const rows = Object.entries(data ?? {})
+        .map(([id, row]) => toEntry(id, row))
+        .filter((e): e is LeaderboardEntry => e !== null);
     return rows.sort((a, b) => b.score - a.score).map((e, i) => ({ ...e, rank: i + 1 }));
-})());
+};
 
 /**
  * Writes { name, score, timestamp } plus the player's badge, title and streak, and returns the
- * new entry's id. If the database rules don't allow the extra fields yet (they need the
- * update in docs/FIREBASE_RULES.md), it writes the score alone so nothing is lost.
+ * new entry's id. If the database rules reject the extra fields, it writes the score alone so
+ * nothing is lost.
  */
-const submit = (name: string, score: number, flair?: PlayerFlair): Promise<string> => withTimeout((async () => {
-    const db = await getDb();
-    const { ref, push, set, serverTimestamp } = await import('firebase/database');
-    const base = { name, score, timestamp: serverTimestamp() };
+const submit = async (name: string, score: number, flair?: PlayerFlair): Promise<string> => {
+    // The server fills in the timestamp, so the rules can check it against its own clock.
+    const base = { name, score, timestamp: { '.sv': 'timestamp' } };
     const extras: Record<string, unknown> = {};
     if (flair?.badge) extras.badge = flair.badge;
     if (flair?.title) extras.title = flair.title;
     if (flair?.streak) extras.streak = flair.streak;
-    // push() picks the id locally, so it's known before the write finishes.
-    const newRef = push(ref(db, LEADERBOARD_PATH));
+    const post = (body: object) => request(`${LEADERBOARD_PATH}.json`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
     if (Object.keys(extras).length) {
         try {
-            await set(newRef, { ...base, ...extras });
-            return newRef.key!;
+            return (await post({ ...base, ...extras })).name;
         } catch (e) {
+            // Only a rules rejection is worth retrying without the extras.
+            if (!(e instanceof LeaderboardError) || (e.status !== 400 && e.status !== 401 && e.status !== 403)) throw e;
             console.warn('Leaderboard rejected badge/title/streak; posting the score without them.', e);
         }
     }
-    await set(newRef, base);
-    return newRef.key!;
-})());
+    return (await post(base)).name;
+};
 
 export const onlineLeaderboard = { list, submit };
