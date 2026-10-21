@@ -29,7 +29,7 @@ type WordStatus = 'checking' | 'ok' | 'blocked' | 'unknown';
 const MEDIA_LABEL = { vhs: '📼 VHS', cartridge: '🎮 CARTRIDGE', cd: '💿 CD', arcade: '🕹️ ARCADE' } as const;
 
 const describeScore = ({ kind, digits }: ScorePattern) =>
-  kind === 'equals' ? `SCORE = ${digits}` : kind === 'endsWith' ? `SCORE ENDS IN ${digits}` : `SCORE HAS ${digits}`;
+  kind === 'equals' ? `SCORE = ${digits}` : kind === 'endsWith' ? `SCORE ENDS IN ${digits}` : kind === 'over' ? `SCORE OVER ${digits}` : `SCORE HAS ${digits}`;
 
 const rewardText = (b: SecretBonus) =>
   [b.points ? `+${b.points} PTS` : '', b.shuffle ? `+${b.shuffle} SHUFFLE` : ''].filter(Boolean).join(' · ');

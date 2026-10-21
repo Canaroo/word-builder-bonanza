@@ -16,7 +16,7 @@ export interface WordLists {
 }
 
 const MEDIA = ['vhs', 'cartridge', 'cd', 'arcade'];
-const SCORE_KINDS = ['contains', 'endsWith', 'equals'];
+const SCORE_KINDS = ['contains', 'endsWith', 'equals', 'over'];
 const MIN_WORD_LENGTH = 3;
 
 /** Problems with a bonus word alone (letters, dictionary, blocked list). */
