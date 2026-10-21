@@ -1,7 +1,7 @@
 {
   "name": "word-nerd",
   "private": true,
-  "version": "7.2.0",
+  "version": "7.2.1",
   "type": "module",
   "scripts": {
     "words": "node scripts/build-wordlist.mjs",
@@ -20,7 +20,6 @@
     "@fontsource/poppins": "5.3.0",
     "@fontsource/roboto-mono": "5.3.0",
     "@fontsource/vt323": "5.3.0",
-    "firebase": "^12.19.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

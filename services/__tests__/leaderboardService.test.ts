@@ -130,3 +130,16 @@ describe('name cleanup (matches the online board rules)', () => {
         expect(online.rows[0].name).toBe('Tex');
     });
 });
+
+describe('offline reason and retry', () => {
+    test('the board says why it is offline, and Retry skips the back-off', async () => {
+        online.enabled = true;
+        online.fail = true;
+        expect(await leaderboardService.getLeaderboard()).toMatchObject({ source: 'local', offlineReason: 'unavailable' });
+        online.fail = false;
+        expect((await leaderboardService.getLeaderboard()).source).toBe('local'); // still backing off
+        const retried = await leaderboardService.getLeaderboard({ retry: true });
+        expect(retried.source).toBe('online');
+        expect(retried.offlineReason).toBeUndefined();
+    });
+});
