@@ -255,6 +255,7 @@ const App: React.FC = () => {
       activeBuffs: gameState.activeBuffs,
       highestScoringWord: gameState.highestScoringWord,
       longestStreak: gameState.longestStreak,
+      timeLedger: gameState.timeLedger,
     };
     
     // Auto-save the log on game over

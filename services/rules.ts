@@ -17,18 +17,49 @@ export const timeForWord = (length: number): number =>
 export const levelFor = (validWords: number): number =>
     1 + Math.floor(Math.max(0, validWords) / GAMEPLAY.levels.wordsPerLevel);
 
-/** How fast the clock runs at this level: 1 = real time, capped at maxSpeed. */
+/**
+ * Levels counted at the early and late rates for a level-based ramp that starts at fromLevel:
+ * early levels run up to lateFromLevel, late levels are the ones after it.
+ */
+const rampSteps = (level: number, fromLevel: number) => {
+    const { lateFromLevel } = GAMEPLAY.levels;
+    const lv = Math.max(1, level);
+    return {
+        early: Math.max(0, Math.min(lv, lateFromLevel) - (fromLevel - 1)),
+        late: Math.max(0, lv - Math.max(lateFromLevel, fromLevel - 1)),
+    };
+};
+
+/** How fast the clock runs at this level: 1 = real time, +5% a level, steeper after lateFromLevel, capped at maxSpeed. */
 export const clockSpeedFor = (level: number): number => {
-    const { speedUpPerLevel, maxSpeed } = GAMEPLAY.levels;
-    return Math.min(maxSpeed, Math.round((1 + speedUpPerLevel * (Math.max(1, level) - 1)) * 100) / 100);
+    const { speedUpPerLevel, lateSpeedUpPerLevel, maxSpeed } = GAMEPLAY.levels;
+    const { early, late } = rampSteps(level, 2);
+    return Math.min(maxSpeed, Math.round((1 + speedUpPerLevel * early + lateSpeedUpPerLevel * late) * 100) / 100);
 };
 
 /** Milliseconds per clock tick at this level. */
 export const tickMsFor = (level: number): number => Math.round(1000 / clockSpeedFor(level));
 
-/** Seconds a valid word earns at this level, before the overflow tax: 3-letter words stop paying later on. */
-export const timeForWordAtLevel = (length: number, level: number): number =>
-    length <= 3 && level >= GAMEPLAY.timeBank.shortWordTimeStopsAtLevel ? 0 : timeForWord(length);
+/** Share of a word's time it still earns at this level (1 early on, down to wordTimeShrink.min). */
+export const wordTimeScaleFor = (level: number): number => {
+    const { perLateLevel, min } = GAMEPLAY.wordTimeShrink;
+    const { late } = rampSteps(level, GAMEPLAY.levels.lateFromLevel + 1);
+    return Math.max(min, Math.round((1 - perLateLevel * late) * 100) / 100);
+};
+
+/** Seconds a valid word earns at this level, before the overflow tax: 3-letter words stop paying, and the rest shrink. */
+export const timeForWordAtLevel = (length: number, level: number): number => {
+    if (length <= 3 && level >= GAMEPLAY.timeBank.shortWordTimeStopsAtLevel) return 0;
+    const seconds = timeForWord(length);
+    return seconds > 0 ? Math.max(1, Math.round(seconds * wordTimeScaleFor(level))) : 0;
+};
+
+/** Letters needed to fill the PowerPlay meter at this level. */
+export const meterLettersFor = (level: number): number => {
+    const { fromLevel, perLevel, perLateLevel, max } = GAMEPLAY.powerPlayMeterGrowth;
+    const { early, late } = rampSteps(level, fromLevel);
+    return Math.min(max, GAMEPLAY.powerPlayMeterLetters + perLevel * early + perLateLevel * late);
+};
 
 /** Overflow tax: while the bank is above overflowAbove, word time is halved (rounded down). */
 export const taxWordTime = (seconds: number, bank: number): number =>
@@ -100,8 +131,9 @@ export const refillCount = (tilesInHand: number, handSize: number = GAMEPLAY.han
     Math.max(0, handSize - tilesInHand);
 
 /** PowerPlay meter after playing a word, and whether it just filled. */
-export const advancePowerPlayMeter = (lettersSoFar: number, wordLength: number) => {
+export const advancePowerPlayMeter = (lettersSoFar: number, wordLength: number, level = 1) => {
+    const needed = meterLettersFor(level);
     const total = lettersSoFar + wordLength;
-    const full = total >= GAMEPLAY.powerPlayMeterLetters;
-    return { letters: full ? GAMEPLAY.powerPlayMeterLetters : total, full };
+    const full = total >= needed;
+    return { letters: full ? needed : total, full };
 };

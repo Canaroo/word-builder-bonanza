@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { FinalGameState, WordLogEntry } from '../../types';
+import { FinalGameState, WordLogEntry, TimeLedger } from '../../types';
 import { soundService } from '../soundService';
 import EventLogDisplay from '../../components/EventLogDisplay';
 import { showToast } from '../toast';
@@ -27,6 +27,44 @@ interface GameOverScreenProps {
   /** What this run did to the daily streak. */
   streak?: StreakUpdate | null;
 }
+
+const TIME_SOURCES = [
+  { key: 'words', label: 'Words', icon: '📝', bar: 'bg-neon-cyan' },
+  { key: 'powerUps', label: 'PowerPlays & charms', icon: '⚡', bar: 'bg-neon-pink' },
+  { key: 'shuffles', label: 'Shuffles', icon: '🔀', bar: 'bg-neon-yellow' },
+] as const;
+
+/** Where this run's time came from: a stacked bar and the seconds from each source. */
+const TimeRecap: React.FC<{ ledger?: TimeLedger }> = ({ ledger }) => {
+  const total = ledger ? ledger.words + ledger.powerUps + ledger.shuffles : 0;
+  if (!ledger || total <= 0) return null;
+  return (
+    <div className="py-2 border-b border-dashed border-white/10 text-left" aria-label="Where your time came from">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="osd-text text-lg leading-none text-neon-cyan/90">⏱ TIME EARNED</span>
+        <span className="font-osd text-2xl leading-none text-white">{total}s</span>
+      </div>
+      <div className="mt-2 flex h-2.5 rounded-full overflow-hidden bg-crt-700">
+        {TIME_SOURCES.map(src => ledger[src.key] > 0 && (
+          <div key={src.key} className={src.bar} style={{ width: `${(ledger[src.key] / total) * 100}%` }} />
+        ))}
+      </div>
+      <ul className="mt-1.5 space-y-0.5">
+        {TIME_SOURCES.map(src => (
+          <li key={src.key} className="flex items-center justify-between gap-2 osd-text text-base leading-tight text-slate-300">
+            <span className="flex items-center gap-1.5"><span className={`inline-block w-2 h-2 rounded-full ${src.bar}`} />{src.icon} {src.label.toUpperCase()}</span>
+            <span className="tabular-nums">{ledger[src.key]}s · {Math.round((ledger[src.key] / total) * 100)}%</span>
+          </li>
+        ))}
+      </ul>
+      {ledger.goldenRounds > 0 && (
+        <p className="osd-text text-base leading-tight text-neon-yellow mt-1">
+          🌟 {ledger.goldenRounds} GOLDEN ROUND{ledger.goldenRounds === 1 ? '' : 'S'} PAUSED YOUR CLOCK
+        </p>
+      )}
+    </div>
+  );
+};
 
 const StatRow: React.FC<{ label: string; value: React.ReactNode; icon: string; isHighlighted?: boolean; }> = ({ label, value, icon, isHighlighted }) => {
   const valueColor = isHighlighted ? 'text-neon-yellow' : 'text-white';
@@ -255,6 +293,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
               <StatRow icon="🏆" label="Top Word" value={topScoringWordDisplay} isHighlighted />
               <StatRow icon="📊" label="Avg Word" value={averageWordScore} />
               <StatRow icon="🔥" label="Best Streak" value={wordStreakDisplay} />
+              <TimeRecap ledger={gameState.timeLedger} />
           </div>
       </div>
 

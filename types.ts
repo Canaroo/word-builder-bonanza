@@ -148,6 +148,14 @@ export interface GameOverLogEntry {
 export type LogEntry = WordLogEntry | EventLogEntry | GameOverLogEntry;
 
 
+/** Seconds a run added to its time bank, by source, plus how many Golden Rounds paused the bank. */
+export interface TimeLedger {
+  words: number;
+  powerUps: number;
+  shuffles: number;
+  goldenRounds: number;
+}
+
 export interface GameState {
   score: number;
   log: LogEntry[];
@@ -226,6 +234,8 @@ export interface GameState {
   ludicrousTimeCost?: number;
   /** Seconds the last valid word earns for the time bank, added when the next round starts. */
   pendingTimeBonus?: number;
+  /** Where this run's time came from, for the Game Over recap. */
+  timeLedger?: TimeLedger;
   /** The time bank, set aside while a Golden Round runs on its own clock. */
   bankedTime?: number | null;
   powerWordUsed?: boolean;
@@ -293,6 +303,7 @@ export interface FinalGameState {
   activeBuffs: (Charm | PowerPlay)[];
   highestScoringWord: WordData | null;
   longestStreak: number;
+  timeLedger?: TimeLedger;
   saveTimestamp?: string;
   isPinned?: boolean;
   isViewed?: boolean;
