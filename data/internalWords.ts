@@ -27,6 +27,7 @@ export const internalWords = new Map<string, string>([
   ['bop', 'To hit or strike.'],
   ['bot', 'The larva of a botfly.'],
   ['by', 'Near or next to.'],
+  ['coon', 'A raccoon.'],
   ['cab', 'A vehicle for hire—or a getaway ride if Scrabble turns competitive.'],
   ['cad', 'A dishonorable man; the type who’d play “qi” on a triple word and smirk.'],
   ['cam', 'A rotating or sliding piece in mechanical magic—tiny, vital, and scrabbly.'],

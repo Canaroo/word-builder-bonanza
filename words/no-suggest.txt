@@ -1,0 +1,12 @@
+# Playable, never suggested
+# -------------------------
+# Words listed here are valid when a player types them, but the game never offers them:
+# not as the daily Power Word, a hint (Carmen Sandiego, Phone-a-Friend), a Challenge answer,
+# or a dealt/balancing word. Use it for words that are fine to allow but double as slurs.
+# One word per line, letters only. Lines starting with # are comments.
+#
+# After editing, run `npm run words` to rebuild the lists.
+
+# Raccoon; also a racial slur. Allowed at the owner's request, never suggested.
+coon
+coons
