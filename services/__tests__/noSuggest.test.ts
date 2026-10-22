@@ -13,6 +13,13 @@ describe('playable but never suggested', () => {
         expect(list.has('coons')).toBe(true);
     });
 
+    test('DINK is playable as a drop shot, and never suggested', () => {
+        expect(curatedWords.get('dink')).toBe('A drop shot.');
+        const list = new Set(readFileSync(resolve(__dirname, '../../public/words/wordlist.txt'), 'utf8').split('\n'));
+        expect(list.has('dink')).toBe(true);
+        expect(suggestableWords.has('dink')).toBe(false);
+    });
+
     test('no-suggest words are never Power Words, hints or Challenge answers', () => {
         expect(NO_SUGGEST_WORDS.has('coon')).toBe(true);
         for (const w of NO_SUGGEST_WORDS) expect(suggestableWords.has(w)).toBe(false);

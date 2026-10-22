@@ -124,6 +124,7 @@ export const internalWords = new Map<string, string>([
   ['din', 'Loud, chaotic noise — see: lunchroom.'],
   ['dine', 'To eat dinner.'],
   ['ding', 'A small dent or sound of a bell.'],
+  ['dink', 'A drop shot.'],
   ['dip', 'To plunge briefly or scoop chips with flair.'],
   ['dire', 'Extremely serious or urgent.'],
   ['dis', 'To disrespect. Streetwise and Scrabble-legal.'],
