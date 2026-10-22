@@ -17,9 +17,20 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
   const isSpecialTile = tile.isCombo || tile.isSuper || hasMultiplier;
   const glimmerClass = isSpecialTile ? 'glimmer-effect' : '';
 
-  const handleInteraction = (e: React.SyntheticEvent) => {
+  // Tiles act the moment a finger (or mouse button) goes down. A click only arrives after the
+  // finger lifts, and phones drop it if the finger slid a little or pressed a bit long, which made
+  // quick taps feel unresponsive.
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
     e.preventDefault();
     if (tile.isLocked) return;
+    onClick();
+  };
+  // Pointer taps were already handled on pointer-down; a click with detail 0 comes from the
+  // keyboard (Enter/Space) or a script, so it still works for them.
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (e.detail !== 0 || tile.isLocked) return;
     onClick();
   };
   
@@ -40,7 +51,9 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
 
   return (
     <button
-      onClick={handleInteraction}
+      onPointerDown={handlePointerDown}
+      onClick={handleClick}
+      onContextMenu={e => e.preventDefault()}
       disabled={tile.isLocked}
       className={`tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none ${tileStyle} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
       aria-label={`Tile ${tile.letter} with ${tile.tempPoints ?? tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${tile.isLocked ? ' (locked for this turn)' : ''}`}

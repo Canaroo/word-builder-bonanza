@@ -26,7 +26,10 @@ export default defineConfig({
         description: 'A fast-paced, Scrabble-inspired word game packed with 90s and 2000s pop culture bonuses.',
         theme_color: '#0f172a',
         background_color: '#0f172a',
-        display: 'standalone',
+        // Installed from the home screen, the game opens full screen with no browser banner.
+        // Browsers without full-screen app support fall back to standalone.
+        display: 'fullscreen',
+        display_override: ['fullscreen', 'standalone'],
         orientation: 'portrait',
         start_url: '.',
         icons: [

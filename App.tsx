@@ -139,7 +139,14 @@ const App: React.FC = () => {
     }
   }, [playerName]);
 
+  // Chrome shows its "To exit full screen, drag from the top" banner every time a page asks for
+  // full screen, and pages can't turn it off. So only ask when the game isn't already full screen,
+  // and never when it's installed to the home screen (that version opens full screen by itself).
   const enterFullscreen = () => {
+    const doc = document as any;
+    if (doc.fullscreenElement || doc.webkitFullscreenElement) return;
+    const installed = window.matchMedia?.('(display-mode: fullscreen), (display-mode: standalone)').matches || (navigator as any).standalone;
+    if (installed) return;
     const elem = document.documentElement as any;
     if (elem.requestFullscreen) {
       elem.requestFullscreen().catch((err: Error) => {
