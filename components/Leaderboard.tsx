@@ -64,7 +64,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
   };
 
   return (
-    <div className="w-full bg-crt-950/80 ring-1 ring-neon-cyan/30 p-4 rounded-xl flex-grow flex flex-col">
+    <div className="w-full bg-crt-950/80 ring-1 ring-neon-cyan/30 p-4 rounded-xl flex-1 min-h-0 flex flex-col">
       <h3 className="font-display text-2xl text-center neon-text-pink mb-1 shrink-0">HIGH SCORES</h3>
       {source === 'online' || !leaderboardService.isOnline() ? (
         <p className="osd-text text-base text-center text-neon-cyan/80 mb-3 shrink-0">
@@ -84,7 +84,8 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
       )}
       {data.length > 0 ? (
         <>
-          <ol className="space-y-2 flex-grow overflow-y-auto p-2 -mx-2 min-h-[350px]">
+          {/* The list scrolls inside the pop-up, so the page buttons and Close always stay on screen. */}
+          <ol className="space-y-2 flex-1 min-h-[8rem] overflow-y-auto overscroll-contain p-2 -mx-2">
             {scoresForPage.map((entry, index) => {
               const rank = (currentPage * SCORES_PER_PAGE) + index + 1;
               const isFirst = rank === 1;
@@ -101,7 +102,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
                 >
                   {/* Left: rank, badge, name + streak, and the title (if any) under the name. */}
                   <div className="flex items-center min-w-0 flex-1">
-                    <span className={`font-osd w-10 shrink-0 text-center mr-2 text-2xl leading-none ${rank === 1 ? 'text-neon-yellow' : rank === 2 ? 'text-slate-200' : rank === 3 ? 'text-neon-orange' : 'text-slate-500'}`}>
+                    <span className={`font-osd w-7 min-[375px]:w-10 shrink-0 text-center mr-1 min-[375px]:mr-2 text-2xl leading-none ${rank === 1 ? 'text-neon-yellow' : rank === 2 ? 'text-slate-200' : rank === 3 ? 'text-neon-orange' : 'text-slate-500'}`}>
                       {isFirst ? '👑' : rank}
                     </span>
                     <BadgeIcon id={entry.badge} size="sm" />
@@ -117,10 +118,10 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
                   </div>
                   {/* Right: the score, with the date and time under it. */}
                   <div className="shrink-0 text-right pl-2">
-                    <span className={`block font-osd text-3xl leading-none tabular-nums ${isFirst ? 'text-neon-yellow' : 'text-neon-cyan'}`}>
+                    <span className={`block font-osd text-2xl min-[375px]:text-3xl leading-none tabular-nums ${isFirst ? 'text-neon-yellow' : 'text-neon-cyan'}`}>
                       {entry.score.toLocaleString()}
                     </span>
-                    {entry.date && <span className="block osd-text text-sm leading-none text-slate-500 mt-0.5 whitespace-nowrap">{formatDate(entry.date)}</span>}
+                    {entry.date && <span className="block osd-text text-xs min-[375px]:text-sm leading-none text-slate-500 mt-0.5 whitespace-nowrap">{formatDate(entry.date)}</span>}
                   </div>
                 </li>
               );
@@ -137,7 +138,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
           )}
         </>
       ) : (
-        <div className="flex flex-col items-center justify-center min-h-[350px] gap-2">
+        <div className="flex flex-col items-center justify-center flex-1 min-h-[10rem] gap-2">
           <span className="osd-text text-2xl text-slate-400">NO SCORES YET</span>
           <span className="osd-text text-xl text-neon-yellow blink">INSERT COIN</span>
         </div>

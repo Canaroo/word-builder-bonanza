@@ -260,7 +260,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
       
       {showLeaderboardModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-crt-900 border-2 border-neon-pink shadow-glow-pink rounded-2xl p-4 text-center max-w-md w-full flex flex-col max-h-[90vh] bonus-insert">
+          <div className="bg-crt-900 border-2 border-neon-pink shadow-glow-pink rounded-2xl p-4 text-center max-w-md w-full flex flex-col modal-max-h bonus-insert">
             <Leaderboard data={leaderboardData} isLoading={isLoadingLeaderboard} source={leaderboardSource} offlineReason={leaderboardOfflineReason} onRetry={() => fetchLeaderboard(true)} />
             <ArcadeButton color="yellow" className="w-full mt-4" onClick={handleCloseLeaderboard}>Close</ArcadeButton>
           </div>
@@ -269,7 +269,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
       {showEventLogsModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-crt-900 border-2 border-neon-green rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col max-h-[90vh]">
+          <div className="bg-crt-900 border-2 border-neon-green rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col modal-max-h">
             {selectedRun ? (
                <>
                 <h2 className="font-display text-2xl text-neon-green mb-2 flex-shrink-0">Viewing Event Log</h2>
@@ -313,7 +313,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
       {showMissedWordsModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-crt-900 border-2 border-neon-red rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col max-h-[90vh]">
+          <div className="bg-crt-900 border-2 border-neon-red rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col modal-max-h">
             <h2 className="font-display text-2xl text-neon-pink mb-2">Missed Words ({missedWords.length}/{missedWordsService.MAX_WORDS})</h2>
             <p className="text-sm text-slate-400 mb-4">Your 10 most recent words from failed challenges.</p>
             <div className="flex-grow overflow-y-auto pr-2 space-y-3 min-h-[350px]">
@@ -337,7 +337,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
       {showStreak && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Daily streak">
-          <div className="bg-crt-900 border-2 border-neon-orange rounded-2xl p-4 shadow-2xl max-w-md w-full flex flex-col max-h-[92vh]">
+          <div className="bg-crt-900 border-2 border-neon-orange rounded-2xl p-4 shadow-2xl max-w-md w-full flex flex-col modal-max-h">
             <h2 className="font-display text-2xl text-neon-orange text-center leading-none mb-2">DAILY STREAK</h2>
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-1 -m-1">
               <StreakPanel coins={lexCoins} onBuyFreeze={onBuyFreeze} />

@@ -1053,3 +1053,10 @@ body {
   to { width: 100%; }
 }
 .shuffle-hold-fill { animation: shuffle-hold-fill linear forwards; }
+
+/* Pop-ups never grow past the visible screen. 100dvh is the height actually visible on phones
+   (vh can include the space behind the browser's bars); older browsers use the vh line. */
+.modal-max-h {
+  max-height: 92vh;
+  max-height: 92dvh;
+}

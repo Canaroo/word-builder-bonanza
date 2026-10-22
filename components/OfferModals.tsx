@@ -10,7 +10,7 @@ import ArcadeButton from './ArcadeButton';
 const Overlay: React.FC<{ tone: 'green' | 'purple'; children: React.ReactNode }> = ({ tone, children }) => (
   <div className="absolute inset-0 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center z-50 p-3 animate-fade-in">
     <div
-      className={`bg-crt-900 border-2 rounded-2xl p-4 w-full max-w-md flex flex-col max-h-[92vh] bonus-insert ${
+      className={`bg-crt-900 border-2 rounded-2xl p-4 w-full max-w-md flex flex-col modal-max-h bonus-insert ${
         tone === 'green' ? 'border-neon-green shadow-[0_0_18px_rgba(61,255,140,0.35)]' : 'border-neon-purple shadow-[0_0_18px_rgba(180,92,255,0.4)]'
       }`}
       role="dialog"
