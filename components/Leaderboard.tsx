@@ -28,13 +28,17 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
     );
   }
 
+  // Short, so it fits under the score and leaves the name room: "Oct 22 12:51 AM", with a short
+  // year only when it isn't this one ("Mar 4 '25 3:20 PM").
   const formatDate = (isoString: string) => {
     if (!isoString) return '';
     const date = new Date(isoString);
-    return date.toLocaleString(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short"
-    });
+    if (Number.isNaN(date.getTime())) return '';
+    const sameYear = date.getFullYear() === new Date().getFullYear();
+    const day = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const year = sameYear ? '' : ` '${String(date.getFullYear()).slice(-2)}`;
+    const time = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    return `${day}${year} ${time}`;
   };
 
   const totalPages = Math.ceil(data.length / SCORES_PER_PAGE);
@@ -95,8 +99,9 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
                       : 'bg-crt-800/60'
                   } ${isOwnScore ? 'highlight-own-score' : ''}`}
                 >
-                  <div className="flex items-center">
-                    <span className={`font-osd w-10 text-center mr-2 text-2xl leading-none ${rank === 1 ? 'text-neon-yellow' : rank === 2 ? 'text-slate-200' : rank === 3 ? 'text-neon-orange' : 'text-slate-500'}`}>
+                  {/* Left: rank, badge, name + streak, and the title (if any) under the name. */}
+                  <div className="flex items-center min-w-0 flex-1">
+                    <span className={`font-osd w-10 shrink-0 text-center mr-2 text-2xl leading-none ${rank === 1 ? 'text-neon-yellow' : rank === 2 ? 'text-slate-200' : rank === 3 ? 'text-neon-orange' : 'text-slate-500'}`}>
                       {isFirst ? '👑' : rank}
                     </span>
                     <BadgeIcon id={entry.badge} size="sm" />
@@ -107,14 +112,16 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
                         </span>
                         <StreakFlame count={entry.streak ?? 0} className="text-base" />
                       </span>
-                      {entry.title
-                        ? <TitleText id={entry.title} className="text-sm leading-none block truncate" />
-                        : <p className="osd-text text-sm leading-none text-slate-500">{formatDate(entry.date)}</p>}
+                      {entry.title && <TitleText id={entry.title} className="text-sm leading-none block truncate mt-0.5" />}
                     </div>
                   </div>
-                  <span className={`font-osd text-3xl leading-none tabular-nums ${isFirst ? 'text-neon-yellow' : 'text-neon-cyan'}`}>
-                    {entry.score.toLocaleString()}
-                  </span>
+                  {/* Right: the score, with the date and time under it. */}
+                  <div className="shrink-0 text-right pl-2">
+                    <span className={`block font-osd text-3xl leading-none tabular-nums ${isFirst ? 'text-neon-yellow' : 'text-neon-cyan'}`}>
+                      {entry.score.toLocaleString()}
+                    </span>
+                    {entry.date && <span className="block osd-text text-sm leading-none text-slate-500 mt-0.5 whitespace-nowrap">{formatDate(entry.date)}</span>}
+                  </div>
                 </li>
               );
             })}

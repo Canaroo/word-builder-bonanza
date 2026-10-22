@@ -1046,3 +1046,10 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .level-meltdown { animation: none; }
 }
+
+/* Shuffle is press-and-hold: this fill sweeps across the button while it's held. */
+@keyframes shuffle-hold-fill {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+.shuffle-hold-fill { animation: shuffle-hold-fill linear forwards; }

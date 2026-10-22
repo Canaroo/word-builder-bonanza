@@ -60,7 +60,8 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
           </p>
           <p>
             <Key>Lifeline:</Key> every shuffle adds <Key>+{timeBank.shuffleTimeBonus}s</Key>. You only get a few, so save
-            them for when the clock gets tight.
+            them for when the clock gets tight. <Key>Press and hold</Key> Shuffle until the bar fills, so a stray tap
+            never wastes one.
           </p>
           <p>
             <Key>Speed-up levels:</Key> every {GAMEPLAY.levels.wordsPerLevel} words the level goes up and the clock runs{' '}

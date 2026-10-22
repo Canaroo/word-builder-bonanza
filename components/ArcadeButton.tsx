@@ -26,10 +26,11 @@ interface ArcadeButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement
 }
 
 /** Chunky arcade push button that presses down when tapped. */
-const ArcadeButton: React.FC<ArcadeButtonProps> = ({ color = 'yellow', size = 'md', className = '', style, children, ...props }) => {
+const ArcadeButton = React.forwardRef<HTMLButtonElement, ArcadeButtonProps>(({ color = 'yellow', size = 'md', className = '', style, children, ...props }, ref) => {
   const { face, edge } = COLORS[color];
   return (
     <button
+      ref={ref}
       type="button"
       {...props}
       style={{ ['--btn-edge' as string]: edge, ...style }}
@@ -38,6 +39,7 @@ const ArcadeButton: React.FC<ArcadeButtonProps> = ({ color = 'yellow', size = 'm
       {children}
     </button>
   );
-};
+});
+ArcadeButton.displayName = 'ArcadeButton';
 
 export default ArcadeButton;
