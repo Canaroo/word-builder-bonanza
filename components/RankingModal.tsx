@@ -70,7 +70,7 @@ const RankingModal: React.FC<RankingModalProps> = ({ data, onClose, onShowLeader
 
   return (
     <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className={`relative bg-crt-900 border-2 rounded-2xl p-6 shadow-2xl max-w-md w-full flex flex-col max-h-[90vh] text-center overflow-hidden bonus-insert ${config.modalClass}`}>
+      <div className={`relative bg-crt-900 border-2 rounded-2xl p-6 shadow-2xl max-w-md w-full flex flex-col modal-max-h text-center overflow-hidden bonus-insert ${config.modalClass}`}>
         {config.decorativeElement}
         <div className="relative z-10">
             <h2 className="font-display text-3xl text-neon-yellow drop-shadow-glow-yellow mb-2">{config.icon} {config.title}</h2>

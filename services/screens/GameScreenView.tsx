@@ -147,7 +147,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
         const { type, title, content, data } = modalContent;
         const modalBaseClass = "absolute inset-0 bg-crt-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in";
-        const modalBoxBaseClass = "bg-crt-900 border-2 rounded-2xl p-6 shadow-2xl max-w-md w-full flex flex-col max-h-[90vh]";
+        const modalBoxBaseClass = "bg-crt-900 border-2 rounded-2xl p-6 shadow-2xl max-w-md w-full flex flex-col modal-max-h";
 
         // Title, text and an optional points line: used by info, word-bonus and game-over pop-ups.
         function renderPlainCard(cardTitle: string, cardContent: React.ReactNode, cardData: any) {

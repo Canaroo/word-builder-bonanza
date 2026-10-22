@@ -174,7 +174,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
     <div className="flex flex-col h-full p-4 md:p-6 text-center justify-between relative animate-fade-in">
       {showWordLog && (
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-            <div className="bg-crt-900 border-2 border-neon-purple shadow-glow-pink rounded-2xl p-5 text-center max-w-md w-full flex flex-col max-h-[90vh]">
+            <div className="bg-crt-900 border-2 border-neon-purple shadow-glow-pink rounded-2xl p-5 text-center max-w-md w-full flex flex-col modal-max-h">
                 <h2 className="font-display text-2xl text-neon-yellow mb-2 flex-shrink-0">Event Log</h2>
                 <div className="flex-grow overflow-y-auto pr-2">
                     <EventLogDisplay log={gameState.log} />
