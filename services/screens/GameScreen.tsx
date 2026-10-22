@@ -42,7 +42,9 @@ interface GameScreenProps {
 
 const BUILD_ROW_SIZE = 8;
 
-const initialGameState: GameState = {
+// A fresh starting state for every run. It must be a new object each time: the game updates some
+// nested fields in place, and a shared starting object would carry them into the next run.
+export const createInitialGameState = (): GameState => ({
   score: 0,
   log: [],
   longestWord: '',
@@ -124,7 +126,7 @@ const initialGameState: GameState = {
   itemStats: {},
   sessionOfferCounts: {},
   totalOffersMade: 0,
-};
+});
 
 export type GameScreenState = {
   /** Last change to the time bank, shown as a floating +Ns / -Ns next to the clock. */
@@ -149,28 +151,34 @@ export type GameScreenState = {
   longWordBonusNotified: boolean;
 }
 
-export const screenInitialState: GameScreenState = {
-  gameState: initialGameState,
-  time: initialGameState.gameConfig.timerDuration,
-  hand: Array(RACK_SIZE).fill(null),
-  buildRow: Array(BUILD_ROW_SIZE).fill(null),
-  tileBag: [],
-  message: '',
-  isPaused: false,
-  isLoading: true,
-  loadingMessage: null,
-  modalContent: null,
-  modalQueue: [],
-  tilesToSwap: [],
-  tileToTransform: null,
-  challengeWordData: null,
-  tileForSelection: null,
-  lastTurnState: null,
-  highlightedTileIds: { first: null, rest: [] },
-  longWordBonusNotified: false,
-}
+const createScreenInitialState = (): GameScreenState => {
+  const gameState = createInitialGameState();
+  return {
+    gameState,
+    time: gameState.gameConfig.timerDuration,
+    hand: Array(RACK_SIZE).fill(null),
+    buildRow: Array(BUILD_ROW_SIZE).fill(null),
+    tileBag: [],
+    message: '',
+    isPaused: false,
+    isLoading: true,
+    loadingMessage: null,
+    modalContent: null,
+    modalQueue: [],
+    tilesToSwap: [],
+    tileToTransform: null,
+    challengeWordData: null,
+    tileForSelection: null,
+    lastTurnState: null,
+    highlightedTileIds: { first: null, rest: [] },
+    longWordBonusNotified: false,
+  };
+};
 
-type GameAction = 
+/** The starting screen state (tests use it; a new run calls createScreenInitialState()). */
+export const screenInitialState: GameScreenState = createScreenInitialState();
+
+type GameAction =
     | { type: 'SET_IS_LOADING', payload: boolean }
     | { type: 'SET_LOADING_MESSAGE', payload: string | null }
     | { type: 'SET_HAND_AND_BAG', payload: { hand: (Tile | null)[], tileBag: string[] } }
@@ -709,7 +717,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
 
         case 'START_NEXT_ROUND': {
             // Time bank: keep the clock and add what the last word earned, plus charm/PowerPlay bonuses below.
-            const settled = settleTimeBank(state.time, { ...state.gameState });
+            const settled = settleTimeBank(state.time, { ...state.gameState, activePowerPlays: { ...state.gameState.activePowerPlays } });
             let newGameState = settled.gs;
             const wordTime = newGameState.pendingTimeBonus ?? 0;
             const taxedWordTime = taxWordTime(wordTime, settled.time);
@@ -2031,7 +2039,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             }
         }
     }
-    return screenInitialState;
+    return createScreenInitialState();
   });
   const { gameState, time, hand, buildRow, tileBag, message, isPaused, isLoading, modalContent, tilesToSwap, lastTurnState, longWordBonusNotified, tileToTransform } = state;
   const isChallengeLock = gameState.challengeActive;
@@ -3089,6 +3097,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
       newState.charmCooldowns = newCharmCooldowns;
       
+      // The offer checks below update these in place: copy them first, so the previous turn
+      // (kept for undo) and other runs never see the changes.
+      newState.wordMilestoneProgress = { ...newState.wordMilestoneProgress };
+      newState.offerHistory = [...newState.offerHistory];
+      newState.itemStats = { ...newState.itemStats };
+      newState.sessionOfferCounts = { ...newState.sessionOfferCounts };
+
       // PowerPlay Offer Check
       let newProgress = { ...newState.powerPlayProgress };
       newProgress.turnsSinceLastOffer++;
@@ -3121,7 +3136,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                   newState.totalOffersMade++;
                   offerDetails.forEach(offer => {
                       const id = offer.id;
-                      const stats = newState.itemStats[id] || { offered: 0, lastOfferedTurn: -1 };
+                      const stats = { ...(newState.itemStats[id] || { offered: 0, lastOfferedTurn: -1 }) };
                       stats.offered++;
                       stats.lastOfferedTurn = totalWords + 1; // current turn
                       newState.itemStats[id] = stats;
@@ -3160,7 +3175,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             newState.totalOffersMade++;
             offerDetails.forEach(offer => {
                 const id = offer.id;
-                const stats = newState.itemStats[id] || { offered: 0, lastOfferedTurn: -1 };
+                const stats = { ...(newState.itemStats[id] || { offered: 0, lastOfferedTurn: -1 }) };
                 stats.offered++;
                 stats.lastOfferedTurn = totalWords + 1; // current turn
                 newState.itemStats[id] = stats;
