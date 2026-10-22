@@ -5,7 +5,7 @@
 // from data/internalWords.ts, then a small on-device cache, then dictionaryapi.dev,
 // which is never used to decide whether a word is valid.
 import { internalWords } from '../data/internalWords';
-import { curatedWords, isBlocked } from './curatedWords';
+import { curatedWords, suggestableWords, isBlocked } from './curatedWords';
 import { canBeMadeFromLetters } from './rackMatch';
 import type { FindWordOptions } from './wordIndex';
 import type { DictionaryRequest, DictionaryResponse } from './dictionary.worker';
@@ -176,7 +176,7 @@ async function findPlayableWord(letters: string[], options: FindWordOptions = {}
     if (fromList !== undefined) return fromList;
 
     let best: string | null = null;
-    for (const w of curatedWords.keys()) {
+    for (const w of suggestableWords.keys()) {
         if (w.length >= minLength && canBeMadeFromLetters(w, letters)) {
             if (!longest) return w;
             if (!best || w.length > best.length) best = w;
@@ -190,7 +190,7 @@ async function findPlayableWord(letters: string[], options: FindWordOptions = {}
  * such as finding 3-letter words when balancing a rack.
  */
 function getDictionaryWords(): IterableIterator<string> {
-    return curatedWords.keys();
+    return suggestableWords.keys();
 }
 
 export const dictionaryService = {

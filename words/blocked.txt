@@ -60,8 +60,6 @@ yids
 # base list dropped (BUM, BUTT, CRAP, DAMN, SEXY, VAPE...), and these come back with them.
 # Slurs:
 chink
-coon
-coons
 dyke
 dykes
 fag

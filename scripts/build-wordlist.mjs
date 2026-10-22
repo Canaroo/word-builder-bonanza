@@ -37,6 +37,8 @@ const internalSource = fs.readFileSync(path.join(root, 'data/internalWords.ts'),
 const internal = checkWords([...internalSource.matchAll(/^\s*\['([^']+)',/gm)].map((m) => m[1].toLowerCase()), 'data/internalWords.ts');
 const custom = checkWords(readWordFile('words/custom.txt'), 'words/custom.txt');
 const blocked = new Set(checkWords(readWordFile('words/blocked.txt'), 'words/blocked.txt'));
+// Valid when typed, but never offered as a hint or Challenge answer (see words/no-suggest.txt).
+const noSuggest = new Set(checkWords(readWordFile('words/no-suggest.txt'), 'words/no-suggest.txt'));
 const base = fs.readFileSync(baseListPath, 'utf8').split('\n');
 
 const require = createRequire(import.meta.url);
@@ -71,7 +73,7 @@ const common = new Set();
 for (const variant of ['english', 'american']) {
   for (const level of COMMON_LEVELS) {
     for (const w of require(`wordlist-english/${variant}-words-${level}.json`)) {
-      if (curated.has(w)) common.add(w);
+      if (curated.has(w) && !noSuggest.has(w)) common.add(w);
     }
   }
 }
