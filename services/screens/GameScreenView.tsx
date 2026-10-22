@@ -12,7 +12,8 @@ import { MILESTONES_LIST } from '../../data/milestones';
 import DurationBadge from '../../ui/DurationBadge';
 import { RACK_SIZE, HAND_SIZE } from '../../constants';
 import { GAMEPLAY, CHARM_SLOTS } from '../../config/gameplay';
-import { levelFor, clockSpeedFor, snitchTargetFor, meterLettersFor } from '../rules';
+import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor } from '../rules';
+import LevelBadge from '../../components/LevelBadge';
 
 export type ModalContent = {
   type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log';
@@ -584,7 +585,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         {/* Timer Display */}
         <div className="text-center">
           <div className="relative" ref={timerRef}>
-            <Timer time={time ?? 0} golden={gameState?.roundType === 'golden'} />
+            <Timer time={time ?? 0} golden={gameState?.roundType === 'golden'} tone={levelTierFor(levelFor(totalWords ?? 0)).tone} />
             {timeGain && timeGain.seconds !== 0 && (
               <span
                 key={timeGain.key}
@@ -596,9 +597,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             )}
           </div>
           {gameState?.roundType !== 'golden' && (
-            <div className="osd-text text-sm leading-none text-neon-cyan/80 mt-0.5" title="Every 15 words the level goes up and the clock runs faster">
-              LV {levelFor(totalWords ?? 0)}{clockSpeedFor(levelFor(totalWords ?? 0)) > 1 && <span className="text-neon-orange"> · x{clockSpeedFor(levelFor(totalWords ?? 0))}</span>}
-            </div>
+            <LevelBadge validWords={totalWords ?? 0} />
           )}
         </div>
 

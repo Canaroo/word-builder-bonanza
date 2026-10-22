@@ -1028,3 +1028,13 @@ body {
     repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.12) 0, rgba(0, 0, 0, 0.12) 1px, transparent 1px, transparent 8px),
     linear-gradient(105deg, #13204a 49.9%, #4a1216 50.1%);
 }
+
+/* Level badge: a slow red throb once the run hits MELTDOWN. */
+@keyframes level-meltdown {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 71, 87, 0.45); }
+  50% { box-shadow: 0 0 18px rgba(255, 71, 87, 0.9); }
+}
+.level-meltdown { animation: level-meltdown 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .level-meltdown { animation: none; }
+}

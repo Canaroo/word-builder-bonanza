@@ -37,6 +37,16 @@ export const clockSpeedFor = (level: number): number => {
     return Math.min(maxSpeed, Math.round((1 + speedUpPerLevel * early + lateSpeedUpPerLevel * late) * 100) / 100);
 };
 
+/** The tier (name and color) a level belongs to. */
+export const levelTierFor = (level: number) =>
+    [...GAMEPLAY.levelTiers].reverse().find(t => Math.max(1, level) >= t.fromLevel) ?? GAMEPLAY.levelTiers[0];
+
+/** Words played toward the next level: { done, needed }. */
+export const levelProgressFor = (validWords: number) => ({
+    done: Math.max(0, validWords) % GAMEPLAY.levels.wordsPerLevel,
+    needed: GAMEPLAY.levels.wordsPerLevel,
+});
+
 /** Milliseconds per clock tick at this level. */
 export const tickMsFor = (level: number): number => Math.round(1000 / clockSpeedFor(level));
 

@@ -44,6 +44,18 @@ export const GAMEPLAY = {
     maxSpeed: 2.0,
   },
 
+  /**
+   * Level tiers: a name and color for each stretch of levels, shown on the level badge and the
+   * timer's glow. They start where the rules change: 3-letter words stop paying (3), the PowerPlay
+   * meter grows (4), the late squeeze (lateFromLevel + 1 = 7).
+   */
+  levelTiers: [
+    { fromLevel: 1, name: 'WARM-UP', tone: 'cyan' },
+    { fromLevel: 4, name: 'HEATING UP', tone: 'yellow' },
+    { fromLevel: 7, name: 'OVERDRIVE', tone: 'orange' },
+    { fromLevel: 11, name: 'MELTDOWN', tone: 'red' },
+  ] as readonly { fromLevel: number; name: string; tone: 'cyan' | 'yellow' | 'orange' | 'red' }[],
+
   /** After lateFromLevel, words earn this share less time per level (a 7-letter word: 10s, then 9s at level 8…), down to min. */
   wordTimeShrink: { perLateLevel: 0.04, min: 0.65 },
 

@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest';
 import { GAMEPLAY } from '../../config/gameplay';
 import {
     timeForWord, clampTime, lengthMultiplier, combineMultipliers, addWordMultiplier,
-    refillCount, advancePowerPlayMeter, levelFor, clockSpeedFor, tickMsFor, timeForWordAtLevel, wordTimeScaleFor, meterLettersFor,
+    refillCount, advancePowerPlayMeter, levelFor, clockSpeedFor, tickMsFor, timeForWordAtLevel, wordTimeScaleFor, meterLettersFor, levelTierFor, levelProgressFor,
     taxWordTime, snitchTargetFor, bonusTimeScale, bonusTime,
 } from '../rules';
 
@@ -78,6 +78,13 @@ describe('time pressure', () => {
         expect([1, 3, 4, 6, 7, 9, 10, 20].map(meterLettersFor)).toEqual([25, 25, 30, 40, 46, 58, 60, 60]);
         expect(advancePowerPlayMeter(36, 5, 6)).toEqual({ letters: 40, full: true });
         expect(advancePowerPlayMeter(36, 5, 7)).toEqual({ letters: 41, full: false });
+    });
+
+    test('level tiers start where the rules change, and the badge counts words to the next level', () => {
+        expect([1, 3, 4, 6, 7, 10, 11, 30].map(l => levelTierFor(l).name)).toEqual(
+            ['WARM-UP', 'WARM-UP', 'HEATING UP', 'HEATING UP', 'OVERDRIVE', 'OVERDRIVE', 'MELTDOWN', 'MELTDOWN']);
+        expect(levelTierFor(GAMEPLAY.levels.lateFromLevel + 1).name).toBe('OVERDRIVE');
+        expect([0, 12, 18, 30].map(w => levelProgressFor(w).done)).toEqual([0, 12, 0, 12]);
     });
 
     test('3-letter words stop adding time from level 3', () => {

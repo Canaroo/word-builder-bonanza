@@ -17,7 +17,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, bonusTime, wordTimeScaleFor, meterLettersFor } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
@@ -299,9 +299,12 @@ const levelUpModal = (wordsBefore: number) => {
     if (level === GAMEPLAY.timeBank.shortWordTimeStopsAtLevel) notes.push('3-letter words add no more time.');
     if (wordTimeScaleFor(level) < wordTimeScaleFor(level - 1)) notes.push(`Words now earn ${Math.round(wordTimeScaleFor(level) * 100)}% of their time.`);
     if (meterLettersFor(level) > meterLettersFor(level - 1)) notes.push(`PowerPlays now need ${meterLettersFor(level)} letters.`);
+    const tier = levelTierFor(level);
+    const newTier = tier !== levelTierFor(level - 1);
+    if (newTier) notes.unshift(`You're in ${tier.name}.`);
     return {
         type: 'info' as const,
-        title: `⏩ Level ${level} · Speed Up!`,
+        title: newTier ? `⏩ Level ${level} · ${tier.name}!` : `⏩ Level ${level} · Speed Up!`,
         content: notes.join(' '),
         autoClose: notes.length > 2 ? 3500 : 2500,
     };
