@@ -24,6 +24,8 @@ export const GAMEPLAY = {
      */
     bonusShrinkPerLevel: 0.05,
     bonusMinScale: 0.5,
+    /** Shuffle is press-and-hold for this long, so a stray tap can't spend a shuffle. */
+    shuffleHoldMs: 450,
     /** At or below this many seconds, the Shuffle button pulses (and first-timers get a tip). */
     lifelineHintBelow: 15,
   },

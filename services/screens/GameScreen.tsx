@@ -2415,7 +2415,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (localStorage.getItem(LIFELINE_TIP_KEY)) return;
       localStorage.setItem(LIFELINE_TIP_KEY, '1');
     } catch { return; }
-    showMessage(`⏱ Running low? Shuffle for +${GAMEPLAY.timeBank.shuffleTimeBonus} seconds!`, 3500);
+    showMessage(`⏱ Running low? Hold Shuffle for +${GAMEPLAY.timeBank.shuffleTimeBonus} seconds!`, 3500);
   }, [lowOnTime, showMessage]);
 
   useEffect(() => {
