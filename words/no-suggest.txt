@@ -13,3 +13,6 @@ coons
 
 # A drop shot (tennis, pickleball); also an ethnic slur. Allowed, never suggested.
 dink
+
+# To make weary by hard work; also a homophobic slur. Allowed (FAG only), never suggested.
+fag
