@@ -173,16 +173,16 @@ describe('new PowerPlay scoring', () => {
         roundType: 'normal', activeCharms: [], activePowerPlays, letterMultipliers: {}, wordMultipliersByLetter: {}, powerStarResidualActive: false,
     }) as unknown as GameState;
 
-    test('Konami Code x2, Ludicrous Speed x3, Combo Breaker x5 on 4+ letters', () => {
+    test('Konami Code x2, Ludicrous Speed x3, Combo Breaker x3 on 4+ letters', () => {
         expect(calculateScore('cat', tiles('CAT'), state({ konamiCode: { words: 3 } })).totalScore).toBe(6);
         expect(calculateScore('cat', tiles('CAT'), state({ ludicrousSpeed: { words: 3 } })).totalScore).toBe(9);
-        // 6 letters: length x2 + Combo Breaker x5 = x7
-        expect(calculateScore('carton', tiles('CARTON'), state({ comboBreaker: true })).totalScore).toBe(42);
-        // 4 letters now qualifies: length x1.25 + Combo Breaker x5 = x6.25
-        const cart = calculateScore('cart', tiles('CART'), state({ comboBreaker: true }));
+        // 6 letters: length x2 + Combo Breaker x3 = x5
+        expect(calculateScore('carton', tiles('CARTON'), state({ comboBreaker: { words: 3 } })).totalScore).toBe(30);
+        // 4 letters qualifies: length x1.25 + Combo Breaker x3 = x4.25
+        const cart = calculateScore('cart', tiles('CART'), state({ comboBreaker: { words: 3 } }));
         expect(cart.bonuses.some(b => b.name === 'Combo Breaker')).toBe(true);
-        expect(cart.totalScore).toBe(25); // 5 without it
-        expect(calculateScore('cat', tiles('CAT'), state({ comboBreaker: true })).bonuses.some(b => b.name === 'Combo Breaker')).toBe(false); // 3 letters: zeroed later, in the turn
+        expect(cart.totalScore).toBe(17); // 5 without it
+        expect(calculateScore('cat', tiles('CAT'), state({ comboBreaker: { words: 3 } })).bonuses.some(b => b.name === 'Combo Breaker')).toBe(false); // 3 letters: zeroed later, in the turn
     });
 
     test('Big Head Mode doubles tiles; The Upside Down flips values', () => {
