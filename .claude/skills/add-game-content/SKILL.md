@@ -1,13 +1,16 @@
 ---
 name: add-game-content
-description: Add new secret bonus words, PowerPlays, charms, cosmetics (badges, titles, themes, streak rewards) or daily missions to the Word Nerd game (this repo), from idea to live site. Use this whenever the user wants new or replacement game content, such as "add 3 bonus words", "make a charm about Back to the Future", "I need a new PowerPlay", "add 5 new titles to the shop", "a badge for a 200-day streak", "more mission ideas", "add the word TEX as an easter egg", or asks for pop-culture words, power-ups, buffs, bling, shop items or easter eggs, even if they don't say "skill". Covers checking for duplicates and dictionary problems, proposing names, effects, prices, flavor text and themes for review, wiring the mechanics, tests, and shipping.
+description: Add new secret bonus words, PowerPlays, charms, cosmetics (badges, titles, themes, streak rewards), daily missions, or dictionary words to the Word Nerd game (this repo), from idea to live site. Use this whenever the user wants new or replacement game content, such as "add 3 bonus words", "make a charm about Back to the Future", "I need a new PowerPlay", "add 5 new titles to the shop", "a badge for a 200-day streak", "more mission ideas", "add the word TEX as an easter egg", "make FAM a valid word", "here's a word list, add the common ones that are missing", or asks for pop-culture words, power-ups, buffs, bling, shop items or easter eggs, even if they don't say "skill". Covers checking for duplicates and dictionary problems, proposing names, effects, prices, flavor text and themes for review, wiring the mechanics, tests, and shipping.
 ---
 
-# Add game content: bonus words, PowerPlays, charms, cosmetics, missions
+# Add game content: bonus words, PowerPlays, charms, cosmetics, missions, dictionary words
 
 Word Nerd is a retro arcade/VHS word game: 90s/2000s pop culture, neon, punny. New content
 should feel like it was always there. This skill is the path from "add some X" to live on
 https://wordnerd-game.netlify.app.
+
+Dictionary words (making a word valid, or adding the common words from a list) follow their own
+short workflow: see "Dictionary words" at the end. The sections below are for game content.
 
 ## 1. Look before you propose
 
@@ -158,3 +161,38 @@ Keep it skimmable:
 - For cosmetics: whether the Firebase leaderboard rules still accept the ids (they do if the id is
   `b_`/`t_`/`s_` + letters). If the rules ever need changing, give the user the exact text and
   update `docs/LEADERBOARD.md` to match.
+
+## Dictionary words
+
+Requests like "add FAM as a valid word", "make sure DINK is allowed, definition: a drop shot", or
+"here's an NWL list / PDF, add the common words we're missing". Read references/dictionary.md
+for the files and the reasoning; the short version:
+
+1. **Check first.** `node .claude/skills/add-game-content/scripts/word-check.mjs FAM YEET` says
+   whether each word is valid, blocked, never-suggested, defined, or common. For a whole list
+   (plain words, or NWL-style with definitions; extract PDFs with `pdftotext -layout` first):
+   `node .claude/skills/add-game-content/scripts/word-check.mjs --file list.txt --min 3 --max 8`
+   prints only the missing words with the list's definitions.
+2. **Pick the common ones** when working from a list. Keep everyday slang, food, tech, pop
+   culture, and missing forms of words already in the game. Leave out obscure, technical and
+   archaic entries (spider anatomy, chemical elements, minor currencies), and vulgar words and
+   slurs. Say what was left out, and offer to add any of it.
+3. **Words on the slur block list** (`words/blocked.txt`): never unblock silently. Say plainly
+   that it's blocked because it doubles as a slur, and what allowing it means (anyone can play
+   it; it shows in word logs and share cards). Only unblock if the user confirms, then also list
+   it in `words/no-suggest.txt`. Unblock only the forms the user asked for. A word that isn't
+   blocked but has a well-known slur meaning (DINK) goes in `no-suggest.txt` too; mention it.
+4. **Always give a definition**, including for each plural and verb form ("Vaccinates.",
+   "Vaccinated."). Without one, the game fetches a definition online, which may show the wrong
+   (or offensive) meaning. Plain, short, no single quotes. Add words, forms and definitions to a
+   TSV and run `node .claude/skills/add-game-content/scripts/add-words.mjs words.tsv`, which
+   inserts them into `data/internalWords.ts` in order and skips ones already defined.
+5. **Rebuild and test.** `npm run words`, then add the words to a test in
+   `services/__tests__/noSuggest.test.ts` (valid, unblocked, defined; never suggested if on
+   no-suggest), then `npx tsc --noEmit -p . && npx vitest run && npm run build`.
+6. **Ship** as a patch version for a few words, a minor version for a big batch (section 7). The
+   word lists are generated during every build, so the deploy picks them up.
+
+The full NWL2023 list is licensed by NASPA and isn't downloadable. If asked to "check against
+NWL", work from what the user provides (their lists, PDFs) or published coverage of the
+dictionary editions, and say which source each suggestion came from. Mark anything unconfirmed.
