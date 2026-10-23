@@ -256,7 +256,7 @@ export const maxStrikesFor = (gs: Pick<GameState, 'charmUses'> | null | undefine
 };
 
 // Multi-word PowerPlays: activePowerPlays[id] = { words } counts down one valid word at a time.
-const WORD_COUNTDOWN_POWER_PLAYS = ['konamiCode', 'bigHeadMode', 'ludicrousSpeed', 'letterUpgrade', 'polish'];
+const WORD_COUNTDOWN_POWER_PLAYS = ['konamiCode', 'bigHeadMode', 'ludicrousSpeed', 'letterUpgrade', 'polish', 'comboBreaker'];
 
 // Time bank (config/gameplay.ts): the clock never resets between words. A Golden Round runs on
 // its own short clock; the bank is set aside when it starts and given back when it ends.
@@ -2564,11 +2564,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           showToast(`Length bonus x${lengthMultiplier(word.length)}!`);
       }
       
-      // --- Combo Breaker: short words score nothing ---
+      // --- Combo Breaker: a short word scores nothing and breaks the combo (the PowerPlay ends) ---
       if (newState.activePowerPlays.comboBreaker && word.length < POWER_PLAY_VALUES.comboBreakerMinLength) {
           scoreResult.totalScore = 0;
-          scoreResult.bonuses = [{ name: 'Combo Breaker', description: `Under ${POWER_PLAY_VALUES.comboBreakerMinLength} letters: 0 pts` }];
-          showMessage(`🥊 Combo Breaker whiffed! Under ${POWER_PLAY_VALUES.comboBreakerMinLength} letters scores 0.`, 2500);
+          scoreResult.bonuses = [{ name: 'Combo Breaker', description: `Under ${POWER_PLAY_VALUES.comboBreakerMinLength} letters: 0 pts, combo broken` }];
+          showMessage(`🥊 Combo broken! Under ${POWER_PLAY_VALUES.comboBreakerMinLength} letters scores 0.`, 2500);
+          const { comboBreaker: _broken, ...stillActive } = newState.activePowerPlays;
+          newState.activePowerPlays = stillActive;
+          newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'comboBreaker');
       }
       if (newState.activePowerPlays.ludicrousSpeed) {
           newState.ludicrousTimeCost = (newState.ludicrousTimeCost ?? 0) + 8;
@@ -3340,7 +3343,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
 
       if (wordLockActive) { delete consumedPPs.wordLock; consumedBuffs = consumedBuffs.filter(b => b.id !== 'wordLock'); }
-      ['biglyScore', 'multiverseOfSadness', 'nuclearOption', 'schruteBucks', 'redWedding', 'wakandaForever', 'heisenberg', 'skywalkerBloodline', 'leafOnTheWind', 'thanosGift', 'doubleOrNothing', 'cassiesClue', 'cowabunga', 'holdOntoYourButts', 'tetrisTouch', 'blueShellSurprise', 'pinkyAndTheBrain', 'letsGetDangerous', 'slimShadyShuffle', 'spaceInvader', 'upsideDown', 'comboBreaker'].forEach(id => { 
+      ['biglyScore', 'multiverseOfSadness', 'nuclearOption', 'schruteBucks', 'redWedding', 'wakandaForever', 'heisenberg', 'skywalkerBloodline', 'leafOnTheWind', 'thanosGift', 'doubleOrNothing', 'cassiesClue', 'cowabunga', 'holdOntoYourButts', 'tetrisTouch', 'blueShellSurprise', 'pinkyAndTheBrain', 'letsGetDangerous', 'slimShadyShuffle', 'spaceInvader', 'upsideDown'].forEach(id => { 
           if ((consumedPPs as any)[id]) { 
               delete (consumedPPs as any)[id]; 
               consumedBuffs = consumedBuffs.filter(b => b.id !== id); 

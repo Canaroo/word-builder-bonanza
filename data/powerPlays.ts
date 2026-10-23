@@ -229,13 +229,13 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'comboBreaker',
     name: 'Combo Breaker',
-    description: `Next word only: ${POWER_PLAY_VALUES.comboBreakerMinLength}+ letters scores x${POWER_PLAY_VALUES.comboBreakerMultiplier}. Anything shorter scores 0.`,
+    description: `Your next ${POWER_PLAY_VALUES.comboBreakerWords} words: each ${POWER_PLAY_VALUES.comboBreakerMinLength}+ letter word scores x${POWER_PLAY_VALUES.comboBreakerMultiplier}. A shorter word scores 0 and breaks the combo.`,
     flavorText: 'C-C-C-COMBO BREAKER! Go big or go home.',
     icon: '🥊',
     subtheme: 'score',
     effectType: 'next_word',
-    durationTag: 'ONE_TIME',
-    activate: arm('comboBreaker'),
+    durationTag: 'LIMITED',
+    activate: arm('comboBreaker', { words: POWER_PLAY_VALUES.comboBreakerWords }),
   },
   { 
     id: 'timeBoost', 
