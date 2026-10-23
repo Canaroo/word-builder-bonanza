@@ -20,10 +20,15 @@ describe('playable but never suggested', () => {
         expect(suggestableWords.has('dink')).toBe(false);
     });
 
-    test('FAG is playable with its definition and never suggested; FAGS stays blocked', () => {
-        expect(curatedWords.get('fag')).toBe('To make weary by hard work.');
-        expect(suggestableWords.has('fag')).toBe(false);
-        expect(isBlocked('fags')).toBe(true);
+    test('FAG and its verb forms are playable with definitions and never suggested', () => {
+        const list = new Set(readFileSync(resolve(__dirname, '../../public/words/wordlist.txt'), 'utf8').split('\n'));
+        for (const [w, d] of [['fag', 'To make weary by hard work.'], ['fags', 'Makes weary by hard work.'], ['fagged', 'Made weary by hard work.'], ['fagging', 'Making weary by hard work.']]) {
+            expect(isBlocked(w)).toBe(false);
+            expect(list.has(w)).toBe(true);
+            expect(curatedWords.get(w)).toBe(d);
+            expect(suggestableWords.has(w)).toBe(false);
+        }
+        expect(isBlocked('faggot')).toBe(true);
     });
 
     test('CROWBAR has its definition', () => {
