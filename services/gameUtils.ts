@@ -556,9 +556,9 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     }
 
     // PowerPlay: Combo Breaker (a short word scores 0; handled after scoring)
-    if (gameState.activePowerPlays.comboBreaker && word.length >= 6) {
-        wordMultipliers.push(5);
-        bonuses.push({ name: 'Combo Breaker', description: 'x5 Word Score', source: 'word' });
+    if (gameState.activePowerPlays.comboBreaker && word.length >= POWER_PLAY_VALUES.comboBreakerMinLength) {
+        wordMultipliers.push(POWER_PLAY_VALUES.comboBreakerMultiplier);
+        bonuses.push({ name: 'Combo Breaker', description: `x${POWER_PLAY_VALUES.comboBreakerMultiplier} Word Score`, source: 'word' });
     }
 
     // PowerPlay: Bigly Score

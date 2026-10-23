@@ -229,7 +229,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'comboBreaker',
     name: 'Combo Breaker',
-    description: 'Next word only: 6+ letters scores x5. Anything shorter scores 0.',
+    description: `Next word only: ${POWER_PLAY_VALUES.comboBreakerMinLength}+ letters scores x${POWER_PLAY_VALUES.comboBreakerMultiplier}. Anything shorter scores 0.`,
     flavorText: 'C-C-C-COMBO BREAKER! Go big or go home.',
     icon: '🥊',
     subtheme: 'score',

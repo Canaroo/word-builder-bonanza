@@ -2565,10 +2565,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
       
       // --- Combo Breaker: short words score nothing ---
-      if (newState.activePowerPlays.comboBreaker && word.length < 6) {
+      if (newState.activePowerPlays.comboBreaker && word.length < POWER_PLAY_VALUES.comboBreakerMinLength) {
           scoreResult.totalScore = 0;
-          scoreResult.bonuses = [{ name: 'Combo Breaker', description: 'Under 6 letters: 0 pts' }];
-          showMessage('🥊 Combo Breaker whiffed! Under 6 letters scores 0.', 2500);
+          scoreResult.bonuses = [{ name: 'Combo Breaker', description: `Under ${POWER_PLAY_VALUES.comboBreakerMinLength} letters: 0 pts` }];
+          showMessage(`🥊 Combo Breaker whiffed! Under ${POWER_PLAY_VALUES.comboBreakerMinLength} letters scores 0.`, 2500);
       }
       if (newState.activePowerPlays.ludicrousSpeed) {
           newState.ludicrousTimeCost = (newState.ludicrousTimeCost ?? 0) + 8;

@@ -89,6 +89,8 @@ export const POWER_PLAY_VALUES = {
   buyAVowelCost: 100,
   rareLetters: 'JKQXZ',    // Hold Onto Your Butts: these tiles score x3 on the next word
   rareLetterMultiplier: 3,
+  comboBreakerMinLength: 4, // Combo Breaker: words this long score x5, shorter ones score 0
+  comboBreakerMultiplier: 5,
 };
 
 // Seconds from the time PowerPlays and charms (before the bonus-time rules above).
