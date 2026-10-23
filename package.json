@@ -1,7 +1,7 @@
 {
   "name": "word-nerd",
   "private": true,
-  "version": "7.4.6",
+  "version": "7.5.0",
   "type": "module",
   "scripts": {
     "words": "node scripts/build-wordlist.mjs",

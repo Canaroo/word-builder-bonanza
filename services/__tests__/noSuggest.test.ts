@@ -44,6 +44,17 @@ describe('playable but never suggested', () => {
 });
 
 describe('added words', () => {
+    test('NWL2023 words added for common play are valid, unblocked and defined', () => {
+        const list = new Set(readFileSync(resolve(__dirname, '../../public/words/wordlist.txt'), 'utf8').split('\n'));
+        const words = 'bae baes stan stans stanned stanning sitch sitches welp yeehaw yowza vibed vibing inspo inspos skeezy thingie thingies yas fav favs ack eew grr mmm folx owie owies outie outies poo poos oma omas opa opas xed dox doxed doxes doxing doxx doxxed doxxes doxxing unfollow unfollows unfollowed unfollowing unsub unsubs unsubbed unsubbing unmute unmutes unmuted unmuting subtweet subtweets subtweeted subtweeting fintech fintechs embiggen embiggens embiggened embiggening torrented torrenting deadname deadnames deadnamed deadnaming allyship allyships org orgs sig sigs guac guacs matcha matchas horchata horchatas zoodle zoodles slushee slushees hygge vax vaxes vaxed vaxing vaxx adulted adulting babymoon babymoons fauxhawk fauxhawks caf cafs cal cals nug nugs soju sojus zuke zukes mpox zens'.split(' ');
+        expect(words.length).toBe(113);
+        for (const w of words) {
+            expect(list.has(w), w).toBe(true);
+            expect(isBlocked(w), w).toBe(false);
+            expect(curatedWords.get(w), w).toBeTruthy();
+        }
+    });
+
     test('FAM and FAMS are valid with definitions', () => {
         const list = new Set(readFileSync(resolve(__dirname, '../../public/words/wordlist.txt'), 'utf8').split('\n'));
         expect(list.has('fam') && list.has('fams')).toBe(true);
