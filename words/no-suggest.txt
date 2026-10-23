@@ -14,5 +14,9 @@ coons
 # A drop shot (tennis, pickleball); also an ethnic slur. Allowed, never suggested.
 dink
 
-# To make weary by hard work; also a homophobic slur. Allowed (FAG only), never suggested.
+# To make weary by hard work, and its verb forms; also a homophobic slur. Allowed, never
+# suggested. (FAGGOT and FAGGOTS are a different word and stay in blocked.txt.)
 fag
+fags
+fagged
+fagging
