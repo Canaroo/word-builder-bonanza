@@ -20,6 +20,16 @@ describe('playable but never suggested', () => {
         expect(suggestableWords.has('dink')).toBe(false);
     });
 
+    test('FAG is playable with its definition and never suggested; FAGS stays blocked', () => {
+        expect(curatedWords.get('fag')).toBe('To make weary by hard work.');
+        expect(suggestableWords.has('fag')).toBe(false);
+        expect(isBlocked('fags')).toBe(true);
+    });
+
+    test('CROWBAR has its definition', () => {
+        expect(curatedWords.get('crowbar')).toBe('To use a steel bar as a lever.');
+    });
+
     test('no-suggest words are never Power Words, hints or Challenge answers', () => {
         expect(NO_SUGGEST_WORDS.has('coon')).toBe(true);
         for (const w of NO_SUGGEST_WORDS) expect(suggestableWords.has(w)).toBe(false);
