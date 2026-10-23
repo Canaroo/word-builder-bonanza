@@ -210,6 +210,8 @@ export const internalWords = new Map<string, string>([
   ['fagged', 'Made weary by hard work.'],
   ['fagging', 'Making weary by hard work.'],
   ['fags', 'Makes weary by hard work.'],
+  ['fam', 'Family; also, your closest friends.'],
+  ['fams', 'Families; also, groups of close friends.'],
   ['fan', 'An admirer or enthusiast; a device for creating a current of air.'],
   ['fans', 'Plural of fan.'],
   ['far', 'At or to a great distance.'],

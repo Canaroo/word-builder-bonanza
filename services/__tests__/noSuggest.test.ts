@@ -42,3 +42,11 @@ describe('playable but never suggested', () => {
         for (const w of NO_SUGGEST_WORDS) expect(common.has(w)).toBe(false);
     });
 });
+
+describe('added words', () => {
+    test('FAM and FAMS are valid with definitions', () => {
+        const list = new Set(readFileSync(resolve(__dirname, '../../public/words/wordlist.txt'), 'utf8').split('\n'));
+        expect(list.has('fam') && list.has('fams')).toBe(true);
+        expect(curatedWords.get('fam')).toBe('Family; also, your closest friends.');
+    });
+});
