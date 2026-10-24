@@ -487,7 +487,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     id: 'neosChoice', 
     name: "Neo's Choice", 
     description: `Pick one: +${TIME_BONUS.rescue}s on the clock, or erase a strike.`, 
-    flavorText: 'Blue pill pauses the countdown for ten seconds; red pill deletes one strike from your record. Choose wisely—only one effect may be claimed.',
+    flavorText: 'This is your last chance. After this, there is no turning back.',
     icon: '💊',
     subtheme: 'utility',
     effectType: 'selection',

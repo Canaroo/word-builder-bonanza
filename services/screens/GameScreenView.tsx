@@ -11,7 +11,7 @@ import EventLogDisplay from '../../components/EventLogDisplay';
 import { MILESTONES_LIST } from '../../data/milestones';
 import DurationBadge from '../../ui/DurationBadge';
 import { RACK_SIZE, HAND_SIZE } from '../../constants';
-import { GAMEPLAY, CHARM_SLOTS } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_SLOTS, TIME_BONUS } from '../../config/gameplay';
 import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor } from '../rules';
 import LevelBadge from '../../components/LevelBadge';
 
@@ -399,7 +399,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                                 <p className="text-slate-300 text-center mb-4">{powerPlay.description}</p>
                                 <div className="flex flex-col gap-4 mt-4">
                                     <button onClick={() => handleChoice('time')} className="w-full px-6 py-4 text-xl font-bold text-white bg-blue-600 rounded-lg shadow-lg hover:bg-blue-500">
-                                        Blue Pill: Freeze time for 10s
+                                        Blue Pill: +{TIME_BONUS.rescue}s on the clock
                                     </button>
                                     <button onClick={() => handleChoice('strike')} className="w-full px-6 py-4 text-xl font-bold text-white bg-red-600 rounded-lg shadow-lg hover:bg-red-500">
                                         Red Pill: Erase a strike
