@@ -314,7 +314,6 @@ const levelUpModal = (wordsBefore: number) => {
         type: 'info' as const,
         title: newTier ? `⏩ Level ${level} · ${tier.name}!` : `⏩ Level ${level} · Speed Up!`,
         content: notes.join(' '),
-        autoClose: notes.length > 2 ? 3500 : 2500,
     };
 };
 
@@ -1643,7 +1642,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     activePowerPlays: { ...gameState.activePowerPlays, wordionaireDouble: true }
                 };
             }
-            // 'phone' choice is handled by its own async function, this just cleans up the powerplay state
+            // 'phone': the word reveal runs in handlePhoneAFriend (it needs the dictionary); this spends the PowerPlay.
             
             // Add the buff to the tray for double
             if(option.choice === 'double') {
@@ -2271,6 +2270,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   }, [state.modalContent, state.modalQueue, state.gameState, handleStartNextRound, onGameOver, state.hand, state.tileBag, maxStrikes, resetRound]);
 
 
+  // Only quick PowerPlay/charm results auto-close. Bigger notices (level-ups, milestones, secret
+  // bonuses, Golden Rounds, Power Word, big combos) always wait for the player to tap Continue.
   useEffect(() => {
     if (modalContent?.autoClose) {
         const timer = setTimeout(() => {
@@ -2623,7 +2624,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               scoreChange: powerWordBonus, 
               cumulativeScore: tempRunningScore
           });
-          modalQueue.push({ type: 'info', title: '💥 Power Word!', content: `You played your daily Power Word for a +500 point bonus!`, autoClose: 2500 });
+          modalQueue.push({ type: 'info', title: '💥 Power Word!', content: `You played your daily Power Word for a +${powerWordBonus.toLocaleString()} point bonus!` });
       }
       
       // Duck Hunt Bonus
@@ -2764,7 +2765,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                   type: 'info',
                   title: '⛓️ PERFECT 4-CHAIN! ⛓️',
                   content: `Four 4-letter words in a row! That's some serious skill! You've earned a massive 444 point bonus!`,
-                  autoClose: 4000,
               });
 
               newState.perfectChainProgress = 0; // Reset for the next chain
@@ -3667,22 +3667,39 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         });
     };
     
-    const handleCarmenSandiegoActivation = async () => {
+    /** Finds the longest playable word in the hand, highlights its tiles in order, and returns it ('' if none). */
+    const revealBestWord = async (searching: string, found: (word: string) => string, none: string): Promise<string> => {
         dispatch({ type: 'SET_IS_LOADING', payload: true });
-        dispatch({ type: 'SET_LOADING_MESSAGE', payload: "Searching the globe for clues..." });
+        dispatch({ type: 'SET_LOADING_MESSAGE', payload: searching });
 
         const availableTiles = (hand ?? []).filter((t): t is Tile => t !== null);
         const longestWord = await dictionaryService.findPlayableWord(availableTiles.map(t => t.letter), { minLength: 3, longest: true });
         const bestWord = longestWord ? longestWord.toUpperCase() : '';
-        
+
         if (bestWord) {
-            showMessage(`A clue was found: ${bestWord}!`, 4000);
-            
+            showMessage(found(bestWord), 4000);
             const tileIds = (assignTilesToWord(bestWord, availableTiles.map(t => t.letter)) ?? []).map(i => availableTiles[i].id);
             dispatch({ type: 'SET_HIGHLIGHTED_TILES', payload: { first: tileIds[0] ?? null, rest: tileIds.slice(1) } });
         } else {
-            showMessage("The trail went cold. No words found!", 3000);
+            showMessage(none, 3000);
         }
+        dispatch({ type: 'SET_IS_LOADING', payload: false });
+        return bestWord;
+    };
+
+    // Wordionaire's Phone-a-Friend: the reducer has already spent the PowerPlay and closed the picker.
+    const handlePhoneAFriend = async () => {
+        const bestWord = await revealBestWord('Phoning a friend...', w => `📞 Your friend says: ${w}!`, '📞 Your friend is stumped. No words found!');
+        const entry: EventLogEntry = {
+            type: 'event', id: `pp-wordionaire-phone-${Date.now()}`, name: 'Wordionaire: Phone-a-Friend',
+            description: bestWord ? `Your friend suggested: ${bestWord}` : 'Your friend was stumped.', icon: '📞',
+            scoreChange: 0, cumulativeScore: gameState.score,
+        };
+        dispatch({ type: 'UPDATE_GAME_STATE', payload: { log: [...gameState.log, entry] } });
+    };
+
+    const handleCarmenSandiegoActivation = async () => {
+        const bestWord = await revealBestWord('Searching the globe for clues...', w => `A clue was found: ${w}!`, 'The trail went cold. No words found!');
 
         const newLogEntry: EventLogEntry = {
             type: 'event', id: `pp-carmenSandiego-${Date.now()}`, name: 'Where in the World is Carmen Sandiego?',
@@ -3698,8 +3715,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 powerPlayUses: { ...gameState.powerPlayUses, carmenSandiego: (gameState.powerPlayUses.carmenSandiego || 0) + 1 }
             }
         });
-        
-        dispatch({ type: 'SET_IS_LOADING', payload: false });
     };
 
     const handleActivatePowerPlay = (powerPlay: PowerPlay) => {
@@ -4031,6 +4046,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         strikesRemaining,
         handleMuteToggle,
         handleCloseModal,
+        handlePhoneAFriend,
         handleShowMilestoneInfo,
         handleShowEventLog,
         handleMoveToBuild,

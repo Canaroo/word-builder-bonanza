@@ -103,6 +103,8 @@ export interface GameScreenViewProps {
   
   handleMuteToggle: () => void;
   handleCloseModal: () => void;
+  /** Wordionaire's Phone-a-Friend: reveal the best word in the hand. */
+  handlePhoneAFriend: () => void;
   handleShowMilestoneInfo: (milestone: Milestone) => void;
   handleShowEventLog: () => void;
   handleMoveToBuild: (tile: Tile, fromIndex: number) => void;
@@ -130,7 +132,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     gameState, time, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
-    handleMuteToggle, handleCloseModal, handleShowMilestoneInfo, handleShowEventLog,
+    handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
     handleMoveToBuild, handleReturnToHand, handleShuffle, handleSubmit, handleClear,
     handleChallenge, handleSaveClick, handleConfirmSave, showBuffInfo,
     handleActivatePowerPlay, handleActivateCharm, handleChoosePowerPlay, handleChooseCharm, handlePassCharm, handleKeepPowerPlay,
@@ -410,9 +412,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 }
 
                 if (powerPlay.id === 'wordionaire') {
-                    const handlePhoneAFriend = async () => {
-                        // This logic is now in the container, the view just calls dispatch
+                    const handlePhoneChoice = () => {
                         dispatch({ type: 'COMPLETE_POWER_PLAY_ACTIVATION', payload: { powerPlay, option: { choice: 'phone' } } });
+                        handlePhoneAFriend();
                     };
                     
                     const handleWordionaireChoice = (choice: 'cash' | 'double') => {
@@ -428,7 +430,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                                     <button onClick={() => handleWordionaireChoice('cash')} className="w-full px-4 py-3 text-lg font-bold text-slate-900 bg-amber-400 rounded-lg shadow-lg hover:bg-amber-300">
                                         Fast Cash (+100pts)
                                     </button>
-                                    <button onClick={handlePhoneAFriend} className="w-full px-4 py-3 text-lg font-bold text-slate-900 bg-cyan-400 rounded-lg shadow-lg hover:bg-cyan-300">
+                                    <button onClick={handlePhoneChoice} className="w-full px-4 py-3 text-lg font-bold text-slate-900 bg-cyan-400 rounded-lg shadow-lg hover:bg-cyan-300">
                                         Phone-a-Friend (Reveal best word)
                                     </button>
                                     <button onClick={() => handleWordionaireChoice('double')} className="w-full px-4 py-3 text-lg font-bold text-slate-900 bg-purple-400 rounded-lg shadow-lg hover:bg-purple-300">
