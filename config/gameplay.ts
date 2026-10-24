@@ -138,7 +138,7 @@ export const CHARM_BONUS = {
   mixtapeBase: 40,         // first link in a Mixtape chain
   mixtapeStep: 20,         // each further link pays this much more
   mixtapeMax: 120,
-  rubiksCube: 100,         // 6+ letters, no repeated letter
+  rubiksCube: 150,         // 6+ letters, no repeated letter
   sickCombo: 50,           // word longer than your last one
   lenaPercent: 20,
   nicolesGracePercent: 25,

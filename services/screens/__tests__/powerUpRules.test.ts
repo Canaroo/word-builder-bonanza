@@ -300,6 +300,7 @@ describe('v6.13 additions', () => {
     test("Rubik's Cube: 6+ letters with no repeats", () => {
         const charms = { activeCharms: [charm('rubiksCube')] };
         expect(has(calculateScore('planet', tilesFor('PLANET'), gs(charms)), "Rubik's Cube")).toBe(true);
+        expect(calculateScore('planet', tilesFor('PLANET'), gs(charms)).totalScore - calculateScore('planet', tilesFor('PLANET'), gs({})).totalScore).toBe(150);
         expect(has(calculateScore('banana', tilesFor('BANANA'), gs(charms)), "Rubik's Cube")).toBe(false);
         expect(has(calculateScore('plane', tilesFor('PLANE'), gs(charms)), "Rubik's Cube")).toBe(false);
     });
