@@ -1,0 +1,41 @@
+[
+  {
+    "name": "level-start-high-clock",
+    "time": 70,
+    "hand": "TOURSAEP",
+    "word": "TOUR",
+    "wordsPlayed": 18,
+    "charms": ["imReady", "hesOnFire", "gottaCatchEmAll"],
+    "state": { "pokedexVowels": "AEI", "readyLevel": 1 }
+  },
+  {
+    "name": "low-clock-after-strike",
+    "time": 12,
+    "hand": "STRIPEAN",
+    "word": "STRIPE",
+    "lastWords": ["PLANT"],
+    "charms": ["finishHim", "sandsOfTime", "survivor", "eagle", "theOpposite"],
+    "state": { "survivorWords": 2 }
+  },
+  {
+    "name": "clock-runs-out",
+    "time": 2,
+    "armed": { "continueScreen": true },
+    "state": { "score": 1000 },
+    "waitMs": 4500
+  },
+  {
+    "name": "use-pocket-powerplay",
+    "time": 40,
+    "powerPlay": "actClear",
+    "usePowerPlay": true,
+    "charms": ["backpack"],
+    "state": { "score": 100 }
+  },
+  {
+    "name": "charm-card",
+    "charms": ["theOpposite"],
+    "tap": "Charm: The Opposite",
+    "waitMs": 500
+  }
+]
