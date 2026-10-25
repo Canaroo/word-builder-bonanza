@@ -131,10 +131,6 @@ Some suites cover every item automatically. `swapAll.test.ts` tests keep-or-swap
 swaps. `effects.smoke.test.ts` checks that every PowerPlay does something visible. Bonus data is
 checked by `npm run check:bonuses`.
 
-When you add or remove a PowerPlay, charm or secret bonus, update its count in `CLAUDE.md` (the
-"PowerPlays / charms (N / N)" and "Secret bonuses (N words, N scores)" rows).
-`data/__tests__/contentCounts.test.ts` fails until the counts match.
-
 ```bash
 npx tsc --noEmit -p . && npx vitest run && npm run build
 ```
@@ -151,9 +147,12 @@ The user wants content live right away:
    Adding or removing mission templates reshuffles every day's picks, today's included, so
    players' mission progress for today resets. Tell the user, and suggest shipping right after the
    8 AM reset if they care.
-2. Commit with a message listing every item, then push to the working branch.
-3. Open a PR and merge it. Netlify deploys `main` automatically.
-4. Fast-forward the working branch to `origin/main` and push.
+2. If you added or removed a PowerPlay, charm or secret bonus, update its count in `CLAUDE.md`
+   (the "PowerPlays / charms (N / N)" and "Secret bonuses (N words, N scores)" rows).
+   `data/__tests__/contentCounts.test.ts` fails until the counts match.
+3. Commit with a message listing every item, then push to the working branch.
+4. Open a PR and merge it. Netlify deploys `main` automatically.
+5. Fast-forward the working branch to `origin/main` and push.
 
 ## 8. Report back
 
