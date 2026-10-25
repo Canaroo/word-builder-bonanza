@@ -114,6 +114,7 @@ The short version:
 | Badge / title | `data/cosmetics.ts` `COSMETICS` | None, it's data only (shop, leaderboard, share card are automatic) | `cost` in the entry |
 | Streak reward | `data/cosmetics.ts` (`streakDay`) + `STREAK_MILESTONES` | Automatic: paid and unlocked in `recordRunFinished` | Credits in the milestone |
 | Theme | `data/packs.ts` + CSS in `index.css` | None | `THEME_PRICES` in `config/progression.ts` |
+| Boss | `data/bosses.ts` `BOSSES` | None: a pure `check(word, tiles)` and optional `tileHint`; the round logic is shared | `BOSS` (timing, rewards) |
 | Mission | `data/missions.ts` `MISSION_TEMPLATES` | Uses existing game events; a new kind of event needs a `trackMission(...)` call in `GameScreen.tsx` | `MISSION_REWARD` by tier |
 
 If a bonus word isn't in the dictionary, add it to `words/custom.txt` and run `npm run words`.
@@ -169,8 +170,8 @@ The user wants content live right away:
    Adding or removing mission templates reshuffles every day's picks, today's included, so
    players' mission progress for today resets. Tell the user, and suggest shipping right after the
    8 AM reset if they care.
-2. If you added or removed a PowerPlay, charm or secret bonus, update its count in `CLAUDE.md`
-   (the "PowerPlays / charms (N / N)" and "Secret bonuses (N words, N scores)" rows).
+2. If you added or removed a PowerPlay, charm, secret bonus or boss, update its count in `CLAUDE.md`
+   (the "PowerPlays / charms (N / N)", "Secret bonuses (N words, N scores)" and "Bosses (N)" rows).
    `data/__tests__/contentCounts.test.ts` fails until the counts match.
 3. Commit with a message listing every item, then push to the working branch.
 4. Open a PR and merge it. Netlify deploys `main` automatically.

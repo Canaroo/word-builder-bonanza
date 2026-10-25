@@ -127,6 +127,23 @@ Players have 5 charm slots, and swapping a charm in or out is handled for every 
 
 ---
 
+## Bosses
+
+Add an entry to `BOSSES` in `data/bosses.ts`. Its `id` is permanent: it's saved in players' Badge
+Cases. Give it a `tier` (`early` = the 1st boss level, `mid` = the 2nd and 3rd, `late` = after),
+a short banner `rule` ("NO E"), a full `description`, a villain `taunt` and its `source`.
+`check(word, tiles)` gets the uppercase word and the whole rack (word tiles included).
+`tileHint` returns `'dim'` for tiles that would break the rule or `'glow'` for tiles it needs.
+Use the `noLetters(...)` helper for letter bans.
+
+Pick rules players can usually follow: simulate how often a random 8-tile hand has a word that
+does (aim for 85%+ early, 75%+ late) and how much score it costs. With 6 hits needed in 8 words,
+a rule playable in 90% of hands clears about 96% of the time; at 75% it drops to about 68%. Add
+a case to `services/__tests__/bosses.test.ts`, and keep 4 bosses per tier unless the user says
+otherwise (the test checks it).
+
+---
+
 ## Cosmetics: badges and titles
 
 Data only: add an entry to `COSMETICS` in `data/cosmetics.ts`. The shop tabs, the player plate,

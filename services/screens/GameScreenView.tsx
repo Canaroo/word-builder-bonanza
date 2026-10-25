@@ -11,7 +11,8 @@ import EventLogDisplay from '../../components/EventLogDisplay';
 import { MILESTONES_LIST } from '../../data/milestones';
 import DurationBadge from '../../ui/DurationBadge';
 import { RACK_SIZE, HAND_SIZE } from '../../constants';
-import { GAMEPLAY, CHARM_SLOTS, TIME_BONUS } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_SLOTS, TIME_BONUS, BOSS } from '../../config/gameplay';
+import { bossById } from '../../data/bosses';
 import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor } from '../rules';
 import LevelBadge from '../../components/LevelBadge';
 
@@ -143,6 +144,11 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     const goldenLetter = gameState?.goldenTileId
       ? [...(hand ?? []), ...(buildRow ?? []).map(i => i?.tile)].find(t => t?.id === gameState.goldenTileId)?.letter
       : undefined;
+
+    // Boss round: dim the tiles that would break the rule, or make the ones it needs glow.
+    const activeBoss = gameState?.roundType !== 'golden' ? bossById(gameState?.boss?.id) : undefined;
+    const rackTiles = [...(hand ?? []), ...(buildRow ?? []).map(i => i?.tile)].filter((t): t is Tile => !!t);
+    const bossTileHint = (tile: Tile) => activeBoss?.tileHint?.(tile, rackTiles) ?? null;
 
     const renderModal = () => {
         if (!modalContent) return null;
@@ -619,6 +625,15 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         </div>
       </div>
 
+      {activeBoss && gameState?.boss && gameState.roundType !== 'golden' && (
+        <div className="boss-banner flex-shrink-0 rounded-lg px-3 py-1.5 text-center" role="status" aria-label={`Boss round: ${activeBoss.name}. ${activeBoss.description} ${gameState.boss.hits} of ${BOSS.hitsToWin} hits, ${gameState.boss.wordsLeft} words left.`}>
+          <div className="font-display text-lg leading-none text-white">{activeBoss.icon} BOSS ROUND · {activeBoss.name.toUpperCase()}</div>
+          <div className="osd-text text-base leading-tight text-white/90">
+            <span className="font-bold text-white">{activeBoss.rule}</span> · 👊 {gameState.boss.hits}/{BOSS.hitsToWin} · {gameState.boss.wordsLeft} {gameState.boss.wordsLeft === 1 ? 'WORD' : 'WORDS'} LEFT
+          </div>
+        </div>
+      )}
+
       {gameState?.roundType === 'golden' && (
         <div className="golden-banner flex-shrink-0 rounded-lg px-3 py-1.5 text-center" role="status">
           <div className="font-display text-lg leading-none text-crt-900">★ GOLDEN ROUND ★</div>
@@ -826,7 +841,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 const hintOrder = hintIndex >= 0 ? hintIndex + 1 : undefined;
                 return (
                   <div key={item?.id || originalIndex} className="w-full h-12 min-[375px]:h-14 sm:h-16 flex items-center justify-center">
-                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} hintOrder={hintOrder} /> : <div className="w-full h-full rounded-lg bg-crt-950/60 ring-1 ring-white/5"></div>}
+                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} hintOrder={hintOrder} bossHint={bossTileHint(item)} /> : <div className="w-full h-full rounded-lg bg-crt-950/60 ring-1 ring-white/5"></div>}
                   </div>
                 );
               })}

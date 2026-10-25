@@ -17,11 +17,12 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES } from '../../config/gameplay';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, bossNumberFor, bossRewardFor, advanceBoss, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
-import { currentStreak, powerWordBonusFor } from '../progression';
+import { currentStreak, powerWordBonusFor, recordBossBadge } from '../progression';
+import { BOSSES, bossById, pickBoss } from '../../data/bosses';
 import { getBonusMedia } from '../../data/bonusMedia';
 import type { MissionEvent } from '../../data/missions';
 
@@ -33,6 +34,8 @@ interface GameScreenProps {
   isResuming: boolean;
   onTimeLow: (isLow: boolean) => void;
   onGoldenRoundChange: (isGolden: boolean) => void;
+  /** A boss round started or ended (App draws the boss frame). */
+  onBossRoundChange?: (isBoss: boolean) => void;
   onScoreUpdate: (oldScore: number, newScore: number) => void;
   /** Credits earned (or spent, if negative); label replaces the default toast. */
   onLexCoinChange: (amount: number, label?: string) => void;
@@ -301,6 +304,25 @@ const TREEHOUSE_NAME = 'Treehouse of Horror';
 
 // Speed-up levels: every few words the clock runs a little faster. Announced when this word crosses a level.
 const CONTINUE_TITLE = '🕹️ Continue?';
+
+/**
+ * Boss rounds: if this word levels up into a boss level, start the round on `gs` (a copy the
+ * caller owns) and return the boss intro pop-up.
+ */
+const startBossRound = (gs: GameState, wordsBefore: number): ModalContent | null => {
+    const level = levelFor(wordsBefore + 1);
+    const number = level > levelFor(wordsBefore) ? bossNumberFor(level) : 0;
+    if (!number) return null;
+    const boss = pickBoss(number, gs.bossesFaced ?? []);
+    gs.boss = { id: boss.id, number, wordsLeft: BOSS.words, hits: 0 };
+    gs.bossesFaced = [...(gs.bossesFaced ?? []), boss.id];
+    const reward = bossRewardFor(number);
+    return {
+        type: 'info',
+        title: `${boss.icon} BOSS: ${boss.name}!`,
+        content: `“${boss.taunt}”\n\nRule: ${boss.description}\n\nLand ${BOSS.hitsToWin} hits in your next ${BOSS.words} words to win the Boss Badge: +${reward.points} points and +${reward.seconds}s. Words that break the rule still score; they just don't count as hits.`,
+    };
+};
 
 const levelUpModal = (wordsBefore: number) => {
     const level = levelFor(wordsBefore + 1);
@@ -930,7 +952,10 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             }
     
             const bonusApplied = bonusTime(bonusSeconds, timerDuration, runLevel(newGameState));
-            const finalTime = clampTime(timerDuration + bonusApplied, bankMax(newGameState));
+            // Boss Badge seconds are earned, so they skip the level shrink (still halved above 60s).
+            const badgeApplied = taxWordTime(newGameState.pendingBadgeTime ?? 0, timerDuration + bonusApplied);
+            newGameState.pendingBadgeTime = 0;
+            const finalTime = clampTime(timerDuration + bonusApplied + badgeApplied, bankMax(newGameState));
             const gained = finalTime - settled.time;
             const fromWord = Math.max(0, Math.min(taxedWordTime, gained));
             newGameState = creditTime(creditTime(newGameState, 'words', fromWord), 'powerUps', gained - fromWord);
@@ -2055,7 +2080,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
     }
 }
 
-export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveGame, isResuming, onTimeLow, onGoldenRoundChange, onScoreUpdate, onLexCoinChange, tileClass, powerWord }) => {
+export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveGame, isResuming, onTimeLow, onGoldenRoundChange, onBossRoundChange, onScoreUpdate, onLexCoinChange, tileClass, powerWord }) => {
     
     /**
      * A robust safeguard to ensure the hand state is always a valid, renderable array.
@@ -2161,6 +2186,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   useEffect(() => {
     onGoldenRoundChange(gameState?.roundType === 'golden');
   }, [gameState?.roundType, onGoldenRoundChange]);
+
+  useEffect(() => {
+    onBossRoundChange?.(!!gameState?.boss && gameState.roundType !== 'golden');
+  }, [gameState?.boss, gameState?.roundType, onBossRoundChange]);
 
 
   const handleMuteToggle = () => {
@@ -2630,6 +2659,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             newState.pendingTimeBonus = timeForWordAtLevel(word.length, levelFor(totalWords)); // Added back onto the time bank
             const levelUp = levelUpModal(totalWords);
             if (levelUp) modalQueue.push(levelUp);
+            const goldenBossIntro = startBossRound(newState, totalWords);
+            if (goldenBossIntro) modalQueue.push(goldenBossIntro);
 
             showMessage(`Golden Word: ${word.toUpperCase()}! +${turnScore}. Hand reshuffled!`, 3000);
             
@@ -3017,6 +3048,41 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (shouldResetStreak) {
           newState.consecutiveSuccesses = 0;
       }
+
+      // Boss round: does this word follow the boss rule? Every valid word still scores normally.
+      const bossRound = newState.boss;
+      const boss = bossById(bossRound?.id);
+      if (bossRound && !boss) newState.boss = null;
+      if (bossRound && boss) {
+          const rack = [...(hand ?? []).filter((t): t is Tile => t !== null), ...submittedTiles];
+          const hit = boss.check(word.toUpperCase(), rack);
+          const { round, outcome } = advanceBoss(bossRound, hit);
+          const hits = bossRound.hits + (hit ? 1 : 0);
+          scoreResult.bonuses.push(hit
+              ? { name: `👊 Boss hit on ${boss.name}`, description: `${hits}/${BOSS.hitsToWin}` }
+              : { name: `💨 ${boss.name} dodged`, description: boss.rule });
+          newState.boss = round;
+          if (round) showMessage(hit ? `👊 HIT! ${hits}/${BOSS.hitsToWin} on ${boss.name}` : `💨 Dodged! ${boss.rule} · ${round.wordsLeft} left`, 1800);
+          const reward = bossRewardFor(bossRound.number);
+          if (outcome === 'won') {
+              runningScore += reward.points;
+              newState.pendingBadgeTime = (newState.pendingBadgeTime ?? 0) + reward.seconds;
+              scoreResult.bonuses.push({ name: `🏅 Boss Badge: ${boss.name}`, description: `+${reward.points} pts, +${reward.seconds}s` });
+              const { isNew, total } = recordBossBadge(boss.id);
+              eventLogQueue.push({ type: 'event', id: `boss-${boss.id}-${now}`, name: `Beat ${boss.name}`, icon: '🏅', description: `${hits}/${BOSS.hitsToWin} hits: Boss Badge earned (+${reward.seconds}s).`, scoreChange: reward.points, cumulativeScore: runningScore });
+              modalQueue.push({ type: 'info', title: '🏅 BOSS DEFEATED!', content: `You beat ${boss.icon} ${boss.name}! Boss Badge earned: +${reward.points} points and +${reward.seconds}s.${isNew ? `\n\nNew badge for your Badge Case (${total}/${BOSSES.length})!` : ''}` });
+              soundService.playMilestone();
+          } else if (outcome === 'close') {
+              runningScore += reward.closePoints;
+              scoreResult.bonuses.push({ name: `😤 So close: ${boss.name}`, description: `+${reward.closePoints} pts` });
+              eventLogQueue.push({ type: 'event', id: `boss-${boss.id}-${now}`, name: `${boss.name} got away`, icon: '😤', description: `${hits}/${BOSS.hitsToWin} hits: so close.`, scoreChange: reward.closePoints, cumulativeScore: runningScore });
+              modalQueue.push({ type: 'info', title: '😤 SO CLOSE!', content: `${hits}/${BOSS.hitsToWin} hits on ${boss.icon} ${boss.name}. +${reward.closePoints} points for the effort, but the badge (and its time) got away.` });
+          } else if (outcome === 'escaped') {
+              modalQueue.push({ type: 'info', title: `💨 ${boss.name} got away`, content: `${hits}/${BOSS.hitsToWin} hits. No badge this time, and nothing lost.`, autoClose: 2500 });
+          }
+      }
+      const bossIntro = startBossRound(newState, totalWords);
+      if (bossIntro) modalQueue.push(bossIntro);
 
       // Gotta Catch 'Em All: collect all five vowels across your words, once per run.
       if (newState.activeCharms.some(c => c.id === 'gottaCatchEmAll')) {

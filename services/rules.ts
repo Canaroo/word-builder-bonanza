@@ -1,6 +1,6 @@
 // Pure gameplay rules. No React, no DOM: easy to test and to tune via config/gameplay.ts.
-import { GAMEPLAY, POWER_GLOVE_BANK_MAX } from '../config/gameplay';
-import { ScoreCalculationResult } from '../types';
+import { BOSS, GAMEPLAY, POWER_GLOVE_BANK_MAX } from '../config/gameplay';
+import { BossRound, ScoreCalculationResult } from '../types';
 
 const lookupByLength = (table: Record<number, number>, length: number, below: number): number => {
     const keys = Object.keys(table).map(Number).sort((a, b) => a - b);
@@ -84,6 +84,27 @@ export const bonusTimeScale = (level: number): number => {
 /** Seconds a charm/PowerPlay time bonus actually adds: shrunk by level, then halved above the overflow line. */
 export const bonusTime = (seconds: number, bank: number, level: number): number =>
     seconds <= 0 ? seconds : taxWordTime(Math.max(1, Math.round(seconds * bonusTimeScale(level))), bank);
+
+/** Is this level a boss level (3, 6, 9...)? Returns which boss level of the run it is, or 0. */
+export const bossNumberFor = (level: number): number =>
+    level >= BOSS.everyLevels && level % BOSS.everyLevels === 0 ? level / BOSS.everyLevels : 0;
+
+/** The reward for beating the nth boss of a run. */
+export const bossRewardFor = (bossNumber: number) =>
+    BOSS.rewards[Math.min(Math.max(1, bossNumber), BOSS.rewards.length) - 1];
+
+/**
+ * One valid word against a boss: returns the round afterward (null once it's over) and how it
+ * ended. It ends as soon as the badge is won, when the words run out, or when even the
+ * consolation can't be reached any more.
+ */
+export const advanceBoss = (round: BossRound, hit: boolean): { round: BossRound | null; outcome: 'won' | 'close' | 'escaped' | null } => {
+    const next = { ...round, hits: round.hits + (hit ? 1 : 0), wordsLeft: round.wordsLeft - 1 };
+    if (next.hits >= BOSS.hitsToWin) return { round: null, outcome: 'won' };
+    if (next.wordsLeft <= 0) return { round: null, outcome: next.hits >= BOSS.closeHits ? 'close' : 'escaped' };
+    if (next.hits + next.wordsLeft < BOSS.closeHits) return { round: null, outcome: 'escaped' };
+    return { round: next, outcome: null };
+};
 
 /** Gotta Catch 'Em All: the vowels caught so far plus this word's, in AEIOU order. */
 export const catchVowels = (caught: string, word: string): string => {

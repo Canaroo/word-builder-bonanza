@@ -156,6 +156,14 @@ export interface TimeLedger {
   goldenRounds: number;
 }
 
+/** A boss round in progress: which boss, which boss level of the run (1st, 2nd...), and progress. */
+export interface BossRound {
+  id: string;
+  number: number;
+  wordsLeft: number;
+  hits: number;
+}
+
 export interface GameState {
   score: number;
   log: LogEntry[];
@@ -233,6 +241,12 @@ export interface GameState {
   breakReady?: boolean;
   /** I'm Ready!: the last level whose first word already paid out. */
   readyLevel?: number;
+  /** The boss round in progress, if any (data/bosses.ts). */
+  boss?: BossRound | null;
+  /** Bosses faced this run, so a run doesn't repeat one until the pool runs out. */
+  bossesFaced?: string[];
+  /** Boss Badge seconds waiting for the next round (they skip the per-level shrink). */
+  pendingBadgeTime?: number;
   longestStreak: number;
   multiverseTimeBonus: number;
   duckHuntComboState: { streakLetters: Set<string> | null, streakCount: number };
@@ -275,6 +289,8 @@ export interface LeaderboardEntry {
   badge?: string | null;
   title?: string | null;
   streak?: number;
+  /** Boss Badges collected, when the score was posted. */
+  bosses?: number;
 }
 
 /** Player bling sent with a score. */
@@ -282,6 +298,8 @@ export interface PlayerFlair {
   badge: string | null;
   title: string | null;
   streak: number;
+  /** Boss Badges collected (different bosses beaten, ever). */
+  bosses?: number;
 }
 
 export interface ScoreBonusInfo {

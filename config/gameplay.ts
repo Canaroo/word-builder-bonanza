@@ -174,6 +174,27 @@ export const CHARM_BONUS = {
   eagleLetters: 5,
 } as const;
 
+/**
+ * Boss rounds (data/bosses.ts): every `everyLevels` levels, the next `words` valid words face a
+ * boss rule. Land `hitsToWin` words that follow it to earn the Boss Badge; `closeHits` or more
+ * pays a consolation. Rewards climb with each boss level in a run (the last entry repeats).
+ * Badge time skips the per-level shrink (it's earned, like the run-savers) but is still halved
+ * above the overflow line, so a badge can't overfill the bank.
+ */
+export const BOSS = {
+  everyLevels: 3,
+  words: 8,
+  hitsToWin: 6,
+  closeHits: 4,
+  rewards: [
+    { points: 200, seconds: 5, closePoints: 50 },
+    { points: 350, seconds: 8, closePoints: 90 },
+    { points: 500, seconds: 10, closePoints: 125 },
+    { points: 700, seconds: 12, closePoints: 175 },
+    { points: 900, seconds: 15, closePoints: 225 },
+  ],
+} as const;
+
 /** Most charms a player can have at once; a new one beyond this replaces one. */
 export const CHARM_SLOTS = 5;
 

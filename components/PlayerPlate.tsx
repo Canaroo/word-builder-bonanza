@@ -30,6 +30,12 @@ export const StreakFlame: React.FC<{ count: number; className?: string }> = ({ c
     <span className={`osd-text leading-none text-neon-orange whitespace-nowrap ${className}`} aria-label={`${count}-day streak`}>🔥{count}</span>
   ) : null;
 
+/** 🏅 and the Boss Badge count; hidden at zero. */
+export const BossBadgeCount: React.FC<{ count: number; className?: string }> = ({ count, className = '' }) =>
+  count > 0 ? (
+    <span className={`osd-text leading-none text-neon-yellow whitespace-nowrap ${className}`} aria-label={`${count} Boss ${count === 1 ? 'Badge' : 'Badges'}`} title={`Beat ${count} ${count === 1 ? 'boss' : 'bosses'}`}>🏅{count}</span>
+  ) : null;
+
 /** Name with badge, title and streak: the player's card. */
 const PlayerPlate: React.FC<{
   name: string;

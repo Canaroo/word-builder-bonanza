@@ -12,6 +12,7 @@ import EventLogDisplay from '../../components/EventLogDisplay';
 import RankingModal from '../../components/RankingModal';
 import ArcadeButton from '../../components/ArcadeButton';
 import { collectionProgress } from '../collection';
+import { BOSSES } from '../../data/bosses';
 import { storage, STORAGE_KEYS } from '../storage';
 import MissionsPanel from '../../components/MissionsPanel';
 import StreakPanel from '../../components/StreakPanel';
@@ -25,6 +26,7 @@ interface StartScreenProps {
   onShowHowToPlay: () => void;
   onShowVibez: () => void;
   onShowCollection: () => void;
+  onShowBadgeCase: () => void;
   lexCoins: number;
   autoShowLeaderboard: boolean;
   setAutoShowLeaderboard: (show: boolean) => void;
@@ -44,6 +46,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onShowHowToPlay, 
   onShowVibez, 
   onShowCollection,
+  onShowBadgeCase,
   lexCoins, 
   autoShowLeaderboard, 
   setAutoShowLeaderboard,
@@ -481,6 +484,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
             
             <ArcadeButton color="pink" className="w-full" onClick={onShowCollection} aria-label={`Collection. ${collection.found} of ${collection.total} secrets found`}>
                 📼 Collection <span className="font-osd text-2xl leading-none normal-case tracking-normal">{collection.found}/{collection.total}</span>
+            </ArcadeButton>
+
+            <ArcadeButton color="red" className="w-full" onClick={onShowBadgeCase} aria-label={`Boss Badges. ${profile.bossBadges.length} of ${BOSSES.length} bosses beaten`}>
+                🏅 Boss Badges <span className="font-osd text-2xl leading-none normal-case tracking-normal">{profile.bossBadges.length}/{BOSSES.length}</span>
             </ArcadeButton>
 
             <div className="w-full grid grid-cols-2 gap-x-3 gap-y-4 pb-1">

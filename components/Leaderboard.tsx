@@ -3,7 +3,7 @@ import { LeaderboardEntry } from '../types';
 import { soundService } from '../services/soundService';
 import { leaderboardService, LeaderboardSource } from '../services/leaderboardService';
 import ArcadeButton from './ArcadeButton';
-import { BadgeIcon, TitleText, StreakFlame } from './PlayerPlate';
+import { BadgeIcon, TitleText, StreakFlame, BossBadgeCount } from './PlayerPlate';
 
 interface LeaderboardProps {
   data: LeaderboardEntry[];
@@ -112,6 +112,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
                           {entry.name}
                         </span>
                         <StreakFlame count={entry.streak ?? 0} className="text-base" />
+                        <BossBadgeCount count={entry.bosses ?? 0} className="text-base" />
                       </span>
                       {entry.title && <TitleText id={entry.title} className="text-sm leading-none block truncate mt-0.5" />}
                     </div>

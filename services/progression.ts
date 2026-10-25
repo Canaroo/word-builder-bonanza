@@ -4,6 +4,7 @@
 import { storage, STORAGE_KEYS } from './storage';
 import { DAILY_RESET_HOUR, STREAK_FREEZE, POWER_WORD_BONUS } from '../config/progression';
 import { COSMETICS, STREAK_MILESTONES, cosmeticById, type CosmeticKind, type StreakMilestone } from '../data/cosmetics';
+import { bossById } from '../data/bosses';
 
 export interface StreakState {
   count: number;
@@ -20,6 +21,8 @@ export interface Profile {
   badge: string | null;
   title: string | null;
   streak: StreakState;
+  /** Boss Badges: ids of the bosses beaten (6 hits) at least once, in the order earned. */
+  bossBadges: string[];
 }
 
 const EMPTY_PROFILE: Profile = {
@@ -27,6 +30,7 @@ const EMPTY_PROFILE: Profile = {
   badge: null,
   title: null,
   streak: { count: 0, best: 0, lastDay: null, freezes: 0, milestonesClaimed: [] },
+  bossBadges: [],
 };
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -59,6 +63,7 @@ export const getProfile = (): Profile => {
     badge: cosmeticById(saved.badge)?.kind === 'badge' ? saved.badge! : null,
     title: cosmeticById(saved.title)?.kind === 'title' ? saved.title! : null,
     streak: { ...EMPTY_PROFILE.streak, ...(saved.streak ?? {}) },
+    bossBadges: Array.isArray(saved.bossBadges) ? [...new Set(saved.bossBadges.filter(id => bossById(id)))] : [],
   };
 };
 
@@ -156,11 +161,24 @@ export const equipCosmetic = (kind: CosmeticKind, id: string | null): Profile =>
 export const powerWordBonusFor = (streak: number): number =>
   Math.min(POWER_WORD_BONUS.max, POWER_WORD_BONUS.base + POWER_WORD_BONUS.perStreakDay * Math.max(0, streak));
 
-/** What other players see: equipped bling and streak, for the leaderboard and share card. */
+/** What other players see: equipped bling, streak and Boss Badges, for the leaderboard and share card. */
 export const publicFlair = (p: Profile = getProfile()) => ({
   badge: p.badge,
   title: p.title,
   streak: currentStreak(p),
+  bosses: p.bossBadges.length,
 });
+
+/** Beating a boss: adds its Boss Badge the first time. Returns whether it's new and the total. */
+export const recordBossBadge = (id: string): { isNew: boolean; total: number } => {
+  const p = getProfile();
+  if (!bossById(id)) return { isNew: false, total: p.bossBadges.length };
+  const isNew = !p.bossBadges.includes(id);
+  if (isNew) {
+    p.bossBadges = [...p.bossBadges, id];
+    saveProfile(p);
+  }
+  return { isNew, total: p.bossBadges.length };
+};
 
 export const ALL_COSMETIC_IDS = COSMETICS.map(c => c.id);
