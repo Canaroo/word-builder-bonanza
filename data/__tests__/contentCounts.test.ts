@@ -1,14 +1,16 @@
-// Keeps the PowerPlay, charm and secret bonus counts in CLAUDE.md in step with the real lists.
+// Keeps the PowerPlay, charm, secret bonus and boss counts in CLAUDE.md in step with the real lists.
 import { describe, test, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { POWER_PLAYS_LIST } from '../powerPlays';
 import { CHARMS_LIST } from '../charms';
 import { SECRET_BONUSES } from '../secretBonuses';
+import { BOSSES } from '../bosses';
 
 const notes = readFileSync(resolve(__dirname, '../../CLAUDE.md'), 'utf8');
 const row = notes.match(/PowerPlays \/ charms \((\d+) \/ (\d+)\)/);
 const bonusRow = notes.match(/Secret bonuses \((\d+) words, (\d+) scores\)/);
+const bossRow = notes.match(/Bosses \((\d+)\)/);
 
 describe('content counts', () => {
     test('CLAUDE.md lists the PowerPlay and charm counts', () => {
@@ -33,6 +35,11 @@ describe('content counts', () => {
         expect(words, 'update "Secret bonuses" in CLAUDE.md').toBe(Number(bonusRow![1]));
         expect(scores, 'update "Secret bonuses" in CLAUDE.md').toBe(Number(bonusRow![2]));
         expect(words + scores).toBe(SECRET_BONUSES.length);
+    });
+
+    test('boss count matches CLAUDE.md', () => {
+        expect(bossRow, 'CLAUDE.md is missing the "Bosses (N)" row').not.toBeNull();
+        expect(BOSSES.length, 'update "Bosses" in CLAUDE.md').toBe(Number(bossRow![1]));
     });
 
     test('PowerPlay and charm ids are unique', () => {

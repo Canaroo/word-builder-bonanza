@@ -8,9 +8,11 @@ interface TileProps {
   /** Position of this tile in a hinted word (1 = first letter), from Carmen Sandiego or Phone-a-Friend. */
   hintOrder?: number;
   isGolden?: boolean;
+  /** Boss round: 'dim' if the tile would break the rule, 'glow' if the rule needs it. */
+  bossHint?: 'dim' | 'glow' | null;
 }
 
-const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hintOrder, isGolden }) => {
+const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hintOrder, isGolden, bossHint }) => {
   const hasMultiplier = tile.multiplier && tile.multiplier > 1;
   const hasTempPoints = tile.tempPoints && tile.tempPoints > 0;
   
@@ -55,8 +57,8 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
       onClick={handleClick}
       onContextMenu={e => e.preventDefault()}
       disabled={tile.isLocked}
-      className={`tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none ${tileStyle} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-      aria-label={`Tile ${tile.letter} with ${tile.tempPoints ?? tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${tile.isLocked ? ' (locked for this turn)' : ''}`}
+      className={`tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none ${tileStyle} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed' : ''} ${bossHint === 'dim' ? 'boss-tile-dim' : bossHint === 'glow' ? 'boss-tile-glow' : ''}`}
+      aria-label={`Tile ${tile.letter} with ${tile.tempPoints ?? tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${tile.isLocked ? ' (locked for this turn)' : ''}${bossHint === 'dim' ? ', breaks the boss rule' : bossHint === 'glow' ? ', the boss rule needs this tile' : ''}`}
     >
       {/* Rings and glows are overlays: the tile's own box-shadow is its 3D edge. */}
       {isSuperLook && <span className="tile-overlay ring-4 ring-red-400 animate-pulse" aria-hidden="true" />}

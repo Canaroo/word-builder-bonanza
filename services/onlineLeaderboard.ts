@@ -3,6 +3,7 @@
 // database URL, which work on networks where the SDK's websocket is slow or blocked.
 import { LeaderboardEntry, PlayerFlair } from '../types';
 import { cosmeticById } from '../data/cosmetics';
+import { BOSSES } from '../data/bosses';
 
 const LEADERBOARD_PATH = 'leaderboard';
 const TOP_N = 50;
@@ -49,6 +50,7 @@ const toEntry = (id: string, row: any): LeaderboardEntry | null => {
         badge: cosmeticById(row.badge)?.kind === 'badge' ? row.badge : null,
         title: cosmeticById(row.title)?.kind === 'title' ? row.title : null,
         streak: Number.isInteger(row.streak) && row.streak > 0 ? Math.min(row.streak, 9999) : 0,
+        bosses: Number.isInteger(row.bosses) && row.bosses > 0 ? Math.min(row.bosses, BOSSES.length) : 0,
     };
 };
 
@@ -62,8 +64,9 @@ const list = async (): Promise<LeaderboardEntry[]> => {
 };
 
 /**
- * Writes { name, score, timestamp } plus the player's badge, title and streak, and returns the
- * new entry's id. If the database rules reject the extra fields, it writes the score alone so
+ * Writes { name, score, timestamp } plus the player's badge, title, streak and Boss Badge count,
+ * and returns the new entry's id. If the database rules reject the extra fields, it tries again
+ * without the newest one (Boss Badges, for rules not updated yet), then with the score alone, so
  * nothing is lost.
  */
 const submit = async (name: string, score: number, flair?: PlayerFlair): Promise<string> => {
@@ -73,18 +76,22 @@ const submit = async (name: string, score: number, flair?: PlayerFlair): Promise
     if (flair?.badge) extras.badge = flair.badge;
     if (flair?.title) extras.title = flair.title;
     if (flair?.streak) extras.streak = flair.streak;
+    if (flair?.bosses) extras.bosses = flair.bosses;
     const post = (body: object) => request(`${LEADERBOARD_PATH}.json`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
-    if (Object.keys(extras).length) {
+    // Only a rules rejection is worth retrying with fewer fields.
+    const rejected = (e: unknown) => e instanceof LeaderboardError && (e.status === 400 || e.status === 401 || e.status === 403);
+    const { bosses, ...olderExtras } = extras;
+    const attempts = [extras, ...(bosses !== undefined && Object.keys(olderExtras).length ? [olderExtras] : [])].filter(x => Object.keys(x).length);
+    for (const fields of attempts) {
         try {
-            return (await post({ ...base, ...extras })).name;
+            return (await post({ ...base, ...fields })).name;
         } catch (e) {
-            // Only a rules rejection is worth retrying without the extras.
-            if (!(e instanceof LeaderboardError) || (e.status !== 400 && e.status !== 401 && e.status !== 403)) throw e;
-            console.warn('Leaderboard rejected badge/title/streak; posting the score without them.', e);
+            if (!rejected(e)) throw e;
+            console.warn(`Leaderboard rejected ${Object.keys(fields).join('/')}; trying with fewer fields.`, e);
         }
     }
     return (await post(base)).name;

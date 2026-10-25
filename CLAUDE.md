@@ -47,6 +47,7 @@ Resume.
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
 | PowerPlays / charms (75 / 71) | `data/powerPlays.ts`, `data/charms.ts` |
 | Secret bonuses (68 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
+| Bosses (12) and Boss Badges | `data/bosses.ts` (villains, rules), `BOSS` in `config/gameplay.ts` (timing, rewards); badges in the profile (`recordBossBadge`) |
 | Cosmetics, streak milestones, themes, missions | `data/cosmetics.ts`, `data/packs.ts`, `data/missions.ts` |
 | Dictionary | `data/internalWords.ts` (words with definitions), `words/custom.txt`, `words/blocked.txt`, `words/no-suggest.txt` |
 | Online leaderboard | `services/onlineLeaderboard.ts` (Firebase REST, no SDK); rules in `docs/LEADERBOARD.md` |
@@ -73,6 +74,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
 - **Tiles** act on touch-down (pointerdown), not click.
 - **Combo Breaker:** next 3 words, each 4+ letter word scores x3, a shorter word scores 0 and ends
   it. Strikes don't end it.
+- **Boss rounds:** every 3rd level, a villain's rule covers the next 8 valid words. Land 6 hits
+  (words that follow it) for the Boss Badge (points + time that skips the level shrink); 4–5 hits
+  pays points only. Breaking the rule never costs anything: the word still scores. Bosses go
+  early → mid → late, random within a tier. Boss Badges are permanent (one per boss) and show
+  on the Top 50 as 🏅N; Firebase needs the `bosses` rule line in `docs/LEADERBOARD.md`.
 - **Run-savers** are once per run. Time from items goes through `bonusTime()`.
 - **Slurs:** never unblock a word without the owner's confirmation. Allowed slur-adjacent words
   (COON, DINK, FAG and its verb forms) are on `words/no-suggest.txt`, so the game never offers them.

@@ -144,7 +144,9 @@ const runScenario = async (browser, base, sc, index) => {
   }
   if (sc.word) {
     for (const letter of sc.word.toUpperCase()) {
-      const tile = page.locator(`[aria-label^="Tile ${letter} "]`).first();
+      // The word row comes before the rack on the page, so the last match is always a rack tile
+      // (this matters for words with a repeated letter, like TREE).
+      const tile = page.locator(`[aria-label^="Tile ${letter} "]`).last();
       if (!(await tile.count())) { out.error = `No ${letter} tile left for ${sc.word}`; break; }
       await tile.dispatchEvent('pointerdown');
       await page.waitForTimeout(120);
@@ -169,6 +171,7 @@ const runScenario = async (browser, base, sc, index) => {
       charms: gs.activeCharms.map(c => c.id),
       pocket: gs.availablePowerPlays.map(p => p.id),
       armed: Object.keys(gs.activePowerPlays),
+      boss: gs.boss ?? undefined,
       events: gs.log.filter(e => e.type === 'event').map(e => `${e.icon ?? ''} ${e.name}: ${e.scoreChange >= 0 ? '+' : ''}${e.scoreChange}`.trim()),
     });
   }

@@ -50,3 +50,26 @@ describe('online leaderboard (REST)', () => {
         expect(err.reason).toBe('no connection');
     });
 });
+
+describe('Boss Badges on the online board', () => {
+    test('reads the Boss Badge count, ignoring junk', async () => {
+        fetchMock.mockResolvedValue(json(200, {
+            a: { name: 'Ann', score: 900, timestamp: 1792376877438, bosses: 4 },
+            b: { name: 'Bo', score: 800, timestamp: 1792376877438, bosses: 'lots' },
+        }));
+        expect((await onlineLeaderboard.list()).map(r => [r.name, r.bosses])).toEqual([['Ann', 4], ['Bo', 0]]);
+    });
+
+    test('posts the count; if the rules reject it, keeps the rest of the bling', async () => {
+        fetchMock.mockResolvedValueOnce(json(400, { error: 'Permission denied' })).mockResolvedValueOnce(json(200, { name: '-Nb' }));
+        expect(await onlineLeaderboard.submit('Tex', 500, { badge: 'b_vhs', title: null, streak: 2, bosses: 3 })).toBe('-Nb');
+        expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ badge: 'b_vhs', streak: 2, bosses: 3 });
+        expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ name: 'Tex', score: 500, timestamp: { '.sv': 'timestamp' }, badge: 'b_vhs', streak: 2 });
+    });
+
+    test('a count of 0 is not sent', async () => {
+        fetchMock.mockResolvedValue(json(200, { name: '-Nc' }));
+        await onlineLeaderboard.submit('Tex', 500, { badge: null, title: null, streak: 0, bosses: 0 });
+        expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ name: 'Tex', score: 500, timestamp: { '.sv': 'timestamp' } });
+    });
+});

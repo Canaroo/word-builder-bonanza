@@ -32,15 +32,17 @@ them are secrets: what protects the data is the database rules below.
 Each score is one child of `/leaderboard`, written once and never updated:
 
 ```json
-{ "name": "Ann", "score": 4210, "timestamp": 1760716800000, "badge": "b_vhs", "title": "s_arcadeRat", "streak": 9 }
+{ "name": "Ann", "score": 4210, "timestamp": 1760716800000, "badge": "b_vhs", "title": "s_arcadeRat", "streak": 9, "bosses": 4 }
 ```
 
 `timestamp` is set by the server (`{".sv": "timestamp"}`). Before submitting, names are cleaned to
 what the rules accept (`sanitizeName()` in `services/leaderboardService.ts`): letters, numbers,
 spaces and `_ . ' -`, accents dropped, curly apostrophes straightened, at most 20 characters, and
-`Player` if nothing is left. `badge`, `title` and `streak` are optional: the player's equipped bling
-(ids from `data/cosmetics.ts`) and daily streak. The board ignores unknown ids. If the database
-rules don't allow these fields, the game posts the score without them, so nothing is lost.
+`Player` if nothing is left. `badge`, `title`, `streak` and `bosses` are optional: the player's equipped bling
+(ids from `data/cosmetics.ts`), daily streak, and Boss Badges collected (how many different bosses
+they've beaten, shown as 🏅4 on the Top 50). The board ignores unknown ids. If the database rules
+reject the extras, the game first retries without `bosses` (in case the rules predate it), then
+with the score alone, so nothing is lost.
 
 ## Database rules
 
@@ -51,7 +53,7 @@ when either one changes.
 - **Create-only:** anyone can read the board and add a score, but not edit or delete one.
 - **Strict fields:** names must match the allowed characters, timestamps must be within 5 minutes
   of server time, badge and title must look like cosmetic ids (`b_`/`s_` badges, `t_`/`s_`
-  titles), and any other field is rejected.
+  titles), streak and Boss Badge counts must be in range, and any other field is rejected.
 - **`.indexOn`** lets the game download only the top 50 instead of the whole list.
 
 Adding a cosmetic needs no rules change as long as its id follows the existing pattern: a `b_`,
@@ -92,6 +94,8 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         "badge":  { ".validate": "newData.isString() && newData.val().matches(/^[bs]_[A-Za-z]{1,24}$/)" },
         "title":  { ".validate": "newData.isString() && newData.val().matches(/^[ts]_[A-Za-z]{1,24}$/)" },
         "streak": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9999" },
+        // Boss Badges collected (different bosses beaten)
+        "bosses": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 99" },
 
         // Block any extra fields
         "$other": { ".validate": false }

@@ -10,6 +10,7 @@ const GameOverScreen = lazy(() => import('./services/screens/GameOverScreen'));
 const HowToPlayScreen = lazy(() => import('./services/screens/HowToPlayScreen'));
 const VibezScreen = lazy(() => import('./services/screens/VibezScreen'));
 const CollectionScreen = lazy(() => import('./services/screens/CollectionScreen'));
+const BadgeCaseScreen = lazy(() => import('./services/screens/BadgeCaseScreen'));
 
 // Bonus Vault: every bonus with a validity check and reveal previews. Unlinked; open /?bonuses.
 const BonusCatalog = lazy(() => import('./components/BonusCatalog'));
@@ -44,6 +45,7 @@ export enum Screen {
   HowToPlay,
   Vibez,
   Collection,
+  BadgeCase,
 }
 
 const App: React.FC = () => {
@@ -61,6 +63,7 @@ const App: React.FC = () => {
   const [isResuming, setIsResuming] = useState(false);
   const [isTimeLow, setIsTimeLow] = useState(false);
   const [isGoldenRound, setIsGoldenRound] = useState(false);
+  const [isBossRound, setIsBossRound] = useState(false);
   const [autoShowLeaderboard, setAutoShowLeaderboard] = useState(false);
   
   // New state for packs and currency
@@ -130,6 +133,7 @@ const App: React.FC = () => {
     if (screen !== Screen.Game) {
       setIsTimeLow(false);
       setIsGoldenRound(false);
+      setIsBossRound(false);
     }
   }, [screen]);
 
@@ -333,6 +337,7 @@ const App: React.FC = () => {
   // After a crash: back to the menu with music stopped and no half-finished modals.
   const handleRecoverFromCrash = useCallback(() => {
     setIsGoldenRound(false);
+    setIsBossRound(false);
     setIsTimeLow(false);
     setLastGameResult(null);
     setRankingModalData(null);
@@ -350,6 +355,12 @@ const App: React.FC = () => {
     soundService.initialize();
     soundService.playUIClick();
     setScreen(Screen.Collection);
+  }, []);
+
+  const handleShowBadgeCase = useCallback(() => {
+    soundService.initialize();
+    soundService.playUIClick();
+    setScreen(Screen.BadgeCase);
   }, []);
 
   const handleShowVibez = useCallback(() => {
@@ -379,6 +390,7 @@ const App: React.FC = () => {
           onShowHowToPlay={handleShowHowToPlay} 
           onShowVibez={handleShowVibez} 
           onShowCollection={handleShowCollection}
+          onShowBadgeCase={handleShowBadgeCase}
           lexCoins={lexCoins} 
           autoShowLeaderboard={autoShowLeaderboard}
           setAutoShowLeaderboard={setAutoShowLeaderboard}
@@ -398,6 +410,7 @@ const App: React.FC = () => {
             isResuming={isResuming}
             onTimeLow={setIsTimeLow}
             onGoldenRoundChange={setIsGoldenRound}
+            onBossRoundChange={setIsBossRound}
             onScoreUpdate={handleScoreUpdate}
             onLexCoinChange={handleLexCoinChange}
             tileClass={selectedPack.tileClass}
@@ -421,6 +434,8 @@ const App: React.FC = () => {
         return <HowToPlayScreen onBack={handleGoToMenu} />;
       case Screen.Collection:
         return <CollectionScreen onBack={handleGoToMenu} />;
+      case Screen.BadgeCase:
+        return <BadgeCaseScreen onBack={handleGoToMenu} />;
       case Screen.Vibez:
         return <VibezScreen 
           onBack={handleGoToMenu} 
@@ -435,7 +450,7 @@ const App: React.FC = () => {
           onBuyFreeze={handleBuyFreeze}
           />;
       default:
-        return <StartScreen onPlay={handlePlay} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin} profileVersion={profileVersion} onBuyFreeze={handleBuyFreeze}/>;
+        return <StartScreen onPlay={handlePlay} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} onShowBadgeCase={handleShowBadgeCase} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin} profileVersion={profileVersion} onBuyFreeze={handleBuyFreeze}/>;
     }
   };
 
@@ -456,6 +471,7 @@ const App: React.FC = () => {
         {selectedPack.id === 'default' && <div className="crt-overlay" aria-hidden="true" />}
         {/* Unmissable gold frame while a Golden Round runs (any theme). */}
         {isGoldenRound && screen === Screen.Game && <div className="golden-frame" aria-hidden="true" />}
+        {isBossRound && !isGoldenRound && screen === Screen.Game && <div className="boss-frame" aria-hidden="true" />}
       </div>
     </main>
   );
