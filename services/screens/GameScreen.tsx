@@ -3062,6 +3062,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               ? { name: `👊 Boss hit on ${boss.name}`, description: `${hits}/${BOSS.hitsToWin}` }
               : { name: `💨 ${boss.name} dodged`, description: boss.rule });
           newState.boss = round;
+          if (outcome) trackMission({ type: 'boss', id: boss.id, outcome, hits });
           if (round) showMessage(hit ? `👊 HIT! ${hits}/${BOSS.hitsToWin} on ${boss.name}` : `💨 Dodged! ${boss.rule} · ${round.wordsLeft} left`, 1800);
           const reward = bossRewardFor(bossRound.number);
           if (outcome === 'won') {

@@ -128,11 +128,23 @@ describe('daily missions', () => {
       { type: 'charm' as const, equippedCount: 5, swapped: true },
       { type: 'secret' as const, id: 'a', firstFind: true, media: 'vhs', isScore: true },
       { type: 'secret' as const, id: 'b', firstFind: true, media: 'cd', isScore: false },
+      { type: 'boss' as const, id: 'theNoid', outcome: 'won' as const, hits: 6 },
     ];
     for (const e of events) total += recordMissionEvent(e, 'run-1', now).total;
     const expected = missions.reduce((s, m) => s + MISSION_REWARD[m.template.tier], 0) + MISSION_SWEEP_BONUS;
     expect(total).toBe(expected);
     expect(getTodaysMissions(now).missions.every(m => m.done)).toBe(true);
+  });
+
+  test('"Beat a boss" counts only a won boss (6 hits), not a close one', () => {
+    let day = new Date(2026, 0, 1, 12);
+    while (!missionsForDay(dayKey(day)).includes('w_boss')) day = new Date(day.getTime() + 86_400_000);
+    const boss = (getTodaysMissions(day).missions.find(x => x.template.id === 'w_boss'))!;
+    expect(boss.template.tier).toBe(3);
+    recordMissionEvent({ type: 'boss', id: 'ursula', outcome: 'close', hits: 5 }, 'run-A', day);
+    expect(getTodaysMissions(day).missions.find(x => x.template.id === 'w_boss')!.done).toBe(false);
+    recordMissionEvent({ type: 'boss', id: 'ursula', outcome: 'won', hits: 6 }, 'run-B', day);
+    expect(getTodaysMissions(day).missions.find(x => x.template.id === 'w_boss')!.done).toBe(true);
   });
 
   test('"in one run" missions start over in a new run', () => {

@@ -10,7 +10,8 @@ export type MissionEvent =
   | { type: 'powerplay'; id: string; subtheme: string }
   | { type: 'powerplaySwap' }
   | { type: 'charm'; equippedCount: number; swapped: boolean }
-  | { type: 'secret'; id: string; firstFind: boolean; media: string; isScore: boolean };
+  | { type: 'secret'; id: string; firstFind: boolean; media: string; isScore: boolean }
+  | { type: 'boss'; id: string; outcome: 'won' | 'close' | 'escaped'; hits: number };
 
 export interface MissionTemplate {
   id: string;
@@ -51,6 +52,8 @@ export const MISSION_TEMPLATES: MissionTemplate[] = [
     progress: e => (isWord(e) && e.word.length >= 7 ? 1 : 0) },
   { id: 'w_big', category: 'word', tier: 3, text: 'Score 150+ points with one word', target: 1, scope: 'day',
     progress: e => (isWord(e) && e.score >= 150 ? 1 : 0) },
+  { id: 'w_boss', category: 'word', tier: 3, text: 'Beat a boss (land 6 hits)', target: 1, scope: 'day',
+    progress: e => (e.type === 'boss' && e.outcome === 'won' ? 1 : 0) },
 
   // --- PowerPlays ---
   { id: 'p_useTwo', category: 'powerplay', tier: 1, text: 'Use 2 PowerPlays', target: 2, scope: 'day',
