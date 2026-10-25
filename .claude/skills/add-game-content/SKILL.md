@@ -131,6 +131,10 @@ Some suites cover every item automatically. `swapAll.test.ts` tests keep-or-swap
 swaps. `effects.smoke.test.ts` checks that every PowerPlay does something visible. Bonus data is
 checked by `npm run check:bonuses`.
 
+When you add or remove a PowerPlay, charm or secret bonus, update its count in `CLAUDE.md` (the
+"PowerPlays / charms (N / N)" and "Secret bonuses (N words, N scores)" rows).
+`data/__tests__/contentCounts.test.ts` fails until the counts match.
+
 ```bash
 npx tsc --noEmit -p . && npx vitest run && npm run build
 ```
