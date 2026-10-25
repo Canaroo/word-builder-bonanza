@@ -717,6 +717,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                       if (buff.id === 'drMariosCure') return `${gameState?.drMarioCureStreak ?? 0}/3`;
                       if (buff.id === 'mixtape') return gameState?.mixtapeChain?.next ? `→${gameState.mixtapeChain.next}` : '';
                       if (buff.id === 'thrillerNight') return `${totalWords % 4}/4`;
+                      if (buff.id === 'gottaCatchEmAll') return `${gameState?.pokedexVowels?.length ?? 0}/5`;
+                      if (buff.id === 'survivor') return (gameState?.survivorWords ?? 0) > 0 ? `${gameState.survivorWords}` : '';
                       const countdown = (gameState?.activePowerPlays as any)?.[buff.id];
                       if (countdown?.words) return `${countdown.words} ${countdown.words === 1 ? 'word' : 'words'}`;
                       if (countdown?.rounds) return `${countdown.rounds} ${countdown.rounds === 1 ? 'round' : 'rounds'}`;

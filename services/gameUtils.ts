@@ -538,6 +538,12 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         bonuses.push({ name: 'Radioactive Spider Bite', description: 'x2 Score', source: 'word' });
     }
 
+    // Charm: We Were on a Break! (first word after a shuffle)
+    if (gameState.breakReady && gameState.activeCharms.some(c => c.id === 'weWereOnABreak')) {
+        wordMultipliers.push(CHARM_BONUS.weWereOnABreakMultiplier);
+        bonuses.push({ name: 'We Were on a Break!', description: `x${CHARM_BONUS.weWereOnABreakMultiplier} Score`, source: 'word' });
+    }
+
     // PowerPlay: Big Head Mode (listed once per word, applied per tile above)
     if (gameState.activePowerPlays.bigHeadMode) {
         bonuses.push({ name: 'Big Head Mode', description: 'x2 Tile Pts', source: 'tile' });
@@ -755,6 +761,21 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         if (last && wordUpper.length > last.word.length) {
             flatBonus += CHARM_BONUS.sickCombo;
             bonuses.push({ name: 'Sick Combo', description: `+${CHARM_BONUS.sickCombo} pts`, source: 'game' });
+        }
+    }
+
+    // Charm: The Opposite (no letters in common with your last valid word) and Eagle! (right after a long word)
+    const hasOpposite = gameState.activeCharms.some(c => c.id === 'theOpposite');
+    const hasEagle = gameState.activeCharms.some(c => c.id === 'eagle');
+    if (hasOpposite || hasEagle) {
+        const last = [...(gameState.log ?? [])].reverse().find(e => e.type === 'word' && e.status === 'valid') as { word: string } | undefined;
+        if (last && hasOpposite && !lettersInWord.some(l => last.word.toUpperCase().includes(l))) {
+            flatBonus += CHARM_BONUS.theOpposite;
+            bonuses.push({ name: 'The Opposite', description: `+${CHARM_BONUS.theOpposite} pts`, source: 'game' });
+        }
+        if (last && hasEagle && last.word.length >= CHARM_BONUS.eagleLetters) {
+            flatBonus += CHARM_BONUS.eagle;
+            bonuses.push({ name: 'Eagle!', description: `+${CHARM_BONUS.eagle} pts`, source: 'game' });
         }
     }
 

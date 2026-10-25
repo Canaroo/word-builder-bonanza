@@ -43,7 +43,7 @@ const letterBoost = (id: 'letterUpgrade' | 'polish', words: number) => (gameStat
 export const INSTANT_POWER_PLAY_IDS = new Set([
   'thwomped', 'fluncleIsProud',
   'strikeShield', 'plotArmor', 'saveByTheBell', 'timeTurner', 'mutationProtocol',
-  'deepFreeze', 'groundhogsDay', 'lifeFindsAWay', 'wildcardWake',
+  'deepFreeze', 'groundhogsDay', 'lifeFindsAWay', 'wildcardWake', 'continueScreen',
 ]);
 
 export const POWER_PLAYS_LIST: PowerPlay[] = [
@@ -1056,5 +1056,28 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     effectType: 'immediate',
     durationTag: 'ONE_TIME',
     activate: () => ({}), // Handled in GameScreen (redraws the consonants)
+  },
+  {
+    id: 'continueScreen',
+    name: 'Continue?',
+    description: `Arms right away: the first time your clock hits 0, you keep playing with ${TIME_BONUS.continueScreen} seconds, but lose ${POWER_PLAY_VALUES.continueScoreCostPercent}% of your score.`,
+    flavorText: 'Continue? 9… 8… 7…',
+    icon: '🕹️',
+    subtheme: 'timer',
+    effectType: 'passive',
+    oncePerRun: true,
+    durationTag: 'ONE_TIME',
+    activate: arm('continueScreen'),
+  },
+  {
+    id: 'actClear',
+    name: 'Act Clear!',
+    description: `Cash in up to ${POWER_PLAY_VALUES.actClearMaxSeconds} seconds from your clock for +${POWER_PLAY_VALUES.actClearPointsPerSecond} points each (up to +${POWER_PLAY_VALUES.actClearMaxSeconds * POWER_PLAY_VALUES.actClearPointsPerSecond}). Always leaves you at least ${POWER_PLAY_VALUES.actClearKeepSeconds} seconds.`,
+    flavorText: 'Gotta go fast!',
+    icon: '🦔',
+    subtheme: 'score',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (trades clock seconds for points)
   },
 ];

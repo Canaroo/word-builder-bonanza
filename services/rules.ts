@@ -85,6 +85,12 @@ export const bonusTimeScale = (level: number): number => {
 export const bonusTime = (seconds: number, bank: number, level: number): number =>
     seconds <= 0 ? seconds : taxWordTime(Math.max(1, Math.round(seconds * bonusTimeScale(level))), bank);
 
+/** Gotta Catch 'Em All: the vowels caught so far plus this word's, in AEIOU order. */
+export const catchVowels = (caught: string, word: string): string => {
+    const seen = new Set((caught + word).toUpperCase());
+    return [...'AEIOU'].filter(v => seen.has(v)).join('');
+};
+
 /** Words in a row the Golden Snitch needs for its next catch, or null once it has flown away. */
 export const snitchTargetFor = (catches: number): number | null =>
     GAMEPLAY.snitchCatchTargets[catches] ?? null;
