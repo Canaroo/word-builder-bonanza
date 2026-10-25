@@ -1073,7 +1073,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     id: 'actClear',
     name: 'Act Clear!',
     description: `Cash in up to ${POWER_PLAY_VALUES.actClearMaxSeconds} seconds from your clock for +${POWER_PLAY_VALUES.actClearPointsPerSecond} points each (up to +${POWER_PLAY_VALUES.actClearMaxSeconds * POWER_PLAY_VALUES.actClearPointsPerSecond}). Always leaves you at least ${POWER_PLAY_VALUES.actClearKeepSeconds} seconds.`,
-    flavorText: 'Gotta go fast!',
+    flavorText: 'Sonic says: rings and time, baby.',
     icon: '🦔',
     subtheme: 'score',
     effectType: 'immediate',
