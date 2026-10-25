@@ -224,6 +224,15 @@ export interface GameState {
   runId?: string;
   /** Mixtape charm: the letter the next word must start with, and how many links so far. */
   mixtapeChain?: { next: string; links: number } | null;
+  /** Gotta Catch 'Em All: vowels caught so far, and whether all five were caught this run. */
+  pokedexVowels?: string;
+  pokedexComplete?: boolean;
+  /** Survivor charm: words left that earn its bonus after a strike. */
+  survivorWords?: number;
+  /** We Were on a Break!: a shuffle happened, so the next valid word scores extra. */
+  breakReady?: boolean;
+  /** I'm Ready!: the last level whose first word already paid out. */
+  readyLevel?: number;
   longestStreak: number;
   multiverseTimeBonus: number;
   duckHuntComboState: { streakLetters: Set<string> | null, streakCount: number };

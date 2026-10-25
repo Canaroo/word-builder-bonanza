@@ -94,6 +94,12 @@ export const POWER_PLAY_VALUES = {
   comboBreakerMinLength: 4,
   comboBreakerMultiplier: 3,
   comboBreakerWords: 3,
+  // Continue?: when the clock hits 0, keep playing for this share of your score.
+  continueScoreCostPercent: 20,
+  // Act Clear!: cash in clock seconds for points, but always keep a few on the clock.
+  actClearMaxSeconds: 20,
+  actClearPointsPerSecond: 20,
+  actClearKeepSeconds: 10,
 };
 
 // Seconds from the time PowerPlays and charms (before the bonus-time rules above).
@@ -107,6 +113,10 @@ export const TIME_BONUS = {
   executeOrder66: 3,
   glitchInTheCode: 3,
   rescue: 10,              // Rewind, Neo's Choice (time), Deep Freeze, Gump's Luck
+  continueScreen: 25,      // Continue?: a once-per-run rescue, so it skips the bonus-time rules
+  sandsOfTime: 3,          // per word of sandsOfTimeLetters+ letters
+  sandsOfTimeLetters: 6,
+  gottaCatchEmAll: 10,     // once, when the last vowel is caught
 };
 
 export const CHARM_BONUS = {
@@ -149,6 +159,19 @@ export const CHARM_BONUS = {
   philsosophyLoss: 25,
   maxBankedShuffles: 2,    // L Train Shuffle stops adding shuffles at this many
   maxBankedChallenges: 5,  // The Final Frontier stops adding Challenges at this many
+  gottaCatchEmAll: 300,    // once, for catching all five vowels
+  finishHimBelow: 15,      // Finish Him!: words played with this many seconds or fewer left...
+  finishHimMultiplier: 2,  // ...score this much more
+  hesOnFireAbove: 60,      // He's On Fire!: words played with more than this many seconds left...
+  hesOnFire: 40,           // ...earn this
+  survivor: 75,            // per word, for survivorWords words after a strike
+  survivorWords: 2,
+  theOpposite: 40,         // word shares no letters with your last one
+  weWereOnABreakMultiplier: 2, // first word after a shuffle
+  imReadyMultiplier: 3,    // first word of each new level
+  backpack: 60,            // per PowerPlay used
+  eagle: 40,               // word right after one of eagleLetters+ letters
+  eagleLetters: 5,
 } as const;
 
 /** Most charms a player can have at once; a new one beyond this replaces one. */

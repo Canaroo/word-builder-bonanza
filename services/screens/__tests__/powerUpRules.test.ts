@@ -2,13 +2,14 @@
 // Charm slots, PowerPlay keep-or-swap, and the PowerPlays/charms added or moved in v6.8.
 import { describe, test, expect, vi, afterEach } from 'vitest';
 import { gameReducer, screenInitialState, maxStrikesFor, type GameScreenState } from '../GameScreen';
-import { POWER_PLAYS_LIST } from '../../../data/powerPlays';
+import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS } from '../../../data/powerPlays';
 import { CHARMS_LIST } from '../../../data/charms';
-import { CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX } from '../../../config/gameplay';
+import { CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, CHARM_BONUS } from '../../../config/gameplay';
 import { calculateScore } from '../../gameUtils';
 import * as gameUtils from '../../gameUtils';
 import { RACK_SIZE } from '../../../constants';
 import type { GameState, Tile } from '../../../types';
+import { catchVowels } from '../../rules';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -349,5 +350,115 @@ describe('v6.13 additions', () => {
         expect(tiles.slice(0, 2).map(t => t!.letter)).toEqual(['A', 'E']);
         expect(after.time).toBe(s.time);
         expect(after.gameState.availablePowerPlays).toEqual([]);
+    });
+});
+
+describe('v7.8 additions', () => {
+    const tilesFor = (w: string, points = 1) => w.split('').map((letter, i) => ({ id: `t${i}`, letter, points })) as Tile[];
+    const gs = (over: Partial<GameState> = {}) => ({ ...start().gameState, ...over });
+    const has = (r: { bonuses: { name: string }[] }, name: string) => r.bonuses.some(b => b.name.startsWith(name));
+    const played = (...words: string[]) => words.map(word => ({ type: 'word', word, status: 'valid', score: 5 } as any));
+
+    test('descriptions read their numbers from config', () => {
+        expect(pp('continueScreen').description).toContain(`${TIME_BONUS.continueScreen} seconds`);
+        expect(pp('actClear').description).toContain(`+${POWER_PLAY_VALUES.actClearMaxSeconds * POWER_PLAY_VALUES.actClearPointsPerSecond}`);
+        expect(charm('sandsOfTime').description).toContain(`${TIME_BONUS.sandsOfTimeLetters}+ letters add +${TIME_BONUS.sandsOfTime} seconds`);
+        expect(charm('finishHim').description).toContain(`${CHARM_BONUS.finishHimBelow} seconds or less`);
+        expect(charm('gottaCatchEmAll').description).toContain(`+${CHARM_BONUS.gottaCatchEmAll} points`);
+    });
+
+    test('Continue? is a once-per-run rescue that arms when picked; Act Clear! is pressed', () => {
+        expect(pp('continueScreen').oncePerRun).toBe(true);
+        expect(INSTANT_POWER_PLAY_IDS.has('continueScreen')).toBe(true);
+        expect(INSTANT_POWER_PLAY_IDS.has('actClear')).toBe(false);
+        const armed = gameReducer(start(), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('continueScreen'), allOffered: [pp('continueScreen')] } });
+        expect(armed.gameState.activePowerPlays.continueScreen).toBe(true);
+    });
+
+    test('Act Clear!: 20 points a second, up to 20 seconds, always leaving 10', () => {
+        const full = gameReducer(start({ score: 100, availablePowerPlays: [pp('actClear')] }, 40), { type: 'ACTIVATE_POWER_PLAY', payload: pp('actClear') });
+        expect(full.time).toBe(20);
+        expect(full.gameState.score).toBe(500);
+        expect(full.gameState.availablePowerPlays).toEqual([]);
+
+        const partial = gameReducer(start({ score: 0, availablePowerPlays: [pp('actClear')] }, 25), { type: 'ACTIVATE_POWER_PLAY', payload: pp('actClear') });
+        expect(partial.time).toBe(10);
+        expect(partial.gameState.score).toBe(300);
+
+        const low = gameReducer(start({ score: 0, availablePowerPlays: [pp('actClear')] }, 10), { type: 'ACTIVATE_POWER_PLAY', payload: pp('actClear') });
+        expect(low.time).toBe(10);
+        expect(low.gameState.score).toBe(0);
+        expect(low.gameState.availablePowerPlays.map(p => p.id)).toEqual(['actClear']);
+        expect(low.gameState.lastPowerPlayResult?.message).toContain('still in your pocket');
+    });
+
+    test("Gotta Catch 'Em All: vowels add up across words, and equipping starts a fresh Pokédex", () => {
+        expect(catchVowels('', 'CAT')).toBe('A');
+        expect(catchVowels('A', 'pie')).toBe('AEI');
+        expect(catchVowels('AEI', 'SOUP')).toBe('AEIOU');
+        expect(catchVowels('AE', 'RHYTHM')).toBe('AE');
+        const s = start({ pokedexVowels: 'AEI' });
+        const equipped = gameReducer(s, { type: 'CHOOSE_CHARM', payload: { charm: charm('gottaCatchEmAll'), hand: s.hand, allOffered: [charm('gottaCatchEmAll')] } });
+        expect(equipped.gameState.pokedexVowels).toBe('');
+    });
+
+    test('The Opposite: no letters shared with your last valid word', () => {
+        const charms = { activeCharms: [charm('theOpposite')], log: played('CAT') };
+        expect(has(calculateScore('mind', tilesFor('MIND'), gs(charms)), 'The Opposite')).toBe(true);
+        expect(has(calculateScore('ten', tilesFor('TEN'), gs(charms)), 'The Opposite')).toBe(false);
+        expect(has(calculateScore('mind', tilesFor('MIND'), gs({ activeCharms: [charm('theOpposite')] })), 'The Opposite')).toBe(false); // first word
+    });
+
+    test('Eagle!: +40 on the word right after a 5+ letter word', () => {
+        const after = (last: string) => calculateScore('dog', tilesFor('DOG'), gs({ activeCharms: [charm('eagle')], log: played('CAT', last) }));
+        expect(after('PLANT').totalScore - after('CAT').totalScore).toBe(CHARM_BONUS.eagle);
+        expect(has(after('PLANT'), 'Eagle!')).toBe(true);
+        expect(has(after('TREE'), 'Eagle!')).toBe(false);
+    });
+
+    test('We Were on a Break!: a shuffle arms x2 for the next word, only with the charm', () => {
+        const shuffle = (s: GameScreenState) => gameReducer(s, { type: 'PERFORM_SHUFFLE', payload: { hand: s.hand, tileBag: s.tileBag, isFree: false } } as any);
+        expect(shuffle(start({ activeCharms: [charm('weWereOnABreak')] })).gameState.breakReady).toBe(true);
+        expect(shuffle(start()).gameState.breakReady).toBeFalsy();
+        const ready = gs({ activeCharms: [charm('weWereOnABreak')], breakReady: true });
+        expect(calculateScore('cat', tilesFor('CAT'), ready).totalScore).toBe(6);
+        expect(calculateScore('cat', tilesFor('CAT'), { ...ready, breakReady: false }).totalScore).toBe(3);
+    });
+
+    test('Survivor: a real strike arms 2 bonus words; a blocked strike does not', () => {
+        const s = start({ activeCharms: [charm('survivor')] });
+        expect(gameReducer(s, { type: 'ADD_STRIKE' }).gameState.survivorWords).toBe(CHARM_BONUS.survivorWords);
+        const shielded = start({ activeCharms: [charm('survivor')], activePowerPlays: { strikeShield: true } });
+        expect(gameReducer(shielded, { type: 'ADD_STRIKE' }).gameState.survivorWords).toBeFalsy();
+        expect(gameReducer(start(), { type: 'ADD_STRIKE' }).gameState.survivorWords).toBeFalsy();
+    });
+
+    test("I'm Ready!: equipping right before a new level still pays that level's first word", () => {
+        const equip = (words: number) => {
+            const s = start({ log: played(...Array(words).fill('CAT')) });
+            return gameReducer(s, { type: 'CHOOSE_CHARM', payload: { charm: charm('imReady'), hand: s.hand, allOffered: [charm('imReady')] } }).gameState.readyLevel;
+        };
+        expect(equip(5)).toBe(1);   // pays on level 2's first word
+        expect(equip(18)).toBe(1);  // the next word starts level 2, and still pays
+        expect(equip(20)).toBe(2);  // mid level 2: waits for level 3
+    });
+
+    test('Backpack, Backpack!: +60 for each PowerPlay used, not for swaps or failed uses', () => {
+        const withPack = { activeCharms: [charm('backpack')] };
+        const used = gameReducer(start({ ...withPack, score: 0, availablePowerPlays: [pp('actClear')] }, 40), { type: 'ACTIVATE_POWER_PLAY', payload: pp('actClear') });
+        expect(used.gameState.score).toBe(400 + CHARM_BONUS.backpack);
+        expect(used.gameState.log.some(e => e.type === 'event' && e.name === 'Backpack, Backpack!')).toBe(true);
+
+        const noPack = gameReducer(start({ score: 0, availablePowerPlays: [pp('actClear')] }, 40), { type: 'ACTIVATE_POWER_PLAY', payload: pp('actClear') });
+        expect(noPack.gameState.score).toBe(400);
+
+        const instant = gameReducer(start({ ...withPack, score: 0 }), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('fluncleIsProud'), allOffered: [pp('fluncleIsProud')] } });
+        expect(instant.gameState.score).toBe(300 + CHARM_BONUS.backpack);
+
+        const swap = gameReducer(start({ ...withPack, score: 0, availablePowerPlays: [pp('timeBoost')] }), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('konamiCode'), allOffered: [pp('konamiCode')] } });
+        expect(swap.gameState.score).toBe(0);
+
+        const failed = gameReducer(start({ ...withPack, score: 0, availablePowerPlays: [pp('actClear')] }, 8), { type: 'ACTIVATE_POWER_PLAY', payload: pp('actClear') });
+        expect(failed.gameState.score).toBe(0);
     });
 });

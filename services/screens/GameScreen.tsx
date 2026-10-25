@@ -17,7 +17,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
@@ -300,6 +300,8 @@ const ONE_TILE_NAME = 'One Tile to Rule Them All';
 const TREEHOUSE_NAME = 'Treehouse of Horror';
 
 // Speed-up levels: every few words the clock runs a little faster. Announced when this word crosses a level.
+const CONTINUE_TITLE = '🕹️ Continue?';
+
 const levelUpModal = (wordsBefore: number) => {
     const level = levelFor(wordsBefore + 1);
     if (level <= levelFor(wordsBefore)) return null;
@@ -319,11 +321,41 @@ const levelUpModal = (wordsBefore: number) => {
 
 /** The game reducer, plus the time ledger: clock gains from shuffles and power-ups are recorded by source. */
 export function gameReducer(state: GameScreenState, action: GameAction): GameScreenState {
-    const next = baseGameReducer(state, action);
+    const next = payBackpack(state, baseGameReducer(state, action), action);
     const source = TIME_GAIN_SOURCE[action.type];
     const gained = next.time - state.time;
     if (!source || gained <= 0 || !next.gameState || state.gameState?.roundType === 'golden' || next.gameState.roundType === 'golden') return next;
     return { ...next, gameState: creditTime(next.gameState, source, gained) };
+}
+
+/**
+ * Backpack, Backpack! charm: every PowerPlay used pays a bonus. A PowerPlay counts as used when
+ * the held one leaves the pocket (any action but a swap), or when an instant one is picked.
+ */
+function payBackpack(state: GameScreenState, next: GameScreenState, action: GameAction): GameScreenState {
+    const gs = next.gameState;
+    if (!gs?.activeCharms?.some(c => c.id === 'backpack') || action.type === 'KEEP_POWER_PLAY') return next;
+    const used = action.type === 'CHOOSE_POWER_PLAY'
+        ? INSTANT_POWER_PLAY_IDS.has(action.payload.powerPlay.id)
+        : (state.gameState?.availablePowerPlays ?? []).some(p => !gs.availablePowerPlays.some(n => n.id === p.id));
+    if (!used) return next;
+    const bonus = CHARM_BONUS.backpack;
+    const score = gs.score + bonus;
+    const prev = gs.lastPowerPlayResult;
+    return {
+        ...next,
+        gameState: {
+            ...gs,
+            score,
+            log: [...gs.log, {
+                type: 'event', id: `charm-backpack-${Date.now()}`, name: 'Backpack, Backpack!', icon: '🎒',
+                description: `Used a PowerPlay: +${bonus} points.`, scoreChange: bonus, cumulativeScore: score,
+            } as EventLogEntry],
+            lastPowerPlayResult: prev
+                ? { message: `${prev.message} 🎒 +${bonus}`, scoreChange: prev.scoreChange + bonus }
+                : { message: `🎒 Backpack! +${bonus} points.`, scoreChange: bonus },
+        },
+    };
 }
 
 function baseGameReducer(state: GameScreenState, action: GameAction): GameScreenState {
@@ -501,7 +533,8 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
           let newHand = [...state.hand];
           let newTileBag = state.tileBag;
           
-          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, mixtapeChain: null };
+          const survivorWords = actuallyGotAStrike && activeCharms.some(c => c.id === 'survivor') ? CHARM_BONUS.survivorWords : gameState.survivorWords;
+          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, mixtapeChain: null, survivorWords };
           
           if ((actuallyGotAStrike || strikeBlockedByShield) && action.payload?.source === 'invalid_word') {
               // An invalid word costs time from the bank.
@@ -590,6 +623,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                   ...newGameState, 
                   shuffleCount: action.payload.isFree ? state.gameState.shuffleCount : state.gameState.shuffleCount - 1,
                   wordsThisRound: 0,
+                  breakReady: newGameState.activeCharms.some(c => c.id === 'weWereOnABreak') || newGameState.breakReady,
                 }
             };
         }
@@ -968,6 +1002,14 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             if (charm.id === 'powerStarResidual') {
                 newGameState.powerStarResidualActive = false;
             }
+            if (charm.id === 'gottaCatchEmAll') newGameState.pokedexVowels = '';
+            if (charm.id === 'survivor') newGameState.survivorWords = 0;
+            if (charm.id === 'weWereOnABreak') newGameState.breakReady = false;
+            // I'm Ready! pays on the first word of a level after this one (or this one, if the next word starts it).
+            if (charm.id === 'imReady') {
+                const validWords = newGameState.log.filter(e => e.type === 'word' && e.status === 'valid').length;
+                newGameState.readyLevel = levelFor(Math.max(0, validWords - 1));
+            }
             
             if (charm.effectType === 'selection') {
                 return {
@@ -1203,6 +1245,35 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 };
             }
         
+            if (powerPlay.id === 'actClear') {
+                const { actClearMaxSeconds, actClearPointsPerSecond, actClearKeepSeconds } = POWER_PLAY_VALUES;
+                const seconds = Math.min(actClearMaxSeconds, Math.max(0, state.time - actClearKeepSeconds));
+                if (seconds <= 0 || state.gameState.roundType === 'golden') {
+                    const why = state.gameState.roundType === 'golden' ? 'during a Golden Round' : `with ${actClearKeepSeconds} seconds or less on the clock`;
+                    return { ...state, gameState: { ...state.gameState, lastPowerPlayResult: { message: `🦔 Act Clear! can't cash in time ${why}. It's still in your pocket.`, scoreChange: 0 } } };
+                }
+                const scoreChange = seconds * actClearPointsPerSecond;
+                const newScore = state.gameState.score + scoreChange;
+                const newLogEntry: EventLogEntry = {
+                    type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
+                    description: `Cashed in ${seconds} seconds for ${scoreChange} points.`, icon: '🦔',
+                    scoreChange, cumulativeScore: newScore
+                };
+                return {
+                    ...state,
+                    time: state.time - seconds,
+                    timeGain: { seconds: -seconds, key: Date.now() },
+                    modalContent: { type: 'info', title: '🦔 Act Clear!', content: `Time bonus! ${seconds} seconds → +${scoreChange} points.`, autoClose: 2500 },
+                    isPaused: true,
+                    gameState: {
+                        ...state.gameState,
+                        score: newScore,
+                        log: [...state.gameState.log, newLogEntry],
+                        availablePowerPlays: state.gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                    }
+                };
+            }
+
             if (powerPlay.id === 'bobKelso') {
                 const scoreChange = 100;
                 const newScore = state.gameState.score + scoreChange;
@@ -2253,6 +2324,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         return;
     }
 
+    if (lastModalTitle === CONTINUE_TITLE) {
+      // A once-per-run rescue: the full seconds, outside the bonus-time rules.
+      dispatch({ type: 'ADD_TIME', payload: TIME_BONUS.continueScreen });
+      dispatch({ type: 'CLOSE_MODAL' });
+      return;
+    }
+
     if (lastModalTitle.includes('Deep Freeze')) {
       dispatch({ type: 'ADD_TIME', payload: bonusTime(TIME_BONUS.rescue, state.time, runLevel(state.gameState)) });
       dispatch({ type: 'CLOSE_MODAL' });
@@ -2385,6 +2463,30 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               dispatch({ type: 'UPDATE_GAME_STATE', payload });
 
               dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'info', title: '🔄 Groundhog’s Day! 🔄', content: 'Same tiles. Same time. You get one more shot.' }});
+              soundService.playMilestone();
+              return;
+          }
+
+          // Continue? (PowerPlay) last: it costs points, so the free rescues go first.
+          if (gameState?.activePowerPlays?.continueScreen) {
+              dispatch({ type: 'PAUSE_GAME' });
+              const { continueScreen, ...remainingPowerPlays } = gameState.activePowerPlays;
+              const cost = Math.round(gameState.score * POWER_PLAY_VALUES.continueScoreCostPercent / 100);
+              const newScore = gameState.score - cost;
+              dispatch({
+                  type: 'UPDATE_GAME_STATE',
+                  payload: {
+                      score: newScore,
+                      activePowerPlays: remainingPowerPlays,
+                      activeBuffs: (gameState.activeBuffs ?? []).filter(b => b.id !== 'continueScreen'),
+                      log: [...gameState.log, {
+                          type: 'event', id: `pp-continueScreen-${Date.now()}`, name: 'Continue?', icon: '🕹️',
+                          description: `Continued with ${TIME_BONUS.continueScreen} seconds for ${POWER_PLAY_VALUES.continueScoreCostPercent}% of your score.`,
+                          scoreChange: -cost, cumulativeScore: newScore,
+                      } as EventLogEntry],
+                  }
+              });
+              dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'info', title: CONTINUE_TITLE, content: `Coin inserted! You keep playing with ${TIME_BONUS.continueScreen} seconds. It cost ${cost.toLocaleString()} points (${POWER_PLAY_VALUES.continueScoreCostPercent}% of your score).` }});
               soundService.playMilestone();
               return;
           }
@@ -2604,6 +2706,24 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           newState.powerSurgeProgress++;
       }
 
+      // Finish Him! (low clock) and I'm Ready! (first word of a new level) add word multipliers.
+      // A word already zeroed (Heisenberg, a broken Combo Breaker) stays at zero.
+      const wordScored = scoreResult.totalScore > 0;
+      if (wordScored && newState.activeCharms.some(c => c.id === 'finishHim') && time <= CHARM_BONUS.finishHimBelow) {
+          scoreResult = addWordMultiplier(scoreResult, CHARM_BONUS.finishHimMultiplier);
+          scoreResult.bonuses.push({ name: 'Finish Him!', description: `x${CHARM_BONUS.finishHimMultiplier} Score`, source: 'word' });
+          showMessage(`🩸 FINISH HIM! x${CHARM_BONUS.finishHimMultiplier} score.`, 2000);
+      }
+      const wordLevel = levelFor(totalWords);
+      if (wordScored && newState.activeCharms.some(c => c.id === 'imReady') && wordLevel > (newState.readyLevel ?? 1)) {
+          newState.readyLevel = wordLevel;
+          scoreResult = addWordMultiplier(scoreResult, CHARM_BONUS.imReadyMultiplier);
+          scoreResult.bonuses.push({ name: "I'm Ready!", description: `x${CHARM_BONUS.imReadyMultiplier} Score`, source: 'word' });
+          showMessage(`🧽 I'm ready! First word of level ${wordLevel}: x${CHARM_BONUS.imReadyMultiplier}.`, 2500);
+      }
+      // We Were on a Break! is scored in calculateScore; any valid word uses it up.
+      newState.breakReady = false;
+
       // --- 4. STATEFUL & RANDOM BONUSES on top of word score ---
       
       let runningScore = oldScore;
@@ -2741,6 +2861,18 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         scoreResult.totalScore += CHARM_BONUS.totallyClueless;
         scoreResult.bonuses.push({ name: 'Totally Clueless', description: `+${CHARM_BONUS.totallyClueless} pts` });
       }
+      if (newState.activeCharms.some(c => c.id === 'hesOnFire') && time > CHARM_BONUS.hesOnFireAbove) {
+        scoreResult.totalScore += CHARM_BONUS.hesOnFire;
+        scoreResult.bonuses.push({ name: "He's On Fire!", description: `+${CHARM_BONUS.hesOnFire} pts` });
+      }
+      if ((newState.survivorWords ?? 0) > 0) {
+        newState.survivorWords = newState.survivorWords! - 1;
+        if (newState.activeCharms.some(c => c.id === 'survivor')) {
+          scoreResult.totalScore += CHARM_BONUS.survivor;
+          scoreResult.bonuses.push({ name: 'Survivor', description: `+${CHARM_BONUS.survivor} pts` });
+          showMessage(`🎤 Survivor! +${CHARM_BONUS.survivor} points.`, 2000);
+        }
+      }
 
       // --- PERFECT 4-CHAIN LOGIC ---
       if (word.length === 4) {
@@ -2801,6 +2933,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + TIME_BONUS.executeOrder66;
           showMessage(`🛰️ Execute Order 66! +${TIME_BONUS.executeOrder66}s next round.`, 2500);
         }
+      }
+
+      // Sands of Time check
+      if (newState.activeCharms.some(c => c.id === 'sandsOfTime') && word.length >= TIME_BONUS.sandsOfTimeLetters) {
+        newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + TIME_BONUS.sandsOfTime;
+        showMessage(`⏳ Sands of Time! +${TIME_BONUS.sandsOfTime}s next round.`, 2500);
       }
       
       // --- 5. GAME STATE BONUSES (Refactored) ---
@@ -2878,6 +3016,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       if (shouldResetStreak) {
           newState.consecutiveSuccesses = 0;
+      }
+
+      // Gotta Catch 'Em All: collect all five vowels across your words, once per run.
+      if (newState.activeCharms.some(c => c.id === 'gottaCatchEmAll')) {
+          newState.pokedexVowels = catchVowels(newState.pokedexVowels ?? '', word);
+          if (newState.pokedexVowels.length === 5) {
+              const pokedexBonus = CHARM_BONUS.gottaCatchEmAll;
+              runningScore += pokedexBonus;
+              scoreResult.bonuses.push({ name: "Gotta Catch 'Em All!", description: `+${pokedexBonus} pts` });
+              newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + TIME_BONUS.gottaCatchEmAll;
+              newState.pokedexComplete = true;
+              newState.activeCharms = newState.activeCharms.filter(c => c.id !== 'gottaCatchEmAll');
+              newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'gottaCatchEmAll');
+              modalQueue.push({ type: 'info', title: "📕 Gotta Catch 'Em All!", content: `You caught all five vowels! +${pokedexBonus} points and +${TIME_BONUS.gottaCatchEmAll}s next round. Your Pokédex is complete, so the charm frees up its slot.` });
+          }
       }
 
       // --- DUCK HUNT COMBO and DR MARIO CURE ---
@@ -3168,6 +3321,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           const charmsToOfferFrom = CHARMS_LIST.filter(c => 
               !newState.activeCharms.some(ac => ac.id === c.id) &&
               !(c.id === 'goldenSnitch' && snitchTargetFor(newState.snitchCatches ?? 0) === null) &&
+              !(c.id === 'gottaCatchEmAll' && newState.pokedexComplete) &&
               !newState.charmCooldowns[c.id]
           );
           const { offeredItems: offeredCharms, offerDetails } = gameUtils.getOffer(charmsToOfferFrom, 3, newState);
@@ -3383,7 +3537,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (modalQueue.length === 0) {
           handleStartNextRound();
       }
-  }, [gameState, hand, tileBag, applyMutation, showMessage, handleStartNextRound, onScoreUpdate, isChallengeLock, totalWords, powerWord, trackMission]);
+  }, [gameState, hand, tileBag, applyMutation, showMessage, handleStartNextRound, onScoreUpdate, isChallengeLock, totalWords, powerWord, trackMission, time]);
   
    const handleSubmit = async () => {
     const word = (buildRow ?? []).filter(i => i).map(item => item!.tile.letter).join('');
@@ -3718,7 +3872,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     };
 
     const handleActivatePowerPlay = (powerPlay: PowerPlay) => {
-        if (!(powerPlay.id === 'buyAVowel' && gameState.score < POWER_PLAY_VALUES.buyAVowelCost)) {
+        const cantActClear = powerPlay.id === 'actClear' && (time <= POWER_PLAY_VALUES.actClearKeepSeconds || gameState.roundType === 'golden');
+        if (!(powerPlay.id === 'buyAVowel' && gameState.score < POWER_PLAY_VALUES.buyAVowelCost) && !cantActClear) {
             trackMission({ type: 'powerplay', id: powerPlay.id, subtheme: powerPlay.subtheme });
         }
         if (powerPlay.id === 'withGreatPower') {
