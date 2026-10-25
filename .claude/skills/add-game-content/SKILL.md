@@ -27,6 +27,12 @@ Pick ideas that aren't already taken (same word, same reference or same mechanic
 lists, because duplicate *ideas* matter as much as duplicate ids. For example, Rewind already
 exists as a PowerPlay, so a new "rewind" idea needs a different angle.
 
+Check new names, references and flavor text against **every** content type, not just the one
+you're adding: a charm can collide with a secret bonus. v7.8.0 shipped a "Finish Him!" charm
+next to the FINISH bonus ("🩸 Finish Him!") and "Gotta go fast!" flavor next to the RINGS bonus,
+and both had to be renamed. The helper lists bonus words only, so grep the names and sources
+too: `grep -rni "finish him\|mortal kombat" data/`.
+
 ## 2. Propose, unless the user already decided
 
 - **The user left details open** ("add 3 charms", "come up with two more words"): propose first
