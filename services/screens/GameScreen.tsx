@@ -2706,13 +2706,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           newState.powerSurgeProgress++;
       }
 
-      // Finish Him! (low clock) and I'm Ready! (first word of a new level) add word multipliers.
+      // Flawless Victory (low clock) and I'm Ready! (first word of a new level) add word multipliers.
       // A word already zeroed (Heisenberg, a broken Combo Breaker) stays at zero.
       const wordScored = scoreResult.totalScore > 0;
       if (wordScored && newState.activeCharms.some(c => c.id === 'finishHim') && time <= CHARM_BONUS.finishHimBelow) {
           scoreResult = addWordMultiplier(scoreResult, CHARM_BONUS.finishHimMultiplier);
-          scoreResult.bonuses.push({ name: 'Finish Him!', description: `x${CHARM_BONUS.finishHimMultiplier} Score`, source: 'word' });
-          showMessage(`🩸 FINISH HIM! x${CHARM_BONUS.finishHimMultiplier} score.`, 2000);
+          scoreResult.bonuses.push({ name: 'Flawless Victory', description: `x${CHARM_BONUS.finishHimMultiplier} Score`, source: 'word' });
+          showMessage(`🥊 Flawless Victory! x${CHARM_BONUS.finishHimMultiplier} score.`, 2000);
       }
       const wordLevel = levelFor(totalWords);
       if (wordScored && newState.activeCharms.some(c => c.id === 'imReady') && wordLevel > (newState.readyLevel ?? 1)) {

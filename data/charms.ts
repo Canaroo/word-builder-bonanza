@@ -713,10 +713,10 @@ export const CHARMS_LIST: Charm[] = [
   },
   {
     id: 'finishHim',
-    name: 'Finish Him!',
+    name: 'Flawless Victory',
     description: `Words played with ${CHARM_BONUS.finishHimBelow} seconds or less on the clock score x${CHARM_BONUS.finishHimMultiplier}.`,
-    flavorText: 'FINISH HIM!',
-    icon: '🩸',
+    flavorText: 'Flawless victory.',
+    icon: '🥊',
     subtheme: 'score',
     effectType: 'triggered',
     durationTag: 'PERSISTENT',

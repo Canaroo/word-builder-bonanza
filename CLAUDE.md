@@ -46,7 +46,7 @@ Resume.
 | Game state, reducer, turn logic | `services/screens/GameScreen.tsx` (large) |
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
 | PowerPlays / charms (75 / 71) | `data/powerPlays.ts`, `data/charms.ts` |
-| Secret bonuses (65 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
+| Secret bonuses (68 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
 | Cosmetics, streak milestones, themes, missions | `data/cosmetics.ts`, `data/packs.ts`, `data/missions.ts` |
 | Dictionary | `data/internalWords.ts` (words with definitions), `words/custom.txt`, `words/blocked.txt`, `words/no-suggest.txt` |
 | Online leaderboard | `services/onlineLeaderboard.ts` (Firebase REST, no SDK); rules in `docs/LEADERBOARD.md` |
