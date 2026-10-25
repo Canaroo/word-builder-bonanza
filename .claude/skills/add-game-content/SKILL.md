@@ -140,6 +140,22 @@ IDEA isn't "perfectly balanced" (3 vowels, 1 consonant); getting that kind of de
 happened before. For anything with UI (a picker, a reveal), check it at phone size with the
 Playwright setup the repo uses (`/opt/pw-browsers`, `npx vite preview --port 4173`).
 
+**Play it in the real game.** Unit tests can't reach logic in the turn hook (`completeSubmission`),
+the out-of-time check or the pocket button. For those, write scenarios and run the playtest
+helper against the preview (start it with `run_in_background`):
+
+```bash
+npm run build && npx vite preview --port 4173      # in the background
+node .claude/skills/add-game-content/scripts/playtest.mjs my-scenarios.json
+```
+
+Each scenario sets up a mid-run moment (clock, hand, equipped charms, held or armed PowerPlays,
+words already played, any `GameState` field). It can play a word, press the pocket button or tap
+a charm card. Then it prints the word's score breakdown, every pop-up, the score, the clock and the
+event log, and saves a screenshot. `scripts/playtest.example.json` covers each kind of scenario
+(header of `playtest.mjs` lists the fields). Check test words with `content-check.mjs` first,
+because a secret bonus word changes the score. Write scenario files to the scratchpad, not the repo.
+
 ## 7. Ship
 
 The user wants content live right away:

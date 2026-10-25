@@ -59,7 +59,7 @@ Keep it that way.
 Use the **add-game-content** skill (`.claude/skills/add-game-content/`) for new bonus words,
 PowerPlays, charms, cosmetics, missions, and dictionary words. It has the house style, balance
 guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.mjs`,
-`add-words.mjs`).
+`add-words.mjs`, `playtest.mjs` for real-game checks).
 
 ## Decisions to remember
 
