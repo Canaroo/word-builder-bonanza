@@ -31,15 +31,15 @@ describe('calculateScore', () => {
     });
 
     test('word multipliers add together instead of multiplying', () => {
-        // 6 letters (x2) + Nuclear Option (x4) = x6, not x8.
+        // 6 letters (x2) + Nuclear Option (x3) = x5, not x6.
         const result = calculateScore('carton', tiles('CARTON'), state({ activePowerPlays: { nuclearOption: true } } as any));
-        expect(result.wordMultiplier).toBe(6);
-        expect(result.totalScore).toBe(36);
+        expect(result.wordMultiplier).toBe(5);
+        expect(result.totalScore).toBe(30);
     });
 
     test('a later Word Combo x2 joins the same sum', () => {
         const result = calculateScore('carton', tiles('CARTON'), state({ activePowerPlays: { nuclearOption: true } } as any));
-        expect(addWordMultiplier(result, 2).totalScore).toBe(48); // 6 x (2 + 4 + 2)
+        expect(addWordMultiplier(result, 2).totalScore).toBe(42); // 6 x (2 + 3 + 2)
     });
 
     test('score caps stay in force', () => {

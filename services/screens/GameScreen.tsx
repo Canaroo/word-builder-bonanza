@@ -1286,11 +1286,17 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 const paddedHand = Array(RACK_SIZE).fill(null);
                 newTiles.forEach((tile, i) => { if (i < RACK_SIZE) paddedHand[i] = tile; });
                 
-                const { newHand: finalHand, newBag: finalBag } = gameUtils.postProcessHand(paddedHand, remainingBag, false);
+                const { newHand: smashedHand, newBag: finalBag } = gameUtils.postProcessHand(paddedHand, remainingBag, false);
+                // A barrel: one tile of the fresh hand becomes a word multiplier tile.
+                const finalHand = [...smashedHand];
+                const barrelSlots = finalHand.map((t, i) => (t ? i : -1)).filter(i => i >= 0);
+                const barrelIndex = barrelSlots[Math.floor(Math.random() * barrelSlots.length)];
+                if (barrelIndex !== undefined) finalHand[barrelIndex] = { ...finalHand[barrelIndex]!, multiplier: POWER_PLAY_VALUES.donkeyKongMultiplier };
+                const barrelLetter = barrelIndex !== undefined ? finalHand[barrelIndex]!.letter : '';
                 
                 const newLogEntry: EventLogEntry = {
                     type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
-                    description: 'Your hand was smashed and replaced!', icon: '🐵',
+                    description: `Your hand was smashed and replaced! '${barrelLetter}' is a ${POWER_PLAY_VALUES.donkeyKongMultiplier}x tile.`, icon: '🐵',
                     scoreChange: 0, cumulativeScore: state.gameState.score
                 };
                 
@@ -1299,7 +1305,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     hand: finalHand,
                     tileBag: finalBag,
                     buildRow: Array(BUILD_ROW_SIZE).fill(null),
-                    modalContent: { type: 'info', title: 'Donkey Kong Smash!', content: 'Your hand has been smashed and replaced!', autoClose: 2500 },
+                    modalContent: { type: 'info', title: 'Donkey Kong Smash!', content: `Fresh hand, plus a barrel: '${barrelLetter}' is a ${POWER_PLAY_VALUES.donkeyKongMultiplier}x word tile!`, autoClose: 2500 },
                     isPaused: true,
                     gameState: {
                         ...state.gameState,
@@ -2605,7 +2611,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     if (tile.isLocked || isChallengeLock || (buildRow?.filter(t => t).length ?? 0) >= BUILD_ROW_SIZE) return;
     
     if (gameState?.activePowerPlays?.['wordLock'] && (buildRow?.filter(t => t).length ?? 0) >= 5) {
-        showMessage("Word Lock allows a max of 5 tiles.", 2000);
+        showMessage("Game Genie allows a max of 5 tiles.", 2000);
         return;
     }
 
@@ -2849,10 +2855,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
 
       const originalWordScore = scoreResult.totalScore;
-      if (newState.activeCharms.some(c => c.id === 'goldenTicket') && Math.random() <= 0.10) {
-        scoreResult.totalScore *= 3;
-        scoreResult.bonuses.push({ name: 'Golden Ticket!', description: "Golden Ticket! x3 Score"});
-        modalQueue.push({ type: 'info', title: '🎟️ Golden Ticket!', content: 'You found it! Your score is tripled!' });
+      if (newState.activeCharms.some(c => c.id === 'goldenTicket') && Math.random() < CHARM_BONUS.goldenTicketChance) {
+        scoreResult.totalScore += CHARM_BONUS.goldenTicket;
+        scoreResult.bonuses.push({ name: 'Golden Ticket!', description: `+${CHARM_BONUS.goldenTicket} pts` });
+        modalQueue.push({ type: 'info', title: '🎟️ Golden Ticket!', content: `You found it! +${CHARM_BONUS.goldenTicket} points!` });
       }
       if (newState.activeCharms.some(c => c.id === 'philsosophy')) {
           const rand = Math.random();
@@ -2870,17 +2876,18 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       // Check Blue Shell Surprise
       if (newState.activePowerPlays['blueShellSurprise']) {
-          const isWin = Math.random() < 0.5;
+          const { blueShellWinChance, blueShellMultiplier: mult, blueShellLoss: loss } = POWER_PLAY_VALUES;
+          const isWin = Math.random() < blueShellWinChance;
           let modalContent = '';
           if (isWin) {
-              const bonus = scoreResult.totalScore * 3;
-              scoreResult.totalScore *= 4;
-              scoreResult.bonuses.push({ name: 'Blue Shell (Win)', description: 'x4 Word Score' });
-              modalContent = `It's a direct hit! Your word score was quadrupled! (+${Math.round(bonus)} points)`;
+              const bonus = scoreResult.totalScore * (mult - 1);
+              scoreResult.totalScore *= mult;
+              scoreResult.bonuses.push({ name: 'Blue Shell (Win)', description: `x${mult} Word Score` });
+              modalContent = `It's a direct hit! Your word score is x${mult}! (+${Math.round(bonus)} points)`;
           } else {
-              scoreResult.totalScore -= 400;
-              scoreResult.bonuses.push({ name: 'Blue Shell (Loss)', description: '-400 pts' });
-              modalContent = `Oh no, it backfired! You lost 400 points from this turn's score.`;
+              scoreResult.totalScore -= loss;
+              scoreResult.bonuses.push({ name: 'Blue Shell (Loss)', description: `-${loss} pts` });
+              modalContent = `Oh no, it backfired! You lost ${loss} points from this turn's score.`;
           }
           modalQueue.push({ type: 'info', title: 'Blue Shell Surprise', content: modalContent, autoClose: 2500 });
       }
@@ -2911,9 +2918,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
 
       if (newState.pianoManEncoreActive) {
-          const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.pianoManPercent / 100);
+          const bonus = CHARM_BONUS.pianoMan;
           scoreResult.totalScore += bonus;
-          scoreResult.bonuses.push({ name: "Piano Man Encore", description: `Piano Man Encore: +${bonus} pts`});
+          scoreResult.bonuses.push({ name: "Piano Man Encore", description: `+${bonus} pts`});
           showMessage(`🎹 Piano Man Encore! +${bonus} bonus points.`, 2000);
       }
       if (newState.activeCharms.some(c => c.id === 'christiansHoodieMode')) {
@@ -2929,7 +2936,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           const timeBonus = Math.min(TIME_BONUS.multiverseCap, Math.round(scoreResult.totalScore / 2));
           scoreResult.totalScore = Math.floor(scoreResult.totalScore / 2);
           newState.multiverseTimeBonus = timeBonus;
-          scoreResult.bonuses.push({ name: "Multiverse of Sadness", description: `Multiverse: /2 Score, +${timeBonus}s next round`});
+          scoreResult.bonuses.push({ name: "In Time", description: `In Time: /2 Score, +${timeBonus}s next round`});
           showMessage(`🌀 Multiverse: +${timeBonus}s next round!`, 3000);
       }
 
@@ -2941,9 +2948,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
       const currentHour = new Date().getHours();
       if (newState.activeCharms.some(c => c.id === 'buffyBonus') && (currentHour >= 20 || currentHour < 8)) {
-        const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.buffyPercent / 100);
-        scoreResult.totalScore += bonus;
-        scoreResult.bonuses.push({ name: 'Buffy Bonus', description: `+${bonus} (${CHARM_BONUS.buffyPercent}%)` });
+        scoreResult.totalScore += CHARM_BONUS.buffy;
+        scoreResult.bonuses.push({ name: 'Buffy Bonus', description: `+${CHARM_BONUS.buffy} pts` });
       }
       if (newState.activeCharms.some(c => c.id === 'totallyClueless') && originalWordScore < CHARM_BONUS.totallyCluelessBelow) {
         scoreResult.totalScore += CHARM_BONUS.totallyClueless;
@@ -3016,17 +3022,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           newState.mixtapeChain = { next: upper.slice(-1), links: linked ? prev!.links + 1 : 0 };
       }
 
-      // Clever Girl check
-      if (newState.activeCharms.some(c => c.id === 'cleverGirl')) {
-        const raptorLetters = new Set(['R', 'A', 'P', 'T', 'O']);
-        const uniqueLettersInWord = new Set(word.toUpperCase().split(''));
-        const matchingLetters = [...uniqueLettersInWord].filter(letter => raptorLetters.has(letter));
-        if (matchingLetters.length >= TIME_BONUS.cleverGirlLetters) {
-            newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + TIME_BONUS.cleverGirl;
-            showMessage(`🦖 Clever Girl! +${TIME_BONUS.cleverGirl}s next round.`, 2500);
-        }
-      }
-      
       // Execute Order 66 check
       if (newState.activeCharms.some(c => c.id === 'executeOrder66')) {
         const hasDoubleLetter = /(.)\1/i.test(word);
@@ -3067,8 +3062,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           });
       }
 
-      if (newState.activeCharms.some(c => c.id === 'fluxCapacitor') && (totalWordsSubmitted) % 8 === 0) {
-          const bonus = Math.round((scoreResult.totalScore) * 0.55); // Recalculate based on word score only
+      if (newState.activeCharms.some(c => c.id === 'fluxCapacitor') && (totalWordsSubmitted) % CHARM_BONUS.fluxCapacitorEvery === 0) {
+          const bonus = CHARM_BONUS.fluxCapacitor;
           runningScore += bonus;
           scoreResult.bonuses.push({ name: "Flux Capacitor", description: `+${bonus} pts`});
           showMessage(`🕰️ Flux Capacitor! +${bonus} bonus points.`, 2500);
@@ -3198,8 +3193,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           if (newState.duckHuntComboState.streakCount >= 3) {
               const duckHuntBonus = 350;
               runningScore += duckHuntBonus;
-              scoreResult.bonuses.push({ name: 'Duck Hunt Combo', description: `+${duckHuntBonus} pts` });
-              modalQueue.push({ type: 'info', title: '🎯 Duck Hunt Combo!', content: 'You used the same letter in 3 straight words! +350 points.' });
+              scoreResult.bonuses.push({ name: 'Ditto!', description: `+${duckHuntBonus} pts` });
+              modalQueue.push({ type: 'info', title: '🟣 Ditto!', content: 'You used the same letter in 3 straight words! +350 points.' });
               newState.duckHuntComboState = { streakLetters: null, streakCount: 0 };
           }
       }
@@ -3380,7 +3375,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       
       // --- 8. OTHER STATE UPDATES ---
       
-      newState.pianoManEncoreActive = newState.activeCharms.some(c => c.id === 'pianoManEncore') && scoreBeforeEncore >= 45;
+      newState.pianoManEncoreActive = newState.activeCharms.some(c => c.id === 'pianoManEncore') && scoreBeforeEncore >= CHARM_BONUS.pianoManAbove;
 
       // L Train Shuffle: a word with both L and T earns a free shuffle, up to a banked maximum.
       const lTrainCharm = newState.activeCharms.find(c => c.id === 'lTrainShuffle');
@@ -3836,7 +3831,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
         if (gameState.activePowerPlays.doubleOrNothing) {
             const scoreResult = gameUtils.calculateScore(word, submittedTiles, gameState);
-            const isDouble = Math.random() < 0.5;
+            const isDouble = Math.random() < POWER_PLAY_VALUES.doubleOrNothingWinChance;
             let message = '';
 
             if (isDouble) {
@@ -4127,23 +4122,22 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             let outcomeMessage = '';
             let changes: Partial<GameState> = {};
             let timeChange = 0;
-            let gotStrike = false;
+            const points = POWER_PLAY_VALUES.gumpLuckPoints;
     
             if (rand < 0.25) { // bonus seconds
                 timeChange = bonusTime(TIME_BONUS.rescue, time, runLevel(gameState));
                 outcomeMessage = `Life is like a box of chocolates... you got ${timeChange} extra seconds!`;
-            } else if (rand < 0.5) { // +20 score
-                changes.score = gameState.score + 20;
-                outcomeMessage = "Life is like a box of chocolates... you got a 20 point bonus!";
+            } else if (rand < 0.5) { // points
+                changes.score = gameState.score + points;
+                outcomeMessage = `Life is like a box of chocolates... you got a ${points} point bonus!`;
             } else if (rand < 0.75) { // +1 shuffle
                 changes.shuffleCount = gameState.shuffleCount + 1;
                 outcomeMessage = "Life is like a box of chocolates... you got an extra shuffle!";
-            } else { // strike
-                gotStrike = true;
-                outcomeMessage = "Life is like a box of chocolates... sometimes you get a strike. Stupid is as stupid does.";
+            } else { // a dud
+                outcomeMessage = "Life is like a box of chocolates... this one was empty. Stupid is as stupid does.";
             }
     
-            const scoreChange = changes.score ? 20 : 0;
+            const scoreChange = changes.score ? points : 0;
             const cumulativeScore = changes.score || (gameState.score + scoreChange);
             const newLogEntry: EventLogEntry = {
                 type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
@@ -4156,7 +4150,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     
             dispatch({ type: 'UPDATE_GAME_STATE', payload: changes });
             if (timeChange > 0) dispatch({ type: 'ADD_TIME', payload: timeChange });
-            if (gotStrike) dispatch({ type: 'ADD_STRIKE' });
             
             showMessage(outcomeMessage, 3000);
             return;

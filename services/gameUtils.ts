@@ -418,10 +418,10 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
             bonuses.push({ name: `Vowel Lover (${tile.letter})`, description: `+${CHARM_BONUS.theValve} pts`, source: 'tile' });
         }
 
-        // Charm: One Ring
+        // Charm: E.T. Phone Home (oneRing)
         if (gameState.activeCharms.some(c => c.id === 'oneRing') && tile.letter === 'E') {
             tilePoints += CHARM_BONUS.oneRing;
-            bonuses.push({ name: `The One Ring (${tile.letter})`, description: `+${CHARM_BONUS.oneRing} pts`, source: 'tile' });
+            bonuses.push({ name: `E.T. Phone Home (${tile.letter})`, description: `+${CHARM_BONUS.oneRing} pts`, source: 'tile' });
         }
         
         // Charm: S-Tier Scorer (tile points)
@@ -465,14 +465,8 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         
         // Charm: Finisher
         if (gameState.activeCharms.some(c => c.id === 'finisher') && index === tiles.length - 1) {
-            tileMultiplier *= 3;
-            bonuses.push({ name: `Finisher (${tile.letter})`, description: `x3 Tile Pts`, source: 'tile' });
-        }
-        
-        // Charm: Italian Restaurant Ending
-        if (gameState.activeCharms.some(c => c.id === 'italianRestaurantEnding') && wordUpper.endsWith('AN') && VOWELS.has(tile.letter)) {
-            tileMultiplier *= 3;
-            bonuses.push({ name: `Italian Restaurant (${tile.letter})`, description: `x3 Tile Pts`, source: 'tile' });
+            tilePoints += CHARM_BONUS.finisher;
+            bonuses.push({ name: `Finisher (${tile.letter})`, description: `+${CHARM_BONUS.finisher} pts`, source: 'tile' });
         }
         
         scoreAfterTileMods += tilePoints * tileMultiplier;
@@ -514,29 +508,12 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         bonuses.push({ name: 'S-Tier Scorer', description: 'x2 Word Score', source: 'word' });
     }
 
-    // Charm: Silent Killer
-    if (gameState.activeCharms.some(c => c.id === 'silentKiller') && !lettersInWord.some(l => VOWELS.has(l))) {
-        wordMultipliers.push(4);
-        bonuses.push({ name: 'Silent Killer', description: 'x4 Score', source: 'word' });
-    }
-
-    // Charm: Star Power
-    if (gameState.activeCharms.some(c => c.id === 'starPower') && ['S', 'T', 'A'].every(l => lettersInWord.includes(l))) {
-        wordMultipliers.push(4);
-        bonuses.push({ name: 'Star Power', description: 'x4 Score', source: 'word' });
-    }
-    
     // Charm: Battle of Wits
     if (gameState.activeCharms.some(c => c.id === 'battleOfWits') && word.length > 1 && wordUpper[0] === wordUpper[wordUpper.length - 1]) {
         wordMultipliers.push(4);
         bonuses.push({ name: 'Battle of Wits', description: 'x4 Score', source: 'word' });
     }
     
-    // Charm: Radioactive Spider Bite
-    if (gameState.activeCharms.some(c => c.id === 'radioactiveSpiderBite') && ['D', 'E', 'R'].every(l => lettersInWord.includes(l))) {
-        wordMultipliers.push(2);
-        bonuses.push({ name: 'Radioactive Spider Bite', description: 'x2 Score', source: 'word' });
-    }
 
     // Charm: We Were on a Break! (first word after a shuffle)
     if (gameState.breakReady && gameState.activeCharms.some(c => c.id === 'weWereOnABreak')) {
@@ -567,16 +544,16 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         bonuses.push({ name: 'Combo Breaker', description: `x${POWER_PLAY_VALUES.comboBreakerMultiplier} Word Score`, source: 'word' });
     }
 
-    // PowerPlay: Bigly Score
+    // PowerPlay: Let's Get Ready to Rumble! (biglyScore)
     if (gameState.activePowerPlays.biglyScore) {
         wordMultipliers.push(4);
-        bonuses.push({ name: 'Bigly Score', description: 'x4 Word Score', source: 'word' });
+        bonuses.push({ name: "Let's Get Ready to Rumble!", description: 'x4 Word Score', source: 'word' });
     }
     
     // PowerPlay: Nuclear Option
     if (gameState.activePowerPlays.nuclearOption) {
-        wordMultipliers.push(4);
-        bonuses.push({ name: 'Nuclear Option', description: 'x4 Word Score', source: 'word' });
+        wordMultipliers.push(POWER_PLAY_VALUES.nuclearOptionMultiplier);
+        bonuses.push({ name: 'Nuclear Option', description: `x${POWER_PLAY_VALUES.nuclearOptionMultiplier} Word Score`, source: 'word' });
     }
 
     // PowerPlay: Polish
@@ -701,10 +678,14 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         bonuses.push({ name: 'Inigo’s Revenge', description: `+${CHARM_BONUS.inigosRevenge} pts`, source: 'game' });
     }
     
-    // Charm: True Love
-    if (gameState.activeCharms.some(c => c.id === 'trueLove') && ['L', 'V'].every(l => lettersInWord.includes(l))) {
-        flatBonus += 100;
-        bonuses.push({ name: 'True Love', description: '+100 pts', source: 'game' });
+    // Charm: True Love (an L or a V, more for both)
+    if (gameState.activeCharms.some(c => c.id === 'trueLove')) {
+        const loveLetters = ['L', 'V'].filter(l => lettersInWord.includes(l)).length;
+        const pts = loveLetters === 2 ? CHARM_BONUS.trueLoveBoth : loveLetters === 1 ? CHARM_BONUS.trueLove : 0;
+        if (pts) {
+            flatBonus += pts;
+            bonuses.push({ name: 'True Love', description: `+${pts} pts`, source: 'game' });
+        }
     }
     
     // Charm: Sherlock's Syntax
@@ -714,9 +695,9 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     }
     
     // Charm: Sacred Heart
-    if (gameState.activeCharms.some(c => c.id === 'sacredHeart') && lettersInWord.includes('J') && lettersInWord.includes('D')) {
-        flatBonus += 100;
-        bonuses.push({ name: 'Sacred Heart', description: '+100 pts', source: 'game' });
+    if (gameState.activeCharms.some(c => c.id === 'sacredHeart') && (lettersInWord.includes('J') || lettersInWord.includes('D'))) {
+        flatBonus += CHARM_BONUS.sacredHeart;
+        bonuses.push({ name: 'Sacred Heart', description: `+${CHARM_BONUS.sacredHeart} pts`, source: 'game' });
     }
 
     // Charm: Scooby Stack
@@ -735,7 +716,7 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     if (gameState.activeCharms.some(c => c.id === 'luna')) {
         const vowelCount = lettersInWord.filter(l => VOWELS.has(l)).length;
         const consonantCount = lettersInWord.length - vowelCount;
-        if (vowelCount > consonantCount) {
+        if (vowelCount > consonantCount && lettersInWord.length >= CHARM_BONUS.chaseMinLetters) {
              flatBonus += CHARM_BONUS.luna;
              bonuses.push({ name: 'LUNA', description: `+${CHARM_BONUS.luna} pts`, source: 'game' });
         }
@@ -779,14 +760,25 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         }
     }
 
-    // Charms: A-Team (starts with A), Conjunction Junction (alphabetical order), Vote for Pedro
-    // (only 1-point tiles), Form Voltron (a combo tile), Titans, Go! (per charm equipped).
+    // Flat-bonus charms: A-Team (starts with A), Conjunction Junction (alphabetical order), Vote for
+    // Pedro (only 1-point tiles), Form Voltron (a combo tile), Silent Killer (no vowels), Star Power
+    // (S and T), Italian Restaurant Ending (ends in AN), Clever Girl (RAPTOR letters), Radioactive
+    // Spider Bite (D, E, R), Titans, Go! (per charm equipped).
     const hasCharm = (id: string) => gameState.activeCharms.some(c => c.id === id);
     const flat = (name: string, pts: number) => { flatBonus += pts; bonuses.push({ name, description: `+${pts} pts`, source: 'game' }); };
     if (hasCharm('aTeam') && wordUpper.startsWith('A')) flat('A-Team', CHARM_BONUS.aTeam);
-    if (hasCharm('conjunctionJunction') && lettersInWord.every((l, i) => i === 0 || l >= lettersInWord[i - 1])) flat('Conjunction Junction', CHARM_BONUS.conjunctionJunction);
-    if (hasCharm('voteForPedro') && tiles.length > 0 && tiles.every(t => t.points === 1 && !t.isCombo)) flat('Vote for Pedro', CHARM_BONUS.voteForPedro);
+    const longEnough = lettersInWord.length >= CHARM_BONUS.chaseMinLetters;
+    if (hasCharm('conjunctionJunction') && longEnough && lettersInWord.every((l, i) => i === 0 || l >= lettersInWord[i - 1])) flat('Conjunction Junction', CHARM_BONUS.conjunctionJunction);
+    if (hasCharm('voteForPedro') && longEnough && tiles.every(t => t.points === 1 && !t.isCombo)) flat('Vote for Pedro', CHARM_BONUS.voteForPedro);
     if (hasCharm('formVoltron') && tiles.some(t => t.isCombo)) flat('Form Voltron', CHARM_BONUS.formVoltron);
+    if (hasCharm('silentKiller') && !lettersInWord.some(l => VOWELS.has(l))) flat('Silent Killer', CHARM_BONUS.silentKiller);
+    if (hasCharm('starPower') && lettersInWord.includes('S') && lettersInWord.includes('T')) flat('Star Power', CHARM_BONUS.starPower);
+    if (hasCharm('italianRestaurantEnding') && wordUpper.endsWith('AN')) flat('Italian Restaurant Ending', CHARM_BONUS.italianRestaurant);
+    if (hasCharm('cleverGirl') && new Set(lettersInWord.filter(l => 'RAPTO'.includes(l))).size >= CHARM_BONUS.cleverGirlLetters) flat('Clever Girl', CHARM_BONUS.cleverGirl);
+    if (hasCharm('radioactiveSpiderBite')) {
+        const spider = ['D', 'E', 'R'].filter(l => lettersInWord.includes(l)).length;
+        if (spider >= 2) flat('Radioactive Spider Bite', spider === 3 ? CHARM_BONUS.radioactiveAll : CHARM_BONUS.radioactive);
+    }
     if (hasCharm('titansGo')) flat('Titans, Go!', CHARM_BONUS.titansPerCharm * Math.min(CHARM_SLOTS, gameState.activeCharms.length));
 
     // Charm: Perfectly Balanced (as many vowels as consonants)

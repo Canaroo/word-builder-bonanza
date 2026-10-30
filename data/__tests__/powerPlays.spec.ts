@@ -66,7 +66,7 @@ const createTile = (letter: string): Tile => ({
 describe('Nuclear Option PowerPlay', () => {
     const nuclearOption = POWER_PLAYS_LIST.find(p => p.id === 'nuclearOption') as PowerPlay;
 
-    test('should replace hand and apply a x4 multiplier to the next word only', () => {
+    test('should replace hand and apply a x3 multiplier to the next word only', () => {
         // Math.random() just below 1 makes the shuffle a no-op and skips combo tiles,
         // so the hand is dealt from the bag in order as the assertions below expect.
         const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.999);
@@ -88,7 +88,7 @@ describe('Nuclear Option PowerPlay', () => {
             type: 'event',
             id: `pp-nuclearOption-${Date.now()}`,
             name: 'Nuclear Option',
-            description: 'Replaced entire hand. Next word scores 4x.',
+            description: 'Replaced entire hand. Next word scores 3x.',
             scoreChange: 0,
             cumulativeScore: gameState.score,
             icon: '☢️'
@@ -100,19 +100,19 @@ describe('Nuclear Option PowerPlay', () => {
         expect(remainingBag.length).toBe(initialBag.length - HAND_SIZE);
         expect(gameState.activePowerPlays.nuclearOption).toBe(true);
 
-        // 3. Submit first word and assert x4 multiplier
+        // 3. Submit first word and assert x3 multiplier
         const word1 = 'HIJ'; // Assumes H,I,J are the first letters dealt since bag is not shuffled in test
         const tilesForWord1 = newHand.slice(0, 3);
         const scoreResult1 = calculateScore(word1, tilesForWord1, gameState);
         
         const baseScore1 = tilesForWord1.reduce((sum, tile) => sum + tile.points, 0);
-        expect(scoreResult1.totalScore).toBe(baseScore1 * 4);
+        expect(scoreResult1.totalScore).toBe(baseScore1 * 3);
         
         gameState.score += scoreResult1.totalScore;
         // The activePowerPlay flag is cleared after submission (mocking reducer)
         delete gameState.activePowerPlays.nuclearOption;
 
-        // 4. Submit second word and assert NO x4 multiplier
+        // 4. Submit second word and assert NO x3 multiplier
         const word2 = 'KLM';
         const tilesForWord2 = newHand.slice(3, 6);
         const scoreResult2 = calculateScore(word2, tilesForWord2, gameState);
@@ -126,10 +126,10 @@ describe('Nuclear Option PowerPlay', () => {
         ) as EventLogEntry;
         expect(nuclearOptionEventLog).toBeDefined();
         expect(nuclearOptionEventLog.description).toContain('Replaced entire hand');
-        expect(nuclearOptionEventLog.description).toContain('Next word scores 4x');
+        expect(nuclearOptionEventLog.description).toContain('Next word scores 3x');
         
         const nuclearOptionScoreBonus = scoreResult1.bonuses.find(b => b.name === 'Nuclear Option');
         expect(nuclearOptionScoreBonus).toBeDefined();
-        expect(nuclearOptionScoreBonus?.description).toBe('x4 Word Score');
+        expect(nuclearOptionScoreBonus?.description).toBe('x3 Word Score');
     });
 });
