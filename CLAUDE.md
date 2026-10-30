@@ -52,7 +52,7 @@ Resume.
 | Dictionary | `data/internalWords.ts` (words with definitions), `words/custom.txt`, `words/blocked.txt`, `words/no-suggest.txt` |
 | Online leaderboard | `services/onlineLeaderboard.ts` (Firebase REST, no SDK); rules in `docs/LEADERBOARD.md` |
 | Local players and player IDs | `services/players.ts` (who's playing, `playerKey()` for per-player saves), `services/career.ts` (ID stats), `components/IdCard.tsx`, `services/screens/ProfileScreen.tsx` |
-| Usage stats (bosses, missions, runs) | `services/stats.ts` → Firebase `/stats`; read at `/?stats` (`components/StatsPage.tsx`); events and rules in `docs/LEADERBOARD.md` |
+| Usage stats (bosses, missions, power words, runs) | `services/stats.ts` → Firebase `/stats`; read at `/?stats` (`components/StatsPage.tsx`); events and rules in `docs/LEADERBOARD.md` |
 
 Descriptions read their numbers from config in template strings, so text always matches the rules.
 Keep it that way.
