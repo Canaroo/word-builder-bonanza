@@ -17,7 +17,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
@@ -343,22 +343,17 @@ const startBossRound = (gs: GameState, wordsBefore: number): ModalContent | null
     };
 };
 
-const levelUpModal = (wordsBefore: number) => {
+/** The level-up card (its own look, see LevelUpCard), or null when this word doesn't level up. */
+const levelUpModal = (wordsBefore: number, gs?: GameState): ModalContent | null => {
     const level = levelFor(wordsBefore + 1);
     if (level <= levelFor(wordsBefore)) return null;
-    const notes = [`The clock now runs at x${clockSpeedFor(level)} speed.`];
-    if (level === GAMEPLAY.timeBank.shortWordTimeStopsAtLevel) notes.push('3-letter words add no more time.');
-    if (wordTimeScaleFor(level) < wordTimeScaleFor(level - 1)) notes.push(`Words now earn ${Math.round(wordTimeScaleFor(level) * 100)}% of their time.`);
-    if (meterLettersFor(level) > meterLettersFor(level - 1)) notes.push(`PowerPlays now need ${meterLettersFor(level)} letters.`);
-    const tier = levelTierFor(level);
-    const newTier = tier !== levelTierFor(level - 1);
-    if (newTier) notes.unshift(`You're in ${tier.name}.`);
-    return {
-        type: 'info' as const,
-        title: newTier ? `⏩ Level ${level} · ${tier.name}!` : `⏩ Level ${level} · Speed Up!`,
-        content: notes.join(' '),
-    };
+    const info = levelUpInfo(level, gs);
+    return { type: 'level-up', title: `Level ${level} · ${info.tier}`, data: info };
 };
+
+/** Level-ups show before anything else a word triggers, so they never get buried. */
+const levelUpFirst = (queue: ModalContent[]): ModalContent[] =>
+    [...queue.filter(m => m?.type === 'level-up'), ...queue.filter(m => m?.type !== 'level-up')];
 
 /** The game reducer, plus the time ledger: clock gains from shuffles and power-ups are recorded by source. */
 export function gameReducer(state: GameScreenState, action: GameAction): GameScreenState {
@@ -538,7 +533,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
 
         case 'HANDLE_SUBMIT_SUCCESS': {
             const { hand, tileBag, modalQueue } = action.payload;
-            const [firstModal = null, ...restOfQueue] = modalQueue || [];
+            const [firstModal = null, ...restOfQueue] = levelUpFirst(modalQueue || []);
             // Entering or leaving a Golden Round swaps between the bank and the Golden clock.
             const { time, gs: newGameState } = settleTimeBank(state.time, action.payload.gameState);
             
@@ -2765,7 +2760,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.goldenGirlsPercent / 100);
                 scoreResult = { ...scoreResult, totalScore: scoreResult.totalScore + bonus, bonuses: [...scoreResult.bonuses, { name: 'Thank You for Being a Friend', description: `+${bonus} pts (${CHARM_BONUS.goldenGirlsPercent}%)` }] };
             }
-            if (levelUpModal(totalWords)) payLevelUp(scoreResult);
+            if (levelUpModal(totalWords, newState)) payLevelUp(scoreResult);
             const turnScore = scoreResult.totalScore;
             
             newState.score += turnScore;
@@ -2781,7 +2776,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             newState.goldenTileId = null;
             newState.consecutiveValidWords = 0; // Reset streak after successful Golden Round
             newState.pendingTimeBonus = timeForWordAtLevel(word.length, levelFor(totalWords)); // Added back onto the time bank
-            const levelUp = levelUpModal(totalWords);
+            const levelUp = levelUpModal(totalWords, newState);
             if (levelUp) modalQueue.push(levelUp);
             const goldenBossIntro = startBossRound(newState, totalWords);
             if (goldenBossIntro) modalQueue.push(goldenBossIntro);
@@ -2815,7 +2810,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // The word's time is added to the bank when the next round starts.
       newState.pendingTimeBonus = timeForWordAtLevel(word.length, levelFor(totalWords));
 
-      const levelUp = levelUpModal(totalWords);
+      const levelUp = levelUpModal(totalWords, newState);
       if (levelUp) modalQueue.push(levelUp);
       if (levelUp) payLevelUp(scoreResult);
 

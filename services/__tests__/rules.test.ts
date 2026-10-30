@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import { GAMEPLAY } from '../../config/gameplay';
 import {
+    levelUpInfo,
     timeForWord, clampTime, lengthMultiplier, combineMultipliers, addWordMultiplier,
     refillCount, advancePowerPlayMeter, levelFor, clockSpeedFor, tickMsFor, timeForWordAtLevel, wordTimeScaleFor, meterLettersFor, levelTierFor, levelProgressFor,
     taxWordTime, snitchTargetFor, bonusTimeScale, bonusTime,
@@ -122,5 +123,33 @@ describe('bonus time from charms and PowerPlays', () => {
     test('never turns a bonus into nothing below the overflow line', () => {
         expect(bonusTime(2, 30, 20)).toBe(1);
         expect(bonusTime(0, 30, 1)).toBe(0);
+    });
+});
+
+describe('levelUpInfo', () => {
+    test('a normal level: old → new clock speed, no new tier', () => {
+        const info = levelUpInfo(2);
+        expect(info).toMatchObject({ level: 2, tier: 'WARM-UP', newTier: false, boss: 'next' });
+        expect(info.changes[0]).toEqual({ icon: '⏱', label: 'Clock speed', from: `x${clockSpeedFor(1)}`, to: `x${clockSpeedFor(2)}` });
+    });
+
+    test('level 3: 3-letter words stop earning time, and the boss starts now', () => {
+        const info = levelUpInfo(GAMEPLAY.timeBank.shortWordTimeStopsAtLevel);
+        expect(info.changes.some(c => c.label === '3-letter words' && c.to === 'no time')).toBe(true);
+        expect(info.boss).toBe('now');
+    });
+
+    test('a new tier is flagged for the full-screen card, and the meter change shows', () => {
+        const info = levelUpInfo(4);
+        expect(info).toMatchObject({ tier: 'HEATING UP', tone: 'yellow', newTier: true, boss: null });
+        expect(info.changes.find(c => c.label === 'PowerPlay letters')).toEqual({ icon: '⚡', label: 'PowerPlay letters', from: '25', to: '30' });
+        expect(levelUpInfo(7).newTier).toBe(true);
+        expect(levelUpInfo(11).tone).toBe('red');
+        expect(levelUpInfo(8).newTier).toBe(false);
+    });
+
+    test('the meter numbers include the Turbo Button charm', () => {
+        const turbo = levelUpInfo(4, { activeCharms: [{ id: 'turboButton' }] });
+        expect(turbo.changes.find(c => c.label === 'PowerPlay letters')).toMatchObject({ from: '20', to: '24' });
     });
 });

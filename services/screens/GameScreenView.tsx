@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ArcadeButton from '../../components/ArcadeButton';
 import ShuffleButton from '../../components/ShuffleButton';
 import BonusReveal from '../../components/BonusReveal';
@@ -16,9 +16,10 @@ import { GAMEPLAY, CHARM_SLOTS, TIME_BONUS, BOSS, CHARM_BONUS } from '../../conf
 import { bossById } from '../../data/bosses';
 import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor, bossHitsToWin } from '../rules';
 import LevelBadge from '../../components/LevelBadge';
+import LevelUpCard from '../../components/LevelUpCard';
 
 export type ModalContent = {
-  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine';
+  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -141,6 +142,17 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     handleAddTileToSwap, handleRemoveTileFromSwap, handleExecuteSwap, dispatch
 }) => {
     const timerRef = useRef<HTMLDivElement>(null);
+    // After a level-up (once every pop-up it came with is closed), the level badge under the timer
+    // flashes in its tier color, so the card and the badge read as one thing.
+    const [levelFlash, setLevelFlash] = useState(0);
+    const flashPending = useRef(false);
+    useEffect(() => {
+        if (modalContent?.type === 'level-up') flashPending.current = true;
+        else if (!modalContent && flashPending.current) {
+            flashPending.current = false;
+            setLevelFlash(Date.now());
+        }
+    }, [modalContent]);
     // The Golden Tile's letter, wherever it sits (rack or word row), for the Golden Round banner.
     const goldenLetter = gameState?.goldenTileId
       ? [...(hand ?? []), ...(buildRow ?? []).map(i => i?.tile)].find(t => t?.id === gameState.goldenTileId)?.letter
@@ -202,6 +214,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
             case 'easter-egg':
                 return <BonusReveal egg={data} onClose={handleCloseModal} />;
+
+            case 'level-up':
+                return <LevelUpCard info={data} onClose={handleCloseModal} />;
 
             case 'slot-machine':
                 return <SlotMachine title={title} seconds={data.seconds} reels={data.reels} jackpot={data.jackpot} onClose={handleCloseModal} />;
@@ -611,7 +626,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             )}
           </div>
           {gameState?.roundType !== 'golden' && (
-            <LevelBadge validWords={totalWords ?? 0} />
+            <LevelBadge key={levelFlash} validWords={totalWords ?? 0} flash={levelFlash > 0} />
           )}
         </div>
 
