@@ -4,6 +4,7 @@ import { EASTER_EGGS } from '../../data/easterEggs';
 import { getBonusMedia, BonusMediaType } from '../../data/bonusMedia';
 import { getCollection, hintFor } from '../collection';
 import { exampleScore } from '../scoreBonus';
+import { powerWordInfo } from '../rules';
 import { soundService } from '../soundService';
 import type { EasterEgg, SecretBonus } from '../../types';
 import ArcadeButton from '../../components/ArcadeButton';
@@ -106,6 +107,7 @@ const CollectionScreen: React.FC<CollectionScreenProps> = ({ onBack }) => {
                         <div className="flex-1 grid place-items-center rounded-lg bg-crt-900/80 border border-dashed border-white/15">
                           <span className="font-display text-3xl text-slate-600" aria-hidden="true">?</span>
                         </div>
+                        {b.effect && <p className="osd-text text-sm leading-none text-neon-purple">⚡ POWER WORD · REPLAYABLE</p>}
                         <p className="text-xs text-slate-400 leading-snug">{hintFor(b)}</p>
                       </div>
                     );
@@ -123,6 +125,7 @@ const CollectionScreen: React.FC<CollectionScreenProps> = ({ onBack }) => {
                         <span className="text-4xl" aria-hidden="true">{icon}</span>
                       </div>
                       <div className="font-display text-sm text-white leading-tight line-clamp-2">{title}</div>
+                      {b.effect && <div className="osd-text text-sm leading-none text-neon-purple">⚡ {powerWordInfo(b.effect).label} · REPLAYABLE</div>}
                       <div className="flex justify-between osd-text text-base leading-none">
                         <span className={shelf.tone}>{b.word ? b.word.toUpperCase() : `${b.score!.digits}`}</span>
                         {entry.timesFound > 1 && <span className="text-slate-400">×{entry.timesFound}</span>}

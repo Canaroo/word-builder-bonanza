@@ -10,6 +10,7 @@ import { exampleScore, ScorePattern } from '../services/scoreBonus';
 import { dictionaryService } from '../services/dictionaryService';
 import { isBlocked } from '../services/curatedWords';
 import { labelize } from '../services/durationTags';
+import { powerWordInfo } from '../services/rules';
 import { hintFor } from '../services/collection';
 import type { Charm, EasterEgg, PowerPlay, SecretBonus } from '../types';
 import BonusReveal from './BonusReveal';
@@ -32,7 +33,7 @@ const describeScore = ({ kind, digits }: ScorePattern) =>
   kind === 'equals' ? `SCORE = ${digits}` : kind === 'endsWith' ? `SCORE ENDS IN ${digits}` : kind === 'over' ? `SCORE OVER ${digits}` : `SCORE HAS ${digits}`;
 
 const rewardText = (b: SecretBonus) =>
-  [b.points ? `+${b.points} PTS` : '', b.shuffle ? `+${b.shuffle} SHUFFLE` : ''].filter(Boolean).join(' · ');
+  [b.effect ? `⚡ ${powerWordInfo(b.effect).label}` : '', b.points ? `+${b.points} PTS` : '', b.shuffle ? `+${b.shuffle} SHUFFLE` : ''].filter(Boolean).join(' · ');
 
 const Badge: React.FC<{ tone: 'ok' | 'warn' | 'bad' | 'idle'; children: React.ReactNode }> = ({ tone, children }) => {
   const color = { ok: 'text-neon-green', warn: 'text-neon-yellow', bad: 'text-neon-red', idle: 'text-slate-400' }[tone];
@@ -131,6 +132,9 @@ const BonusCatalog: React.FC = () => {
         {status === 'blocked' && <p className="text-xs text-neon-red">This word is in words/blocked.txt, so it can never be played.</p>}
         {status === 'unknown' && <p className="text-xs text-neon-red">Not in the dictionary. Add it to words/custom.txt.</p>}
         {own.map(p => <p key={p} className="text-xs text-neon-red">{p}</p>)}
+        {b.effect && (
+          <p className="text-sm text-neon-purple leading-snug">⚡ POWER WORD: {powerWordInfo(b.effect).does} 🔁 Repeats once per level.</p>
+        )}
         <p className="text-sm text-slate-300 leading-snug">{b.hint ?? b.message}</p>
         <p className="text-xs text-neon-cyan/80 leading-snug">CLUE: {hintFor(b)}</p>
       </Card>

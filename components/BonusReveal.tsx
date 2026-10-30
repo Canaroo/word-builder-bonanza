@@ -4,6 +4,7 @@ import { matchScorePattern, explainScoreBonus, type ScorePattern } from '../serv
 import { EasterEgg } from '../types';
 import { getBonusMedia, BonusMedia } from '../data/bonusMedia';
 import ArcadeButton from './ArcadeButton';
+import { powerWordInfo } from '../services/rules';
 
 interface BonusRevealProps {
   /** triggerScore: the score that matched, for score-number bonuses. */
@@ -123,6 +124,18 @@ const MEDIA_LABEL: Record<BonusMedia['media'], string> = {
   arcade: 'SECRET FOUND',
 };
 
+/** Power words: what this one does, and that it can be played again. */
+const PowerWordPanel: React.FC<{ effect: NonNullable<EasterEgg['reward']['effect']> }> = ({ effect }) => {
+  const info = powerWordInfo(effect);
+  return (
+    <div className="w-full rounded-xl bg-neon-purple/15 ring-2 ring-neon-purple px-3 py-2.5 text-left">
+      <div className="osd-text text-lg leading-none text-neon-purple">⚡ POWER WORD · {info.label}</div>
+      <p className="text-white text-base leading-snug mt-1.5">{info.does}</p>
+      <p className="text-neon-cyan text-sm leading-snug mt-1">🔁 {info.again}</p>
+    </div>
+  );
+};
+
 /** Full-screen reveal for a pop-culture word bonus. */
 const STINGS: Record<BonusMedia['media'], () => void> = {
   vhs: soundService.playVhsSting,
@@ -153,6 +166,7 @@ const BonusReveal: React.FC<BonusRevealProps> = ({ egg, onClose }) => {
         {egg.word && <PlayedWord word={egg.word} />}
         {egg.scorePattern && egg.triggerScore !== undefined && <ScoreExplanation score={egg.triggerScore} pattern={egg.scorePattern} />}
         <p className="text-slate-200 text-base leading-snug px-2">{egg.reward.message}</p>
+        {egg.reward.effect && <PowerWordPanel effect={egg.reward.effect} />}
         {egg.reward.points ? (
           <div className="font-display text-4xl text-neon-yellow drop-shadow-glow-yellow">+{egg.reward.points}</div>
         ) : null}
