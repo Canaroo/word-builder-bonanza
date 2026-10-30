@@ -86,10 +86,13 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   pays points only. Breaking the rule never costs anything: the word still scores. Bosses go
   early → mid → late, random within a tier. Boss Badges are permanent (one per boss) and show
   on the Top 50 as 🏅N; Firebase needs the `bosses` rule line in `docs/LEADERBOARD.md`.
-- **Power words** (secret words with `effect`): SLOT (slot machine, +1/3/10s), SNOW (clock frozen
-  10s), HEAL (remove a strike, else +100), SLOW (half-speed clock for 3 words), TWIN (clone your
-  best word's time + a Word Combo step). They fire on submit, apply to the next round, and can
-  fire again once per level; other secrets are once per run. Values in `POWER_WORD_EFFECTS`.
+- **Power words** (10 secret words with `effect`, no points): SLOT (slot machine, +1/3/10s), SNOW
+  (clock frozen 10s), HEAL (remove a strike, else +100), SLOW (half-speed clock for 3 words), TWIN
+  (clone your best word's time + a Word Combo step), RINGS (Strike Shield), REWIND (clock one speed
+  step slower for the level), SWORD (fills the PowerPlay meter), SPICE (next word x3), CAKE (charm
+  offer). They fire on submit and can fire again once per level; other secrets are once per run.
+  New ones should be harder to spell than the existing ones (they can be abused). Values in
+  `POWER_WORD_EFFECTS`; player-facing text in `powerWordInfo()` (`services/rules.ts`).
 - **Run-savers** are once per run. Time from items goes through `bonusTime()`.
 - **Slurs:** never unblock a word without the owner's confirmation. Allowed slur-adjacent words
   (COON, DINK, FAG and its verb forms) are on `words/no-suggest.txt`, so the game never offers them.

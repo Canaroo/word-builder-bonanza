@@ -273,6 +273,8 @@ export const POWER_WORD_EFFECTS = {
   slowWords: 3,
   slowFactor: 2,          // the clock ticks this many times slower
   healFallbackPoints: 100, // HEAL with no strike to remove
+  rewindLevelOneSeconds: 3, // REWIND at level 1, where the clock can't go slower
+  spiceMultiplier: 3,      // SPICE: the next word's multiplier
 } as const;
 
 /** Most charms a player can have at once; a new one beyond this replaces one. */

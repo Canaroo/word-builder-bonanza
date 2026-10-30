@@ -1,5 +1,5 @@
 import { Tile, Charm, GameState, WordData, ScoreCalculationResult, ScoreBonusInfo, PowerPlay } from '../types';
-import { CHARM_BONUS, CHARM_SLOTS, POWER_PLAY_VALUES } from '../config/gameplay';
+import { CHARM_BONUS, CHARM_SLOTS, POWER_PLAY_VALUES, POWER_WORD_EFFECTS } from '../config/gameplay';
 import { TILE_DISTRIBUTION, VOWELS, RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, COMBO_TILES, COMBO_TILE_CHANCE, OFFER_RECENCY_WINDOW, OFFER_EXPLORATION_BOOST, OFFER_REPEAT_PENALTY, OFFER_MAX_RECENCY_PENALTY } from '../constants';
 import { dictionaryService } from './dictionaryService';
 import { canBeMadeFromLetters } from './rackMatch';
@@ -551,6 +551,12 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     }
     
     // PowerPlay: Nuclear Option
+    // Power word SPICE: this word scores the spice multiplier.
+    if (gameState.spiceNext) {
+        wordMultipliers.push(POWER_WORD_EFFECTS.spiceMultiplier);
+        bonuses.push({ name: '🌶️ Spice It Up', description: `x${POWER_WORD_EFFECTS.spiceMultiplier} Word Score`, source: 'word' });
+    }
+
     if (gameState.activePowerPlays.nuclearOption) {
         wordMultipliers.push(POWER_PLAY_VALUES.nuclearOptionMultiplier);
         bonuses.push({ name: 'Nuclear Option', description: `x${POWER_PLAY_VALUES.nuclearOptionMultiplier} Word Score`, source: 'word' });

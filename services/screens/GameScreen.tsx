@@ -2632,7 +2632,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // 🛑 Hammer Time (a charm) slows every tick a little.
       const hammer = gameState.roundType !== 'golden' && gameState.activeCharms.some(c => c.id === 'hammerTime') ? 100 / (100 - CHARM_BONUS.hammerTimeSlowPercent) : 1;
       const slow = slowMo * hammer;
-      const tickMs = frozen ? 1000 : gameState.roundType === 'golden' ? 1000 : tickMsFor(levelFor(totalWords)) * slow;
+      // ⏪ REWIND (a power word) runs this level's clock at the previous level's speed.
+      const clockLevel = levelFor(totalWords) - (gameState.rewindLevel === levelFor(totalWords) ? 1 : 0);
+      const tickMs = frozen ? 1000 : gameState.roundType === 'golden' ? 1000 : tickMsFor(Math.max(1, clockLevel)) * slow;
       const interval = setInterval(() => {
           dispatch({ type: frozen ? 'TICK_FREEZE' : 'TICK_TIMER' });
       }, tickMs);
@@ -3358,9 +3360,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
       }
 
-      // Power words: slow motion counts down one word at a time.
+      // Power words: slow motion counts down one word at a time; SPICE's x3 was this word's.
       if ((newState.slowWords ?? 0) > 0) newState.slowWords = newState.slowWords! - 1;
+      newState.spiceNext = false;
       const thisWordLevel = levelFor(totalWords);
+      // SWORD and CAKE open an offer on this word; the offer pop-ups say so.
+      let powerWordOffer: 'sword' | 'cake' | null = null;
       // A power word's effect (on the next round). Returns the pop-up that explains it.
       const firePowerWord = (egg: typeof EASTER_EGGS[number], again: boolean): ModalContent => {
           const effect = egg.reward.effect!;
@@ -3404,6 +3409,44 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               const pts = POWER_WORD_EFFECTS.healFallbackPoints;
               runningScore += pts;
               return note('Full health!', `No strikes to heal, so +${pts} points instead.`, pts);
+          }
+          if (effect === 'shield') {
+              track(0, !!newState.activePowerPlays.strikeShield);
+              if (newState.activePowerPlays.strikeShield) return note('Ring Shield', 'You already have a shield. It still blocks your next strike.');
+              const shield = POWER_PLAYS_LIST.find(p => p.id === 'strikeShield');
+              newState.activePowerPlays = { ...newState.activePowerPlays, strikeShield: true };
+              if (shield) newState.activeBuffs = [...newState.activeBuffs.filter(b => b.id !== 'strikeShield'), shield];
+              return note('Ring Shield!', 'Your next strike is blocked.');
+          }
+          if (effect === 'rewind') {
+              if (thisWordLevel <= 1) {
+                  const seconds = POWER_WORD_EFFECTS.rewindLevelOneSeconds;
+                  newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + seconds;
+                  track(seconds);
+                  return note('Rewind!', `The clock is already at its slowest, so +${seconds}s next round instead.`);
+              }
+              newState.rewindLevel = thisWordLevel;
+              track();
+              return note('Rewind!', `The clock runs at x${clockSpeedFor(thisWordLevel - 1)} instead of x${clockSpeedFor(thisWordLevel)} for the rest of this level.`);
+          }
+          if (effect === 'sword') {
+              // Fill the meter; the PowerPlay offer check below opens the offer.
+              newState.powerPlayProgress = { ...newState.powerPlayProgress, letters: meterLettersFor(thisWordLevel, newState), turnsSinceLastOffer: Math.max(4, newState.powerPlayProgress.turnsSinceLastOffer ?? 0) };
+              track();
+              powerWordOffer = 'sword';
+              return note('Take this!', 'Your PowerPlay meter is full: pick a PowerPlay.');
+          }
+          if (effect === 'spice') {
+              newState.spiceNext = true;
+              track();
+              return note('Spice it up!', `Your next word scores x${POWER_WORD_EFFECTS.spiceMultiplier}.`);
+          }
+          if (effect === 'cake') {
+              // The charm offer check below opens the offer on this word.
+              newState.wordMilestoneProgress = { ...newState.wordMilestoneProgress, count: newState.wordMilestoneProgress.nextUnlock - 1 };
+              track();
+              powerWordOffer = 'cake';
+              return note('The cake is real!', 'Pick a charm.');
           }
           // twin: your best word is cloned. No points, but its time and a Word Combo step.
           const best = gameState.highestScoringWord?.word ?? word;
@@ -3622,7 +3665,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                   newProgress.turnsSinceLastOffer = 0;
 
                   soundService.playModalOpen();
-                  const offerReason = triggeredByMeter
+                  const offerReason = powerWordOffer === 'sword'
+                    ? `⚔️ It's dangerous to go alone! Take this: pick a PowerPlay.`
+                    : triggeredByMeter
                     ? `You played ${meterLettersFor(levelFor(totalWordsSubmitted), newState)} letters and filled the PowerPlay meter!`
                     : `Milestone! You've submitted ${totalWordsSubmitted} words and earned a power-up!`;
                   modalQueue.push({ type: 'powerplay-selection', title: 'PowerPlay Earned!', content: offerReason, data: offeredPowerPlays });
@@ -3658,7 +3703,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             });
 
             soundService.playModalOpen();
-            modalQueue.push({ type: 'charm-selection', title: 'Charm Earned!', content: `You played ${newState.wordMilestoneProgress.nextUnlock} more words.`, data: offeredCharms });
+            modalQueue.push({ type: 'charm-selection', title: 'Charm Earned!', content: powerWordOffer === 'cake' ? '🎂 The cake was real this time: pick a charm.' : `You played ${newState.wordMilestoneProgress.nextUnlock} more words.`, data: offeredCharms });
           }
           newState.wordMilestoneProgress.count = 0;
           newState.wordMilestoneProgress.nextUnlock += 2;
