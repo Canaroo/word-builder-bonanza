@@ -100,16 +100,22 @@ export const POWER_PLAY_VALUES = {
   actClearMaxSeconds: 20,
   actClearPointsPerSecond: 20,
   actClearKeepSeconds: 10,
+  // Blue Shell Surprise: next word wins the multiplier, or the shell backfires for a loss.
+  blueShellWinChance: 0.65,
+  blueShellMultiplier: 4,
+  blueShellLoss: 100,
+  doubleOrNothingWinChance: 0.6, // otherwise the word scores 0
+  nuclearOptionMultiplier: 3,    // next word, on top of the fresh hand
+  gumpLuckPoints: 75,            // one of Gump Luck's four outcomes
+  donkeyKongMultiplier: 3,       // one tile of the fresh hand becomes this word multiplier
 };
 
 // Seconds from the time PowerPlays and charms (before the bonus-time rules above).
 export const TIME_BONUS = {
   timeTurner: 10,          // per word, for 2 words
   timeBoost: 10,
-  multiverseCap: 15,       // Multiverse of Sadness: half the score as seconds, up to this
+  multiverseCap: 15,       // In Time: half the score as seconds, up to this
   saveByTheBell: 5,        // per turn, for 3 turns
-  cleverGirl: 2,
-  cleverGirlLetters: 4,    // different R/A/P/T/O letters a word needs
   executeOrder66: 3,
   glitchInTheCode: 3,
   rescue: 10,              // Rewind, Neo's Choice (time), Deep Freeze, Gump's Luck
@@ -128,11 +134,14 @@ export const CHARM_BONUS = {
   powerPellet: 75,
   chaosTheory: 50,
   weDidntStartTheFire: 75,
-  inigosRevenge: 100,
+  inigosRevenge: 250,      // two or more I's
   sherlocksSyntax: 200,
   scoobyStack: 75,
   hyruleHustle: 50,
   luna: 75,
+  // Conjunction Junction, Vote for Pedro and LUNA only count words this long (3-letter words
+  // made them fire on almost every hand).
+  chaseMinLetters: 4,
   theDudeAbides: 40,
   pantsOnFire: 60,
   strangeMagic: 75,
@@ -142,8 +151,8 @@ export const CHARM_BONUS = {
   momentum: 75,
   beanCounter: 150,
   thrillerNight: 100,
-  totallyClueless: 50,
-  totallyCluelessBelow: 20,
+  totallyClueless: 30,
+  totallyCluelessBelow: 15,
   perfectlyBalanced: 75,  // words with as many vowels as consonants
   mixtapeBase: 40,         // first link in a Mixtape chain
   mixtapeStep: 20,         // each further link pays this much more
@@ -153,8 +162,24 @@ export const CHARM_BONUS = {
   lenaPercent: 20,
   nicolesGracePercent: 25,
   christiansHoodiePercent: 25,
-  buffyPercent: 25,
-  pianoManPercent: 30,
+  buffy: 30,               // per word between 8 PM and 8 AM
+  pianoManAbove: 30,       // Piano Man Encore: score this much on a word...
+  pianoMan: 60,            // ...and your next word earns this
+  sacredHeart: 75,         // a J or a D (for JD)
+  trueLove: 60,            // an L or a V...
+  trueLoveBoth: 200,       // ...or both
+  cleverGirl: 60,
+  cleverGirlLetters: 3,    // different R/A/P/T/O letters a word needs
+  starPower: 125,          // both S and T
+  radioactive: 40,         // two of D, E, R...
+  radioactiveAll: 120,     // ...or all three
+  silentKiller: 200,       // no vowels
+  goldenTicket: 250,
+  goldenTicketChance: 0.1,
+  finisher: 15,            // added to the last tile's points
+  italianRestaurant: 100,  // words ending in AN
+  fluxCapacitor: 88,       // every fluxCapacitorEvery-th word
+  fluxCapacitorEvery: 8,
   philsosophyWin: 100,
   philsosophyLoss: 25,
   maxBankedShuffles: 2,    // L Train Shuffle stops adding shuffles at this many

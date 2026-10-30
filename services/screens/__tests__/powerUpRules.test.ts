@@ -535,3 +535,51 @@ describe('v7.16 charms', () => {
         expect(gameReducer(s, { type: 'CHOOSE_CHARM', payload: { charm: charm('crossTheRoad'), hand: s.hand, allOffered: [charm('crossTheRoad')] } }).gameState.frogStreak).toBe(0);
     });
 });
+
+describe('v7.17 balance pass', () => {
+    const tilesFor = (w: string, points = 1) => w.split('').map((letter, i) => ({ id: `t${i}`, letter, points })) as Tile[];
+    const gs = (over: Partial<GameState> = {}) => ({ ...start().gameState, ...over });
+    const bonus = (id: string, word: string, name: string, over: Partial<GameState> = {}) =>
+        calculateScore(word.toLowerCase(), tilesFor(word), gs({ activeCharms: [charm(id)], ...over })).bonuses.find(b => b.name.startsWith(name))?.description;
+
+    test('Conjunction Junction, Vote for Pedro and LUNA skip 3-letter words', () => {
+        expect(bonus('conjunctionJunction', 'ACE', 'Conjunction')).toBeUndefined();
+        expect(bonus('conjunctionJunction', 'BEST', 'Conjunction')).toBe(`+${CHARM_BONUS.conjunctionJunction} pts`);
+        expect(bonus('voteForPedro', 'TEA', 'Vote for Pedro')).toBeUndefined();
+        expect(bonus('voteForPedro', 'TRAIN', 'Vote for Pedro')).toBe(`+${CHARM_BONUS.voteForPedro} pts`);
+        expect(bonus('luna', 'AGE', 'LUNA')).toBeUndefined();
+        expect(bonus('luna', 'AREA', 'LUNA')).toBe(`+${CHARM_BONUS.luna} pts`);
+    });
+
+    test('loosened rare charms pay flat points', () => {
+        expect(bonus('sacredHeart', 'DOG', 'Sacred Heart')).toBe(`+${CHARM_BONUS.sacredHeart} pts`);
+        expect(bonus('sacredHeart', 'CAT', 'Sacred Heart')).toBeUndefined();
+        expect(bonus('trueLove', 'LAMP', 'True Love')).toBe(`+${CHARM_BONUS.trueLove} pts`);
+        expect(bonus('trueLove', 'LOVE', 'True Love')).toBe(`+${CHARM_BONUS.trueLoveBoth} pts`);
+        expect(bonus('trueLove', 'CAT', 'True Love')).toBeUndefined();
+        expect(bonus('starPower', 'STOP', 'Star Power')).toBe(`+${CHARM_BONUS.starPower} pts`);
+        expect(bonus('starPower', 'SOAP', 'Star Power')).toBeUndefined();
+        expect(bonus('silentKiller', 'GYM', 'Silent Killer')).toBe(`+${CHARM_BONUS.silentKiller} pts`);
+        expect(bonus('silentKiller', 'GEM', 'Silent Killer')).toBeUndefined();
+        expect(bonus('italianRestaurantEnding', 'ITALIAN', 'Italian')).toBe(`+${CHARM_BONUS.italianRestaurant} pts`);
+        expect(bonus('cleverGirl', 'TRAP', 'Clever Girl')).toBe(`+${CHARM_BONUS.cleverGirl} pts`);
+        expect(bonus('cleverGirl', 'TOT', 'Clever Girl')).toBeUndefined();
+        expect(bonus('radioactiveSpiderBite', 'RED', 'Radioactive')).toBe(`+${CHARM_BONUS.radioactiveAll} pts`);
+        expect(bonus('radioactiveSpiderBite', 'DOE', 'Radioactive')).toBe(`+${CHARM_BONUS.radioactive} pts`);
+        expect(bonus('radioactiveSpiderBite', 'DOG', 'Radioactive')).toBeUndefined();
+        expect(bonus('inigosRevenge', 'IRIS', 'Inigo')).toBe(`+${CHARM_BONUS.inigosRevenge} pts`);
+    });
+
+    test('Finisher adds points to the last tile', () => {
+        const withIt = calculateScore('cat', tilesFor('CAT'), gs({ activeCharms: [charm('finisher')] }));
+        const without = calculateScore('cat', tilesFor('CAT'), gs());
+        expect(withIt.totalScore - without.totalScore).toBe(CHARM_BONUS.finisher);
+    });
+
+    test('Nuclear Option is x3 now; Rewind and Deep Freeze are once per run', () => {
+        expect(calculateScore('cat', tilesFor('CAT'), gs({ activePowerPlays: { nuclearOption: true } } as any)).totalScore).toBe(3 * POWER_PLAY_VALUES.nuclearOptionMultiplier);
+        expect(pp('rewind').oncePerRun).toBe(true);
+        expect(pp('deepFreeze').oncePerRun).toBe(true);
+        expect(pp('swapOut').swapConfig).toEqual({ min: 4, max: 5 });
+    });
+});
