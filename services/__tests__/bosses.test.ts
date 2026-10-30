@@ -10,14 +10,15 @@ import { STORAGE_KEYS } from '../storage';
 
 const rack = (letters: string, points: Record<string, number> = {}) =>
     [...letters].map((letter, i) => ({ id: `${letter}${i}`, letter, points: points[letter] ?? 1 })) as Tile[];
-const follows = (id: string, word: string, tiles: Tile[] = rack(word)) => bossById(id)!.check(word, tiles);
+const ctx = { last: '', score: 0, lastScore: 0 };
+const follows = (id: string, word: string, tiles: Tile[] = rack(word), c: Partial<typeof ctx> = {}) => bossById(id)!.check(word, tiles, { ...ctx, ...c });
 
 beforeEach(() => localStorage.clear());
 
 describe('the boss roster', () => {
-    test('12 bosses with unique ids, 4 per tier', () => {
+    test('24 bosses with unique ids, 8 per tier', () => {
         expect(new Set(BOSSES.map(b => b.id)).size).toBe(BOSSES.length);
-        for (const tier of ['early', 'mid', 'late'] as const) expect(BOSSES.filter(b => b.tier === tier)).toHaveLength(4);
+        for (const tier of ['early', 'mid', 'late'] as const) expect(BOSSES.filter(b => b.tier === tier)).toHaveLength(8);
         for (const b of BOSSES) expect(b.rule && b.description && b.taunt && b.source).toBeTruthy();
     });
 
@@ -34,6 +35,12 @@ describe('the boss roster', () => {
             ['jafar', 'ATOM', 'TOMB'],
             ['noidAndUrsula', 'TRIO', 'RATE'],
             ['bigBoss', 'PLANT', 'TREE'],
+            ['oogieBoogie', 'TRAIN', 'TOAST'],
+            ['gargamel', 'SLIME', 'TRAIL'],
+            ['doctorDoom', 'TREE', 'TRAIN'],
+            ['cruella', 'PIZZA', 'PLANT'],
+            ['gru', 'CAT', 'TREE'],
+            ['zurg', 'TOMATO', 'TRAIN'],
         ];
         for (const [id, yes, no] of cases) {
             expect(follows(id, yes), `${id} should accept ${yes}`).toBe(true);
@@ -41,19 +48,43 @@ describe('the boss roster', () => {
         }
     });
 
+    test('score rules read the word\'s score; Drago needs more than your last word', () => {
+        expect(follows('kingHippo', 'CAT', undefined, { score: 8 })).toBe(true);
+        expect(follows('kingHippo', 'CAT', undefined, { score: 7 })).toBe(false);
+        expect(follows('sephiroth', 'CAT', undefined, { score: 10 })).toBe(true);
+        expect(follows('predator', 'CAT', undefined, { score: 11 })).toBe(false);
+        expect(follows('ivanDrago', 'CAT', undefined, { score: 20, lastScore: 19 })).toBe(true);
+        expect(follows('ivanDrago', 'CAT', undefined, { score: 19, lastScore: 19 })).toBe(false);
+    });
+
+    test('Magneto: no letter from your last word; its letters are dimmed', () => {
+        expect(follows('magneto', 'MIND', undefined, { last: 'CAT' })).toBe(true);
+        expect(follows('magneto', 'TEN', undefined, { last: 'CAT' })).toBe(false);
+        const [t, m] = rack('TM');
+        expect(bossById('magneto')!.tileHint!(t, [], { ...ctx, last: 'CAT' })).toBe('dim');
+        expect(bossById('magneto')!.tileHint!(m, [], { ...ctx, last: 'CAT' })).toBeNull();
+    });
+
+    test('Hades: the word must use a 3+ point tile, and those tiles glow', () => {
+        const tiles = rack('BITE', { B: 3 });
+        expect(follows('hades', 'BIT', tiles)).toBe(true);
+        expect(follows('hades', 'TIE', tiles)).toBe(false);
+        expect(bossById('hades')!.tileHint!(tiles[0], tiles, ctx)).toBe('glow');
+    });
+
     test('Lord Business: the word must use the highest-value tile in the rack', () => {
         const tiles = rack('QUITEABS', { Q: 10, B: 3 });
         expect(follows('lordBusiness', 'QUIT', tiles)).toBe(true);
         expect(follows('lordBusiness', 'BITE', tiles)).toBe(false);
-        expect(bossById('lordBusiness')!.tileHint!(tiles[0], tiles)).toBe('glow');
-        expect(bossById('lordBusiness')!.tileHint!(tiles[1], tiles)).toBeNull();
+        expect(bossById('lordBusiness')!.tileHint!(tiles[0], tiles, ctx)).toBe('glow');
+        expect(bossById('lordBusiness')!.tileHint!(tiles[1], tiles, ctx)).toBeNull();
     });
 
     test('letter bans dim the banned tiles', () => {
         const [e, t] = rack('ET');
-        expect(bossById('theNoid')!.tileHint!(e, [])).toBe('dim');
-        expect(bossById('theNoid')!.tileHint!(t, [])).toBeNull();
-        expect(bossById('noidAndUrsula')!.tileHint!(rack('A')[0], [])).toBe('dim');
+        expect(bossById('theNoid')!.tileHint!(e, [], ctx)).toBe('dim');
+        expect(bossById('theNoid')!.tileHint!(t, [], ctx)).toBeNull();
+        expect(bossById('noidAndUrsula')!.tileHint!(rack('A')[0], [], ctx)).toBe('dim');
     });
 });
 
