@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { fetchStats, summarize, type StoredStat } from '../services/stats';
 import { BOSSES } from '../data/bosses';
 import { MISSION_TEMPLATES } from '../data/missions';
-import { BOSS } from '../config/gameplay';
+import { BOSS, POWER_WORD_EFFECTS } from '../config/gameplay';
+import { SECRET_BONUSES } from '../data/secretBonuses';
 
 // Stats: anonymous usage numbers from Firebase /stats. Unlinked; open /?stats.
 const RANGES = [1, 7, 30, 90];
+const POWER_WORDS = SECRET_BONUSES.filter(b => b.effect).map(b => ({ effect: b.effect!, word: b.word!, icon: b.name.split(' ')[0] }));
 const pct = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : '–');
 
 const Table: React.FC<{ head: string[]; rows: (string | number)[][]; empty?: string }> = ({ head, rows, empty = 'No data yet.' }) => (
@@ -96,6 +98,20 @@ const StatsPage: React.FC = () => {
                 return [t.text, ['', 'Easy', 'Med', 'Hard'][t.tier], m.shown, m.done, pct(m.done, m.shown)];
               })
             } empty="No missions recorded yet." />
+          </Section>
+
+          <Section title="Power words" note="Secret words with an effect. Repeats = fired again at a later level. Seconds: slot payout, freeze length, or TWIN's cloned time.">
+            <Table head={['Word', 'Fired', 'Repeats', 'Detail']} rows={
+              POWER_WORDS.filter(p => s.powerWords[p.effect]).map(p => {
+                const x = s.powerWords[p.effect];
+                const detail = p.effect === 'slot'
+                  ? POWER_WORD_EFFECTS.slot.map(o => `${o.reels}${pct(x.payouts[o.seconds] ?? 0, x.fired)}`).join(' ')
+                  : p.effect === 'heal' ? `${pct(x.strikes, x.fired)} healed a strike`
+                  : p.effect === 'slow' ? '—'
+                  : `avg ${Math.round((x.seconds / x.fired) * 10) / 10}s`;
+                return [`${p.icon} ${p.word}`, x.fired, x.repeats, detail];
+              })
+            } empty="No power words played yet." />
           </Section>
 
           <Section title="By day">

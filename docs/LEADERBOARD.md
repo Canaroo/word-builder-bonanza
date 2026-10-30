@@ -127,7 +127,7 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         ".write": "!data.exists()",
         ".validate": "newData.hasChildren(['type','timestamp'])",
 
-        "type": { ".validate": "newData.isString() && newData.val().matches(/^(boss_start|boss_end|mission_shown|mission_done|run_end)$/)" },
+        "type": { ".validate": "newData.isString() && newData.val().matches(/^(boss_start|boss_end|mission_shown|mission_done|run_end|power_word)$/)" },
         "timestamp": { ".validate": "newData.isNumber() && newData.val() > now - 5 * 60 * 1000 && newData.val() < now + 5 * 60 * 1000" },
 
         // Bosses
@@ -139,6 +139,12 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         // Missions
         "mission": { ".validate": "newData.isString() && newData.val().matches(/^[wpcs]_[A-Za-z]{1,24}$/)" },
         "tier":    { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3" },
+
+        // Power words
+        "power":   { ".validate": "newData.isString() && newData.val().matches(/^(slot|freeze|heal|slow|twin)$/)" },
+        "repeat":  { ".validate": "newData.isBoolean()" },
+        "seconds": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 60" },
+        "strike":  { ".validate": "newData.isBoolean()" },
 
         // Run summary
         "score":   { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
@@ -166,6 +172,7 @@ Firebase rules allow `//` comments, so paste the block as-is.
 | `mission_shown` | `mission`, `tier` | The first time a device sees the day's missions (one per mission) |
 | `mission_done` | `mission`, `tier` | A mission is completed |
 | `run_end` | `score`, `words`, `level`, `bosses` | The Game Over summary is closed |
+| `power_word` | `power`, `repeat`, `seconds`, `strike` | A power word fires (slot payout, freeze or cloned seconds; whether HEAL removed a strike) |
 
 Sending is fire-and-forget and never interrupts play. It's off in dev, on `localhost`, and when
 `VITE_LEADERBOARD=local`. The hidden page **`/?stats`** reads the last 24 hours, 7, 30 or 90 days

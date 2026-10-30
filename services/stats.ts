@@ -9,7 +9,8 @@ export type StatEvent =
     | { type: 'boss_end'; boss: string; number: number; outcome: 'won' | 'close' | 'escaped'; hits: number }
     | { type: 'mission_shown'; mission: string; tier: number }
     | { type: 'mission_done'; mission: string; tier: number }
-    | { type: 'run_end'; score: number; words: number; level: number; bosses: number };
+    | { type: 'run_end'; score: number; words: number; level: number; bosses: number }
+    | { type: 'power_word'; power: 'slot' | 'freeze' | 'heal' | 'slow' | 'twin'; repeat: boolean; seconds: number; strike: boolean };
 
 export type StoredStat = StatEvent & { timestamp: number };
 
@@ -56,6 +57,8 @@ export interface StatsSummary {
     bosses: Record<string, { reached: number; won: number; close: number; escaped: number; avgHits: number }>;
     bossNumbers: Record<number, { reached: number; won: number }>;
     missions: Record<string, { tier: number; shown: number; done: number }>;
+    /** Power words by effect: how often they fired (and refired), slot payouts, strikes HEAL removed. */
+    powerWords: Record<string, { fired: number; repeats: number; seconds: number; strikes: number; payouts: Record<number, number> }>;
     days: Record<string, { runs: number; bossesWon: number; missionsDone: number }>;
 }
 
@@ -69,7 +72,7 @@ const dayOf = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
 /** Turns raw events into the tables on the stats page. */
 export const summarize = (events: StoredStat[]): StatsSummary => {
-    const out: StatsSummary = { runs: { count: 0, avgScore: 0, medianScore: 0, avgWords: 0, reachedLevel: {} }, bosses: {}, bossNumbers: {}, missions: {}, days: {} };
+    const out: StatsSummary = { runs: { count: 0, avgScore: 0, medianScore: 0, avgWords: 0, reachedLevel: {} }, bosses: {}, bossNumbers: {}, missions: {}, powerWords: {}, days: {} };
     const scores: number[] = []; let words = 0;
     const hits: Record<string, number> = {};
     for (const e of events) {
@@ -85,6 +88,13 @@ export const summarize = (events: StoredStat[]): StatsSummary => {
                 b[e.outcome]++; hits[e.boss] = (hits[e.boss] ?? 0) + e.hits;
                 if (e.outcome === 'won') { n.won++; day.bossesWon++; }
             }
+        } else if (e.type === 'power_word') {
+            const p = (out.powerWords[e.power] ??= { fired: 0, repeats: 0, seconds: 0, strikes: 0, payouts: {} });
+            p.fired++;
+            if (e.repeat) p.repeats++;
+            p.seconds += e.seconds;
+            if (e.strike) p.strikes++;
+            if (e.power === 'slot') p.payouts[e.seconds] = (p.payouts[e.seconds] ?? 0) + 1;
         } else if (e.type === 'mission_shown' || e.type === 'mission_done') {
             const m = (out.missions[e.mission] ??= { tier: e.tier, shown: 0, done: 0 });
             if (e.type === 'mission_shown') m.shown++; else { m.done++; day.missionsDone++; }

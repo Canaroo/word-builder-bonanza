@@ -86,3 +86,18 @@ describe('reading stats', () => {
         expect(s.days['2026-10-21'].runs).toBe(1);
     });
 });
+
+describe('power words in the summary', () => {
+    test('counts fires and repeats, slot payouts, and strikes HEAL removed', () => {
+        const ev = (e: object) => ({ ...e, timestamp: Date.UTC(2026, 9, 30) }) as StoredStat;
+        const s = summarize([
+            ev({ type: 'power_word', power: 'slot', repeat: false, seconds: 1, strike: false }),
+            ev({ type: 'power_word', power: 'slot', repeat: true, seconds: 10, strike: false }),
+            ev({ type: 'power_word', power: 'slot', repeat: false, seconds: 1, strike: false }),
+            ev({ type: 'power_word', power: 'heal', repeat: false, seconds: 0, strike: true }),
+            ev({ type: 'power_word', power: 'heal', repeat: false, seconds: 0, strike: false }),
+        ]);
+        expect(s.powerWords.slot).toEqual({ fired: 3, repeats: 1, seconds: 12, strikes: 0, payouts: { 1: 2, 10: 1 } });
+        expect(s.powerWords.heal).toMatchObject({ fired: 2, strikes: 1 });
+    });
+});

@@ -3200,6 +3200,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           const icon = egg.name.split(' ')[0];
           newState.powerWordLevels = { ...(newState.powerWordLevels ?? {}), [egg.id]: thisWordLevel };
           const head = again ? `${icon} ${word.toUpperCase()} AGAIN!` : '';
+          const track = (seconds = 0, strike = false) => sendStat({ type: 'power_word', power: effect, repeat: again, seconds, strike });
           const note = (title: string, content: string, change = 0): ModalContent => {
               scoreResult.bonuses.push({ name: `${icon} ${title}`, description: content });
               eventLogQueue.push({ type: 'event', id: `pw-${egg.id}-${now}`, name: title, icon, description: content, scoreChange: change, cumulativeScore: runningScore });
@@ -3207,6 +3208,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           };
           if (effect === 'slot') {
               const pay = slotPayout(Math.random());
+              track(pay.seconds);
               newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + pay.seconds;
               scoreResult.bonuses.push({ name: '🎰 Slot machine', description: `+${pay.seconds}s next round` });
               eventLogQueue.push({ type: 'event', id: `pw-${egg.id}-${now}`, name: 'Slot machine', icon: '🎰', description: `Pulled the lever: +${pay.seconds}s next round.`, scoreChange: 0, cumulativeScore: runningScore });
@@ -3214,13 +3216,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
           if (effect === 'freeze') {
               newState.freezeLeft = POWER_WORD_EFFECTS.freezeSeconds;
+              track(POWER_WORD_EFFECTS.freezeSeconds);
               return note('Frozen!', `The clock won't move for the first ${POWER_WORD_EFFECTS.freezeSeconds} seconds of your next round.`);
           }
           if (effect === 'slow') {
               newState.slowWords = POWER_WORD_EFFECTS.slowWords;
+              track();
               return note('Slow motion!', `The clock runs at half speed for your next ${POWER_WORD_EFFECTS.slowWords} words.`);
           }
           if (effect === 'heal') {
+              track(0, newState.strikes > 0);
               if (newState.strikes > 0) {
                   newState.strikes -= 1;
                   return note('Healed!', 'Heroes never die: one strike removed.');
@@ -3234,6 +3239,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           const seconds = timeForWordAtLevel(best.length, thisWordLevel);
           newState.pendingTimeBonus = (newState.pendingTimeBonus ?? 0) + seconds;
           newState.powerSurgeProgress = Math.min(4, newState.powerSurgeProgress + 1);
+          track(seconds);
           return note('Cloned!', `Your best word ${best.toUpperCase()} is cloned: +${seconds}s next round and +1 toward your Word Combo.`);
       };
 
