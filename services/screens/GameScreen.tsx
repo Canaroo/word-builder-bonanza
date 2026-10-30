@@ -379,6 +379,8 @@ function usedPowerPlay(state: GameScreenState, next: GameScreenState, action: Ga
 function logPowerPlayUse(state: GameScreenState, next: GameScreenState, action: GameAction): GameScreenState {
     const used = usedPowerPlay(state, next, action);
     if (!used) return next;
+    // Anonymous usage stat (fire-and-forget; off in dev, so a dev double-render never double-counts).
+    sendStat({ type: 'pp_use', pp: used.id, level: runLevel(next.gameState) });
     const gs = next.gameState;
     const added = gs.log.slice(state.gameState?.log.length ?? 0);
     if (added.some(e => e.type === 'event' && e.name === used.name)) return next;
@@ -4423,6 +4425,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         if (held && held.id !== powerPlay.id) trackMission({ type: 'powerplaySwap' });
         // Instant PowerPlays are used the moment they're picked.
         if (INSTANT_POWER_PLAY_IDS.has(powerPlay.id)) trackMission({ type: 'powerplay', id: powerPlay.id, subtheme: powerPlay.subtheme });
+        sendStat({ type: 'pp_offer', offered: allOffered.map(p => p.id).join(','), picked: powerPlay.id, level: levelFor(totalWords) });
         dispatch({ type: 'CHOOSE_POWER_PLAY', payload: { powerPlay, allOffered } });
         handleCloseModal();
     };
@@ -4432,18 +4435,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         const alreadyOn = gameState.activeCharms.some(c => c.id === charm.id);
         const equippedCount = Math.min(CHARM_SLOTS, gameState.activeCharms.length + (replaceId || alreadyOn ? 0 : 1));
         trackMission({ type: 'charm', equippedCount, swapped: !!replaceId });
+        sendStat({ type: 'charm_offer', offered: allOffered.map(c => c.id).join(','), picked: charm.id, level: levelFor(totalWords) });
         dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand: hand ?? [], allOffered, replaceId } });
         handleCloseModal();
     };
 
     const handlePassCharm = (allOffered: Charm[]) => {
         soundService.playUIClick();
+        sendStat({ type: 'charm_offer', offered: allOffered.map(c => c.id).join(','), picked: '', level: levelFor(totalWords) });
         dispatch({ type: 'PASS_CHARM', payload: { allOffered } });
         handleCloseModal();
     };
 
     const handleKeepPowerPlay = (allOffered: PowerPlay[]) => {
         soundService.playUIClick();
+        sendStat({ type: 'pp_offer', offered: allOffered.map(p => p.id).join(','), picked: '', level: levelFor(totalWords) });
         dispatch({ type: 'KEEP_POWER_PLAY', payload: { allOffered } });
         handleCloseModal();
     };

@@ -270,7 +270,7 @@ const App: React.FC = () => {
   const handleGameOver = useCallback((gameState: GameState) => {
     storage.remove(STORAGE_KEYS.savedGame);
     const validWords = gameState.log.filter(e => e.type === 'word' && e.status === 'valid').length;
-    sendStat({ type: 'run_end', score: gameState.score, words: validWords, level: levelFor(validWords), bosses: gameState.bossesBeaten ?? 0 });
+    sendStat({ type: 'run_end', score: gameState.score, words: validWords, level: levelFor(validWords), bosses: gameState.bossesBeaten ?? 0, charms: (gameState.activeCharms ?? []).map(c => c.id).join(',') });
     recordCareerRun({ score: gameState.score, level: levelFor(validWords), bestWord: gameState.highestScoringWord, longestWord: gameState.longestWord });
     const finalState: FinalGameState = {
       score: gameState.score,

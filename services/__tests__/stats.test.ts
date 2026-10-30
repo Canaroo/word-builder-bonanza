@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 // Anonymous usage stats: what gets sent, when it doesn't, and how the stats page adds it up.
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { CHARMS_LIST } from '../../data/charms';
+import { POWER_PLAYS_LIST } from '../../data/powerPlays';
 import { sendStat, fetchStats, summarize, setStatsEnabledForTests, type StoredStat } from '../stats';
 import { getTodaysMissions, recordMissionEvent } from '../missions';
 
@@ -99,5 +101,31 @@ describe('power words in the summary', () => {
         ]);
         expect(s.powerWords.slot).toEqual({ fired: 3, repeats: 1, seconds: 12, strikes: 0, payouts: { 1: 2, 10: 1 } });
         expect(s.powerWords.heal).toMatchObject({ fired: 2, strikes: 1 });
+    });
+});
+
+describe('charms and PowerPlays in the summary', () => {
+    const ev = (e: object) => ({ ...e, timestamp: Date.UTC(2026, 9, 20, 12) }) as StoredStat;
+
+    test('counts offers, picks, passes, uses, and the score of runs that ended with each charm', () => {
+        const s = summarize([
+            ev({ type: 'charm_offer', offered: 'mrGlass,aTeam,luna', picked: 'mrGlass', level: 1 }),
+            ev({ type: 'charm_offer', offered: 'mrGlass,luna,eagle', picked: '', level: 2 }),
+            ev({ type: 'pp_offer', offered: 'timeBoost,rewind,polish', picked: 'timeBoost', level: 1 }),
+            ev({ type: 'pp_offer', offered: 'timeBoost,konamiCode,polish', picked: '', level: 2 }),
+            ev({ type: 'pp_use', pp: 'timeBoost', level: 2 }),
+            ev({ type: 'run_end', score: 1000, words: 10, level: 1, bosses: 0, charms: 'mrGlass,aTeam' }),
+            ev({ type: 'run_end', score: 3000, words: 10, level: 1, bosses: 0, charms: 'mrGlass' }),
+            ev({ type: 'run_end', score: 500, words: 10, level: 1, bosses: 0 }), // an old event without charms
+        ]);
+        expect(s.charms.mrGlass).toEqual({ offered: 2, picked: 1, endRuns: 2, avgEndScore: 2000 });
+        expect(s.charms.luna).toEqual({ offered: 2, picked: 0, endRuns: 0, avgEndScore: 0 });
+        expect(s.charms.aTeam.endRuns).toBe(1);
+        expect(s.powerPlays.timeBoost).toEqual({ offered: 2, picked: 1, used: 1 });
+        expect(s.passes).toEqual({ charm: 1, powerPlay: 1 });
+    });
+
+    test('every charm and PowerPlay id fits the /stats rules (letters and digits, up to 32)', () => {
+        for (const { id } of [...CHARMS_LIST, ...POWER_PLAYS_LIST]) expect(id).toMatch(/^[A-Za-z0-9]{1,32}$/);
     });
 });
