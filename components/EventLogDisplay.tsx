@@ -3,6 +3,19 @@ import React, { useState } from 'react';
 import { LogEntry } from '../types';
 import { soundService } from '../services/soundService';
 
+/**
+ * An event's name without a repeat of its icon. Secret bonus names carry their emoji
+ * ("💉 “Heroes Never Die!” 💉") and the icon is shown beside them, so drop the copies.
+ * Done at display time so older saved logs read cleanly too.
+ */
+export const eventTitle = (icon: string | undefined, name: string): string => {
+  let title = name.trim();
+  if (!icon) return title;
+  if (title.startsWith(icon)) title = title.slice(icon.length).trim();
+  if (title.endsWith(icon)) title = title.slice(0, -icon.length).trim();
+  return title || name;
+};
+
 interface EventLogDisplayProps {
   log: LogEntry[];
 }
@@ -182,7 +195,7 @@ const EventLogDisplay: React.FC<EventLogDisplayProps> = ({ log }) => {
               return (
                 <div key={key} className="text-slate-200 py-2 border-b border-slate-700/50 last:border-b-0 bg-slate-800/50 p-2 rounded-md">
                    <div className="flex justify-between items-baseline">
-                        <span className="font-bold text-md text-amber-300 flex items-center gap-2"><span className="text-xl">{entry.icon}</span>{entry.name}</span>
+                        <span className="font-bold text-md text-amber-300 flex items-center gap-2"><span className="text-xl">{entry.icon}</span>{eventTitle(entry.icon, entry.name)}</span>
                         <div className="text-right flex-shrink-0">
                           <span className="font-semibold text-xl text-green-400">+{entry.scoreChange}</span>
                           {entry.cumulativeScore !== undefined && (
