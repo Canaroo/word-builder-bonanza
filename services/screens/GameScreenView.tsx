@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import ArcadeButton from '../../components/ArcadeButton';
 import ShuffleButton from '../../components/ShuffleButton';
 import BonusReveal from '../../components/BonusReveal';
+import SlotMachine from '../../components/SlotMachine';
 import { PowerPlayOffer, CharmOffer } from '../../components/OfferModals';
 import { GameState, Tile, WordData, Milestone, Charm, PowerPlay } from '../../types';
 import Timer from '../../components/Timer';
@@ -17,7 +18,7 @@ import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor } from '../rul
 import LevelBadge from '../../components/LevelBadge';
 
 export type ModalContent = {
-  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log';
+  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -199,6 +200,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
             case 'easter-egg':
                 return <BonusReveal egg={data} onClose={handleCloseModal} />;
+
+            case 'slot-machine':
+                return <SlotMachine title={title} seconds={data.seconds} reels={data.reels} jackpot={data.jackpot} onClose={handleCloseModal} />;
 
             case 'super-hand':
                 return (
@@ -624,6 +628,14 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           </button>
         </div>
       </div>
+
+      {gameState && gameState.roundType !== 'golden' && ((gameState.freezeLeft ?? 0) > 0 || (gameState.slowWords ?? 0) > 0) && (
+        <div className="flex-shrink-0 rounded-lg px-3 py-1 text-center bg-cyan-500/20 ring-1 ring-cyan-300/60" role="status">
+          <span className="osd-text text-lg leading-none text-cyan-100">
+            {(gameState.freezeLeft ?? 0) > 0 ? `❄️ CLOCK FROZEN · ${gameState.freezeLeft}s` : `🦥 SLOW MOTION · ${gameState.slowWords} ${gameState.slowWords === 1 ? 'WORD' : 'WORDS'} LEFT`}
+          </span>
+        </div>
+      )}
 
       {activeBoss && gameState?.boss && gameState.roundType !== 'golden' && (
         <div className="boss-banner flex-shrink-0 rounded-lg px-3 py-1.5 text-center" role="status" aria-label={`Boss round: ${activeBoss.name}. ${activeBoss.description} ${gameState.boss.hits} of ${BOSS.hitsToWin} hits, ${gameState.boss.wordsLeft} words left.`}>

@@ -17,8 +17,8 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, bossNumberFor, bossRewardFor, advanceBoss, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS } from '../../config/gameplay';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
 import { currentStreak, powerWordBonusFor, recordBossBadge } from '../progression';
@@ -191,6 +191,7 @@ type GameAction =
     | { type: 'PAUSE_GAME' }
     | { type: 'RESUME_GAME' }
     | { type: 'TICK_TIMER' }
+    | { type: 'TICK_FREEZE' }
     | { type: 'ADD_TIME', payload: number }
     | { type: 'SET_TIME', payload: number }
     | { type: 'MOVE_TILE_TO_BUILD', payload: { tile: Tile, fromIndex: number } }
@@ -395,6 +396,8 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         case 'PAUSE_GAME': return { ...state, isPaused: true };
         case 'RESUME_GAME': return { ...state, isPaused: false, time: state.time }; // Prevent timer reset on resume
         case 'TICK_TIMER': return { ...state, time: state.time - 1 };
+        // ❄️ A frozen clock: the freeze counts down instead of the bank.
+        case 'TICK_FREEZE': return { ...state, gameState: { ...state.gameState, freezeLeft: Math.max(0, (state.gameState.freezeLeft ?? 0) - 1) } };
         case 'ADD_TIME': return {...state, time: clampTime(state.time + action.payload, bankMax(state.gameState)) };
         case 'SET_TIME': return { ...state, time: action.payload };
         case 'UPDATE_GAME_STATE': return { ...state, gameState: { ...state.gameState, ...action.payload } };
@@ -2370,7 +2373,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
     dispatch({ type: 'CLOSE_MODAL' });
 
-    const postWordModals: (ModalContent['type'])[] = ['milestone', 'easter-egg', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info'];
+    const postWordModals: (ModalContent['type'])[] = ['milestone', 'easter-egg', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine'];
     if (wasLastInQueue && lastModalType && (postWordModals.includes(lastModalType) || lastModalTitle.includes('Sonic Speed')) && lastModalTitle !== '❌ Strike Challenge Lost') {
         if (state.gameState.roundType === 'normal') {
             handleStartNextRound();
@@ -2527,14 +2530,18 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           return;
       }
       
-      if ((time ?? 0) > 0 && (time ?? 0) <= 10) {
+      // ❄️ Power word freeze: the bank holds still, one real second at a time.
+      const frozen = gameState.roundType !== 'golden' && (gameState.freezeLeft ?? 0) > 0;
+      if (!frozen && (time ?? 0) > 0 && (time ?? 0) <= 10) {
         soundService.playTick();
       }
 
       // Speed-up levels make the bank drain faster; the Golden Round's own clock stays at real time.
-      const tickMs = gameState.roundType === 'golden' ? 1000 : tickMsFor(levelFor(totalWords));
+      // 🦥 Slow motion (a power word) stretches each tick.
+      const slow = gameState.roundType !== 'golden' && (gameState.slowWords ?? 0) > 0 ? POWER_WORD_EFFECTS.slowFactor : 1;
+      const tickMs = frozen ? 1000 : gameState.roundType === 'golden' ? 1000 : tickMsFor(levelFor(totalWords)) * slow;
       const interval = setInterval(() => {
-          dispatch({ type: 'TICK_TIMER' });
+          dispatch({ type: frozen ? 'TICK_FREEZE' : 'TICK_TIMER' });
       }, tickMs);
 
       return () => clearInterval(interval);
@@ -3184,9 +3191,65 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
       }
 
+      // Power words: slow motion counts down one word at a time.
+      if ((newState.slowWords ?? 0) > 0) newState.slowWords = newState.slowWords! - 1;
+      const thisWordLevel = levelFor(totalWords);
+      // A power word's effect (on the next round). Returns the pop-up that explains it.
+      const firePowerWord = (egg: typeof EASTER_EGGS[number], again: boolean): ModalContent => {
+          const effect = egg.reward.effect!;
+          const icon = egg.name.split(' ')[0];
+          newState.powerWordLevels = { ...(newState.powerWordLevels ?? {}), [egg.id]: thisWordLevel };
+          const head = again ? `${icon} ${word.toUpperCase()} AGAIN!` : '';
+          const note = (title: string, content: string, change = 0): ModalContent => {
+              scoreResult.bonuses.push({ name: `${icon} ${title}`, description: content });
+              eventLogQueue.push({ type: 'event', id: `pw-${egg.id}-${now}`, name: title, icon, description: content, scoreChange: change, cumulativeScore: runningScore });
+              return { type: 'info', title: head || `${icon} ${title}`, content, autoClose: 3000 };
+          };
+          if (effect === 'slot') {
+              const pay = slotPayout(Math.random());
+              newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + pay.seconds;
+              scoreResult.bonuses.push({ name: '🎰 Slot machine', description: `+${pay.seconds}s next round` });
+              eventLogQueue.push({ type: 'event', id: `pw-${egg.id}-${now}`, name: 'Slot machine', icon: '🎰', description: `Pulled the lever: +${pay.seconds}s next round.`, scoreChange: 0, cumulativeScore: runningScore });
+              return { type: 'slot-machine', title: head || '🎰 PULL THE LEVER!', data: { seconds: pay.seconds, reels: pay.reels, jackpot: pay.seconds === Math.max(...POWER_WORD_EFFECTS.slot.map(p => p.seconds)) } };
+          }
+          if (effect === 'freeze') {
+              newState.freezeLeft = POWER_WORD_EFFECTS.freezeSeconds;
+              return note('Frozen!', `The clock won't move for the first ${POWER_WORD_EFFECTS.freezeSeconds} seconds of your next round.`);
+          }
+          if (effect === 'slow') {
+              newState.slowWords = POWER_WORD_EFFECTS.slowWords;
+              return note('Slow motion!', `The clock runs at half speed for your next ${POWER_WORD_EFFECTS.slowWords} words.`);
+          }
+          if (effect === 'heal') {
+              if (newState.strikes > 0) {
+                  newState.strikes -= 1;
+                  return note('Healed!', 'Heroes never die: one strike removed.');
+              }
+              const pts = POWER_WORD_EFFECTS.healFallbackPoints;
+              runningScore += pts;
+              return note('Full health!', `No strikes to heal, so +${pts} points instead.`, pts);
+          }
+          // twin: your best word is cloned. No points, but its time and a Word Combo step.
+          const best = gameState.highestScoringWord?.word ?? word;
+          const seconds = timeForWordAtLevel(best.length, thisWordLevel);
+          newState.pendingTimeBonus = (newState.pendingTimeBonus ?? 0) + seconds;
+          newState.powerSurgeProgress = Math.min(4, newState.powerSurgeProgress + 1);
+          return note('Cloned!', `Your best word ${best.toUpperCase()} is cloned: +${seconds}s next round and +1 toward your Word Combo.`);
+      };
+
       // Easter eggs: word bonuses and score-number bonuses add their points on top of the turn.
       for (const egg of EASTER_EGGS) {
-          if (newState.foundEasterEggs.some(fe => fe.id === egg.id)) continue;
+          const found = newState.foundEasterEggs.some(fe => fe.id === egg.id);
+          // Power words can fire again, once per level; every other secret is once per run.
+          const again = found && !!egg.reward.effect && powerWordReady(newState.powerWordLevels, egg.id, thisWordLevel);
+          if (found && !again) continue;
+          if (again) {
+              if (egg.trigger(word, runningScore, newState)) {
+                  recordFound(egg.id);
+                  modalQueue.push(firePowerWord(egg, true));
+              }
+              continue;
+          }
           if (egg.trigger(word, runningScore, newState)) {
               // Remember the exact score that matched, to show the player why the bonus fired.
               const triggerScore = runningScore;
@@ -3205,6 +3268,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               trackMission({ type: 'secret', id: egg.id, firstFind, media: getBonusMedia(egg.id).media, isScore: !!egg.scorePattern });
               const eggIcon = egg.name.split(' ')[0];
               eventLogQueue.push({ type: 'event', id: `egg-${egg.id}`, name: egg.name, icon: eggIcon, description: explanation ? `${explanation} ${egg.reward.message}` : egg.reward.message, scoreChange: eggScoreChange, cumulativeScore: runningScore });
+              if (egg.reward.effect) modalQueue.push(firePowerWord(egg, false));
           }
       }
 

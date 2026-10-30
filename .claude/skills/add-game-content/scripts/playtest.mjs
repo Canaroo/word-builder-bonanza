@@ -21,6 +21,7 @@
 //   state         any other GameState fields, e.g. { "score": 1000, "pokedexVowels": "AEI" }
 //   tap           aria-label of something to tap and screenshot, e.g. "Charm: The Opposite"
 //   waitMs        how long to wait after the word (or after resuming, with no word); default 2500
+//   report        extra GameState fields to print afterward, e.g. ["freezeLeft", "strikes"]
 //
 // Check test words with content-check.mjs first: secret bonus words open extra pop-ups. The script
 // dismisses any pop-up (and lists it), but a bonus changes the score. Score-number secrets (a score
@@ -172,6 +173,7 @@ const runScenario = async (browser, base, sc, index) => {
       pocket: gs.availablePowerPlays.map(p => p.id),
       armed: Object.keys(gs.activePowerPlays),
       boss: gs.boss ?? undefined,
+      ...(sc.report ? { report: Object.fromEntries(sc.report.map(k => [k, gs[k]])) } : {}),
       events: gs.log.filter(e => e.type === 'event').map(e => `${e.icon ?? ''} ${e.name}: ${e.scoreChange >= 0 ? '+' : ''}${e.scoreChange}`.trim()),
     });
   }

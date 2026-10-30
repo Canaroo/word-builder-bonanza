@@ -195,6 +195,23 @@ export const BOSS = {
   ],
 } as const;
 
+/**
+ * Power words (secret words with an effect, data/secretBonuses.ts `effect`). Each one fires at most
+ * once per level. Slot seconds go through bonusTime() like other item time; freeze and slow add no
+ * time to the bank, they only hold or slow the clock.
+ */
+export const POWER_WORD_EFFECTS = {
+  slot: [
+    { seconds: 1, chance: 0.5, reels: '🍒' },
+    { seconds: 3, chance: 0.35, reels: '🔔' },
+    { seconds: 10, chance: 0.15, reels: '7️⃣' },
+  ],
+  freezeSeconds: 10,
+  slowWords: 3,
+  slowFactor: 2,          // the clock ticks this many times slower
+  healFallbackPoints: 100, // HEAL with no strike to remove
+} as const;
+
 /** Most charms a player can have at once; a new one beyond this replaces one. */
 export const CHARM_SLOTS = 5;
 
