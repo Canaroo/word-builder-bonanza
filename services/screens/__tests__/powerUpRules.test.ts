@@ -462,3 +462,27 @@ describe('v7.8 additions', () => {
         expect(failed.gameState.score).toBe(0);
     });
 });
+
+describe('PowerPlays used mid-round', () => {
+    test("One Tile's boost survives its pop-up: only a played word waits for the next round", () => {
+        const s = start({ availablePowerPlays: [pp('oneTileToRuleThemAll')] });
+        const used = gameReducer(s, { type: 'ACTIVATE_POWER_PLAY', payload: pp('oneTileToRuleThemAll') });
+        expect(used.hand.filter(t => t?.tempPoints === 30)).toHaveLength(1);
+        expect(used.awaitingNextRound).toBeFalsy();
+        const played = gameReducer(used, { type: 'HANDLE_SUBMIT_SUCCESS', payload: { gameState: used.gameState, hand: used.hand, tileBag: used.tileBag, modalQueue: [] } } as any);
+        expect(played.awaitingNextRound).toBe(true);
+        expect(gameReducer(played, { type: 'START_NEXT_ROUND' }).awaitingNextRound).toBe(false);
+    });
+
+    test('every PowerPlay use is in the event log, once', () => {
+        const s = start({ availablePowerPlays: [pp('oneTileToRuleThemAll')] });
+        const used = gameReducer(s, { type: 'ACTIVATE_POWER_PLAY', payload: pp('oneTileToRuleThemAll') });
+        expect(used.gameState.log.filter(e => e.type === 'event' && e.name === 'One Tile to Rule Them All')).toHaveLength(1);
+        // Fluncle logs its own result, so it isn't logged twice.
+        const fluncle = gameReducer(start(), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('fluncleIsProud'), allOffered: [pp('fluncleIsProud')] } });
+        expect(fluncle.gameState.log.filter(e => e.type === 'event' && e.name === 'Fluncle is Proud')).toHaveLength(1);
+        // A swap is not a use.
+        const swap = gameReducer(start({ availablePowerPlays: [pp('timeBoost')] }), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('konamiCode'), allOffered: [pp('konamiCode')] } });
+        expect(swap.gameState.log.some(e => e.type === 'event' && e.name === 'Time Boost')).toBe(false);
+    });
+});

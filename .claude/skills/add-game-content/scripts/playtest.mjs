@@ -68,7 +68,7 @@ const saveRun = async (page) => {
 const dismissPopups = async (page) => {
   const seen = [];
   for (let i = 0; i < 8; i++) {
-    let button = page.locator('button:visible', { hasText: /^\s*(continue|take|equip|keep)/i }).first();
+    let button = page.locator('button:visible', { hasText: /^\s*(continue|take|equip|keep|close)/i }).first();
     if (!(await button.count())) button = page.locator('[role="dialog"] button:visible').last();
     if (!(await button.count())) break;
     const box = button.locator('xpath=ancestor::div[contains(@class,"inset-0")][1]');
