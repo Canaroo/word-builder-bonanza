@@ -5,6 +5,8 @@ import { storage, STORAGE_KEYS } from './storage';
 import { DAILY_RESET_HOUR, STREAK_FREEZE, POWER_WORD_BONUS } from '../config/progression';
 import { COSMETICS, STREAK_MILESTONES, cosmeticById, type CosmeticKind, type StreakMilestone } from '../data/cosmetics';
 import { bossById } from '../data/bosses';
+import { playerKey } from './players';
+import { idCardStats } from './career';
 
 export interface StreakState {
   count: number;
@@ -55,11 +57,18 @@ export const nextResetAt = (now: Date = new Date()): Date => {
   return next;
 };
 
+/**
+ * The profile is split by who owns what: shop purchases (`owned`) belong to the device and live in
+ * the original profile key; the rest (equipped bling, streak, Boss Badges) belongs to the current
+ * player (services/players.ts). For the device's first player both are the same key.
+ */
 export const getProfile = (): Profile => {
-  const saved = storage.getJSON<Partial<Profile> | null>(STORAGE_KEYS.profile, null);
-  if (!saved || typeof saved !== 'object') return structuredClone(EMPTY_PROFILE);
+  const device = storage.getJSON<Partial<Profile> | null>(STORAGE_KEYS.profile, null);
+  const saved = storage.getJSON<Partial<Profile> | null>(playerKey(STORAGE_KEYS.profile), null);
+  const owned = device && Array.isArray(device.owned) ? device.owned.filter(id => cosmeticById(id)) : [];
+  if (!saved || typeof saved !== 'object') return { ...structuredClone(EMPTY_PROFILE), owned };
   return {
-    owned: Array.isArray(saved.owned) ? saved.owned.filter(id => cosmeticById(id)) : [],
+    owned,
     badge: cosmeticById(saved.badge)?.kind === 'badge' ? saved.badge! : null,
     title: cosmeticById(saved.title)?.kind === 'title' ? saved.title! : null,
     streak: { ...EMPTY_PROFILE.streak, ...(saved.streak ?? {}) },
@@ -67,7 +76,18 @@ export const getProfile = (): Profile => {
   };
 };
 
-const saveProfile = (p: Profile) => storage.setJSON(STORAGE_KEYS.profile, p);
+const saveProfile = (p: Profile) => {
+  const key = playerKey(STORAGE_KEYS.profile);
+  if (key !== STORAGE_KEYS.profile) {
+    // Another player: their identity under their own key, purchases back into the device's.
+    const { owned, ...identity } = p;
+    const device = storage.getJSON<Partial<Profile> | null>(STORAGE_KEYS.profile, null) ?? {};
+    storage.setJSON(STORAGE_KEYS.profile, { ...device, owned });
+    storage.setJSON(key, identity);
+  } else {
+    storage.setJSON(STORAGE_KEYS.profile, p);
+  }
+};
 
 /**
  * The streak as it stands today: still alive if the last run was today or yesterday, or if
@@ -167,6 +187,7 @@ export const publicFlair = (p: Profile = getProfile()) => ({
   title: p.title,
   streak: currentStreak(p),
   bosses: p.bossBadges.length,
+  card: idCardStats(),
 });
 
 /** Beating a boss: adds its Boss Badge the first time. Returns whether it's new and the total. */

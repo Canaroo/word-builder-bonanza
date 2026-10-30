@@ -1,7 +1,8 @@
-// The player's Bonus Collection: every secret bonus found on this device, across runs.
+// The current player's Bonus Collection: every secret bonus they've found, across runs.
 import { SECRET_BONUSES } from '../data/secretBonuses';
 import type { SecretBonus } from '../types';
 import { storage, STORAGE_KEYS } from './storage';
+import { playerKey } from './players';
 
 export interface CollectedBonus {
     /** When it was first found (ms since epoch). */
@@ -18,7 +19,7 @@ const KNOWN_IDS = new Set(SECRET_BONUSES.map(b => b.id));
 
 /** Found bonuses that still exist in data/secretBonuses.ts. */
 export const getCollection = (): Collection => {
-    const saved = storage.getJSON<unknown>(STORAGE_KEYS.bonusCollection, {});
+    const saved = storage.getJSON<unknown>(playerKey(STORAGE_KEYS.bonusCollection), {});
     if (!saved || typeof saved !== 'object') return {};
     return Object.fromEntries(
         Object.entries(saved as Record<string, unknown>).filter(([id, v]) => KNOWN_IDS.has(id) && isEntry(v))
@@ -33,7 +34,7 @@ export const recordFound = (id: string, now = Date.now()): boolean => {
     collection[id] = existing
         ? { ...existing, timesFound: existing.timesFound + 1 }
         : { firstFoundAt: now, timesFound: 1 };
-    storage.setJSON(STORAGE_KEYS.bonusCollection, collection);
+    storage.setJSON(playerKey(STORAGE_KEYS.bonusCollection), collection);
     return !existing;
 };
 

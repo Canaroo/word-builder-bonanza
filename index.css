@@ -804,6 +804,23 @@ body {
 @keyframes golden-frame-pulse {
   50% { box-shadow: inset 0 0 40px rgba(255, 210, 63, 0.95), inset 0 0 90px rgba(255, 210, 63, 0.35), 0 0 36px rgba(255, 210, 63, 0.8); }
 }
+/* Player ID card: a laminated, holographic edge like a retro membership card. */
+.id-card {
+  background: linear-gradient(135deg, #22d3ee, #a855f7 35%, #ff2e63 60%, #ffd23f 85%, #22d3ee);
+  background-size: 300% 300%;
+  animation: id-card-holo 8s ease-in-out infinite;
+  box-shadow: 0 0 22px rgba(168, 85, 247, 0.45);
+}
+@keyframes id-card-holo {
+  50% { background-position: 100% 100%; }
+}
+.id-card-header {
+  background: linear-gradient(90deg, #22d3ee, #a855f7 50%, #ff2e63);
+}
+.id-card-barcode {
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,0.55) 0 2px, transparent 2px 4px, rgba(255,255,255,0.55) 4px 5px, transparent 5px 8px);
+  border-radius: 2px;
+}
 .boss-frame {
   position: absolute;
   inset: 0;
@@ -1002,7 +1019,8 @@ body {
   .golden-frame,
   .golden-banner,
   .boss-frame,
-  .boss-banner {
+  .boss-banner,
+  .id-card {
     animation: none;
   }
   .message-pop {

@@ -32,17 +32,19 @@ them are secrets: what protects the data is the database rules below.
 Each score is one child of `/leaderboard`, written once and never updated:
 
 ```json
-{ "name": "Ann", "score": 4210, "timestamp": 1760716800000, "badge": "b_vhs", "title": "s_arcadeRat", "streak": 9, "bosses": 4 }
+{ "name": "Ann", "score": 4210, "timestamp": 1760716800000, "badge": "b_vhs", "title": "s_arcadeRat", "streak": 9, "bosses": 4,
+  "card": { "runs": 37, "best": 9120, "avg": 3400, "level": 7, "word": "JAZZ", "wordScore": 180, "longest": "PLANETS", "secrets": 12 } }
 ```
 
 `timestamp` is set by the server (`{".sv": "timestamp"}`). Before submitting, names are cleaned to
 what the rules accept (`sanitizeName()` in `services/leaderboardService.ts`): letters, numbers,
 spaces and `_ . ' -`, accents dropped, curly apostrophes straightened, at most 20 characters, and
-`Player` if nothing is left. `badge`, `title`, `streak` and `bosses` are optional: the player's equipped bling
-(ids from `data/cosmetics.ts`), daily streak, and Boss Badges collected (how many different bosses
-they've beaten, shown as 🏅4 on the Top 50). The board ignores unknown ids. If the database rules
-reject the extras, the game first retries without `bosses` (in case the rules predate it), then
-with the score alone, so nothing is lost.
+`Player` if nothing is left. `badge`, `title`, `streak`, `bosses` and `card` are optional: the player's equipped bling
+(ids from `data/cosmetics.ts`), daily streak, Boss Badges collected (how many different bosses
+they've beaten, shown as 🏅4 on the Top 50), and a snapshot of their player ID stats
+(`services/career.ts`), shown when someone taps their row. The board ignores unknown ids and
+malformed cards. If the database rules reject the extras, the game retries without the newest
+ones (`card`, then `bosses`), then with the score alone, so nothing is lost.
 
 ## Database rules
 
@@ -96,6 +98,20 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         "streak": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9999" },
         // Boss Badges collected (different bosses beaten)
         "bosses": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 99" },
+
+        // Player ID snapshot: the stats on their card when the score was posted
+        "card": {
+          ".validate": "newData.hasChildren(['runs','best','avg','level'])",
+          "runs":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" },
+          "best":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
+          "avg":       { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
+          "level":     { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9999" },
+          "word":      { ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{0,15}$/)" },
+          "wordScore": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
+          "longest":   { ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{0,15}$/)" },
+          "secrets":   { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999" },
+          "$other":    { ".validate": false }
+        },
 
         // Block any extra fields
         "$other": { ".validate": false }

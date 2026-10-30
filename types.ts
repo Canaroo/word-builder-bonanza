@@ -293,6 +293,27 @@ export interface LeaderboardEntry {
   streak?: number;
   /** Boss Badges collected, when the score was posted. */
   bosses?: number;
+  /** The player's ID card stats when the score was posted (missing on older scores). */
+  card?: IdCardStats;
+}
+
+/** The stats on a player's ID card (services/career.ts). Sent with each score as a snapshot. */
+export interface IdCardStats {
+  /** Finished runs. */
+  runs: number;
+  /** Best score in one run. */
+  best: number;
+  /** Average score per finished run. */
+  avg: number;
+  /** Furthest level reached. */
+  level: number;
+  /** Highest-scoring word and its score ('' and 0 until there is one). */
+  word: string;
+  wordScore: number;
+  /** Longest word played. */
+  longest: string;
+  /** Secret bonuses found. */
+  secrets: number;
 }
 
 /** Player bling sent with a score. */
@@ -302,6 +323,8 @@ export interface PlayerFlair {
   streak: number;
   /** Boss Badges collected (different bosses beaten, ever). */
   bosses?: number;
+  /** ID card stats at the time of posting. */
+  card?: IdCardStats;
 }
 
 export interface ScoreBonusInfo {
