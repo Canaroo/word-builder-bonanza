@@ -11,7 +11,7 @@ import { dictionaryService } from '../services/dictionaryService';
 import { isBlocked } from '../services/curatedWords';
 import { labelize } from '../services/durationTags';
 import { hintFor } from '../services/collection';
-import type { EasterEgg, SecretBonus } from '../types';
+import type { Charm, EasterEgg, PowerPlay, SecretBonus } from '../types';
 import BonusReveal from './BonusReveal';
 
 /**
@@ -52,7 +52,13 @@ const Card: React.FC<{ onClick?: () => void; children: React.ReactNode }> = ({ o
 
 const BonusCatalog: React.FC = () => {
   const params = new URLSearchParams(location.search);
-  const [tab, setTab] = useState<Tab>('words');
+  const TAB_IDS: Tab[] = ['words', 'scores', 'counts', 'charms', 'powerPlays'];
+  const [tab, setTabState] = useState<Tab>(() => (TAB_IDS as string[]).includes(params.get('tab') ?? '') ? params.get('tab') as Tab : 'words');
+  // Each tab has its own URL (?bonuses&tab=charms), so it can be bookmarked.
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    history.replaceState(null, '', `${location.pathname}?bonuses&tab=${t}`);
+  };
   const [search, setSearch] = useState('');
   const [preview, setPreview] = useState<EasterEgg | null>(() => EASTER_EGGS.find(e => e.id === params.get('egg')) ?? null);
   const [wordStatus, setWordStatus] = useState<Record<string, WordStatus>>({});
@@ -154,43 +160,68 @@ const BonusCatalog: React.FC = () => {
         ));
       case 'charms':
       case 'powerPlays': {
-        const list = tab === 'charms' ? CHARMS_LIST : POWER_PLAYS_LIST;
-        return list.filter(c => matches(c.name, c.description, c.flavorText)).map(c => (
-          <Card key={c.id}>
-            <div className="flex items-start gap-2">
-              <span className="text-xl leading-none" aria-hidden="true">{c.icon}</span>
-              <span className="font-display text-base text-white leading-tight flex-1">{c.name}</span>
-            </div>
-            <div className="osd-text text-lg leading-none text-neon-purple">
-              {c.subtheme.toUpperCase()}{labelize(c.durationTag)}
-            </div>
-            <p className="text-sm text-slate-200 leading-snug">{c.description}</p>
-            <p className="text-xs text-slate-400 italic">{c.flavorText}</p>
-          </Card>
-        ));
+        // A table: easier to scan 100 items than cards. The id is what /?stats and the code use.
+        const list = (tab === 'charms' ? CHARMS_LIST : POWER_PLAYS_LIST) as (Charm | PowerPlay)[];
+        const rows = list.filter(c => matches(c.name, c.description, c.flavorText, c.id));
+        return (
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-crt-950">
+              <tr className="text-left text-slate-400">
+                <th className="py-2 pr-3 font-normal">#</th>
+                <th className="py-2 pr-3 font-normal">Name</th>
+                <th className="py-2 pr-3 font-normal">Type</th>
+                <th className="py-2 pr-3 font-normal">What it does</th>
+                <th className="py-2 pr-3 font-normal">Flavor</th>
+              </tr>
+            </thead>
+            <tbody>{rows.map(c => (
+              <tr key={c.id} className="border-t border-white/10 align-top hover:bg-white/5">
+                <td className="py-2 pr-3 text-slate-500 tabular-nums">{list.indexOf(c) + 1}</td>
+                <td className="py-2 pr-3 min-w-[14rem]">
+                  <div className="font-display text-base text-white leading-tight">{c.icon} {c.name}</div>
+                  <div className="font-mono text-xs text-slate-500">{c.id}</div>
+                </td>
+                <td className="py-2 pr-3 osd-text text-base leading-tight text-neon-purple whitespace-nowrap">
+                  {c.subtheme.toUpperCase()}{labelize(c.durationTag)}{(c as PowerPlay).oncePerRun ? <><br /><span className="text-neon-yellow">ONCE PER RUN</span></> : null}
+                </td>
+                <td className="py-2 pr-3 text-slate-200 leading-snug max-w-xl">{c.description}</td>
+                <td className="py-2 pr-3 text-slate-400 italic leading-snug max-w-sm">{c.flavorText}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        );
       }
     }
   };
 
   return (
-    <div className="relative flex-1 min-h-0 flex flex-col p-3 gap-2">
-      <header className="shrink-0 text-center">
-        <h1 className="font-display text-3xl neon-text-cyan leading-none">BONUS VAULT</h1>
-        <p className="osd-text text-lg text-neon-pink leading-tight">
-          {SECRET_BONUSES.length} SECRETS · TAP ONE TO PREVIEW
-        </p>
-        <div className="mt-1">
-          {checking > 0 ? (
-            <Badge tone="idle">CHECKING {checking} WORDS…</Badge>
-          ) : issueCount ? (
-            <Badge tone="bad">⚠️ {issueCount} TO FIX: THE BUILD WILL REFUSE TO PUBLISH</Badge>
-          ) : (
-            <Badge tone="ok">✅ ALL BONUSES PASS</Badge>
-          )}
+    <div className="relative flex flex-col gap-3">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-display text-4xl neon-text-cyan leading-none">BONUS VAULT</h1>
+          <p className="osd-text text-lg text-neon-pink leading-tight">
+            {SECRET_BONUSES.length} SECRETS · CLICK ONE TO PREVIEW
+          </p>
+        </div>
+        <div className="flex items-center gap-4 osd-text text-lg leading-none">
+          <a href={GUIDE_URL} target="_blank" rel="noreferrer" className="text-neon-cyan underline">HOW TO EDIT</a>
+          <a href={EDIT_URL} target="_blank" rel="noreferrer" className="text-neon-cyan underline">EDIT ON GITHUB</a>
+          <a href="./?stats" className="text-neon-pink underline">STATS</a>
+          <a href="./" className="text-neon-yellow underline">▶ PLAY</a>
         </div>
       </header>
+      <div>
+        {checking > 0 ? (
+          <Badge tone="idle">CHECKING {checking} WORDS…</Badge>
+        ) : issueCount ? (
+          <Badge tone="bad">⚠️ {issueCount} TO FIX: THE BUILD WILL REFUSE TO PUBLISH</Badge>
+        ) : (
+          <Badge tone="ok">✅ ALL BONUSES PASS</Badge>
+        )}
+      </div>
 
-      <div className="shrink-0 flex gap-1 overflow-x-auto no-scrollbar" role="tablist">
+      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex gap-1 overflow-x-auto no-scrollbar" role="tablist">
         {tabs.map(t => (
           <button
             key={t.id}
@@ -211,23 +242,24 @@ const BonusCatalog: React.FC = () => {
         type="search"
         value={search}
         onChange={e => setSearch(e.target.value)}
-        placeholder="Search words, names, messages…"
-        className="shrink-0 w-full rounded-lg bg-crt-950/80 ring-1 ring-white/15 px-3 py-2 text-base text-white placeholder:text-slate-500 outline-none focus:ring-neon-cyan"
+        placeholder="Search words, names, messages, ids…"
+        className="flex-1 min-w-[16rem] rounded-lg bg-crt-950/80 ring-1 ring-white/15 px-3 py-2 text-base text-white placeholder:text-slate-500 outline-none focus:ring-neon-cyan"
       />
 
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-2 pr-1">{renderList()}</div>
+      </div>
 
-      <footer className="shrink-0 flex justify-between gap-2 osd-text text-lg leading-none">
-        <a href={GUIDE_URL} target="_blank" rel="noreferrer" className="text-neon-cyan underline">HOW TO EDIT</a>
-        <a href={EDIT_URL} target="_blank" rel="noreferrer" className="text-neon-cyan underline">EDIT ON GITHUB</a>
-        <a href="./" className="text-neon-yellow underline">▶ PLAY</a>
-      </footer>
+      {tab === 'charms' || tab === 'powerPlays'
+        ? <div>{renderList()}</div>
+        : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 items-start">{renderList()}</div>}
 
+      {/* The preview covers the window, wherever the page is scrolled. */}
       {preview && (
-        <BonusReveal
-          egg={{ ...preview, triggerScore: preview.scorePattern ? exampleScore(preview.scorePattern) : undefined }}
-          onClose={() => setPreview(null)}
-        />
+        <div className="fixed inset-0 z-50">
+          <BonusReveal
+            egg={{ ...preview, triggerScore: preview.scorePattern ? exampleScore(preview.scorePattern) : undefined }}
+            onClose={() => setPreview(null)}
+          />
+        </div>
       )}
     </div>
   );

@@ -24,8 +24,39 @@ const Table: React.FC<{ head: string[]; rows: (string | number)[][]; empty?: str
   ) : <p className="text-sm text-slate-500">{empty}</p>
 );
 
-const Section: React.FC<{ title: string; note?: string; children: React.ReactNode }> = ({ title, note, children }) => (
-  <section className="rounded-xl bg-crt-950/80 ring-1 ring-white/10 p-3">
+/** A sortable table (click a column header): numbers sort high-first, text A-Z. */
+type Cell = string | number | null;
+const SortTable: React.FC<{ head: string[]; rows: Cell[][]; fmt?: ((v: Cell) => string)[]; defaultSort?: number; empty?: string }> = ({ head, rows, fmt = [], defaultSort = 1, empty = 'No data yet.' }) => {
+  const [col, setCol] = useState(defaultSort);
+  const [asc, setAsc] = useState(false);
+  if (!rows.length) return <p className="text-sm text-slate-500">{empty}</p>;
+  const key = (v: Cell) => (v === null ? -Infinity : v);
+  const sorted = [...rows].sort((a, b) => {
+    const x = key(a[col]), y = key(b[col]);
+    const d = typeof x === 'number' && typeof y === 'number' ? y - x : String(x).localeCompare(String(y));
+    return asc ? -d : d;
+  });
+  const show = (v: Cell, i: number) => (fmt[i] ? fmt[i](v) : v === null ? '–' : typeof v === 'number' ? v.toLocaleString() : v);
+  return (
+    <table className="w-full text-sm tabular-nums">
+      <thead><tr className="text-left text-slate-400">{head.map((h, i) => (
+        <th key={h} className={`py-1 pr-3 font-normal ${i ? 'text-right' : ''}`}>
+          <button type="button" className={`hover:text-white ${col === i ? 'text-neon-cyan' : ''}`} onClick={() => (col === i ? setAsc(!asc) : (setCol(i), setAsc(i === 0)))}>
+            {h}{col === i ? (asc ? ' ▲' : ' ▼') : ''}
+          </button>
+        </th>
+      ))}</tr></thead>
+      <tbody>{sorted.map((r, i) => (
+        <tr key={i} className="border-t border-white/10 hover:bg-white/5">{r.map((c, j) => <td key={j} className={`py-1 pr-3 ${j ? 'text-right text-neon-yellow whitespace-nowrap' : 'text-slate-100'}`}>{show(c, j)}</td>)}</tr>
+      ))}</tbody>
+    </table>
+  );
+};
+const rate = (n: number, of: number): number | null => (of ? Math.round((n / of) * 100) : null);
+const asPct = (v: Cell) => (v === null ? '–' : `${v}%`);
+
+const Section: React.FC<{ title: string; note?: string; className?: string; children: React.ReactNode }> = ({ title, note, className = '', children }) => (
+  <section className={`rounded-xl bg-crt-950/80 ring-1 ring-white/10 p-4 ${className}`}>
     <h2 className="font-display text-base text-neon-cyan">{title}</h2>
     {note && <p className="text-xs text-slate-400 mb-1.5">{note}</p>}
     {children}
@@ -43,19 +74,26 @@ const StatsPage: React.FC = () => {
   }, [days]);
 
   const s = useMemo(() => (events ? summarize(events) : null), [events]);
+  const [showAll, setShowAll] = useState(false);
 
   return (
-    <div className="flex flex-col h-full min-h-0 p-4 gap-3 overflow-y-auto">
-      <header className="text-center">
-        <h1 className="font-display text-3xl neon-text-cyan leading-none">STATS</h1>
-        <p className="osd-text text-base text-slate-400 mt-1">Anonymous totals from every player. {events ? `${events.length} events.` : ''}</p>
-        <div className="mt-2 grid grid-cols-4 gap-1" role="tablist">
-          {RANGES.map(d => (
-            <button key={d} type="button" role="tab" aria-selected={days === d} onClick={() => setDays(d)}
-              className={`osd-text text-lg leading-none py-1.5 rounded-md ring-1 ${days === d ? 'bg-neon-cyan text-crt-900 ring-neon-cyan' : 'bg-crt-900/80 text-slate-300 ring-white/10'}`}>
-              {d === 1 ? '24H' : `${d}D`}
-            </button>
-          ))}
+    <div className="flex flex-col gap-4">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-display text-4xl neon-text-cyan leading-none">STATS</h1>
+          <p className="osd-text text-lg text-slate-400 mt-1">Anonymous totals from every player. {events ? `${events.length.toLocaleString()} events.` : ''}</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="grid grid-cols-4 gap-1 w-72" role="tablist">
+            {RANGES.map(d => (
+              <button key={d} type="button" role="tab" aria-selected={days === d} onClick={() => setDays(d)}
+                className={`osd-text text-lg leading-none py-1.5 rounded-md ring-1 ${days === d ? 'bg-neon-cyan text-crt-900 ring-neon-cyan' : 'bg-crt-900/80 text-slate-300 ring-white/10'}`}>
+                {d === 1 ? '24H' : `${d}D`}
+              </button>
+            ))}
+          </div>
+          <a href="./?bonuses" className="osd-text text-lg text-neon-pink underline">BONUS VAULT</a>
+          <a href="./" className="osd-text text-lg text-neon-yellow underline">▶ PLAY</a>
         </div>
       </header>
 
@@ -64,6 +102,7 @@ const StatsPage: React.FC = () => {
 
       {s && (
         <>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 items-start">
           <Section title="Runs">
             <Table head={['', 'Value']} rows={[
               ['Runs finished', s.runs.count],
@@ -117,32 +156,35 @@ const StatsPage: React.FC = () => {
             } empty="No power words played yet." />
           </Section>
 
-          <Section title="Charms" note={`Pick rate = picked when offered. Runs = runs that ended with it equipped, and their average score. ${offers(s.passes.charm)} passed.`}>
-            <Table head={['Charm', 'Offered', 'Picked', 'Runs', 'Avg score']} rows={
-              CHARMS_LIST.filter(c => s.charms[c.id]).sort((a, b) => s.charms[b.id].picked - s.charms[a.id].picked).map(c => {
-                const x = s.charms[c.id];
-                return [`${c.icon} ${c.name}`, x.offered, `${x.picked} (${pct(x.picked, x.offered)})`, x.endRuns, x.endRuns ? x.avgEndScore.toLocaleString() : '–'];
-              })
-            } empty="No charm offers yet." />
-          </Section>
-
-          <Section title="PowerPlays" note={`Pick rate = picked when offered. Used = share of picks that got used. ${offers(s.passes.powerPlay)} kept the held one.`}>
-            <Table head={['PowerPlay', 'Offered', 'Picked', 'Used']} rows={
-              POWER_PLAYS_LIST.filter(p => s.powerPlays[p.id]).sort((a, b) => s.powerPlays[b.id].picked - s.powerPlays[a.id].picked).map(p => {
-                const x = s.powerPlays[p.id];
-                return [`${p.icon} ${p.name}`, x.offered, `${x.picked} (${pct(x.picked, x.offered)})`, `${x.used} (${pct(x.used, x.picked)})`];
-              })
-            } empty="No PowerPlay offers yet." />
-          </Section>
-
           <Section title="By day">
             <Table head={['Day', 'Runs', 'Bosses won', 'Missions']} rows={
               Object.entries(s.days).sort(([a], [b]) => b.localeCompare(a)).map(([d, x]) => [d, x.runs, x.bossesWon, x.missionsDone])
             } />
           </Section>
+        </div>
+
+        <label className="flex items-center gap-2 text-sm text-slate-300 self-start cursor-pointer">
+          <input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} />
+          Show every charm and PowerPlay, including ones with no data in this range
+        </label>
+        <div className="grid gap-4 xl:grid-cols-2 items-start">
+          <Section title={`Charms (${CHARMS_LIST.length})`} note={`Click a column to sort. Pick % = picked when offered. Runs = runs that ended with it equipped; Avg score = their average. ${offers(s.passes.charm)} passed.`}>
+            <SortTable head={['Charm', 'Offered', 'Picked', 'Pick %', 'Runs', 'Avg score']} defaultSort={2} fmt={[, , , asPct]}
+              rows={CHARMS_LIST.filter(c => showAll || s.charms[c.id]).map(c => {
+                const x = s.charms[c.id] ?? { offered: 0, picked: 0, endRuns: 0, avgEndScore: 0 };
+                return [`${c.icon} ${c.name}`, x.offered, x.picked, rate(x.picked, x.offered), x.endRuns, x.endRuns ? x.avgEndScore : null];
+              })} empty="No charm offers yet." />
+          </Section>
+          <Section title={`PowerPlays (${POWER_PLAYS_LIST.length})`} note={`Click a column to sort. Pick % = picked when offered. Use % = share of picks that got used. ${offers(s.passes.powerPlay)} kept the held one.`}>
+            <SortTable head={['PowerPlay', 'Offered', 'Picked', 'Pick %', 'Used', 'Use %']} defaultSort={2} fmt={[, , , asPct, , asPct]}
+              rows={POWER_PLAYS_LIST.filter(p => showAll || s.powerPlays[p.id]).map(p => {
+                const x = s.powerPlays[p.id] ?? { offered: 0, picked: 0, used: 0 };
+                return [`${p.icon} ${p.name}`, x.offered, x.picked, rate(x.picked, x.offered), x.used, rate(x.used, x.picked)];
+              })} empty="No PowerPlay offers yet." />
+          </Section>
+        </div>
         </>
       )}
-      <a href="/" className="osd-text text-center text-neon-yellow text-lg py-2">◀ BACK TO THE GAME</a>
     </div>
   );
 };

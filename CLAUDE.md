@@ -47,6 +47,7 @@ Resume.
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
 | PowerPlays / charms (75 / 100) | `data/powerPlays.ts`, `data/charms.ts` |
 | Secret bonuses (78 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
+| Hidden desktop pages | `/?stats` and `/?bonuses` (tabs: `&tab=words`, `scores`, `counts`, `charms`, `powerPlays`) render full-width outside the phone frame (`showToolPage` in `App.tsx`) |
 | Bosses (24) and Boss Badges | `data/bosses.ts` (villains, rules), `BOSS` in `config/gameplay.ts` (timing, rewards); badges in the profile (`recordBossBadge`) |
 | Cosmetics, streak milestones, themes, missions | `data/cosmetics.ts`, `data/packs.ts`, `data/missions.ts` |
 | Dictionary | `data/internalWords.ts` (words with definitions), `words/custom.txt`, `words/blocked.txt`, `words/no-suggest.txt` |
