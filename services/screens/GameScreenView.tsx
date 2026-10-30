@@ -80,6 +80,8 @@ const PickTile: React.FC<{ tile: Tile; selected: boolean; dimmed?: boolean; onCl
 export interface GameScreenViewProps {
   gameState: GameState;
   time: number;
+  /** Seconds left in the 3-2-1 after resuming a saved run (0 once play continues). */
+  resumeCountdown?: number;
   timeGain?: { seconds: number; key: number; taxed?: boolean };
   /** Short game feedback (PowerPlay results, combos, hints). Empty when nothing to say. */
   message?: string;
@@ -132,7 +134,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, resumeCountdown = 0, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
@@ -310,7 +312,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     <div className={modalBaseClass}>
                         <div className={`${modalBoxBaseClass} border-cyan-400`}>
                            <h2 className="text-3xl font-bold text-cyan-400 mb-4 text-center">{title}</h2>
-                           <p className="text-slate-200 text-center my-4">Save your current game state and return to the main menu? You can resume later.</p>
+                           <p className="text-slate-200 text-center my-4">Save your run and return to the main menu? Tap Resume there to pick up right where you left off.</p>
+                           <p className="text-slate-400 text-sm text-center -mt-2 mb-2">Your run also saves itself after every word, so closing the app by accident won't lose it.</p>
                            <div className="flex gap-4 mt-4">
                                 <button onClick={handleCloseModal} className="w-full px-6 py-3 text-xl font-bold text-white bg-red-600 rounded-lg shadow-lg hover:bg-red-500">CANCEL</button>
                                 <button onClick={handleConfirmSave} className="w-full px-6 py-3 text-xl font-bold text-slate-900 bg-cyan-400 rounded-lg shadow-lg hover:bg-cyan-300">SAVE & QUIT</button>
@@ -596,6 +599,14 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     <div className="flex flex-col h-full min-h-0 p-3 text-slate-200 gap-2">
       {/* --- MODALS --- */}
       {renderModal()}
+      {/* Resumed run: the board stays hidden (no free look at the tiles) until the 3-2-1 ends. */}
+      {resumeCountdown > 0 && (
+        <div className="absolute inset-0 z-[70] bg-crt-950 flex flex-col items-center justify-center gap-3 text-center" role="status" aria-live="assertive" aria-label={`Run restored. Resuming in ${resumeCountdown}`}>
+          <p className="osd-text text-2xl tracking-[0.3em] text-neon-green">RUN RESTORED</p>
+          <p key={resumeCountdown} className="font-osd text-9xl leading-none neon-text-cyan level-stage-in">{resumeCountdown}</p>
+          <p className="osd-text text-lg text-slate-400">{time}s on the clock · get ready</p>
+        </div>
+      )}
       
       {/* --- TOP BAR --- */}
       <div className="grid grid-cols-[1fr_auto_1fr] items-center flex-shrink-0 text-white gap-2">

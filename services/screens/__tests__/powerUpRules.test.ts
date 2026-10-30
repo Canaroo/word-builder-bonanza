@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Charm slots, PowerPlay keep-or-swap, and the PowerPlays/charms added or moved in v6.8.
 import { describe, test, expect, vi, afterEach } from 'vitest';
-import { gameReducer, screenInitialState, maxStrikesFor, type GameScreenState } from '../GameScreen';
+import { gameReducer, screenInitialState, maxStrikesFor, savableScreenState, RESUME_COUNTDOWN, type GameScreenState } from '../GameScreen';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS } from '../../../data/powerPlays';
 import { CHARMS_LIST } from '../../../data/charms';
 import { SECRET_BONUSES } from '../../../data/secretBonuses';
@@ -657,5 +657,27 @@ describe('v7.22 power words', () => {
         const power = SECRET_BONUSES.filter(b => b.effect);
         expect(power.map(b => b.word).sort()).toEqual(['CAKE', 'HEAL', 'REWIND', 'RINGS', 'SLOT', 'SLOW', 'SNOW', 'SPICE', 'SWORD', 'TWIN']);
         for (const b of power) expect(b.points).toBeUndefined();
+    });
+});
+
+describe('auto-save and resume', () => {
+    test('the saved state keeps plain pop-ups (like an offer) and drops ones with rich content', () => {
+        const base = start();
+        const offer = { type: 'charm-selection', title: 'Charm Earned!', content: 'Pick one.', data: [charm('aTeam')] } as any;
+        const rich = { type: 'game-over-summary', title: 'GAME OVER', content: { $$typeof: 'react' } } as any;
+        const saved = savableScreenState({ ...base, modalContent: offer, modalQueue: [rich, offer], isLoading: true, resumeCountdown: 2 });
+        expect(saved.modalContent).toEqual(offer);
+        expect(saved.modalQueue).toEqual([offer]);
+        expect(saved).toMatchObject({ isLoading: false, resumeCountdown: 0, lastTurnState: null });
+    });
+
+    test('the resume countdown ticks down, then the clock runs again unless a pop-up is open', () => {
+        const s3 = { ...start(), resumeCountdown: RESUME_COUNTDOWN, isPaused: true, modalContent: null };
+        const s2 = gameReducer(s3, { type: 'RESUME_COUNTDOWN_TICK' } as any);
+        expect(s2).toMatchObject({ resumeCountdown: RESUME_COUNTDOWN - 1, isPaused: true });
+        let s = s2; while ((s.resumeCountdown ?? 0) > 0) s = gameReducer(s, { type: 'RESUME_COUNTDOWN_TICK' } as any);
+        expect(s.isPaused).toBe(false);
+        const withPopup = gameReducer({ ...s3, resumeCountdown: 1, modalContent: { type: 'info', title: 'x' } } as any, { type: 'RESUME_COUNTDOWN_TICK' } as any);
+        expect(withPopup.isPaused).toBe(true);
     });
 });
