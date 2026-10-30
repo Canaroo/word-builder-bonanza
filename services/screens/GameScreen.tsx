@@ -17,7 +17,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
@@ -3366,12 +3366,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           const effect = egg.reward.effect!;
           const icon = egg.name.split(' ')[0];
           newState.powerWordLevels = { ...(newState.powerWordLevels ?? {}), [egg.id]: thisWordLevel };
-          const head = again ? `${icon} ${word.toUpperCase()} AGAIN!` : '';
+          // A repeat has no reveal card, so its pop-up says what the word does and waits for Continue.
+          const head = again ? `⚡ POWER WORD · ${word.toUpperCase()} AGAIN!` : '';
+          const info = powerWordInfo(effect);
           const track = (seconds = 0, strike = false) => sendStat({ type: 'power_word', power: effect, repeat: again, seconds, strike });
           const note = (title: string, content: string, change = 0): ModalContent => {
               scoreResult.bonuses.push({ name: `${icon} ${title}`, description: content });
               eventLogQueue.push({ type: 'event', id: `pw-${egg.id}-${now}`, name: title, icon, description: content, scoreChange: change, cumulativeScore: runningScore });
-              return { type: 'info', title: head || `${icon} ${title}`, content, autoClose: 3000 };
+              return again
+                  ? { type: 'info', title: head, content: `${icon} ${title} ${content}\n\n🔁 ${info.again}` }
+                  : { type: 'info', title: `${icon} ${title}`, content, autoClose: 3000 };
           };
           if (effect === 'slot') {
               const pay = slotPayout(Math.random());

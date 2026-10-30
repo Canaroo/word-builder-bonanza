@@ -1,7 +1,8 @@
 import { describe, test, expect } from 'vitest';
-import { GAMEPLAY } from '../../config/gameplay';
+import { GAMEPLAY, POWER_WORD_EFFECTS } from '../../config/gameplay';
+import { SECRET_BONUSES } from '../../data/secretBonuses';
 import {
-    levelUpInfo,
+    levelUpInfo, powerWordInfo,
     timeForWord, clampTime, lengthMultiplier, combineMultipliers, addWordMultiplier,
     refillCount, advancePowerPlayMeter, levelFor, clockSpeedFor, tickMsFor, timeForWordAtLevel, wordTimeScaleFor, meterLettersFor, levelTierFor, levelProgressFor,
     taxWordTime, snitchTargetFor, bonusTimeScale, bonusTime,
@@ -151,5 +152,17 @@ describe('levelUpInfo', () => {
     test('the meter numbers include the Turbo Button charm', () => {
         const turbo = levelUpInfo(4, { activeCharms: [{ id: 'turboButton' }] });
         expect(turbo.changes.find(c => c.label === 'PowerPlay letters')).toMatchObject({ from: '20', to: '24' });
+    });
+});
+
+describe('powerWordInfo', () => {
+    test('every power word explains what it does and that it repeats', () => {
+        for (const b of SECRET_BONUSES.filter(x => x.effect)) {
+            const info = powerWordInfo(b.effect!);
+            expect(info.does.length).toBeGreaterThan(10);
+            expect(info.again).toMatch(/again/);
+            expect(b.message).toBe(info.does);
+        }
+        expect(powerWordInfo('slow').does).toContain(`${POWER_WORD_EFFECTS.slowWords} words`);
     });
 });

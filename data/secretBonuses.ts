@@ -19,6 +19,7 @@
 // The build checks this file and refuses to publish if a word is blocked, isn't in the
 // dictionary, or is used twice (see services/bonusCheck.ts).
 import type { SecretBonus } from '../types';
+import { powerWordInfo } from '../services/rules';
 
 export const SECRET_BONUSES: SecretBonus[] = [
   {
@@ -849,7 +850,7 @@ export const SECRET_BONUSES: SecretBonus[] = [
     name: "🎰 “Ocean's Eleven” 🎰",
     description: "When you submit the word \"SLOT\".",
     effect: 'slot',
-    message: "Pull the lever: every spin pays out in seconds.",
+    message: powerWordInfo('slot').does,
     hint: "Danny Ocean's crew knows the house always wins. Pull the one-armed bandit anyway.",
     media: "vhs",
     source: "Ocean's Eleven",
@@ -860,7 +861,7 @@ export const SECRET_BONUSES: SecretBonus[] = [
     name: "❄️ “Do You Want to Build a Snowman?” ❄️",
     description: "When you submit the word \"SNOW\".",
     effect: 'freeze',
-    message: "The clock freezes for the start of your next round.",
+    message: powerWordInfo('freeze').does,
     hint: "Elsa's flaky little powder. Let the clock go... cold.",
     media: "vhs",
     source: "Frozen",
@@ -871,7 +872,7 @@ export const SECRET_BONUSES: SecretBonus[] = [
     name: "💉 “Heroes Never Die!” 💉",
     description: "When you submit the word \"HEAL\".",
     effect: 'heal',
-    message: "A strike is removed (or, with none to remove, bonus points).",
+    message: powerWordInfo('heal').does,
     hint: "Mercy's favorite verb. Patches you up after a strike.",
     media: "cartridge",
     source: "Overwatch",
@@ -882,7 +883,7 @@ export const SECRET_BONUSES: SecretBonus[] = [
     name: "🦥 “Flash, Flash, Hundred-Yard Dash” 🦥",
     description: "When you submit the word \"SLOW\".",
     effect: 'slow',
-    message: "The clock runs at half speed for your next 3 words.",
+    message: powerWordInfo('slow').does,
     hint: "The fastest sloth at the DMV. Your clock takes the hint.",
     media: "vhs",
     source: "Zootopia",
@@ -893,7 +894,7 @@ export const SECRET_BONUSES: SecretBonus[] = [
     name: "👯 “Twins” 👯",
     description: "When you submit the word \"TWIN\".",
     effect: 'twin',
-    message: "Your best word is cloned: its time comes back, and it counts toward your Word Combo.",
+    message: powerWordInfo('twin').does,
     hint: "Schwarzenegger and DeVito, separated at birth. One of two, identical in spirit.",
     media: "vhs",
     source: "Twins",

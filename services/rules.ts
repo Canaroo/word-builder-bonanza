@@ -1,6 +1,6 @@
 // Pure gameplay rules. No React, no DOM: easy to test and to tune via config/gameplay.ts.
 import { BOSS, CHARM_BONUS, GAMEPLAY, POWER_GLOVE_BANK_MAX, POWER_WORD_EFFECTS } from '../config/gameplay';
-import { BossRound, ScoreCalculationResult } from '../types';
+import { BossRound, PowerWordEffect, ScoreCalculationResult } from '../types';
 
 const lookupByLength = (table: Record<number, number>, length: number, below: number): number => {
     const keys = Object.keys(table).map(Number).sort((a, b) => a - b);
@@ -228,4 +228,18 @@ export const levelUpInfo = (level: number, gs?: WithCharms): LevelUpInfo => {
         changes,
         boss: bossNumberFor(level) ? 'now' : bossNumberFor(level + 1) ? 'next' : null,
     };
+};
+
+/** What a power word does, in plain words, for the reveal, the Collection and the Bonus Vault. */
+export const powerWordInfo = (effect: PowerWordEffect): { label: string; does: string; again: string } => {
+    const E = POWER_WORD_EFFECTS;
+    const slot = E.slot.map(p => `${p.seconds}`).join(', ');
+    const info = {
+        slot: { label: 'SLOT MACHINE', does: `Pull a slot machine for bonus time next round: +${slot} seconds.` },
+        freeze: { label: 'FREEZE', does: `The clock won't move for the first ${E.freezeSeconds} seconds of your next round.` },
+        heal: { label: 'HEAL', does: `Removes one strike. With no strikes, +${E.healFallbackPoints} points instead.` },
+        slow: { label: 'SLOW MOTION', does: `The clock runs at half speed for your next ${E.slowWords} words.` },
+        twin: { label: 'CLONE', does: 'Clones your best word: its time next round, plus one step toward your Word Combo.' },
+    }[effect];
+    return { ...info, again: 'Play it again on a later level to use it again (once per level).' };
 };
