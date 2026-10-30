@@ -127,7 +127,7 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         ".write": "!data.exists()",
         ".validate": "newData.hasChildren(['type','timestamp'])",
 
-        "type": { ".validate": "newData.isString() && newData.val().matches(/^(boss_start|boss_end|mission_shown|mission_done|run_end|power_word)$/)" },
+        "type": { ".validate": "newData.isString() && newData.val().matches(/^(boss_start|boss_end|mission_shown|mission_done|run_end|power_word|charm_offer|pp_offer|pp_use)$/)" },
         "timestamp": { ".validate": "newData.isNumber() && newData.val() > now - 5 * 60 * 1000 && newData.val() < now + 5 * 60 * 1000" },
 
         // Bosses
@@ -151,6 +151,12 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         "words":   { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
         "level":   { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9999" },
         "bosses":  { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99" },
+        "charms":  { ".validate": "newData.isString() && newData.val().matches(/^([A-Za-z0-9]{1,32}(,[A-Za-z0-9]{1,32}){0,5})?$/)" },
+
+        // Charm and PowerPlay offers and uses (ids only)
+        "offered": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,32}(,[A-Za-z0-9]{1,32}){0,5}$/)" },
+        "picked":  { ".validate": "newData.isString() && newData.val().matches(/^([A-Za-z0-9]{1,32})?$/)" },
+        "pp":      { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,32}$/)" },
 
         "$other": { ".validate": false }
       }
@@ -171,12 +177,16 @@ Firebase rules allow `//` comments, so paste the block as-is.
 | `boss_end` | `boss`, `number`, `outcome`, `hits` | A boss round ends (won, close or escaped) |
 | `mission_shown` | `mission`, `tier` | The first time a device sees the day's missions (one per mission) |
 | `mission_done` | `mission`, `tier` | A mission is completed |
-| `run_end` | `score`, `words`, `level`, `bosses` | The Game Over summary is closed |
+| `run_end` | `score`, `words`, `level`, `bosses`, `charms` | The Game Over summary is closed (`charms`: the ids equipped at the end, comma-joined) |
+| `charm_offer` | `offered`, `picked`, `level` | A charm offer is answered (`picked` is `''` for a pass) |
+| `pp_offer` | `offered`, `picked`, `level` | A PowerPlay offer is answered (`picked` is `''` when the held one is kept) |
+| `pp_use` | `pp`, `level` | A PowerPlay is used (an instant one counts when picked) |
 | `power_word` | `power`, `repeat`, `seconds`, `strike` | A power word fires (slot payout, freeze or cloned seconds; whether HEAL removed a strike) |
 
 Sending is fire-and-forget and never interrupts play. It's off in dev, on `localhost`, and when
 `VITE_LEADERBOARD=local`. The hidden page **`/?stats`** reads the last 24 hours, 7, 30 or 90 days
-and shows runs, how far runs get, boss clear rates, mission completion rates and a daily table.
+and shows runs, how far runs get, boss clear rates, mission completion rates, charm and PowerPlay
+pick and use rates (with the average score of runs that ended with each charm) and a daily table.
 The `stats` rules above must be published for both sending and the page to work.
 
 ## Known limits

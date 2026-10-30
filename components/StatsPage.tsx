@@ -4,10 +4,13 @@ import { BOSSES } from '../data/bosses';
 import { MISSION_TEMPLATES } from '../data/missions';
 import { BOSS, POWER_WORD_EFFECTS } from '../config/gameplay';
 import { SECRET_BONUSES } from '../data/secretBonuses';
+import { CHARMS_LIST } from '../data/charms';
+import { POWER_PLAYS_LIST } from '../data/powerPlays';
 
 // Stats: anonymous usage numbers from Firebase /stats. Unlinked; open /?stats.
 const RANGES = [1, 7, 30, 90];
 const POWER_WORDS = SECRET_BONUSES.filter(b => b.effect).map(b => ({ effect: b.effect!, word: b.word!, icon: b.name.split(' ')[0] }));
+const offers = (n: number) => `${n} ${n === 1 ? 'offer' : 'offers'}`;
 const pct = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : '–');
 
 const Table: React.FC<{ head: string[]; rows: (string | number)[][]; empty?: string }> = ({ head, rows, empty = 'No data yet.' }) => (
@@ -112,6 +115,24 @@ const StatsPage: React.FC = () => {
                 return [`${p.icon} ${p.word}`, x.fired, x.repeats, detail];
               })
             } empty="No power words played yet." />
+          </Section>
+
+          <Section title="Charms" note={`Pick rate = picked when offered. Runs = runs that ended with it equipped, and their average score. ${offers(s.passes.charm)} passed.`}>
+            <Table head={['Charm', 'Offered', 'Picked', 'Runs', 'Avg score']} rows={
+              CHARMS_LIST.filter(c => s.charms[c.id]).sort((a, b) => s.charms[b.id].picked - s.charms[a.id].picked).map(c => {
+                const x = s.charms[c.id];
+                return [`${c.icon} ${c.name}`, x.offered, `${x.picked} (${pct(x.picked, x.offered)})`, x.endRuns, x.endRuns ? x.avgEndScore.toLocaleString() : '–'];
+              })
+            } empty="No charm offers yet." />
+          </Section>
+
+          <Section title="PowerPlays" note={`Pick rate = picked when offered. Used = share of picks that got used. ${offers(s.passes.powerPlay)} kept the held one.`}>
+            <Table head={['PowerPlay', 'Offered', 'Picked', 'Used']} rows={
+              POWER_PLAYS_LIST.filter(p => s.powerPlays[p.id]).sort((a, b) => s.powerPlays[b.id].picked - s.powerPlays[a.id].picked).map(p => {
+                const x = s.powerPlays[p.id];
+                return [`${p.icon} ${p.name}`, x.offered, `${x.picked} (${pct(x.picked, x.offered)})`, `${x.used} (${pct(x.used, x.picked)})`];
+              })
+            } empty="No PowerPlay offers yet." />
           </Section>
 
           <Section title="By day">
