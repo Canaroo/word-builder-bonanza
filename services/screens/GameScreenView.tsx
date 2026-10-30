@@ -667,7 +667,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           ))}
         </div>
         <div className="flex gap-3">
-          <button onClick={handleShowEventLog} className="text-2xl transition-transform hover:scale-110" title="Event Log">📖</button>
+          <button onClick={handleShowEventLog} className="text-2xl transition-transform hover:scale-110" title="Event Log" aria-label="Event log">📖</button>
           <button onClick={handleMuteToggle} className="text-2xl transition-transform hover:scale-110" title="Toggle Sound">{isMuted ? '🔇' : '🔊'}</button>
         </div>
       </div>
