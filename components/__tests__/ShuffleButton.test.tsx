@@ -9,11 +9,12 @@ const render = (props: Partial<React.ComponentProps<typeof ShuffleButton>> = {})
 );
 
 describe('Shuffle lifeline button', () => {
-    test('says it adds time and shows shuffles left as dots', () => {
+    test('says it adds time and shows shuffles left as a number, like Challenge', () => {
         const html = render();
         expect(html).toContain('+<!-- -->5<!-- --> SEC');
         expect(html).toContain('2 left');
-        expect(html.match(/w-2 h-2 rounded-full/g)).toHaveLength(3); // 2 filled + 1 used of the starting 3
+        expect(html).toContain('🔀 Shuffle (2)');
+        expect(html).not.toContain('rounded-full');
     });
 
     test('pulses only when time is low and a shuffle is available', () => {
@@ -22,7 +23,8 @@ describe('Shuffle lifeline button', () => {
         expect(render({ lowTime: true, disabled: true })).not.toContain('lifeline-pulse');
     });
 
-    test('lots of shuffles show as a count instead of dots', () => {
-        expect(render({ count: 7 })).toContain('×<!-- -->7');
+    test('any count reads the same way, including none', () => {
+        expect(render({ count: 7 })).toContain('🔀 Shuffle (7)');
+        expect(render({ count: 0, disabled: true })).toContain('🔀 Shuffle (0)');
     });
 });
