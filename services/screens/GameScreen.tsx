@@ -153,6 +153,12 @@ export type GameScreenState = {
   lastTurnState: { gameState: GameState; hand: (Tile | null)[]; buildRow: ({tile: Tile, originalIndex: number} | null)[]; time: number; tileBag: string[] } | null;
   highlightedTileIds: { first: string | null; rest: string[] };
   longWordBonusNotified: boolean;
+  /**
+   * A word was just played and the next round hasn't started yet. Closing the last pop-up then
+   * starts it. Pop-ups from a PowerPlay used mid-round must not, or the round's one-turn tile
+   * boosts (One Tile, Captain Planet...) are wiped before the word is played.
+   */
+  awaitingNextRound?: boolean;
 }
 
 const createScreenInitialState = (): GameScreenState => {
@@ -346,7 +352,7 @@ const levelUpModal = (wordsBefore: number) => {
 
 /** The game reducer, plus the time ledger: clock gains from shuffles and power-ups are recorded by source. */
 export function gameReducer(state: GameScreenState, action: GameAction): GameScreenState {
-    const next = payBackpack(state, baseGameReducer(state, action), action);
+    const next = payBackpack(state, logPowerPlayUse(state, baseGameReducer(state, action), action), action);
     const source = TIME_GAIN_SOURCE[action.type];
     const gained = next.time - state.time;
     if (!source || gained <= 0 || !next.gameState || state.gameState?.roundType === 'golden' || next.gameState.roundType === 'golden') return next;
@@ -354,16 +360,40 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
 }
 
 /**
- * Backpack, Backpack! charm: every PowerPlay used pays a bonus. A PowerPlay counts as used when
- * the held one leaves the pocket (any action but a swap), or when an instant one is picked.
+ * The PowerPlay this action used, if any. A PowerPlay counts as used when the held one leaves the
+ * pocket (any action but a swap or keep), or when an instant one is picked.
  */
+function usedPowerPlay(state: GameScreenState, next: GameScreenState, action: GameAction): PowerPlay | null {
+    const gs = next.gameState;
+    if (!gs || action.type === 'KEEP_POWER_PLAY') return null;
+    if (action.type === 'CHOOSE_POWER_PLAY') return INSTANT_POWER_PLAY_IDS.has(action.payload.powerPlay.id) ? action.payload.powerPlay : null;
+    return (state.gameState?.availablePowerPlays ?? []).find(p => !gs.availablePowerPlays.some(n => n.id === p.id)) ?? null;
+}
+
+/** Logs a PowerPlay's use in the event log, unless its own effect already logged it. */
+function logPowerPlayUse(state: GameScreenState, next: GameScreenState, action: GameAction): GameScreenState {
+    const used = usedPowerPlay(state, next, action);
+    if (!used) return next;
+    const gs = next.gameState;
+    const added = gs.log.slice(state.gameState?.log.length ?? 0);
+    if (added.some(e => e.type === 'event' && e.name === used.name)) return next;
+    return {
+        ...next,
+        gameState: {
+            ...gs,
+            log: [...gs.log, {
+                type: 'event', id: `pp-used-${used.id}-${Date.now()}`, name: used.name, icon: used.icon,
+                description: used.description, scoreChange: 0, cumulativeScore: gs.score,
+            } as EventLogEntry],
+        },
+    };
+}
+
+/** Backpack, Backpack! charm: every PowerPlay used pays a bonus. */
 function payBackpack(state: GameScreenState, next: GameScreenState, action: GameAction): GameScreenState {
     const gs = next.gameState;
-    if (!gs?.activeCharms?.some(c => c.id === 'backpack') || action.type === 'KEEP_POWER_PLAY') return next;
-    const used = action.type === 'CHOOSE_POWER_PLAY'
-        ? INSTANT_POWER_PLAY_IDS.has(action.payload.powerPlay.id)
-        : (state.gameState?.availablePowerPlays ?? []).some(p => !gs.availablePowerPlays.some(n => n.id === p.id));
-    if (!used) return next;
+    if (!gs?.activeCharms?.some(c => c.id === 'backpack')) return next;
+    if (!usedPowerPlay(state, next, action)) return next;
     const bonus = CHARM_BONUS.backpack;
     const score = gs.score + bonus;
     const prev = gs.lastPowerPlayResult;
@@ -497,6 +527,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             
             let finalState = {
                 ...state,
+                awaitingNextRound: true,
                 time,
                 gameState: newGameState,
                 hand,
@@ -767,6 +798,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
 
             return {
                 ...state,
+                awaitingNextRound: false,
                 hand,
                 tileBag,
                 buildRow: Array(BUILD_ROW_SIZE).fill(null),
@@ -967,6 +999,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
 
             return {
                 ...state,
+                awaitingNextRound: false,
                 hand,
                 tileBag,
                 modalContent: null,
@@ -2374,12 +2407,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     dispatch({ type: 'CLOSE_MODAL' });
 
     const postWordModals: (ModalContent['type'])[] = ['milestone', 'easter-egg', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine'];
-    if (wasLastInQueue && lastModalType && (postWordModals.includes(lastModalType) || lastModalTitle.includes('Sonic Speed')) && lastModalTitle !== '❌ Strike Challenge Lost') {
+    const afterAWord = state.awaitingNextRound || lastModalTitle.includes('Sonic Speed');
+    if (afterAWord && wasLastInQueue && lastModalType && (postWordModals.includes(lastModalType) || lastModalTitle.includes('Sonic Speed')) && lastModalTitle !== '❌ Strike Challenge Lost') {
         if (state.gameState.roundType === 'normal') {
             handleStartNextRound();
         }
     }
-  }, [state.modalContent, state.modalQueue, state.gameState, handleStartNextRound, onGameOver, state.hand, state.tileBag, maxStrikes, resetRound]);
+  }, [state.modalContent, state.modalQueue, state.gameState, state.awaitingNextRound, handleStartNextRound, onGameOver, state.hand, state.tileBag, maxStrikes, resetRound]);
 
 
   // Only quick PowerPlay/charm results auto-close. Bigger notices (level-ups, milestones, secret
