@@ -16,6 +16,9 @@ const BadgeCaseScreen = lazy(() => import('./services/screens/BadgeCaseScreen'))
 const BonusCatalog = lazy(() => import('./components/BonusCatalog'));
 const urlParams = new URLSearchParams(location.search);
 const showBonusCatalog = urlParams.has('bonuses') || urlParams.has('gallery');
+// Stats: anonymous usage totals (bosses, missions, runs). Unlinked; open /?stats.
+const StatsPage = lazy(() => import('./components/StatsPage'));
+const showStats = urlParams.has('stats');
 
 const ScreenFallback = () => (
   <div className="flex-grow flex items-center justify-center">
@@ -24,6 +27,8 @@ const ScreenFallback = () => (
 );
 import { GameState, FinalGameState, Pack, PowerWordData } from './types';
 import {leaderboardService} from './services/leaderboardService';
+import { sendStat } from './services/stats';
+import { levelFor } from './services/rules';
 import { soundService } from './services/soundService';
 import { musicService } from './services/musicService';
 import { powerWordService } from './services/powerWordService';
@@ -256,6 +261,8 @@ const App: React.FC = () => {
 
   const handleGameOver = useCallback((gameState: GameState) => {
     storage.remove(STORAGE_KEYS.savedGame);
+    const validWords = gameState.log.filter(e => e.type === 'word' && e.status === 'valid').length;
+    sendStat({ type: 'run_end', score: gameState.score, words: validWords, level: levelFor(validWords), bosses: gameState.bossesBeaten ?? 0 });
     const finalState: FinalGameState = {
       score: gameState.score,
       log: gameState.log,
@@ -466,7 +473,7 @@ const App: React.FC = () => {
           </>
         )}
         <ErrorBoundary key={screen} onRecover={handleRecoverFromCrash}>
-          <Suspense fallback={<ScreenFallback />}>{showBonusCatalog ? <BonusCatalog /> : renderScreen()}</Suspense>
+          <Suspense fallback={<ScreenFallback />}>{showStats ? <StatsPage /> : showBonusCatalog ? <BonusCatalog /> : renderScreen()}</Suspense>
         </ErrorBoundary>
         {selectedPack.id === 'default' && <div className="crt-overlay" aria-hidden="true" />}
         {/* Unmissable gold frame while a Golden Round runs (any theme). */}

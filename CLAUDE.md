@@ -51,6 +51,7 @@ Resume.
 | Cosmetics, streak milestones, themes, missions | `data/cosmetics.ts`, `data/packs.ts`, `data/missions.ts` |
 | Dictionary | `data/internalWords.ts` (words with definitions), `words/custom.txt`, `words/blocked.txt`, `words/no-suggest.txt` |
 | Online leaderboard | `services/onlineLeaderboard.ts` (Firebase REST, no SDK); rules in `docs/LEADERBOARD.md` |
+| Usage stats (bosses, missions, runs) | `services/stats.ts` → Firebase `/stats`; read at `/?stats` (`components/StatsPage.tsx`); events and rules in `docs/LEADERBOARD.md` |
 
 Descriptions read their numbers from config in template strings, so text always matches the rules.
 Keep it that way.
@@ -85,6 +86,9 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
 - **Every run starts from a fresh state** (`createInitialGameState()`). Copy nested state before
   changing it; shared objects once leaked charm offers between runs.
 - **Firebase rules** live in the Firebase console; `docs/LEADERBOARD.md` mirrors them. Sync both.
+- **Usage stats** are anonymous and silent (the owner chose no notice or opt-out). Keep them
+  that way: no names, no device ids, only the fields the `/stats` rules allow. A new event type
+  needs a rules update too.
 - Signature bonus: **TEX** (+300) is the owner's college nickname; keep regular words below that.
 
 ## Open ideas
