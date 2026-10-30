@@ -20,6 +20,8 @@ const showBonusCatalog = urlParams.has('bonuses') || urlParams.has('gallery');
 // Stats: anonymous usage totals (bosses, missions, runs). Unlinked; open /?stats.
 const StatsPage = lazy(() => import('./components/StatsPage'));
 const showStats = urlParams.has('stats');
+// The hidden pages are desktop tools: they get the full window instead of the phone-sized game frame.
+const showToolPage = showStats || showBonusCatalog;
 
 const ScreenFallback = () => (
   <div className="flex-grow flex items-center justify-center">
@@ -479,6 +481,16 @@ const App: React.FC = () => {
     }
   };
 
+  if (showToolPage) {
+    return (
+      <main id="main-container" className="w-full min-h-dvh bg-crt-950 text-slate-100">
+        <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-8 py-6">
+          <Suspense fallback={<ScreenFallback />}>{showStats ? <StatsPage /> : <BonusCatalog />}</Suspense>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main id="main-container" className={`safe-area w-screen h-dvh flex items-center justify-center transition-all duration-500 ${selectedPack.themeClass}`}>
       <div className={`relative z-10 w-full max-w-xl h-full sm:max-h-[800px] bg-crt-900 sm:rounded-2xl shadow-2xl flex flex-col overflow-y-auto overscroll-contain transition-all duration-300 ${selectedPack.frameClass} ${isTimeLow ? 'low-time-flash' : ''} ${isGoldenRound ? 'golden-round-active' : ''}`}>
@@ -491,7 +503,7 @@ const App: React.FC = () => {
           </>
         )}
         <ErrorBoundary key={screen} onRecover={handleRecoverFromCrash}>
-          <Suspense fallback={<ScreenFallback />}>{showStats ? <StatsPage /> : showBonusCatalog ? <BonusCatalog /> : renderScreen()}</Suspense>
+          <Suspense fallback={<ScreenFallback />}>{renderScreen()}</Suspense>
         </ErrorBoundary>
         {selectedPack.id === 'default' && <div className="crt-overlay" aria-hidden="true" />}
         {/* Unmissable gold frame while a Golden Round runs (any theme). */}
