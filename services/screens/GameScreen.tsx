@@ -3098,7 +3098,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (bossRound && !boss) newState.boss = null;
       if (bossRound && boss) {
           const rack = [...(hand ?? []).filter((t): t is Tile => t !== null), ...submittedTiles];
-          const hit = boss.check(word.toUpperCase(), rack);
+          // This word isn't in the log yet, so the log's last valid word is the one before it.
+          const lastWord = [...newState.log].reverse().find(e => e.type === 'word' && e.status === 'valid') as WordLogEntry | undefined;
+          const hit = boss.check(word.toUpperCase(), rack, { last: (lastWord?.word ?? '').toUpperCase(), score: scoreResult.totalScore, lastScore: lastWord?.score ?? 0 });
           const { round, outcome } = advanceBoss(bossRound, hit);
           const hits = bossRound.hits + (hit ? 1 : 0);
           scoreResult.bonuses.push(hit

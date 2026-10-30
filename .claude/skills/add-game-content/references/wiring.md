@@ -139,15 +139,17 @@ Players have 5 charm slots, and swapping a charm in or out is handled for every 
 Add an entry to `BOSSES` in `data/bosses.ts`. Its `id` is permanent: it's saved in players' Badge
 Cases. Give it a `tier` (`early` = the 1st boss level, `mid` = the 2nd and 3rd, `late` = after),
 a short banner `rule` ("NO E"), a full `description`, a villain `taunt` and its `source`.
-`check(word, tiles)` gets the uppercase word and the whole rack (word tiles included).
-`tileHint` returns `'dim'` for tiles that would break the rule or `'glow'` for tiles it needs.
-Use the `noLetters(...)` helper for letter bans.
+`check(word, tiles, ctx)` gets the uppercase word, the whole rack (word tiles included) and
+`ctx` (`last`: your last valid word, `score`: this word's score, `lastScore`), so rules can be
+about letters, shape, score or your last word. `tileHint(tile, tiles, ctx)` returns `'dim'` for
+tiles that would break the rule or `'glow'` for tiles it needs. Use the `noLetters(...)` helper
+for letter bans. Rules that need you to keep chaining off your last word's letters (start with
+its final letter) clear almost never; avoid them.
 
 Pick rules players can usually follow: simulate how often a random 8-tile hand has a word that
 does (aim for 85%+ early, 75%+ late) and how much score it costs. With 6 hits needed in 8 words,
 a rule playable in 90% of hands clears about 96% of the time; at 75% it drops to about 68%. Add
-a case to `services/__tests__/bosses.test.ts`, and keep 4 bosses per tier unless the user says
-otherwise (the test checks it).
+a case to `services/__tests__/bosses.test.ts`, and keep the tiers even (8 each today; the test checks it).
 
 ---
 

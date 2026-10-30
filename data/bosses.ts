@@ -7,6 +7,16 @@ import { VOWELS } from '../constants';
 
 export type BossTier = 'early' | 'mid' | 'late';
 
+/** What a rule can look at besides the word: your last valid word, and scores. */
+export interface BossContext {
+  /** Your last valid word before this one, uppercase ('' if none). */
+  last: string;
+  /** This word's score. */
+  score: number;
+  /** Your last valid word's score (0 if none). */
+  lastScore: number;
+}
+
 export interface Boss {
   /** Permanent: saved in players' Badge Cases. Never rename or remove one that has shipped. */
   id: string;
@@ -22,9 +32,9 @@ export interface Boss {
   /** The villain's line on the intro pop-up. */
   taunt: string;
   /** Does this word follow the rule? `tiles` is the whole rack, including the word's tiles. */
-  check: (word: string, tiles: Tile[]) => boolean;
+  check: (word: string, tiles: Tile[], ctx: BossContext) => boolean;
   /** Tiles to dim (they'd break the rule) or make glow (the rule needs them). */
-  tileHint?: (tile: Tile, tiles: Tile[]) => 'dim' | 'glow' | null;
+  tileHint?: (tile: Tile, tiles: Tile[], ctx: BossContext) => 'dim' | 'glow' | null;
 }
 
 const vowelCount = (word: string) => [...word].filter(l => VOWELS.has(l)).length;
@@ -113,6 +123,82 @@ export const BOSSES: Boss[] = [
     rule: '5+ LETTERS', description: 'Every word needs at least 5 letters.',
     taunt: 'Kept you waiting, huh? Go long or go home.',
     check: word => word.length >= 5,
+  },
+
+  // --- v7.15 roster: letter, shape, score and chain rules ---
+  {
+    id: 'oogieBoogie', name: 'Oogie Boogie', icon: '🎃', tier: 'early', source: 'The Nightmare Before Christmas',
+    rule: 'NO O', description: 'No O in your words.',
+    taunt: "Well, well, well, what have we here? Every O belongs to the Boogie Man now!",
+    ...noLetters('O'),
+  },
+  {
+    id: 'gargamel', name: 'Gargamel', icon: '🧙', tier: 'early', source: 'The Smurfs',
+    rule: 'NO T OR N', description: 'No T and no N in your words.',
+    taunt: "I'll get those Smurfs if it's the last thing I do... and every T and N with them!",
+    ...noLetters('T', 'N'),
+  },
+  {
+    id: 'kingHippo', name: 'King Hippo', icon: '🥊', tier: 'early', source: 'Punch-Out!!',
+    rule: 'SCORE 8+', description: 'Every word must score 8 or more points.',
+    taunt: "Light jabs won't do. Hit me with 8 points or more!",
+    check: (word, tiles, ctx) => ctx.score >= 8,
+  },
+  {
+    id: 'doctorDoom', name: 'Doctor Doom', icon: '🟢', tier: 'early', source: 'Fantastic Four',
+    rule: 'EXACTLY 4 LETTERS', description: 'Every word must be exactly 4 letters, like DOOM.',
+    taunt: 'Doom speaks in four letters. So will you.',
+    check: word => word.length === 4,
+  },
+  {
+    id: 'hades', name: 'Hades', icon: '🔥', tier: 'mid', source: 'Hercules',
+    rule: 'USE A 3+ POINT TILE', description: 'Every word must use a tile worth 3 or more points.',
+    taunt: "Name's Hades, Lord of the Dead. Bring me your heavy hitters, babe.",
+    check: (word, tiles) => tiles.some(t => t.points >= 3 && word.includes(t.letter)),
+    tileHint: tile => (tile.points >= 3 ? 'glow' : null),
+  },
+  {
+    id: 'cruella', name: 'Cruella de Vil', icon: '🐾', tier: 'mid', source: '101 Dalmatians',
+    rule: 'END IN A VOWEL', description: 'Every word must end with a vowel (A, E, I, O, U), like CRUELLA.',
+    taunt: 'Darling, every word must end in a vowel. Ninety-nine puppies is simply not enough.',
+    check: word => VOWELS.has(word[word.length - 1]),
+  },
+  {
+    id: 'sephiroth', name: 'Sephiroth', icon: '🗡️', tier: 'mid', source: 'Final Fantasy VII',
+    rule: 'SCORE 10+', description: 'Every word must score 10 or more points.',
+    taunt: 'Ten points or nothing. Kneel before the One-Winged Angel.',
+    check: (word, tiles, ctx) => ctx.score >= 10,
+  },
+  {
+    id: 'magneto', name: 'Magneto', icon: '🧲', tier: 'mid', source: 'X-Men',
+    rule: 'NO LAST-WORD LETTERS', description: 'A word can’t share any letter with your last word. Like poles repel.',
+    taunt: 'Like poles repel, my friend. Share nothing with your last word.',
+    check: (word, tiles, ctx) => ![...word].some(l => ctx.last.includes(l)),
+    tileHint: (tile, tiles, ctx) => ([...tile.letter].some(l => ctx.last.includes(l)) ? 'dim' : null),
+  },
+  {
+    id: 'ivanDrago', name: 'Ivan Drago', icon: '🏋️', tier: 'late', source: 'Rocky IV',
+    rule: 'BEAT YOUR LAST SCORE', description: 'Every word must score more points than your last word.',
+    taunt: 'I must break you. Every word must hit harder than the last.',
+    check: (word, tiles, ctx) => ctx.score > ctx.lastScore,
+  },
+  {
+    id: 'predator', name: 'The Predator', icon: '🎯', tier: 'late', source: 'Predator',
+    rule: 'SCORE 12+', description: 'Every word must score 12 or more points.',
+    taunt: 'It only hunts the strong. Every word needs 12 points or more.',
+    check: (word, tiles, ctx) => ctx.score >= 12,
+  },
+  {
+    id: 'gru', name: 'Gru', icon: '🍌', tier: 'late', source: 'Despicable Me',
+    rule: 'EXACTLY 3 LETTERS', description: 'Shrink ray! Every word must be exactly 3 letters, like GRU.',
+    taunt: 'Shrink ray, activate! Every word, exactly 3 letters. Light bulb!',
+    check: word => word.length === 3,
+  },
+  {
+    id: 'zurg', name: 'Emperor Zurg', icon: '🤖', tier: 'late', source: 'Toy Story 2',
+    rule: 'ALTERNATE VOWELS', description: 'Letters must alternate vowel, consonant, vowel… (like TOMATO or LEMON).',
+    taunt: 'Surrender, Space Ranger! Vowel, consonant, vowel... resistance is futile.',
+    check: word => [...word].every((l, i) => i === 0 || VOWELS.has(l) !== VOWELS.has(word[i - 1])),
   },
 ];
 

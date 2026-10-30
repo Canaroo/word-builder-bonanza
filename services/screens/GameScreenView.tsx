@@ -149,7 +149,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     // Boss round: dim the tiles that would break the rule, or make the ones it needs glow.
     const activeBoss = gameState?.roundType !== 'golden' ? bossById(gameState?.boss?.id) : undefined;
     const rackTiles = [...(hand ?? []), ...(buildRow ?? []).map(i => i?.tile)].filter((t): t is Tile => !!t);
-    const bossTileHint = (tile: Tile) => activeBoss?.tileHint?.(tile, rackTiles) ?? null;
+    const lastValid = [...(gameState?.log ?? [])].reverse().find(e => e.type === 'word' && e.status === 'valid') as { word: string; score: number } | undefined;
+    const bossCtx = { last: (lastValid?.word ?? '').toUpperCase(), score: 0, lastScore: lastValid?.score ?? 0 };
+    const bossTileHint = (tile: Tile) => activeBoss?.tileHint?.(tile, rackTiles, bossCtx) ?? null;
 
     const renderModal = () => {
         if (!modalContent) return null;
