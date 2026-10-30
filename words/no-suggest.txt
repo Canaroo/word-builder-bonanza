@@ -20,3 +20,10 @@ fag
 fags
 fagged
 fagging
+
+# A sudden vanishing ("and POOF, it was gone"), and its verb forms; also a British homophobic
+# slur. Allowed at the owner's request, never suggested. (POOFTER stays out of the game.)
+poof
+poofs
+poofed
+poofing
