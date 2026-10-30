@@ -18,6 +18,7 @@ export const STORAGE_KEYS = {
     bonusCollection: 'wordNerdBonusCollection',
     profile: 'wordNerdProfile',
     missions: 'wordNerdMissions',
+    statsMissionsDay: 'wordNerdStatsMissionsDay',
 } as const;
 
 export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS];

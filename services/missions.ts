@@ -4,6 +4,7 @@ import { storage, STORAGE_KEYS } from './storage';
 import { dayKey } from './progression';
 import { MISSION_TEMPLATES, type MissionCategory, type MissionEvent, type MissionTemplate, type MissionTier } from '../data/missions';
 import { MISSION_REWARD, MISSION_SWEEP_BONUS, MISSIONS_PER_DAY } from '../config/progression';
+import { sendStat } from './stats';
 
 interface MissionState {
   day: string;
@@ -95,7 +96,13 @@ const load = (today: string): MissionState => {
 const save = (s: MissionState) => storage.setJSON(STORAGE_KEYS.missions, s);
 
 export const getTodaysMissions = (now: Date = new Date()): { missions: MissionView[]; sweepClaimed: boolean } => {
-  const s = load(dayKey(now));
+  const today = dayKey(now);
+  const s = load(today);
+  // Stats: which missions were on offer, once per device per day.
+  if (storage.getJSON<string | null>(STORAGE_KEYS.statsMissionsDay, null) !== today) {
+    storage.setJSON(STORAGE_KEYS.statsMissionsDay, today);
+    for (const id of s.ids) { const t = templateById(id); if (t) sendStat({ type: 'mission_shown', mission: t.id, tier: t.tier }); }
+  }
   return {
     missions: s.ids.map(id => templateById(id)).filter((t): t is MissionTemplate => !!t).map(t => ({
       template: t,
@@ -123,6 +130,7 @@ export const recordMissionEvent = (event: MissionEvent, runKey: string, now: Dat
     if (bucket[id] >= t.target) {
       s.completed.push(id);
       payout.completed.push({ template: t, reward: MISSION_REWARD[t.tier] });
+      sendStat({ type: 'mission_done', mission: t.id, tier: t.tier });
     }
   }
   if (!s.sweepClaimed && s.completed.length >= s.ids.length && s.ids.length > 0) {

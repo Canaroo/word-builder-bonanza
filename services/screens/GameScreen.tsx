@@ -23,6 +23,7 @@ import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenV
 import { recordMissionEvent } from '../missions';
 import { currentStreak, powerWordBonusFor, recordBossBadge } from '../progression';
 import { BOSSES, bossById, pickBoss } from '../../data/bosses';
+import { sendStat } from '../stats';
 import { getBonusMedia } from '../../data/bonusMedia';
 import type { MissionEvent } from '../../data/missions';
 
@@ -316,6 +317,7 @@ const startBossRound = (gs: GameState, wordsBefore: number): ModalContent | null
     const boss = pickBoss(number, gs.bossesFaced ?? []);
     gs.boss = { id: boss.id, number, wordsLeft: BOSS.words, hits: 0 };
     gs.bossesFaced = [...(gs.bossesFaced ?? []), boss.id];
+    sendStat({ type: 'boss_start', boss: boss.id, number });
     const reward = bossRewardFor(number);
     return {
         type: 'info',
@@ -3062,7 +3064,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               ? { name: `👊 Boss hit on ${boss.name}`, description: `${hits}/${BOSS.hitsToWin}` }
               : { name: `💨 ${boss.name} dodged`, description: boss.rule });
           newState.boss = round;
-          if (outcome) trackMission({ type: 'boss', id: boss.id, outcome, hits });
+          if (outcome) {
+              trackMission({ type: 'boss', id: boss.id, outcome, hits });
+              sendStat({ type: 'boss_end', boss: boss.id, number: bossRound.number, outcome, hits });
+          }
+          if (outcome === 'won') newState.bossesBeaten = (newState.bossesBeaten ?? 0) + 1;
           if (round) showMessage(hit ? `👊 HIT! ${hits}/${BOSS.hitsToWin} on ${boss.name}` : `💨 Dodged! ${boss.rule} · ${round.wordsLeft} left`, 1800);
           const reward = bossRewardFor(bossRound.number);
           if (outcome === 'won') {

@@ -245,6 +245,8 @@ export interface GameState {
   boss?: BossRound | null;
   /** Bosses faced this run, so a run doesn't repeat one until the pool runs out. */
   bossesFaced?: string[];
+  /** Bosses beaten (6 hits) this run, for the run's stats. */
+  bossesBeaten?: number;
   /** Boss Badge seconds waiting for the next round (they skip the per-level shrink). */
   pendingBadgeTime?: number;
   longestStreak: number;
