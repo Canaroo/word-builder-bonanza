@@ -253,6 +253,12 @@ export interface GameState {
   bossesFaced?: string[];
   /** Cross the Road charm: 5+ letter words in a row so far. */
   frogStreak?: number;
+  /** Happy Little Accidents: the level its free mistake was last used on. */
+  happyAccidentLevel?: number;
+  /** Supermarket Sweep: seconds on the clock when the current hand was dealt. */
+  roundStartClock?: number;
+  /** Sesame Street: this level's letter of the day, and the level it was picked for. */
+  sesameLetter?: { letter: string; level: number };
   /** Power words: the level each one last fired at (they can fire again once per level). */
   powerWordLevels?: Record<string, number>;
   /** ❄️ Seconds the clock stays frozen at the start of the next round. */

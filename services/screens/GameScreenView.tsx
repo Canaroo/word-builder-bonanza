@@ -14,7 +14,7 @@ import DurationBadge from '../../ui/DurationBadge';
 import { RACK_SIZE, HAND_SIZE } from '../../constants';
 import { GAMEPLAY, CHARM_SLOTS, TIME_BONUS, BOSS, CHARM_BONUS } from '../../config/gameplay';
 import { bossById } from '../../data/bosses';
-import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor } from '../rules';
+import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor, bossHitsToWin } from '../rules';
 import LevelBadge from '../../components/LevelBadge';
 
 export type ModalContent = {
@@ -640,10 +640,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       )}
 
       {activeBoss && gameState?.boss && gameState.roundType !== 'golden' && (
-        <div className="boss-banner flex-shrink-0 rounded-lg px-3 py-1.5 text-center" role="status" aria-label={`Boss round: ${activeBoss.name}. ${activeBoss.description} ${gameState.boss.hits} of ${BOSS.hitsToWin} hits, ${gameState.boss.wordsLeft} words left.`}>
+        <div className="boss-banner flex-shrink-0 rounded-lg px-3 py-1.5 text-center" role="status" aria-label={`Boss round: ${activeBoss.name}. ${activeBoss.description} ${gameState.boss.hits} of ${bossHitsToWin(gameState)} hits, ${gameState.boss.wordsLeft} words left.`}>
           <div className="font-display text-lg leading-none text-white">{activeBoss.icon} BOSS ROUND · {activeBoss.name.toUpperCase()}</div>
           <div className="osd-text text-base leading-tight text-white/90">
-            <span className="font-bold text-white">{activeBoss.rule}</span> · 👊 {gameState.boss.hits}/{BOSS.hitsToWin} · {gameState.boss.wordsLeft} {gameState.boss.wordsLeft === 1 ? 'WORD' : 'WORDS'} LEFT
+            <span className="font-bold text-white">{activeBoss.rule}</span> · 👊 {gameState.boss.hits}/{bossHitsToWin(gameState)} · {gameState.boss.wordsLeft} {gameState.boss.wordsLeft === 1 ? 'WORD' : 'WORDS'} LEFT
           </div>
         </div>
       )}
@@ -696,7 +696,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           {(() => {
             // PowerPlay meter: fills from letters played (config/gameplay.ts).
             const letters = gameState?.powerPlayProgress?.letters ?? 0;
-            const needed = meterLettersFor(levelFor(totalWords ?? 0));
+            const needed = meterLettersFor(levelFor(totalWords ?? 0), gameState);
             const full = letters >= needed;
             const pct = Math.min(100, (letters / needed) * 100);
             return (
@@ -748,6 +748,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                       if (buff.id === 'thrillerNight') return `${totalWords % 4}/4`;
                       if (buff.id === 'gottaCatchEmAll') return `${gameState?.pokedexVowels?.length ?? 0}/5`;
                       if (buff.id === 'crossTheRoad') return `${gameState?.frogStreak ?? 0}/${CHARM_BONUS.crossTheRoadWords}`;
+                      if (buff.id === 'sesameStreet') return gameState?.sesameLetter ? `"${gameState.sesameLetter.letter}"` : '';
+                      if (buff.id === 'happyLittleAccidents') return gameState?.happyAccidentLevel === levelFor(totalWords) ? 'used' : 'ready';
                       if (buff.id === 'survivor') return (gameState?.survivorWords ?? 0) > 0 ? `${gameState.survivorWords}` : '';
                       const countdown = (gameState?.activePowerPlays as any)?.[buff.id];
                       if (countdown?.words) return `${countdown.words} ${countdown.words === 1 ? 'word' : 'words'}`;

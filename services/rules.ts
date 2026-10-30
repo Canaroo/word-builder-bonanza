@@ -1,5 +1,5 @@
 // Pure gameplay rules. No React, no DOM: easy to test and to tune via config/gameplay.ts.
-import { BOSS, GAMEPLAY, POWER_GLOVE_BANK_MAX, POWER_WORD_EFFECTS } from '../config/gameplay';
+import { BOSS, CHARM_BONUS, GAMEPLAY, POWER_GLOVE_BANK_MAX, POWER_WORD_EFFECTS } from '../config/gameplay';
 import { BossRound, ScoreCalculationResult } from '../types';
 
 const lookupByLength = (table: Record<number, number>, length: number, below: number): number => {
@@ -64,12 +64,20 @@ export const timeForWordAtLevel = (length: number, level: number): number => {
     return seconds > 0 ? Math.max(1, Math.round(seconds * wordTimeScaleFor(level))) : 0;
 };
 
-/** Letters needed to fill the PowerPlay meter at this level. */
-export const meterLettersFor = (level: number): number => {
+type WithCharms = { activeCharms?: { id: string }[] } | null | undefined;
+const equipped = (gs: WithCharms, id: string) => !!gs?.activeCharms?.some(c => c.id === id);
+
+/** Letters needed to fill the PowerPlay meter at this level (the Turbo Button charm needs fewer). */
+export const meterLettersFor = (level: number, gs?: WithCharms): number => {
     const { fromLevel, perLevel, perLateLevel, max } = GAMEPLAY.powerPlayMeterGrowth;
     const { early, late } = rampSteps(level, fromLevel);
-    return Math.min(max, GAMEPLAY.powerPlayMeterLetters + perLevel * early + perLateLevel * late);
+    const letters = Math.min(max, GAMEPLAY.powerPlayMeterLetters + perLevel * early + perLateLevel * late);
+    return equipped(gs, 'turboButton') ? Math.round(letters * (1 - CHARM_BONUS.turboButtonPercent / 100)) : letters;
 };
+
+/** Hits a boss round needs for the Badge (the Little Mac charm needs fewer). */
+export const bossHitsToWin = (gs: WithCharms): number =>
+    BOSS.hitsToWin - (equipped(gs, 'littleMac') ? CHARM_BONUS.littleMacHits : 0);
 
 /** Overflow tax: while the bank is above overflowAbove, word time is halved (rounded down). */
 export const taxWordTime = (seconds: number, bank: number): number =>
@@ -98,9 +106,9 @@ export const bossRewardFor = (bossNumber: number) =>
  * ended. It ends as soon as the badge is won, when the words run out, or when even the
  * consolation can't be reached any more.
  */
-export const advanceBoss = (round: BossRound, hit: boolean): { round: BossRound | null; outcome: 'won' | 'close' | 'escaped' | null } => {
+export const advanceBoss = (round: BossRound, hit: boolean, hitsToWin: number = BOSS.hitsToWin): { round: BossRound | null; outcome: 'won' | 'close' | 'escaped' | null } => {
     const next = { ...round, hits: round.hits + (hit ? 1 : 0), wordsLeft: round.wordsLeft - 1 };
-    if (next.hits >= BOSS.hitsToWin) return { round: null, outcome: 'won' };
+    if (next.hits >= hitsToWin) return { round: null, outcome: 'won' };
     if (next.wordsLeft <= 0) return { round: null, outcome: next.hits >= BOSS.closeHits ? 'close' : 'escaped' };
     if (next.hits + next.wordsLeft < BOSS.closeHits) return { round: null, outcome: 'escaped' };
     return { round: next, outcome: null };
@@ -139,8 +147,8 @@ export const bankMax = (gameState: { activeCharms?: { id: string }[] } | null | 
     gameState?.activeCharms?.some(c => c.id === 'powerGlove') ? POWER_GLOVE_BANK_MAX : GAMEPLAY.timeBank.max;
 
 /** Tiles the hand refills to: Go-Go-Gadget Hands adds two while it lasts. */
-export const handSizeFor = (gameState: { activePowerPlays?: Record<string, unknown> } | null | undefined): number =>
-    GAMEPLAY.handSize + (gameState?.activePowerPlays?.gadgetHands ? 2 : 0);
+export const handSizeFor = (gameState: { activePowerPlays?: Record<string, unknown>; activeCharms?: { id: string }[] } | null | undefined): number =>
+    GAMEPLAY.handSize + (gameState?.activePowerPlays?.gadgetHands ? 2 : 0) - (equipped(gameState, 'honeyIShrunkTheKids') ? 1 : 0);
 
 /** Tile values for The Upside Down: common letters become valuable and rare ones cheap. */
 export const UPSIDE_DOWN_POINTS: Record<number, number> = { 1: 10, 2: 8, 3: 5, 4: 4, 5: 3, 8: 2, 10: 1 };
@@ -182,8 +190,8 @@ export const refillCount = (tilesInHand: number, handSize: number = GAMEPLAY.han
     Math.max(0, handSize - tilesInHand);
 
 /** PowerPlay meter after playing a word, and whether it just filled. */
-export const advancePowerPlayMeter = (lettersSoFar: number, wordLength: number, level = 1) => {
-    const needed = meterLettersFor(level);
+export const advancePowerPlayMeter = (lettersSoFar: number, wordLength: number, level = 1, gs?: WithCharms) => {
+    const needed = meterLettersFor(level, gs);
     const total = lettersSoFar + wordLength;
     const full = total >= needed;
     return { letters: full ? needed : total, full };

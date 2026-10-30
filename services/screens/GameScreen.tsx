@@ -17,7 +17,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
@@ -234,7 +234,8 @@ type GameAction =
     | { type: 'STORE_LAST_TURN' }
     | { type: 'RESTORE_LAST_TURN' }
     | { type: 'SET_HIGHLIGHTED_TILES', payload: { first: string | null; rest: string[] } }
-    | { type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: boolean };
+    | { type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: boolean }
+    | { type: 'CHARM_PAYOUT', payload: { id: string; points: number; description: string } };
 
 
 /**
@@ -259,11 +260,11 @@ export const rehydratePowerUps = (gs: GameState): GameState => {
 };
 
 /** Strikes allowed before the run ends (the Strike Bank charm adds up to two). */
-export const maxStrikesFor = (gs: Pick<GameState, 'charmUses'> | null | undefined): number => {
+export const maxStrikesFor = (gs: (Pick<GameState, 'charmUses'> & Partial<Pick<GameState, 'activeCharms'>>) | null | undefined): number => {
     const strikeBankUses = gs?.charmUses?.['strikeBank'] || 0;
-    if (strikeBankUses >= 2) return 5;
-    if (strikeBankUses >= 1) return 4;
-    return MAX_STRIKES_INITIAL;
+    const base = strikeBankUses >= 2 ? 5 : strikeBankUses >= 1 ? 4 : MAX_STRIKES_INITIAL;
+    // Mr. Glass: one fewer strike (but never fewer than one).
+    return Math.max(1, base - (gs?.activeCharms?.some(c => c.id === 'mrGlass') ? CHARM_BONUS.mrGlassStrikes : 0));
 };
 
 // Multi-word PowerPlays: activePowerPlays[id] = { words } counts down one valid word at a time.
@@ -305,6 +306,15 @@ const TIME_GAIN_SOURCE: Partial<Record<GameAction['type'], keyof TimeLedger>> = 
 
 const LIFELINE_TIP_KEY = 'wordNerdLifelineTipSeen';
 /** The run's current level, from the valid words played so far. */
+/** Sesame Street: picks a new letter of the day when the level changes (only while it's equipped). */
+const withSesameLetter = (gs: GameState): GameState => {
+    if (!gs.activeCharms.some(c => c.id === 'sesameStreet')) return gs;
+    const level = runLevel(gs);
+    if (gs.sesameLetter?.level === level) return gs;
+    const letters = CHARM_BONUS.sesameLetters;
+    return { ...gs, sesameLetter: { letter: letters[Math.floor(Math.random() * letters.length)], level } };
+};
+
 const runLevel = (gs: GameState): number => levelFor(gs.log.filter(e => e.type === 'word' && e.status === 'valid').length);
 const CAPTAIN_PLANET_POINTS = 20;
 const ONE_TILE_NAME = 'One Tile to Rule Them All';
@@ -329,7 +339,7 @@ const startBossRound = (gs: GameState, wordsBefore: number): ModalContent | null
     return {
         type: 'info',
         title: `${boss.icon} BOSS: ${boss.name}!`,
-        content: `“${boss.taunt}”\n\nRule: ${boss.description}\n\nLand ${BOSS.hitsToWin} hits in your next ${BOSS.words} words to win the Boss Badge: +${reward.points} points and +${reward.seconds}s. Words that break the rule still score; they just don't count as hits.`,
+        content: `“${boss.taunt}”\n\nRule: ${boss.description}\n\nLand ${bossHitsToWin(gs)} hits in your next ${BOSS.words} words to win the Boss Badge: +${reward.points} points and +${reward.seconds}s. Words that break the rule still score; they just don't count as hits.`,
     };
 };
 
@@ -447,6 +457,13 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             };
         case 'SET_HIGHLIGHTED_TILES': return { ...state, highlightedTileIds: action.payload };
         case 'SET_LONG_WORD_BONUS_NOTIFIED': return { ...state, longWordBonusNotified: action.payload };
+        // A charm paying points outside a word (Double Dare), logged like other events.
+        case 'CHARM_PAYOUT': {
+            const charm = CHARMS_LIST.find(c => c.id === action.payload.id);
+            const score = gameState.score + action.payload.points;
+            const entry: EventLogEntry = { type: 'event', id: `charm-${action.payload.id}-${Date.now()}`, name: charm?.name ?? action.payload.id, icon: charm?.icon, description: action.payload.description, scoreChange: action.payload.points, cumulativeScore: score };
+            return { ...state, gameState: { ...gameState, score, log: [...gameState.log, entry] } };
+        }
         case 'RESTORE_LAST_TURN': {
             if (state.lastTurnState) {
                 const scoreChange = state.lastTurnState.gameState.score - state.gameState.score;
@@ -544,6 +561,17 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         }
         
         case 'ADD_STRIKE': {
+          // Happy Little Accidents: the first invalid word each level costs time instead of a strike.
+          const accidentLevel = runLevel(gameState);
+          if (action.payload?.source === 'invalid_word' && gameState.activeCharms.some(c => c.id === 'happyLittleAccidents')
+              && gameState.happyAccidentLevel !== accidentLevel && !gameState.activePowerPlays.strikeShield && !gameState.activePowerPlays.plotArmor) {
+              const time = clampTime(state.time - CHARM_BONUS.happyAccidentSeconds, bankMax(gameState));
+              return {
+                  ...state, time,
+                  timeGain: { seconds: time - state.time, key: Date.now() },
+                  gameState: { ...gameState, happyAccidentLevel: accidentLevel, lastPowerPlayResult: { message: `🎨 A happy little accident: no strike, -${CHARM_BONUS.happyAccidentSeconds}s.`, scoreChange: 0 } },
+              };
+          }
           let { strikes, activePowerPlays, activeBuffs, score, powerPlayProgress, consecutiveSuccesses, flawlessScore, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress } = gameState;
           let actuallyGotAStrike = false;
           let strikeBlockedByShield = false;
@@ -630,6 +658,12 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
               newTileBag = dupeCheckResult.newBag;
           }
           if (revivedByLifeFindsAWay) newTime = clampTime(newTime + 20, bankMax(gameState));
+          // Wile E. Coyote: a strike that doesn't end the run pays points and a little time.
+          if (actuallyGotAStrike && activeCharms.some(c => c.id === 'wileECoyote') && strikes < maxStrikesFor(tempGameState)) {
+              tempGameState.score += CHARM_BONUS.wileECoyote;
+              newTime = clampTime(newTime + bonusTime(TIME_BONUS.wileECoyote, newTime, runLevel(gameState)), bankMax(gameState));
+              tempGameState.lastPowerPlayResult = { message: `🧨 Acme refund: +${CHARM_BONUS.wileECoyote} points, +${TIME_BONUS.wileECoyote}s.`, scoreChange: CHARM_BONUS.wileECoyote };
+          }
           
           return { 
             ...state,
@@ -1006,7 +1040,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 isPaused: false,
                 time: finalTime,
                 timeGain: { seconds: gained, key: Date.now(), taxed: taxedWordTime < wordTime || (bonusSeconds > 0 && bonusApplied < bonusSeconds) },
-                gameState: { ...newGameState, wordsThisRound: 0 }
+                gameState: withSesameLetter({ ...newGameState, wordsThisRound: 0, roundStartClock: finalTime })
             };
         }
         
@@ -1089,12 +1123,14 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 ...state,
                 hand: newHand,
                 time: newTime,
-                gameState: {
+                gameState: withSesameLetter({
                     ...newGameState,
                     ...stateChanges,
                     activeCharms: newActiveCharms,
                     activeBuffs: [...(stateChanges.activeBuffs || newGameState.activeBuffs)],
-                }
+                    // Happy Little Accidents: equipping it gives this level's free mistake.
+                    ...(charm.id === 'happyLittleAccidents' ? { happyAccidentLevel: undefined } : {}),
+                })
             }
         }
         
@@ -2364,7 +2400,23 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     resetRound(updatedGameState, hand, buildRow, tileBag);
   }, [gameState, hand, buildRow, tileBag, resetRound, showMessage]);
 
-  const maxStrikes = useMemo(() => maxStrikesFor(gameState), [gameState?.charmUses]);
+  const maxStrikes = useMemo(() => maxStrikesFor(gameState), [gameState?.charmUses, gameState?.activeCharms]);
+
+  // 👓 Where's Waldo? (a charm): each new hand, one tile that starts a playable word glows.
+  const waldoOn = !!gameState?.activeCharms?.some(c => c.id === 'wheresWaldo');
+  const handKey = (state.hand ?? []).map(t => t?.id ?? '-').join(',');
+  useEffect(() => {
+      if (!waldoOn || state.highlightedTileIds.first || state.gameState?.roundType === 'golden') return;
+      const tiles = (state.hand ?? []).filter((t): t is Tile => t !== null);
+      if (tiles.length < 3) return;
+      let cancelled = false;
+      dictionaryService.findPlayableWord(tiles.map(t => t.letter), { minLength: 3 }).then(word => {
+          if (cancelled || !word) return;
+          const first = assignTilesToWord(word.toUpperCase(), tiles.map(t => t.letter))?.[0];
+          if (first !== undefined) dispatch({ type: 'SET_HIGHLIGHTED_TILES', payload: { first: tiles[first].id, rest: [] } });
+      });
+      return () => { cancelled = true; };
+  }, [waldoOn, handKey]);
 
   const isStrikeChallenge = useMemo(() => (gameState?.challengeCount ?? 0) <= 0, [gameState?.challengeCount]);
   const strikesRemaining = useMemo(() => maxStrikes - (gameState?.strikes ?? 0), [maxStrikes, gameState?.strikes]);
@@ -2579,7 +2631,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       // Speed-up levels make the bank drain faster; the Golden Round's own clock stays at real time.
       // 🦥 Slow motion (a power word) stretches each tick.
-      const slow = gameState.roundType !== 'golden' && (gameState.slowWords ?? 0) > 0 ? POWER_WORD_EFFECTS.slowFactor : 1;
+      const slowMo = gameState.roundType !== 'golden' && (gameState.slowWords ?? 0) > 0 ? POWER_WORD_EFFECTS.slowFactor : 1;
+      // 🛑 Hammer Time (a charm) slows every tick a little.
+      const hammer = gameState.roundType !== 'golden' && gameState.activeCharms.some(c => c.id === 'hammerTime') ? 100 / (100 - CHARM_BONUS.hammerTimeSlowPercent) : 1;
+      const slow = slowMo * hammer;
       const tickMs = frozen ? 1000 : gameState.roundType === 'golden' ? 1000 : tickMsFor(levelFor(totalWords)) * slow;
       const interval = setInterval(() => {
           dispatch({ type: frozen ? 'TICK_FREEZE' : 'TICK_TIMER' });
@@ -2689,6 +2744,20 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       const totalWordsSubmitted = totalWords + 1;
       let scoreResult: ScoreCalculationResult = { totalScore: finalWordScore, baseScore: rawBaseScoreParam, bonuses: [...baseBonuses], ...scoreBreakdown };
 
+      // Level-up charms: My Precious pays for unused shuffles, Hit the Flagpole for clock seconds.
+      const payLevelUp = (result: ScoreCalculationResult) => {
+          if (newState.activeCharms.some(c => c.id === 'myPrecious') && newState.shuffleCount > 0) {
+              const pts = CHARM_BONUS.myPrecious * newState.shuffleCount;
+              result.totalScore += pts;
+              result.bonuses.push({ name: 'My Precious', description: `+${pts} pts (${newState.shuffleCount} shuffles kept)` });
+          }
+          if (newState.activeCharms.some(c => c.id === 'hitTheFlagpole') && time > 0) {
+              const pts = CHARM_BONUS.flagpolePerSecond * Math.floor(time);
+              result.totalScore += pts;
+              result.bonuses.push({ name: 'Hit the Flagpole', description: `+${pts} pts (${Math.floor(time)}s on the clock)` });
+          }
+      };
+
       // --- A: GOLDEN ROUND SUBMISSION ---
         if (newState.roundType === 'golden') {
             scoreResult = gameUtils.calculateScore(word, submittedTiles, newState);
@@ -2696,6 +2765,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.goldenGirlsPercent / 100);
                 scoreResult = { ...scoreResult, totalScore: scoreResult.totalScore + bonus, bonuses: [...scoreResult.bonuses, { name: 'Thank You for Being a Friend', description: `+${bonus} pts (${CHARM_BONUS.goldenGirlsPercent}%)` }] };
             }
+            if (levelUpModal(totalWords)) payLevelUp(scoreResult);
             const turnScore = scoreResult.totalScore;
             
             newState.score += turnScore;
@@ -2747,6 +2817,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       const levelUp = levelUpModal(totalWords);
       if (levelUp) modalQueue.push(levelUp);
+      if (levelUp) payLevelUp(scoreResult);
 
       if (word.length >= 5 && !isChallengeLock) {
           showToast(`Length bonus x${lengthMultiplier(word.length)}!`);
@@ -2959,6 +3030,42 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         scoreResult.totalScore += CHARM_BONUS.hesOnFire;
         scoreResult.bonuses.push({ name: "He's On Fire!", description: `+${CHARM_BONUS.hesOnFire} pts` });
       }
+      const hasCharm = (id: string) => newState.activeCharms.some(c => c.id === id);
+      const addTime = (seconds: number) => { newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + seconds; };
+      // Supermarket Sweep: a word played within a few seconds of the hand being dealt.
+      if (hasCharm('supermarketSweep') && newState.roundStartClock !== undefined && newState.roundStartClock - time <= CHARM_BONUS.supermarketSweepSeconds) {
+        scoreResult.totalScore += CHARM_BONUS.supermarketSweep;
+        scoreResult.bonuses.push({ name: 'Supermarket Sweep', description: `+${CHARM_BONUS.supermarketSweep} pts` });
+      }
+      // Hungry Hungry Hippos: the word uses every vowel in the hand (when it holds at least two).
+      if (hasCharm('hungryHippos')) {
+        const isVowelTile = (t: Tile) => VOWELS.has(t.letter);
+        const rackVowels = [...(hand ?? []).filter((t): t is Tile => t !== null), ...submittedTiles].filter(isVowelTile).length;
+        if (rackVowels >= CHARM_BONUS.hungryHipposMinVowels && submittedTiles.filter(isVowelTile).length === rackVowels) {
+          scoreResult.totalScore += CHARM_BONUS.hungryHippos;
+          scoreResult.bonuses.push({ name: 'Hungry Hungry Hippos', description: `+${CHARM_BONUS.hungryHippos} pts` });
+        }
+      }
+      // Cliffhanger: words played with the clock nearly out add a little time.
+      if (hasCharm('cliffhanger') && time <= TIME_BONUS.cliffhangerBelow) {
+        addTime(TIME_BONUS.cliffhanger);
+        scoreResult.bonuses.push({ name: 'Cliffhanger', description: `+${TIME_BONUS.cliffhanger}s next round` });
+      }
+      // Trade-off charms: points for time. They come last so nothing above can undo them.
+      if (hasCharm('goSpeedRacer') && word.length === 3) {
+        scoreResult.totalScore = 0;
+        addTime(TIME_BONUS.goSpeedRacer);
+        scoreResult.bonuses.push({ name: 'Go Speed Racer!', description: `0 pts, +${TIME_BONUS.goSpeedRacer}s next round` });
+      }
+      if (hasCharm('brewstersMillions')) {
+        scoreResult.totalScore = Math.max(0, scoreResult.totalScore - CHARM_BONUS.brewstersMillionsCost);
+        addTime(TIME_BONUS.brewstersMillions);
+        scoreResult.bonuses.push({ name: "Brewster's Millions", description: `-${CHARM_BONUS.brewstersMillionsCost} pts, +${TIME_BONUS.brewstersMillions}s next round` });
+      }
+      if (hasCharm('hammerTime')) {
+        scoreResult.totalScore = Math.max(0, scoreResult.totalScore - CHARM_BONUS.hammerTimeCost);
+        scoreResult.bonuses.push({ name: 'Hammer Time', description: `-${CHARM_BONUS.hammerTimeCost} pts` });
+      }
       if ((newState.survivorWords ?? 0) > 0) {
         newState.survivorWords = newState.survivorWords! - 1;
         if (newState.activeCharms.some(c => c.id === 'survivor')) {
@@ -3123,10 +3230,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           // This word isn't in the log yet, so the log's last valid word is the one before it.
           const lastWord = [...newState.log].reverse().find(e => e.type === 'word' && e.status === 'valid') as WordLogEntry | undefined;
           const hit = boss.check(word.toUpperCase(), rack, { last: (lastWord?.word ?? '').toUpperCase(), score: scoreResult.totalScore, lastScore: lastWord?.score ?? 0 });
-          const { round, outcome } = advanceBoss(bossRound, hit);
+          const need = bossHitsToWin(newState);
+          const { round, outcome } = advanceBoss(bossRound, hit, need);
           const hits = bossRound.hits + (hit ? 1 : 0);
           scoreResult.bonuses.push(hit
-              ? { name: `👊 Boss hit on ${boss.name}`, description: `${hits}/${BOSS.hitsToWin}` }
+              ? { name: `👊 Boss hit on ${boss.name}`, description: `${hits}/${need}` }
               : { name: `💨 ${boss.name} dodged`, description: boss.rule });
           newState.boss = round;
           if (hit && newState.activeCharms.some(c => c.id === 'doubleDragon')) {
@@ -3138,23 +3246,23 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               sendStat({ type: 'boss_end', boss: boss.id, number: bossRound.number, outcome, hits });
           }
           if (outcome === 'won') newState.bossesBeaten = (newState.bossesBeaten ?? 0) + 1;
-          if (round) showMessage(hit ? `👊 HIT! ${hits}/${BOSS.hitsToWin} on ${boss.name}` : `💨 Dodged! ${boss.rule} · ${round.wordsLeft} left`, 1800);
+          if (round) showMessage(hit ? `👊 HIT! ${hits}/${need} on ${boss.name}` : `💨 Dodged! ${boss.rule} · ${round.wordsLeft} left`, 1800);
           const reward = bossRewardFor(bossRound.number);
           if (outcome === 'won') {
               runningScore += reward.points;
               newState.pendingBadgeTime = (newState.pendingBadgeTime ?? 0) + reward.seconds;
               scoreResult.bonuses.push({ name: `🏅 Boss Badge: ${boss.name}`, description: `+${reward.points} pts, +${reward.seconds}s` });
               const { isNew, total } = recordBossBadge(boss.id);
-              eventLogQueue.push({ type: 'event', id: `boss-${boss.id}-${now}`, name: `Beat ${boss.name}`, icon: '🏅', description: `${hits}/${BOSS.hitsToWin} hits: Boss Badge earned (+${reward.seconds}s).`, scoreChange: reward.points, cumulativeScore: runningScore });
+              eventLogQueue.push({ type: 'event', id: `boss-${boss.id}-${now}`, name: `Beat ${boss.name}`, icon: '🏅', description: `${hits}/${need} hits: Boss Badge earned (+${reward.seconds}s).`, scoreChange: reward.points, cumulativeScore: runningScore });
               modalQueue.push({ type: 'info', title: '🏅 BOSS DEFEATED!', content: `You beat ${boss.icon} ${boss.name}! Boss Badge earned: +${reward.points} points and +${reward.seconds}s.${isNew ? `\n\nNew badge for your Badge Case (${total}/${BOSSES.length})!` : ''}` });
               soundService.playMilestone();
           } else if (outcome === 'close') {
               runningScore += reward.closePoints;
               scoreResult.bonuses.push({ name: `😤 So close: ${boss.name}`, description: `+${reward.closePoints} pts` });
-              eventLogQueue.push({ type: 'event', id: `boss-${boss.id}-${now}`, name: `${boss.name} got away`, icon: '😤', description: `${hits}/${BOSS.hitsToWin} hits: so close.`, scoreChange: reward.closePoints, cumulativeScore: runningScore });
-              modalQueue.push({ type: 'info', title: '😤 SO CLOSE!', content: `${hits}/${BOSS.hitsToWin} hits on ${boss.icon} ${boss.name}. +${reward.closePoints} points for the effort, but the badge (and its time) got away.` });
+              eventLogQueue.push({ type: 'event', id: `boss-${boss.id}-${now}`, name: `${boss.name} got away`, icon: '😤', description: `${hits}/${need} hits: so close.`, scoreChange: reward.closePoints, cumulativeScore: runningScore });
+              modalQueue.push({ type: 'info', title: '😤 SO CLOSE!', content: `${hits}/${need} hits on ${boss.icon} ${boss.name}. +${reward.closePoints} points for the effort, but the badge (and its time) got away.` });
           } else if (outcome === 'escaped') {
-              modalQueue.push({ type: 'info', title: `💨 ${boss.name} got away`, content: `${hits}/${BOSS.hitsToWin} hits. No badge this time, and nothing lost.`, autoClose: 2500 });
+              modalQueue.push({ type: 'info', title: `💨 ${boss.name} got away`, content: `${hits}/${need} hits. No badge this time, and nothing lost.`, autoClose: 2500 });
           }
       }
       const bossIntro = startBossRound(newState, totalWords);
@@ -3472,7 +3580,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       newProgress.turnsSinceLastOffer++;
 
       // The PowerPlay meter fills from letters played (config/gameplay.ts).
-      const meter = advancePowerPlayMeter(newProgress.letters ?? 0, word.length, levelFor(totalWordsSubmitted));
+      const meter = advancePowerPlayMeter(newProgress.letters ?? 0, word.length, levelFor(totalWordsSubmitted), newState);
       newProgress.letters = meter.letters;
 
       const triggeredByMeter = meter.full;
@@ -3514,7 +3622,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
                   soundService.playModalOpen();
                   const offerReason = triggeredByMeter
-                    ? `You played ${meterLettersFor(levelFor(totalWordsSubmitted))} letters and filled the PowerPlay meter!`
+                    ? `You played ${meterLettersFor(levelFor(totalWordsSubmitted), newState)} letters and filled the PowerPlay meter!`
                     : `Milestone! You've submitted ${totalWordsSubmitted} words and earned a power-up!`;
                   modalQueue.push({ type: 'powerplay-selection', title: 'PowerPlay Earned!', content: offerReason, data: offeredPowerPlays });
               }
@@ -3529,6 +3637,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               !newState.activeCharms.some(ac => ac.id === c.id) &&
               !(c.id === 'goldenSnitch' && snitchTargetFor(newState.snitchCatches ?? 0) === null) &&
               !(c.id === 'gottaCatchEmAll' && newState.pokedexComplete) &&
+              // Mr. Glass takes a strike slot away: never offer it when that would end the run.
+              !(c.id === 'mrGlass' && newState.strikes >= maxStrikesFor({ ...newState, activeCharms: [...newState.activeCharms, c] })) &&
               !newState.charmCooldowns[c.id]
           );
           const { offeredItems: offeredCharms, offerDetails } = gameUtils.getOffer(charmsToOfferFrom, 3, newState);
@@ -3986,6 +4096,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       handleShuffle(true, true); // Free shuffle on win, and from challenge
     }
 
+    if (state.gameState?.activeCharms.some(c => c.id === 'doubleDare')) {
+      dispatch({ type: 'CHARM_PAYOUT', payload: { id: 'doubleDare', points: CHARM_BONUS.doubleDare, description: `Challenge taken: +${CHARM_BONUS.doubleDare} points.` } });
+    }
     dispatch({ type: 'SET_IS_LOADING', payload: false });
   };
     const potentialScore = useMemo(() => {
