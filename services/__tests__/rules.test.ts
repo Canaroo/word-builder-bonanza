@@ -75,7 +75,7 @@ describe('time pressure', () => {
     });
 
     test('the PowerPlay meter grows from level 4, faster after level 6, up to 60 letters', () => {
-        expect([1, 3, 4, 6, 7, 9, 10, 20].map(meterLettersFor)).toEqual([25, 25, 30, 40, 46, 58, 60, 60]);
+        expect([1, 3, 4, 6, 7, 9, 10, 20].map(l => meterLettersFor(l))).toEqual([25, 25, 30, 40, 46, 58, 60, 60]);
         expect(advancePowerPlayMeter(36, 5, 6)).toEqual({ letters: 40, full: true });
         expect(advancePowerPlayMeter(36, 5, 7)).toEqual({ letters: 41, full: false });
     });

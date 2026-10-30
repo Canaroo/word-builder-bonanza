@@ -779,6 +779,10 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         const spider = ['D', 'E', 'R'].filter(l => lettersInWord.includes(l)).length;
         if (spider >= 2) flat('Radioactive Spider Bite', spider === 3 ? CHARM_BONUS.radioactiveAll : CHARM_BONUS.radioactive);
     }
+    if (hasCharm('mrGlass')) flat('Mr. Glass', CHARM_BONUS.mrGlass);
+    if (hasCharm('honeyIShrunkTheKids')) flat('Honey, I Shrunk the Kids', CHARM_BONUS.honeyShrunk);
+    const sesame = gameState.sesameLetter?.letter;
+    if (hasCharm('sesameStreet') && sesame && lettersInWord.includes(sesame)) flat(`Sesame Street (${sesame})`, CHARM_BONUS.sesameStreet);
     if (hasCharm('titansGo')) flat('Titans, Go!', CHARM_BONUS.titansPerCharm * Math.min(CHARM_SLOTS, gameState.activeCharms.length));
 
     // Charm: Perfectly Balanced (as many vowels as consonants)

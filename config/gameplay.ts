@@ -123,6 +123,11 @@ export const TIME_BONUS = {
   sandsOfTime: 3,          // per word of sandsOfTimeLetters+ letters
   sandsOfTimeLetters: 6,
   gottaCatchEmAll: 10,     // once, when the last vowel is caught
+  brewstersMillions: 1,    // every word (and it costs points)
+  goSpeedRacer: 3,         // every 3-letter word (which scores 0)
+  cliffhanger: 2,          // per word played at cliffhangerBelow seconds or fewer
+  cliffhangerBelow: 10,
+  wileECoyote: 5,          // per strike
 };
 
 export const CHARM_BONUS = {
@@ -210,6 +215,26 @@ export const CHARM_BONUS = {
   voteForPedro: 50,        // only 1-point tiles
   formVoltron: 75,         // uses a combo tile
   titansPerCharm: 4,       // per charm equipped, every word
+  // v7.18 charms. Trade-offs first: they cost points (or safety) and give time back.
+  brewstersMillionsCost: 15,   // per word
+  hammerTimeSlowPercent: 15,   // the clock ticks this much slower...
+  hammerTimeCost: 10,          // ...and every word scores this much less
+  mrGlass: 75,                 // per word, with one fewer strike
+  mrGlassStrikes: 1,
+  honeyShrunk: 60,             // per word, with one fewer tile in hand
+  happyAccidentSeconds: 10,    // the first invalid word each level costs this instead of a strike
+  wileECoyote: 150,            // per strike (plus TIME_BONUS.wileECoyote)
+  turboButtonPercent: 20,      // fewer letters to fill the PowerPlay meter
+  littleMacHits: 1,            // fewer hits a boss round needs
+  doubleDare: 75,              // per Challenge used, win or lose
+  myPrecious: 100,             // per unused shuffle, at each level-up
+  flagpolePerSecond: 10,       // per second on the clock, at each level-up
+  supermarketSweep: 60,        // a word within supermarketSweepSeconds of a new hand
+  supermarketSweepSeconds: 3,
+  sesameStreet: 75,            // words with the letter of the level
+  sesameLetters: 'RSTLNDCMPBGH',
+  hungryHippos: 80,            // a word that uses every vowel in your hand...
+  hungryHipposMinVowels: 2,    // ...when the hand has at least this many
 } as const;
 
 /**

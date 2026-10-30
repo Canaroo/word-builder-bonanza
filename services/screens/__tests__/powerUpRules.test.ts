@@ -9,7 +9,7 @@ import { calculateScore } from '../../gameUtils';
 import * as gameUtils from '../../gameUtils';
 import { RACK_SIZE } from '../../../constants';
 import type { GameState, Tile } from '../../../types';
-import { catchVowels } from '../../rules';
+import { catchVowels, handSizeFor, meterLettersFor, bossHitsToWin, advanceBoss } from '../../rules';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -581,5 +581,65 @@ describe('v7.17 balance pass', () => {
         expect(pp('rewind').oncePerRun).toBe(true);
         expect(pp('deepFreeze').oncePerRun).toBe(true);
         expect(pp('swapOut').swapConfig).toEqual({ min: 4, max: 5 });
+    });
+});
+
+describe('v7.18 charms', () => {
+    const tilesFor = (w: string, points = 1) => w.split('').map((letter, i) => ({ id: `t${i}`, letter, points })) as Tile[];
+    const gs = (over: Partial<GameState> = {}) => ({ ...start().gameState, ...over });
+    const bonus = (id: string, word: string, name: string, over: Partial<GameState> = {}) =>
+        calculateScore(word.toLowerCase(), tilesFor(word), gs({ activeCharms: [charm(id)], ...over })).bonuses.find(b => b.name.startsWith(name))?.description;
+
+    test('Honey, I Shrunk the Kids: one fewer tile, +points every word', () => {
+        expect(handSizeFor({ activeCharms: [charm('honeyIShrunkTheKids')] })).toBe(GAMEPLAY.handSize - 1);
+        expect(handSizeFor({})).toBe(GAMEPLAY.handSize);
+        expect(bonus('honeyIShrunkTheKids', 'CAT', 'Honey')).toBe(`+${CHARM_BONUS.honeyShrunk} pts`);
+    });
+
+    test('Mr. Glass: +points every word, one fewer strike', () => {
+        expect(bonus('mrGlass', 'CAT', 'Mr. Glass')).toBe(`+${CHARM_BONUS.mrGlass} pts`);
+        expect(maxStrikesFor({ charmUses: {}, activeCharms: [charm('mrGlass')] } as any)).toBe(2);
+        expect(maxStrikesFor({ charmUses: { strikeBank: 1 }, activeCharms: [charm('mrGlass')] } as any)).toBe(3);
+    });
+
+    test('Turbo Button and Little Mac change the meter and the boss target', () => {
+        expect(meterLettersFor(1, { activeCharms: [charm('turboButton')] })).toBe(Math.round(GAMEPLAY.powerPlayMeterLetters * 0.8));
+        expect(bossHitsToWin({ activeCharms: [charm('littleMac')] })).toBe(5);
+        expect(bossHitsToWin({ activeCharms: [] })).toBe(6);
+        expect(advanceBoss({ id: 'x', number: 1, wordsLeft: 4, hits: 4 } as any, true, 5).outcome).toBe('won');
+        expect(advanceBoss({ id: 'x', number: 1, wordsLeft: 4, hits: 4 } as any, true).outcome).toBe(null);
+    });
+
+    test('Sesame Street pays for the letter of the day only', () => {
+        const sesameLetter = { letter: 'T', level: 1 };
+        expect(bonus('sesameStreet', 'CAT', 'Sesame Street', { sesameLetter })).toBe(`+${CHARM_BONUS.sesameStreet} pts`);
+        expect(bonus('sesameStreet', 'DOG', 'Sesame Street', { sesameLetter })).toBeUndefined();
+        const equipped = gameReducer(start(), { type: 'CHOOSE_CHARM', payload: { charm: charm('sesameStreet'), hand: start().hand, allOffered: [charm('sesameStreet')] } } as any);
+        expect(CHARM_BONUS.sesameLetters).toContain(equipped.gameState.sesameLetter!.letter);
+    });
+
+    test('Happy Little Accidents: the first invalid word each level costs time, not a strike', () => {
+        const s0 = start({ activeCharms: [charm('happyLittleAccidents')] }, 30);
+        const first = gameReducer(s0, { type: 'ADD_STRIKE', payload: { source: 'invalid_word' } } as any);
+        expect(first.gameState.strikes).toBe(0);
+        expect(first.time).toBe(30 - CHARM_BONUS.happyAccidentSeconds);
+        const second = gameReducer(first, { type: 'ADD_STRIKE', payload: { source: 'invalid_word' } } as any);
+        expect(second.gameState.strikes).toBe(1);
+    });
+
+    test('Wile E. Coyote: a strike pays points and time, unless it ends the run', () => {
+        const s0 = start({ activeCharms: [charm('wileECoyote')], score: 100 }, 30);
+        const hit = gameReducer(s0, { type: 'ADD_STRIKE', payload: { source: 'challenge' } } as any);
+        expect(hit.gameState.strikes).toBe(1);
+        expect(hit.gameState.score).toBe(100 + CHARM_BONUS.wileECoyote);
+        expect(hit.time).toBe(30 + TIME_BONUS.wileECoyote);
+        const last = gameReducer(start({ activeCharms: [charm('wileECoyote')], score: 100, strikes: 2 }, 30), { type: 'ADD_STRIKE', payload: { source: 'challenge' } } as any);
+        expect(last.gameState.score).toBe(100);
+    });
+
+    test('Double Dare pays through a logged charm payout', () => {
+        const paid = gameReducer(start({ score: 10 }), { type: 'CHARM_PAYOUT', payload: { id: 'doubleDare', points: CHARM_BONUS.doubleDare, description: 'x' } } as any);
+        expect(paid.gameState.score).toBe(10 + CHARM_BONUS.doubleDare);
+        expect(paid.gameState.log.at(-1)).toMatchObject({ type: 'event', name: 'Double Dare', scoreChange: CHARM_BONUS.doubleDare });
     });
 });
