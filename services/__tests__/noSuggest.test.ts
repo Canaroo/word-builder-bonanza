@@ -31,6 +31,16 @@ describe('playable but never suggested', () => {
         expect(isBlocked('faggot')).toBe(true);
     });
 
+    test('POOF and its verb forms are playable with definitions and never suggested', () => {
+        const list = new Set(readFileSync(resolve(__dirname, '../../public/words/wordlist.txt'), 'utf8').split('\n'));
+        for (const [w, d] of [['poof', 'A sudden puff or vanishing, as if by magic.'], ['poofs', 'Vanishes suddenly, as if by magic.'], ['poofed', 'Vanished suddenly, as if by magic.'], ['poofing', 'Vanishing suddenly, as if by magic.']]) {
+            expect(isBlocked(w)).toBe(false);
+            expect(list.has(w)).toBe(true);
+            expect(curatedWords.get(w)).toBe(d);
+            expect(suggestableWords.has(w)).toBe(false);
+        }
+    });
+
     test('CROWBAR has its definition', () => {
         expect(curatedWords.get('crowbar')).toBe('To use a steel bar as a lever.');
     });
