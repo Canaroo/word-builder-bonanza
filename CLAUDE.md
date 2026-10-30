@@ -46,7 +46,7 @@ Resume.
 | Game state, reducer, turn logic | `services/screens/GameScreen.tsx` (large) |
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
 | PowerPlays / charms (75 / 71) | `data/powerPlays.ts`, `data/charms.ts` |
-| Secret bonuses (68 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
+| Secret bonuses (78 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
 | Bosses (12) and Boss Badges | `data/bosses.ts` (villains, rules), `BOSS` in `config/gameplay.ts` (timing, rewards); badges in the profile (`recordBossBadge`) |
 | Cosmetics, streak milestones, themes, missions | `data/cosmetics.ts`, `data/packs.ts`, `data/missions.ts` |
 | Dictionary | `data/internalWords.ts` (words with definitions), `words/custom.txt`, `words/blocked.txt`, `words/no-suggest.txt` |
@@ -81,6 +81,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   pays points only. Breaking the rule never costs anything: the word still scores. Bosses go
   early → mid → late, random within a tier. Boss Badges are permanent (one per boss) and show
   on the Top 50 as 🏅N; Firebase needs the `bosses` rule line in `docs/LEADERBOARD.md`.
+- **Power words** (secret words with `effect`): SLOT (slot machine, +1/3/10s), SNOW (clock frozen
+  10s), HEAL (remove a strike, else +100), SLOW (half-speed clock for 3 words), TWIN (clone your
+  best word's time + a Word Combo step). They fire on submit, apply to the next round, and can
+  fire again once per level; other secrets are once per run. Values in `POWER_WORD_EFFECTS`.
 - **Run-savers** are once per run. Time from items goes through `bonusTime()`.
 - **Slurs:** never unblock a word without the owner's confirmation. Allowed slur-adjacent words
   (COON, DINK, FAG and its verb forms) are on `words/no-suggest.txt`, so the game never offers them.

@@ -1,5 +1,5 @@
 // Pure gameplay rules. No React, no DOM: easy to test and to tune via config/gameplay.ts.
-import { BOSS, GAMEPLAY, POWER_GLOVE_BANK_MAX } from '../config/gameplay';
+import { BOSS, GAMEPLAY, POWER_GLOVE_BANK_MAX, POWER_WORD_EFFECTS } from '../config/gameplay';
 import { BossRound, ScoreCalculationResult } from '../types';
 
 const lookupByLength = (table: Record<number, number>, length: number, below: number): number => {
@@ -105,6 +105,20 @@ export const advanceBoss = (round: BossRound, hit: boolean): { round: BossRound 
     if (next.hits + next.wordsLeft < BOSS.closeHits) return { round: null, outcome: 'escaped' };
     return { round: next, outcome: null };
 };
+
+/** 🎰 The slot machine's result for a roll in [0, 1): good, better or best. */
+export const slotPayout = (roll: number) => {
+    let acc = 0;
+    for (const p of POWER_WORD_EFFECTS.slot) {
+        acc += p.chance;
+        if (roll < acc) return p;
+    }
+    return POWER_WORD_EFFECTS.slot[POWER_WORD_EFFECTS.slot.length - 1];
+};
+
+/** Power words fire at most once per level: has this one already fired at `level`? */
+export const powerWordReady = (levels: Record<string, number> | undefined, id: string, level: number): boolean =>
+    (levels?.[id] ?? 0) < level;
 
 /** Gotta Catch 'Em All: the vowels caught so far plus this word's, in AEIOU order. */
 export const catchVowels = (caught: string, word: string): string => {

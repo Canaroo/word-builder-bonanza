@@ -35,6 +35,13 @@ Collection, the Bonus Vault at `/?bonuses`, the collection total and the build c
 },
 ```
 
+**Power words** add `effect: 'slot' | 'freeze' | 'heal' | 'slow' | 'twin'` (no points needed).
+The effect fires on the next round and can fire again once per level; the numbers are in
+`POWER_WORD_EFFECTS` (`config/gameplay.ts`) and the effects in `firePowerWord` in `GameScreen.tsx`.
+A new kind of effect needs a branch there. Pick words a random 8-tile hand can spell 0.3–1% of the
+time (simulate it): rarer and nobody meets it (LUCKY ≈ 0.003%), commoner and it stops feeling
+secret (ICE ≈ 4%).
+
 Bonus rewards are typically +100 to +200. The creator's own TEX is +300 as a signature, so keep
 regular words below that.
 

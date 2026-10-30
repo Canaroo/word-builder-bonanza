@@ -83,6 +83,7 @@ export interface EasterEgg {
     points?: number;
     shuffle?: number;
     message: string;
+    effect?: PowerWordEffect;
   };
 }
 
@@ -100,7 +101,12 @@ export interface SecretBonus {
   hint?: string;
   media?: 'vhs' | 'cartridge' | 'cd' | 'arcade';
   source?: string;
+  /** Power words: an effect on the next round (config/gameplay.ts POWER_WORD_EFFECTS). Can fire again once per level. */
+  effect?: PowerWordEffect;
 }
+
+/** What a power word does when spelled. */
+export type PowerWordEffect = 'slot' | 'freeze' | 'heal' | 'slow' | 'twin';
 
 export interface WordBonus {
     id: string;
@@ -245,6 +251,12 @@ export interface GameState {
   boss?: BossRound | null;
   /** Bosses faced this run, so a run doesn't repeat one until the pool runs out. */
   bossesFaced?: string[];
+  /** Power words: the level each one last fired at (they can fire again once per level). */
+  powerWordLevels?: Record<string, number>;
+  /** ❄️ Seconds the clock stays frozen at the start of the next round. */
+  freezeLeft?: number;
+  /** 🦥 Words left with the clock at half speed. */
+  slowWords?: number;
   /** Bosses beaten (6 hits) this run, for the run's stats. */
   bossesBeaten?: number;
   /** Boss Badge seconds waiting for the next round (they skip the per-level shrink). */
