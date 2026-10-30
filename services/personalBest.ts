@@ -1,8 +1,9 @@
 import { storage, STORAGE_KEYS } from './storage';
+import { playerKey } from './players';
 
-/** Best score on this device. */
+/** The current player's best score. */
 export const getPersonalBest = (): number => {
-    const best = storage.getJSON<unknown>(STORAGE_KEYS.personalBest, 0);
+    const best = storage.getJSON<unknown>(playerKey(STORAGE_KEYS.personalBest), 0);
     return typeof best === 'number' && Number.isFinite(best) ? best : 0;
 };
 
@@ -10,6 +11,6 @@ export const getPersonalBest = (): number => {
 export const recordRunScore = (score: number): boolean => {
     const previous = getPersonalBest();
     if (score <= previous) return false;
-    storage.setJSON(STORAGE_KEYS.personalBest, score);
+    storage.setJSON(playerKey(STORAGE_KEYS.personalBest), score);
     return previous > 0 || score > 0;
 };

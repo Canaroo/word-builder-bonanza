@@ -11,6 +11,7 @@ const HowToPlayScreen = lazy(() => import('./services/screens/HowToPlayScreen'))
 const VibezScreen = lazy(() => import('./services/screens/VibezScreen'));
 const CollectionScreen = lazy(() => import('./services/screens/CollectionScreen'));
 const BadgeCaseScreen = lazy(() => import('./services/screens/BadgeCaseScreen'));
+const ProfileScreen = lazy(() => import('./services/screens/ProfileScreen'));
 
 // Bonus Vault: every bonus with a validity check and reveal previews. Unlinked; open /?bonuses.
 const BonusCatalog = lazy(() => import('./components/BonusCatalog'));
@@ -29,6 +30,8 @@ import { GameState, FinalGameState, Pack, PowerWordData } from './types';
 import {leaderboardService} from './services/leaderboardService';
 import { sendStat } from './services/stats';
 import { levelFor } from './services/rules';
+import { switchToPlayer } from './services/players';
+import { recordCareerRun } from './services/career';
 import { soundService } from './services/soundService';
 import { musicService } from './services/musicService';
 import { powerWordService } from './services/powerWordService';
@@ -51,6 +54,7 @@ export enum Screen {
   Vibez,
   Collection,
   BadgeCase,
+  Profile,
 }
 
 const App: React.FC = () => {
@@ -231,6 +235,8 @@ const App: React.FC = () => {
 
   const handlePlay = useCallback((name: string) => {
     runStartedAt.current = Date.now();
+    switchToPlayer(name);
+    setProfileVersion(v => v + 1);
     storage.remove(STORAGE_KEYS.savedGame);
     setIsResuming(false);
     setPlayerName(name);
@@ -241,6 +247,8 @@ const App: React.FC = () => {
 
   const handleResumeGame = useCallback((name: string) => {
     runStartedAt.current = Date.now();
+    switchToPlayer(name);
+    setProfileVersion(v => v + 1);
     setIsResuming(true);
     setPlayerName(name);
     setScreen(Screen.Game);
@@ -263,6 +271,7 @@ const App: React.FC = () => {
     storage.remove(STORAGE_KEYS.savedGame);
     const validWords = gameState.log.filter(e => e.type === 'word' && e.status === 'valid').length;
     sendStat({ type: 'run_end', score: gameState.score, words: validWords, level: levelFor(validWords), bosses: gameState.bossesBeaten ?? 0 });
+    recordCareerRun({ score: gameState.score, level: levelFor(validWords), bestWord: gameState.highestScoringWord, longestWord: gameState.longestWord });
     const finalState: FinalGameState = {
       score: gameState.score,
       log: gameState.log,
@@ -364,6 +373,12 @@ const App: React.FC = () => {
     setScreen(Screen.Collection);
   }, []);
 
+  const handleShowProfile = useCallback(() => {
+    soundService.initialize();
+    soundService.playUIClick();
+    setScreen(Screen.Profile);
+  }, []);
+
   const handleShowBadgeCase = useCallback(() => {
     soundService.initialize();
     soundService.playUIClick();
@@ -398,6 +413,7 @@ const App: React.FC = () => {
           onShowVibez={handleShowVibez} 
           onShowCollection={handleShowCollection}
           onShowBadgeCase={handleShowBadgeCase}
+          onShowProfile={handleShowProfile}
           lexCoins={lexCoins} 
           autoShowLeaderboard={autoShowLeaderboard}
           setAutoShowLeaderboard={setAutoShowLeaderboard}
@@ -443,6 +459,8 @@ const App: React.FC = () => {
         return <CollectionScreen onBack={handleGoToMenu} />;
       case Screen.BadgeCase:
         return <BadgeCaseScreen onBack={handleGoToMenu} />;
+      case Screen.Profile:
+        return <ProfileScreen onBack={handleGoToMenu} onEditBling={handleShowVibez} />;
       case Screen.Vibez:
         return <VibezScreen 
           onBack={handleGoToMenu} 
@@ -457,7 +475,7 @@ const App: React.FC = () => {
           onBuyFreeze={handleBuyFreeze}
           />;
       default:
-        return <StartScreen onPlay={handlePlay} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} onShowBadgeCase={handleShowBadgeCase} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin} profileVersion={profileVersion} onBuyFreeze={handleBuyFreeze}/>;
+        return <StartScreen onPlay={handlePlay} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} onShowBadgeCase={handleShowBadgeCase} onShowProfile={handleShowProfile} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin} profileVersion={profileVersion} onBuyFreeze={handleBuyFreeze}/>;
     }
   };
 

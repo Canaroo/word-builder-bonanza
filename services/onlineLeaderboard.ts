@@ -1,7 +1,7 @@
 // Online leaderboard on Firebase Realtime Database, over its plain REST API (fetch + JSON).
 // No Firebase SDK or live socket: just the same web requests a browser makes when it opens the
 // database URL, which work on networks where the SDK's websocket is slow or blocked.
-import { LeaderboardEntry, PlayerFlair } from '../types';
+import { IdCardStats, LeaderboardEntry, PlayerFlair } from '../types';
 import { cosmeticById } from '../data/cosmetics';
 import { BOSSES } from '../data/bosses';
 
@@ -39,6 +39,19 @@ const request = async (path: string, init?: RequestInit): Promise<any> => {
     return body;
 };
 
+const count = (v: unknown, max: number) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.min(Math.round(v), max) : 0);
+const cardWord = (v: unknown) => (typeof v === 'string' && /^[A-Z]{1,15}$/.test(v) ? v : '');
+
+/** A posted ID card snapshot, or undefined if it's missing or malformed. */
+export const toCard = (c: any): IdCardStats | undefined => {
+    if (!c || typeof c !== 'object' || typeof c.runs !== 'number') return undefined;
+    return {
+        runs: count(c.runs, 1_000_000), best: count(c.best, 10_000_000), avg: count(c.avg, 10_000_000),
+        level: Math.max(1, count(c.level, 9999)), word: cardWord(c.word), wordScore: count(c.wordScore, 10_000_000),
+        longest: cardWord(c.longest), secrets: count(c.secrets, 999),
+    };
+};
+
 const toEntry = (id: string, row: any): LeaderboardEntry | null => {
     const ms = typeof row?.timestamp === 'number' ? row.timestamp
         : typeof row?.date === 'number' ? row.date
@@ -51,6 +64,7 @@ const toEntry = (id: string, row: any): LeaderboardEntry | null => {
         title: cosmeticById(row.title)?.kind === 'title' ? row.title : null,
         streak: Number.isInteger(row.streak) && row.streak > 0 ? Math.min(row.streak, 9999) : 0,
         bosses: Number.isInteger(row.bosses) && row.bosses > 0 ? Math.min(row.bosses, BOSSES.length) : 0,
+        card: toCard(row.card),
     };
 };
 
@@ -64,10 +78,10 @@ const list = async (): Promise<LeaderboardEntry[]> => {
 };
 
 /**
- * Writes { name, score, timestamp } plus the player's badge, title, streak and Boss Badge count,
- * and returns the new entry's id. If the database rules reject the extra fields, it tries again
- * without the newest one (Boss Badges, for rules not updated yet), then with the score alone, so
- * nothing is lost.
+ * Writes { name, score, timestamp } plus the player's badge, title, streak, Boss Badge count and
+ * ID card snapshot, and returns the new entry's id. If the database rules reject the extra fields,
+ * it tries again without the newest ones (the card, then Boss Badges, for rules not updated yet),
+ * then with the score alone, so nothing is lost.
  */
 const submit = async (name: string, score: number, flair?: PlayerFlair): Promise<string> => {
     // The server fills in the timestamp, so the rules can check it against its own clock.
@@ -77,6 +91,7 @@ const submit = async (name: string, score: number, flair?: PlayerFlair): Promise
     if (flair?.title) extras.title = flair.title;
     if (flair?.streak) extras.streak = flair.streak;
     if (flair?.bosses) extras.bosses = flair.bosses;
+    if (flair?.card) extras.card = flair.card;
     const post = (body: object) => request(`${LEADERBOARD_PATH}.json`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -84,8 +99,11 @@ const submit = async (name: string, score: number, flair?: PlayerFlair): Promise
     });
     // Only a rules rejection is worth retrying with fewer fields.
     const rejected = (e: unknown) => e instanceof LeaderboardError && (e.status === 400 || e.status === 401 || e.status === 403);
-    const { bosses, ...olderExtras } = extras;
-    const attempts = [extras, ...(bosses !== undefined && Object.keys(olderExtras).length ? [olderExtras] : [])].filter(x => Object.keys(x).length);
+    // Newest fields first, so rules that predate them still get everything else: card, then bosses.
+    const { card, ...withoutCard } = extras;
+    const { bosses, ...withoutBosses } = withoutCard;
+    const attempts = [extras, withoutCard, withoutBosses]
+        .filter((x, i, all) => Object.keys(x).length && (i === 0 || Object.keys(x).length < Object.keys(all[i - 1]).length));
     for (const fields of attempts) {
         try {
             return (await post({ ...base, ...fields })).name;

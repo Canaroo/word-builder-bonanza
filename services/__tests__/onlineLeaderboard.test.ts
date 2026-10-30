@@ -73,3 +73,30 @@ describe('Boss Badges on the online board', () => {
         expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ name: 'Tex', score: 500, timestamp: { '.sv': 'timestamp' } });
     });
 });
+
+describe('player ID snapshots on the online board', () => {
+    const card = { runs: 12, best: 9000, avg: 3100, level: 7, word: 'JAZZ', wordScore: 180, longest: 'PLANETS', secrets: 9 };
+
+    test('reads a posted card, ignoring a malformed one', async () => {
+        fetchMock.mockResolvedValue(json(200, {
+            a: { name: 'Ann', score: 900, timestamp: 1792376877438, card },
+            b: { name: 'Bo', score: 800, timestamp: 1792376877438, card: { runs: 'many' } },
+        }));
+        const rows = await onlineLeaderboard.list();
+        expect(rows[0].card).toEqual(card);
+        expect(rows[1].card).toBeUndefined();
+    });
+
+    test('posts the card; rules that reject it drop the card first, then Boss Badges, then everything', async () => {
+        fetchMock
+            .mockResolvedValueOnce(json(400, { error: 'Permission denied' }))
+            .mockResolvedValueOnce(json(400, { error: 'Permission denied' }))
+            .mockResolvedValueOnce(json(200, { name: '-Nd' }));
+        expect(await onlineLeaderboard.submit('Tex', 500, { badge: 'b_vhs', title: null, streak: 2, bosses: 3, card })).toBe('-Nd');
+        const bodies = fetchMock.mock.calls.map(c => JSON.parse(c[1].body));
+        expect(bodies[0]).toMatchObject({ card, bosses: 3, badge: 'b_vhs' });
+        expect(bodies[1]).not.toHaveProperty('card');
+        expect(bodies[1]).toMatchObject({ bosses: 3, badge: 'b_vhs' });
+        expect(bodies[2]).toEqual({ name: 'Tex', score: 500, timestamp: { '.sv': 'timestamp' }, badge: 'b_vhs', streak: 2 });
+    });
+});

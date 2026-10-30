@@ -19,6 +19,8 @@ export const STORAGE_KEYS = {
     profile: 'wordNerdProfile',
     missions: 'wordNerdMissions',
     statsMissionsDay: 'wordNerdStatsMissionsDay',
+    players: 'wordNerdPlayers',
+    career: 'wordNerdCareer',
 } as const;
 
 export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS];

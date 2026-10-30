@@ -51,6 +51,7 @@ Resume.
 | Cosmetics, streak milestones, themes, missions | `data/cosmetics.ts`, `data/packs.ts`, `data/missions.ts` |
 | Dictionary | `data/internalWords.ts` (words with definitions), `words/custom.txt`, `words/blocked.txt`, `words/no-suggest.txt` |
 | Online leaderboard | `services/onlineLeaderboard.ts` (Firebase REST, no SDK); rules in `docs/LEADERBOARD.md` |
+| Local players and player IDs | `services/players.ts` (who's playing, `playerKey()` for per-player saves), `services/career.ts` (ID stats), `components/IdCard.tsx`, `services/screens/ProfileScreen.tsx` |
 | Usage stats (bosses, missions, runs) | `services/stats.ts` → Firebase `/stats`; read at `/?stats` (`components/StatsPage.tsx`); events and rules in `docs/LEADERBOARD.md` |
 
 Descriptions read their numbers from config in template strings, so text always matches the rules.
@@ -86,6 +87,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
 - **Every run starts from a fresh state** (`createInitialGameState()`). Copy nested state before
   changing it; shared objects once leaked charm offers between runs.
 - **Firebase rules** live in the Firebase console; `docs/LEADERBOARD.md` mirrors them. Sync both.
+- **Local players:** each name on a device has its own stats, Boss Badges, streak, Collection,
+  personal best and equipped badge/title (saved under `key#slot`; the first player keeps the
+  original keys). Credits, shop purchases, themes, missions and the saved game are shared.
+  New per-player data goes through `playerKey()`. Each score posts an ID `card` snapshot that the
+  Top 50 shows when a row is tapped; it needs the `card` rules in `docs/LEADERBOARD.md`.
 - **Usage stats** are anonymous and silent (the owner chose no notice or opt-out). Keep them
   that way: no names, no device ids, only the fields the `/stats` rules allow. A new event type
   needs a rules update too.

@@ -13,6 +13,7 @@ import RankingModal from '../../components/RankingModal';
 import ArcadeButton from '../../components/ArcadeButton';
 import { collectionProgress } from '../collection';
 import { BOSSES } from '../../data/bosses';
+import { listPlayers, switchToPlayer, currentPlayer, sameName } from '../players';
 import { storage, STORAGE_KEYS } from '../storage';
 import MissionsPanel from '../../components/MissionsPanel';
 import StreakPanel from '../../components/StreakPanel';
@@ -27,6 +28,7 @@ interface StartScreenProps {
   onShowVibez: () => void;
   onShowCollection: () => void;
   onShowBadgeCase: () => void;
+  onShowProfile: () => void;
   lexCoins: number;
   autoShowLeaderboard: boolean;
   setAutoShowLeaderboard: (show: boolean) => void;
@@ -47,6 +49,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onShowVibez, 
   onShowCollection,
   onShowBadgeCase,
+  onShowProfile,
   lexCoins, 
   autoShowLeaderboard, 
   setAutoShowLeaderboard,
@@ -58,13 +61,31 @@ const StartScreen: React.FC<StartScreenProps> = ({
   profileVersion = 0,
   onBuyFreeze,
 }) => {
-  const profile = useMemo(() => getProfile(), [profileVersion]);
+  // Bumped when a different local player takes over, so their own profile and saves are read.
+  const [playerVersion, setPlayerVersion] = useState(0);
+  const [showSwitcher, setShowSwitcher] = useState(false);
+  const profile = useMemo(() => getProfile(), [profileVersion, playerVersion]);
   const streak = currentStreak(profile);
   const bankedToday = playedToday(profile);
   const [showStreak, setShowStreak] = useState(false);
   const [name, setName] = useState(() => storage.getString(STORAGE_KEYS.playerName) || '');
   const [isMuted, setIsMuted] = useState(soundService.getMuteState());
-  const [collection] = useState(collectionProgress);
+  const collection = useMemo(() => collectionProgress(), [playerVersion]);
+  const players = useMemo(() => listPlayers(), [playerVersion, showSwitcher]);
+  const isNewName = !!name.trim() && !players.some(p => sameName(p.name, name));
+  const choosePlayer = (playerName: string) => {
+    switchToPlayer(playerName);
+    setName(playerName);
+    setPlayerVersion(v => v + 1);
+  };
+  // Typing a name that's already on this device switches to that player right away.
+  const handleNameChange = (value: string) => {
+    setName(value);
+    if (players.some(p => sameName(p.name, value)) && !sameName(currentPlayer().name, value)) {
+      switchToPlayer(value);
+      setPlayerVersion(v => v + 1);
+    }
+  };
   const [savedGame, setSavedGame] = useState<{playerName: string} | null>(null);
   
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
@@ -270,6 +291,39 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
       )}
 
+      {showSwitcher && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-crt-950/85 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="Who's playing?">
+          <div className="w-full max-w-sm rounded-2xl bg-crt-900 ring-2 ring-neon-cyan/60 p-4 flex flex-col gap-3">
+            <h2 className="font-display text-2xl text-center neon-text-cyan">WHO'S PLAYING?</h2>
+            <p className="osd-text text-base text-center text-slate-400 leading-tight">EACH PLAYER HAS THEIR OWN ID, STREAK AND BADGES. CREDITS ARE SHARED.</p>
+            <ul className="flex flex-col gap-2 max-h-[45vh] overflow-y-auto">
+              {players.map(p => {
+                const isCurrent = sameName(p.name, name) || (!name.trim() && p.slot === currentPlayer().slot);
+                return (
+                  <li key={p.slot}>
+                    <button
+                      type="button"
+                      onClick={() => { soundService.playUIClick(); choosePlayer(p.name); setShowSwitcher(false); }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg ring-1 ${isCurrent ? 'bg-neon-cyan/15 ring-neon-cyan' : 'bg-crt-950/80 ring-white/10 hover:ring-neon-cyan/50'}`}
+                    >
+                      <span className="font-osd text-2xl uppercase tracking-wider text-neon-cyan truncate">{p.name}</span>
+                      {isCurrent && <span className="osd-text text-base text-neon-yellow">PLAYING</span>}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <ArcadeButton color="green" className="w-full" onClick={() => {
+              soundService.playUIClick();
+              setName('');
+              setShowSwitcher(false);
+              setTimeout(() => document.getElementById('player-name')?.focus(), 50);
+            }}>＋ New Player</ArcadeButton>
+            <ArcadeButton color="yellow" className="w-full" onClick={() => { soundService.playUIClick(); setShowSwitcher(false); }}>Close</ArcadeButton>
+          </div>
+        </div>
+      )}
+
       {showEventLogsModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-crt-900 border-2 border-neon-green rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col modal-max-h">
@@ -406,30 +460,53 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 <p className="osd-text text-xl text-neon-pink mt-3 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>SERIOUS WORDS. RIDICULOUS FUN.</p>
             </div>
             
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter Your Name"
-              maxLength={12}
-              aria-label="Player name"
-              className="w-full px-4 py-2 font-osd text-3xl uppercase tracking-widest text-center bg-crt-950/80 border-2 border-neon-cyan/50 rounded-lg focus:outline-none focus:border-neon-cyan focus:shadow-glow-cyan transition-shadow duration-200 text-neon-cyan placeholder:text-neon-cyan/40 placeholder:normal-case"
-            />
-            <button
-              onClick={onShowVibez}
-              className="-mt-2 flex items-center justify-center gap-2 min-h-[2rem] px-3 rounded-lg hover:bg-white/5"
-              aria-label="Customize your badge and title"
-            >
-              {profile.badge || profile.title ? (
-                <>
-                  <BadgeIcon id={profile.badge} size="sm" />
-                  <TitleText id={profile.title} className="text-lg leading-none" />
-                  <span className="osd-text text-base leading-none text-slate-500">EDIT ›</span>
-                </>
-              ) : (
-                <span className="osd-text text-base leading-none text-neon-purple">🏷️ ADD A BADGE &amp; TITLE ›</span>
-              )}
-            </button>
+            <div className="w-full flex gap-2">
+              <input
+                id="player-name"
+                type="text"
+                value={name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                placeholder="Enter Your Name"
+                maxLength={12}
+                aria-label="Player name"
+                className="min-w-0 flex-1 px-4 py-2 font-osd text-3xl uppercase tracking-widest text-center bg-crt-950/80 border-2 border-neon-cyan/50 rounded-lg focus:outline-none focus:border-neon-cyan focus:shadow-glow-cyan transition-shadow duration-200 text-neon-cyan placeholder:text-neon-cyan/40 placeholder:normal-case"
+              />
+              <button
+                type="button"
+                onClick={() => { soundService.playUIClick(); setShowSwitcher(true); }}
+                className="shrink-0 w-14 rounded-lg bg-crt-950/80 border-2 border-neon-cyan/50 text-2xl hover:border-neon-cyan"
+                aria-label={`Switch player. ${players.length} ${players.length === 1 ? 'player' : 'players'} on this device`}
+                title="Switch player"
+              >👥</button>
+            </div>
+            {isNewName ? (
+              <p className="-mt-2 osd-text text-base leading-none text-neon-yellow min-h-[2rem] flex items-center">✨ NEW PLAYER · PRESS START TO MAKE YOUR ID</p>
+            ) : (
+              <div className="-mt-2 flex items-center justify-center gap-1 min-h-[2rem]">
+                <button
+                  onClick={onShowVibez}
+                  className="flex items-center justify-center gap-2 min-h-[2rem] px-3 rounded-lg hover:bg-white/5"
+                  aria-label="Customize your badge and title"
+                >
+                  {profile.badge || profile.title ? (
+                    <>
+                      <BadgeIcon id={profile.badge} size="sm" />
+                      <TitleText id={profile.title} className="text-lg leading-none" />
+                      <span className="osd-text text-base leading-none text-slate-500">EDIT ›</span>
+                    </>
+                  ) : (
+                    <span className="osd-text text-base leading-none text-neon-purple">🏷️ ADD A BADGE &amp; TITLE ›</span>
+                  )}
+                </button>
+                <button
+                  onClick={onShowProfile}
+                  className="flex items-center gap-1 min-h-[2rem] px-3 rounded-lg ring-1 ring-neon-cyan/40 hover:bg-white/5"
+                  aria-label="See my player ID and stats"
+                >
+                  <span className="osd-text text-base leading-none text-neon-cyan">🪪 MY ID ›</span>
+                </button>
+              </div>
+            )}
             
             <div className="w-full flex flex-col gap-3 mt-2">
                 <ArcadeButton color="yellow" size="lg" className="w-full" disabled={!name.trim()} onClick={handlePlayClick}>
