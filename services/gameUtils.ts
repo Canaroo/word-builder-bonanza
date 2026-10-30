@@ -1,5 +1,5 @@
 import { Tile, Charm, GameState, WordData, ScoreCalculationResult, ScoreBonusInfo, PowerPlay } from '../types';
-import { CHARM_BONUS, POWER_PLAY_VALUES } from '../config/gameplay';
+import { CHARM_BONUS, CHARM_SLOTS, POWER_PLAY_VALUES } from '../config/gameplay';
 import { TILE_DISTRIBUTION, VOWELS, RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, COMBO_TILES, COMBO_TILE_CHANCE, OFFER_RECENCY_WINDOW, OFFER_EXPLORATION_BOOST, OFFER_REPEAT_PENALTY, OFFER_MAX_RECENCY_PENALTY } from '../constants';
 import { dictionaryService } from './dictionaryService';
 import { canBeMadeFromLetters } from './rackMatch';
@@ -778,6 +778,16 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
             bonuses.push({ name: 'Eagle!', description: `+${CHARM_BONUS.eagle} pts`, source: 'game' });
         }
     }
+
+    // Charms: A-Team (starts with A), Conjunction Junction (alphabetical order), Vote for Pedro
+    // (only 1-point tiles), Form Voltron (a combo tile), Titans, Go! (per charm equipped).
+    const hasCharm = (id: string) => gameState.activeCharms.some(c => c.id === id);
+    const flat = (name: string, pts: number) => { flatBonus += pts; bonuses.push({ name, description: `+${pts} pts`, source: 'game' }); };
+    if (hasCharm('aTeam') && wordUpper.startsWith('A')) flat('A-Team', CHARM_BONUS.aTeam);
+    if (hasCharm('conjunctionJunction') && lettersInWord.every((l, i) => i === 0 || l >= lettersInWord[i - 1])) flat('Conjunction Junction', CHARM_BONUS.conjunctionJunction);
+    if (hasCharm('voteForPedro') && tiles.length > 0 && tiles.every(t => t.points === 1 && !t.isCombo)) flat('Vote for Pedro', CHARM_BONUS.voteForPedro);
+    if (hasCharm('formVoltron') && tiles.some(t => t.isCombo)) flat('Form Voltron', CHARM_BONUS.formVoltron);
+    if (hasCharm('titansGo')) flat('Titans, Go!', CHARM_BONUS.titansPerCharm * Math.min(CHARM_SLOTS, gameState.activeCharms.length));
 
     // Charm: Perfectly Balanced (as many vowels as consonants)
     if (gameState.activeCharms.some(c => c.id === 'perfectlyBalanced')) {

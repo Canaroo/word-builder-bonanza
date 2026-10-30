@@ -251,6 +251,8 @@ export interface GameState {
   boss?: BossRound | null;
   /** Bosses faced this run, so a run doesn't repeat one until the pool runs out. */
   bossesFaced?: string[];
+  /** Cross the Road charm: 5+ letter words in a row so far. */
+  frogStreak?: number;
   /** Power words: the level each one last fired at (they can fire again once per level). */
   powerWordLevels?: Record<string, number>;
   /** ❄️ Seconds the clock stays frozen at the start of the next round. */

@@ -486,3 +486,52 @@ describe('PowerPlays used mid-round', () => {
         expect(swap.gameState.log.some(e => e.type === 'event' && e.name === 'Time Boost')).toBe(false);
     });
 });
+
+describe('v7.16 charms', () => {
+    const tilesFor = (w: string, points = 1) => w.split('').map((letter, i) => ({ id: `t${i}`, letter, points })) as Tile[];
+    const gs = (over: Partial<GameState> = {}) => ({ ...start().gameState, ...over });
+    const has = (r: { bonuses: { name: string }[] }, name: string) => r.bonuses.some(b => b.name.startsWith(name));
+    const score = (id: string, word: string, tiles = tilesFor(word), over: Partial<GameState> = {}) => calculateScore(word.toLowerCase(), tiles, gs({ activeCharms: [charm(id)], ...over }));
+
+    test('A-Team: words starting with A', () => {
+        expect(has(score('aTeam', 'ATOM'), 'A-Team')).toBe(true);
+        expect(has(score('aTeam', 'TOMB'), 'A-Team')).toBe(false);
+    });
+
+    test('Conjunction Junction: letters in alphabetical order', () => {
+        for (const w of ['BEST', 'CHIPS', 'FLOW', 'ALMOST']) expect(has(score('conjunctionJunction', w), 'Conjunction Junction')).toBe(true);
+        expect(has(score('conjunctionJunction', 'TRAIN'), 'Conjunction Junction')).toBe(false);
+    });
+
+    test('Vote for Pedro: only 1-point tiles', () => {
+        expect(has(score('voteForPedro', 'TRAIN'), 'Vote for Pedro')).toBe(true);
+        const withP = [{ id: 'p', letter: 'P', points: 3 }, ...tilesFor('INT')] as Tile[];
+        expect(has(score('voteForPedro', 'PINT', withP), 'Vote for Pedro')).toBe(false);
+    });
+
+    test('Form Voltron: a combo tile in the word', () => {
+        const quiz = [{ id: 'qu', letter: 'QU', points: 11, isCombo: true }, ...tilesFor('IZ')] as Tile[];
+        expect(has(score('formVoltron', 'QUIZ', quiz), 'Form Voltron')).toBe(true);
+        expect(has(score('formVoltron', 'QUIZ'), 'Form Voltron')).toBe(false);
+    });
+
+    test('Titans, Go!: +4 per equipped charm, up to the 5 slots', () => {
+        const titans = (n: number) => calculateScore('cat', tilesFor('CAT'), gs({ activeCharms: [charm('titansGo'), ...CHARMS_LIST.filter(c => c.id === 'theValve' || c.id === 'oneRing').slice(0, n - 1)] })).bonuses.find(b => b.name === 'Titans, Go!')?.description;
+        expect(titans(1)).toBe(`+${CHARM_BONUS.titansPerCharm} pts`);
+        expect(titans(3)).toBe(`+${CHARM_BONUS.titansPerCharm * 3} pts`);
+    });
+
+    test("I'm Always Here: an invalid word is still a strike but costs no time", () => {
+        const withCharm = gameReducer(start({ activeCharms: [charm('imAlwaysHere')] }, 30), { type: 'ADD_STRIKE', payload: { source: 'invalid_word' } } as any);
+        expect(withCharm.gameState.strikes).toBe(1);
+        expect(withCharm.time).toBe(30);
+        const without = gameReducer(start({}, 30), { type: 'ADD_STRIKE', payload: { source: 'invalid_word' } } as any);
+        expect(without.time).toBe(30 - GAMEPLAY.timeBank.invalidPenalty);
+    });
+
+    test('Cross the Road: a strike breaks the streak; equipping starts fresh', () => {
+        expect(gameReducer(start({ frogStreak: 2 }), { type: 'ADD_STRIKE' }).gameState.frogStreak).toBe(0);
+        const s = start({ frogStreak: 2 });
+        expect(gameReducer(s, { type: 'CHOOSE_CHARM', payload: { charm: charm('crossTheRoad'), hand: s.hand, allOffered: [charm('crossTheRoad')] } }).gameState.frogStreak).toBe(0);
+    });
+});

@@ -12,7 +12,7 @@ import EventLogDisplay from '../../components/EventLogDisplay';
 import { MILESTONES_LIST } from '../../data/milestones';
 import DurationBadge from '../../ui/DurationBadge';
 import { RACK_SIZE, HAND_SIZE } from '../../constants';
-import { GAMEPLAY, CHARM_SLOTS, TIME_BONUS, BOSS } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_SLOTS, TIME_BONUS, BOSS, CHARM_BONUS } from '../../config/gameplay';
 import { bossById } from '../../data/bosses';
 import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor } from '../rules';
 import LevelBadge from '../../components/LevelBadge';
@@ -747,6 +747,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                       if (buff.id === 'mixtape') return gameState?.mixtapeChain?.next ? `→${gameState.mixtapeChain.next}` : '';
                       if (buff.id === 'thrillerNight') return `${totalWords % 4}/4`;
                       if (buff.id === 'gottaCatchEmAll') return `${gameState?.pokedexVowels?.length ?? 0}/5`;
+                      if (buff.id === 'crossTheRoad') return `${gameState?.frogStreak ?? 0}/${CHARM_BONUS.crossTheRoadWords}`;
                       if (buff.id === 'survivor') return (gameState?.survivorWords ?? 0) > 0 ? `${gameState.survivorWords}` : '';
                       const countdown = (gameState?.activePowerPlays as any)?.[buff.id];
                       if (countdown?.words) return `${countdown.words} ${countdown.words === 1 ? 'word' : 'words'}`;
