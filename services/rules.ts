@@ -240,6 +240,11 @@ export const powerWordInfo = (effect: PowerWordEffect): { label: string; does: s
         heal: { label: 'HEAL', does: `Removes one strike. With no strikes, +${E.healFallbackPoints} points instead.` },
         slow: { label: 'SLOW MOTION', does: `The clock runs at half speed for your next ${E.slowWords} words.` },
         twin: { label: 'CLONE', does: 'Clones your best word: its time next round, plus one step toward your Word Combo.' },
+        shield: { label: 'RING SHIELD', does: 'Blocks your next strike. One shield at a time.' },
+        rewind: { label: 'REWIND', does: `The clock drops back one speed step for the rest of this level (at level 1, +${E.rewindLevelOneSeconds} seconds instead).` },
+        sword: { label: 'TAKE THIS', does: 'Fills your PowerPlay meter, so a PowerPlay offer appears.' },
+        spice: { label: 'SPICE IT UP', does: `Your next word scores x${E.spiceMultiplier}.` },
+        cake: { label: 'CAKE', does: 'A charm offer appears. The cake was real this time.' },
     }[effect];
     return { ...info, again: 'Play it again on a later level to use it again (once per level).' };
 };

@@ -4,6 +4,7 @@ import { describe, test, expect, vi, afterEach } from 'vitest';
 import { gameReducer, screenInitialState, maxStrikesFor, type GameScreenState } from '../GameScreen';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS } from '../../../data/powerPlays';
 import { CHARMS_LIST } from '../../../data/charms';
+import { SECRET_BONUSES } from '../../../data/secretBonuses';
 import { CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, CHARM_BONUS } from '../../../config/gameplay';
 import { calculateScore } from '../../gameUtils';
 import * as gameUtils from '../../gameUtils';
@@ -641,5 +642,20 @@ describe('v7.18 charms', () => {
         const paid = gameReducer(start({ score: 10 }), { type: 'CHARM_PAYOUT', payload: { id: 'doubleDare', points: CHARM_BONUS.doubleDare, description: 'x' } } as any);
         expect(paid.gameState.score).toBe(10 + CHARM_BONUS.doubleDare);
         expect(paid.gameState.log.at(-1)).toMatchObject({ type: 'event', name: 'Double Dare', scoreChange: CHARM_BONUS.doubleDare });
+    });
+});
+
+describe('v7.22 power words', () => {
+    const tilesFor = (w: string) => w.split('').map((letter, i) => ({ id: `t${i}`, letter, points: 1 })) as Tile[];
+    test('SPICE: the next word scores x3', () => {
+        const spiced = calculateScore('cat', tilesFor('CAT'), { ...start().gameState, spiceNext: true });
+        expect(spiced.totalScore).toBe(3 * 3);
+        expect(spiced.bonuses.some(b => b.name.includes('Spice'))).toBe(true);
+        expect(calculateScore('cat', tilesFor('CAT'), start().gameState).totalScore).toBe(3);
+    });
+    test('there are 10 power words, none paying points', () => {
+        const power = SECRET_BONUSES.filter(b => b.effect);
+        expect(power.map(b => b.word).sort()).toEqual(['CAKE', 'HEAL', 'REWIND', 'RINGS', 'SLOT', 'SLOW', 'SNOW', 'SPICE', 'SWORD', 'TWIN']);
+        for (const b of power) expect(b.points).toBeUndefined();
     });
 });

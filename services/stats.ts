@@ -3,6 +3,7 @@
 // no device id. Sending is fire-and-forget: it never waits, retries or interrupts the game.
 // Read them on the hidden page at /?stats. Rules: docs/LEADERBOARD.md.
 import { isOnlineLeaderboardEnabled } from './onlineLeaderboard';
+import type { PowerWordEffect } from '../types';
 
 export type StatEvent =
     | { type: 'boss_start'; boss: string; number: number }
@@ -14,7 +15,7 @@ export type StatEvent =
     | { type: 'charm_offer'; offered: string; picked: string; level: number }
     | { type: 'pp_offer'; offered: string; picked: string; level: number }
     | { type: 'pp_use'; pp: string; level: number }
-    | { type: 'power_word'; power: 'slot' | 'freeze' | 'heal' | 'slow' | 'twin'; repeat: boolean; seconds: number; strike: boolean };
+    | { type: 'power_word'; power: PowerWordEffect; repeat: boolean; seconds: number; strike: boolean };
 
 export type StoredStat = StatEvent & { timestamp: number };
 

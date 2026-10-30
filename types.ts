@@ -106,7 +106,7 @@ export interface SecretBonus {
 }
 
 /** What a power word does when spelled. */
-export type PowerWordEffect = 'slot' | 'freeze' | 'heal' | 'slow' | 'twin';
+export type PowerWordEffect = 'slot' | 'freeze' | 'heal' | 'slow' | 'twin' | 'shield' | 'rewind' | 'sword' | 'spice' | 'cake';
 
 export interface WordBonus {
     id: string;
@@ -265,6 +265,10 @@ export interface GameState {
   freezeLeft?: number;
   /** 🦥 Words left with the clock at half speed. */
   slowWords?: number;
+  /** REWIND (a power word): the level whose clock runs one speed step slower. */
+  rewindLevel?: number;
+  /** SPICE (a power word): the next word scores POWER_WORD_EFFECTS.spiceMultiplier. */
+  spiceNext?: boolean;
   /** Bosses beaten (6 hits) this run, for the run's stats. */
   bossesBeaten?: number;
   /** Boss Badge seconds waiting for the next round (they skip the per-level shrink). */

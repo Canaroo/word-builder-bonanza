@@ -22,9 +22,9 @@ describe('once per level', () => {
 });
 
 describe('the power word entries', () => {
-    test('five power words, one per effect; HEAL pays its fallback from config, not as a flat reward', () => {
+    test('ten power words, one per effect; HEAL pays its fallback from config, not as a flat reward', () => {
         const power = SECRET_BONUSES.filter(b => b.effect);
-        expect(Object.fromEntries(power.map(b => [b.word, b.effect]))).toEqual({ SLOT: 'slot', SNOW: 'freeze', HEAL: 'heal', SLOW: 'slow', TWIN: 'twin' });
+        expect(Object.fromEntries(power.map(b => [b.word, b.effect]))).toEqual({ SLOT: 'slot', SNOW: 'freeze', HEAL: 'heal', SLOW: 'slow', TWIN: 'twin', RINGS: 'shield', REWIND: 'rewind', SWORD: 'sword', SPICE: 'spice', CAKE: 'cake' });
         expect(power.every(b => !b.points)).toBe(true);
     });
 });

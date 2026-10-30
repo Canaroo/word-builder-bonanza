@@ -149,7 +149,8 @@ const StatsPage: React.FC = () => {
                 const detail = p.effect === 'slot'
                   ? POWER_WORD_EFFECTS.slot.map(o => `${o.reels}${pct(x.payouts[o.seconds] ?? 0, x.fired)}`).join(' ')
                   : p.effect === 'heal' ? `${pct(x.strikes, x.fired)} healed a strike`
-                  : p.effect === 'slow' ? '—'
+                  : p.effect === 'shield' ? `${pct(x.strikes, x.fired)} already shielded`
+                  : ['slow', 'rewind', 'sword', 'spice', 'cake'].includes(p.effect) ? '—'
                   : `avg ${Math.round((x.seconds / x.fired) * 10) / 10}s`;
                 return [`${p.icon} ${p.word}`, x.fired, x.repeats, detail];
               })

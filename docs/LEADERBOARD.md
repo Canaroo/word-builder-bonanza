@@ -141,7 +141,7 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         "tier":    { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3" },
 
         // Power words
-        "power":   { ".validate": "newData.isString() && newData.val().matches(/^(slot|freeze|heal|slow|twin)$/)" },
+        "power":   { ".validate": "newData.isString() && newData.val().matches(/^(slot|freeze|heal|slow|twin|shield|rewind|sword|spice|cake)$/)" },
         "repeat":  { ".validate": "newData.isBoolean()" },
         "seconds": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 60" },
         "strike":  { ".validate": "newData.isBoolean()" },
@@ -181,7 +181,7 @@ Firebase rules allow `//` comments, so paste the block as-is.
 | `charm_offer` | `offered`, `picked`, `level` | A charm offer is answered (`picked` is `''` for a pass) |
 | `pp_offer` | `offered`, `picked`, `level` | A PowerPlay offer is answered (`picked` is `''` when the held one is kept) |
 | `pp_use` | `pp`, `level` | A PowerPlay is used (an instant one counts when picked) |
-| `power_word` | `power`, `repeat`, `seconds`, `strike` | A power word fires (slot payout, freeze or cloned seconds; whether HEAL removed a strike) |
+| `power_word` | `power`, `repeat`, `seconds`, `strike` | A power word fires (slot payout, freeze, cloned or REWIND seconds; `strike`: HEAL removed one, or RINGS found a shield already up) |
 
 Sending is fire-and-forget and never interrupts play. It's off in dev, on `localhost`, and when
 `VITE_LEADERBOARD=local`. The hidden page **`/?stats`** reads the last 24 hours, 7, 30 or 90 days
