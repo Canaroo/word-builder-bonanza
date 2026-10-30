@@ -74,7 +74,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   combos) wait for Continue. Only quick PowerPlay/charm results auto-close.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
-  new tier (4, 7, 11), a boss warning, always first in the pop-up queue, then the level badge flashes.
+  new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
+  warning the level before, always first in the pop-up queue, then the level badge flashes.
 - **Shuffle** is press-and-hold (450 ms), adds +5 s, and never pauses the clock.
 - **Tiles** act on touch-down (pointerdown), not click.
 - **Combo Breaker:** next 3 words, each 4+ letter word scores x3, a shorter word scores 0 and ends
