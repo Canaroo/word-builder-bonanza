@@ -121,7 +121,9 @@ const runScenario = async (browser, base, sc, index) => {
   await page.reload();
   await page.waitForTimeout(1500);
   await page.locator('button', { hasText: 'RESUME' }).click();
-  await page.waitForTimeout(1500);
+  // A resumed run counts down 3-2-1 (board hidden) before play continues.
+  await page.locator('text=RUN RESTORED').waitFor({ state: 'detached', timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(300);
 
   if (sc.usePowerPlay) {
     const pocket = page.locator('button:visible', { hasText: /▶\s*USE/i }).first();

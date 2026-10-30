@@ -170,7 +170,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
   }, [showMissedWordsModal]);
 
 
+  // Starting over erases a saved run, so ask first when there is one.
+  const [confirmNewGame, setConfirmNewGame] = useState(false);
   const handlePlayClick = () => {
+    if (name.trim() && savedGame && !confirmNewGame) {
+      soundService.playUIClick();
+      setConfirmNewGame(true);
+      return;
+    }
+    setConfirmNewGame(false);
     if (name.trim()) {
       soundService.initialize(); // Initialize AudioContext on user gesture
       musicService.play();
@@ -271,6 +279,17 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   return (
     <>
+      {confirmNewGame && savedGame && (
+        <div className="absolute inset-0 z-50 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Start a new game?">
+          <div className="bg-crt-900 border-2 border-neon-yellow rounded-2xl p-6 max-w-sm w-full text-center flex flex-col gap-3">
+            <h2 className="font-display text-2xl text-neon-yellow">Run in progress!</h2>
+            <p className="text-slate-200">{savedGame.playerName}'s run is saved. Starting a new game will erase it.</p>
+            <ArcadeButton color="green" className="w-full" onClick={() => { setConfirmNewGame(false); handleResumeClick(); }}>⏯ Resume the run</ArcadeButton>
+            <ArcadeButton color="red" className="w-full" onClick={handlePlayClick}>Start over</ArcadeButton>
+            <button type="button" className="osd-text text-lg text-slate-400 underline" onClick={() => setConfirmNewGame(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
       {rankingModalData && (
           <RankingModal
               data={rankingModalData}

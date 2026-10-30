@@ -159,6 +159,8 @@ export type GameScreenState = {
    * boosts (One Tile, Captain Planet...) are wiped before the word is played.
    */
   awaitingNextRound?: boolean;
+  /** A resumed run counts down 3-2-1 (board hidden, clock stopped) before play continues. */
+  resumeCountdown?: number;
 }
 
 const createScreenInitialState = (): GameScreenState => {
@@ -235,7 +237,8 @@ type GameAction =
     | { type: 'RESTORE_LAST_TURN' }
     | { type: 'SET_HIGHLIGHTED_TILES', payload: { first: string | null; rest: string[] } }
     | { type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: boolean }
-    | { type: 'CHARM_PAYOUT', payload: { id: string; points: number; description: string } };
+    | { type: 'CHARM_PAYOUT', payload: { id: string; points: number; description: string } }
+    | { type: 'RESUME_COUNTDOWN_TICK' };
 
 
 /**
@@ -351,6 +354,33 @@ const levelUpModal = (wordsBefore: number, gs?: GameState): ModalContent | null 
     return { type: 'level-up', title: `Level ${level} · ${info.tier}`, data: info };
 };
 
+/** Seconds of 3-2-1 before a resumed run continues. */
+export const RESUME_COUNTDOWN = 3;
+
+/** JSON drops functions, so saved charms and PowerPlays inside a pop-up are swapped back for their definitions. */
+const rehydrateModal = (m: ModalContent): ModalContent => {
+    if (!m) return null;
+    const defs = new Map<string, Charm | PowerPlay>([...CHARMS_LIST, ...POWER_PLAYS_LIST].map(d => [d.id, d]));
+    const fix = (x: any): any => (x && typeof x === 'object' && typeof x.id === 'string' && defs.has(x.id) && 'durationTag' in x ? { ...defs.get(x.id)!, ...x, activate: defs.get(x.id)!.activate } : x);
+    return { ...m, data: Array.isArray(m.data) ? m.data.map(fix) : fix(m.data) };
+};
+
+/**
+ * What the auto-save writes: the run as it stands, minus one-turn UI state. Pop-ups are kept
+ * (so a pending offer comes back), except ones whose content isn't plain text.
+ */
+export const savableScreenState = (state: GameScreenState): GameScreenState => {
+    const plain = (m: ModalContent) => !!m && (m.content === undefined || typeof m.content === 'string');
+    return {
+        ...state,
+        message: '', isLoading: false, loadingMessage: null, isPaused: false,
+        modalContent: plain(state.modalContent) ? state.modalContent : null,
+        modalQueue: state.modalQueue.filter(plain),
+        tilesToSwap: [], tileToTransform: null, challengeWordData: null, tileForSelection: null, lastTurnState: null,
+        highlightedTileIds: { first: null, rest: [] }, longWordBonusNotified: false, resumeCountdown: 0,
+    };
+};
+
 /** Level-ups show before anything else a word triggers, so they never get buried. */
 const levelUpFirst = (queue: ModalContent[]): ModalContent[] =>
     [...queue.filter(m => m?.type === 'level-up'), ...queue.filter(m => m?.type !== 'level-up')];
@@ -454,6 +484,11 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             };
         case 'SET_HIGHLIGHTED_TILES': return { ...state, highlightedTileIds: action.payload };
         case 'SET_LONG_WORD_BONUS_NOTIFIED': return { ...state, longWordBonusNotified: action.payload };
+        case 'RESUME_COUNTDOWN_TICK': {
+            const left = (state.resumeCountdown ?? 0) - 1;
+            // When it ends the clock starts again, unless a restored pop-up is still open.
+            return left > 0 ? { ...state, resumeCountdown: left } : { ...state, resumeCountdown: 0, isPaused: state.modalContent !== null };
+        }
         // A charm paying points outside a word (Double Dare), logged like other events.
         case 'CHARM_PAYOUT': {
             const charm = CHARMS_LIST.find(c => c.id === action.payload.id);
@@ -2205,6 +2240,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 // Sanitize the hand on resume just in case it was saved in a bad state
                 savedData.gameScreenState.hand = sanitizeHand(savedData.gameScreenState.hand);
                 savedData.gameScreenState.gameState = rehydratePowerUps(savedData.gameScreenState.gameState);
+                // Pop-ups saved mid-choice (a charm or PowerPlay offer) get their item definitions back.
+                savedData.gameScreenState.modalContent = rehydrateModal(savedData.gameScreenState.modalContent ?? null);
+                savedData.gameScreenState.modalQueue = (savedData.gameScreenState.modalQueue ?? []).map(rehydrateModal).filter(Boolean);
+                savedData.gameScreenState.resumeCountdown = RESUME_COUNTDOWN;
+                savedData.gameScreenState.isPaused = true;
                 return savedData.gameScreenState;
             } catch (e) {
                 console.error("Error parsing saved game. Starting fresh.", e);
@@ -2399,6 +2439,52 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
   const maxStrikes = useMemo(() => maxStrikesFor(gameState), [gameState?.charmUses, gameState?.activeCharms]);
 
+  // Auto-save: the run is written to the save slot after every word, whenever a pop-up opens or
+  // closes, every few seconds, and the moment the game leaves the screen (app switcher, lock,
+  // another app). A run lost to an accidental swipe comes back with Resume. Once the run is
+  // over the save is cleared instead, so a finished run can't be resumed.
+  const autoSave = React.useRef<() => void>(() => {});
+  autoSave.current = () => {
+      if (!state.gameState || state.isLoading || (state.resumeCountdown ?? 0) > 0) return;
+      if (state.gameState.log.some(e => e.type === 'game_over') || state.modalContent?.type === 'game-over-summary') {
+          storage.remove(STORAGE_KEYS.savedGame);
+          return;
+      }
+      storage.setJSON(STORAGE_KEYS.savedGame, { playerName, gameScreenState: savableScreenState(state) });
+  };
+  useEffect(() => { autoSave.current(); }, [state.gameState?.log.length, state.gameState?.strikes, state.modalContent, state.awaitingNextRound]);
+  useEffect(() => {
+      const saveNow = () => autoSave.current();
+      const onHide = () => { if (document.visibilityState === 'hidden') saveNow(); };
+      document.addEventListener('visibilitychange', onHide);
+      window.addEventListener('pagehide', saveNow);
+      const every = setInterval(saveNow, 5000);
+      return () => {
+          document.removeEventListener('visibilitychange', onHide);
+          window.removeEventListener('pagehide', saveNow);
+          clearInterval(every);
+      };
+  }, []);
+
+  // A resumed run counts down 3-2-1 before the clock starts again.
+  useEffect(() => {
+      if (!state.resumeCountdown) return;
+      const t = setTimeout(() => dispatch({ type: 'RESUME_COUNTDOWN_TICK' }), 1000);
+      return () => clearTimeout(t);
+  }, [state.resumeCountdown]);
+
+  // Back gesture guard (Android edge swipe, browser back): stay in the run and ask first.
+  useEffect(() => {
+      history.pushState({ wordNerdRun: true }, '');
+      const onBack = () => {
+          autoSave.current();
+          history.pushState({ wordNerdRun: true }, '');
+          dispatch({ type: 'SHOW_SAVE_MODAL' });
+      };
+      window.addEventListener('popstate', onBack);
+      return () => window.removeEventListener('popstate', onBack);
+  }, []);
+
   // 👓 Where's Waldo? (a charm): each new hand, one tile that starts a playable word glows.
   const waldoOn = !!gameState?.activeCharms?.some(c => c.id === 'wheresWaldo');
   const handKey = (state.hand ?? []).map(t => t?.id ?? '-').join(',');
@@ -2539,7 +2625,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   
   useEffect(() => {
       // Apply guards for pause, load, a backgrounded app, or special rounds/power-ups that stop time.
-      if (!isVisible || isPaused || isLoading || gameState?.activePowerPlays?.leafOnTheWind) return;
+      if (!isVisible || isPaused || isLoading || (state.resumeCountdown ?? 0) > 0 || gameState?.activePowerPlays?.leafOnTheWind) return;
 
       // First, check for game-ending strike condition.
       if ((gameState?.strikes ?? 0) >= maxStrikes) {
@@ -4546,6 +4632,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     const viewProps: GameScreenViewProps = {
         gameState,
         time,
+        resumeCountdown: state.resumeCountdown ?? 0,
         timeGain: state.timeGain,
         message,
         hand,

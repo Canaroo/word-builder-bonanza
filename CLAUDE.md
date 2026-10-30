@@ -33,7 +33,7 @@ Check UI changes at phone size (390×844) with Playwright against `npx vite prev
 (it kills the shell). Select tiles by `aria-label^="Tile "`, not position. Some test words trigger
 secret bonuses and pop-ups; dismiss "Continue/Take/Equip" buttons in scripts. To test a mid-run
 state, save a game, edit `localStorage.wordBuilderBonanzaSave` (`gameScreenState.gameState`), then
-Resume.
+Resume (wait out the 3-2-1 countdown before tapping tiles).
 
 ## Where things live
 
@@ -93,6 +93,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   offer). They fire on submit and can fire again once per level; other secrets are once per run.
   New ones should be harder to spell than the existing ones (they can be abused). Values in
   `POWER_WORD_EFFECTS`; player-facing text in `powerWordInfo()` (`services/rules.ts`).
+- **Auto-save:** the run saves itself (same slot as 💾) after every word, when pop-ups open or
+  close, every 5 s, and when the game leaves the screen; it's cleared at game over. Resume shows
+  a 3-2-1 with the board hidden. The back gesture opens the save prompt instead of leaving, and
+  New Game asks first when a saved run exists. `savableScreenState()` in `GameScreen.tsx`.
 - **Run-savers** are once per run. Time from items goes through `bonusTime()`.
 - **Slurs:** never unblock a word without the owner's confirmation. Allowed slur-adjacent words
   (COON, DINK, FAG and its verb forms) are on `words/no-suggest.txt`, so the game never offers them.
