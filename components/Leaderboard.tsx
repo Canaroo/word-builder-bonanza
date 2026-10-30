@@ -5,6 +5,10 @@ import { leaderboardService, LeaderboardSource } from '../services/leaderboardSe
 import ArcadeButton from './ArcadeButton';
 import { BadgeIcon, TitleText, StreakFlame, BossBadgeCount } from './PlayerPlate';
 import IdCard from './IdCard';
+import IdCompare from './IdCompare';
+import { idCardStats } from '../services/career';
+import { getProfile, currentStreak } from '../services/progression';
+import { currentPlayer } from '../services/players';
 
 interface LeaderboardProps {
   data: LeaderboardEntry[];
@@ -18,6 +22,12 @@ interface LeaderboardProps {
 const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'local', offlineReason, onRetry }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [viewing, setViewing] = useState<LeaderboardEntry | null>(null);
+  const [comparing, setComparing] = useState(false);
+  const openId = (entry: LeaderboardEntry | null) => { setViewing(entry); setComparing(false); };
+  const me = () => {
+    const profile = getProfile();
+    return { name: currentPlayer().name, card: idCardStats(), bosses: profile.bossBadges.length, streak: currentStreak(profile) };
+  };
   const SCORES_PER_PAGE = 10;
 
   const lastSubmitted = leaderboardService.getLastSubmitted();
@@ -98,7 +108,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
                 <li key={entry.id ?? `${rank}-${entry.name}-${entry.score}`}>
                 <button
                   type="button"
-                  onClick={() => { soundService.initialize(); soundService.playUIClick(); setViewing(entry); }}
+                  onClick={() => { soundService.initialize(); soundService.playUIClick(); openId(entry); }}
                   aria-label={`${entry.name}, ${entry.score.toLocaleString()} points. View their player ID`}
                   className={`w-full text-left flex justify-between items-center px-2 py-1.5 rounded-lg hover:brightness-125 focus-visible:ring-2 focus-visible:ring-white outline-none ${
                     isFirst
@@ -155,8 +165,11 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
         </div>
       )}
       {viewing && (
-        <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-4 p-4 bg-crt-950/90 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label={`${viewing.name}'s player ID`} onClick={() => setViewing(null)}>
+        <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-4 p-4 bg-crt-950/90 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label={`${viewing.name}'s player ID`} onClick={() => openId(null)}>
           <div className="w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            {comparing && viewing.card ? (
+              <IdCompare them={{ name: viewing.name, card: viewing.card, bosses: viewing.bosses ?? 0, streak: viewing.streak ?? 0 }} me={me()} />
+            ) : (
             <IdCard
               name={viewing.name}
               badge={viewing.badge}
@@ -166,8 +179,14 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
               card={viewing.card}
               stamp={`THIS SCORE ${viewing.score.toLocaleString()}${viewing.date ? ` · ${formatDate(viewing.date).toUpperCase()}` : ''}`}
             />
+            )}
           </div>
-          <ArcadeButton color="yellow" className="w-full max-w-sm" onClick={() => { soundService.playUIClick(); setViewing(null); }}>Close</ArcadeButton>
+          {viewing.card && (
+            <ArcadeButton color="purple" className="w-full max-w-sm" onClick={e => { e.stopPropagation(); soundService.playUIClick(); setComparing(c => !c); }}>
+              {comparing ? '🪪 Back to their ID' : '⚖️ Compare with my ID'}
+            </ArcadeButton>
+          )}
+          <ArcadeButton color="yellow" className="w-full max-w-sm" onClick={() => { soundService.playUIClick(); openId(null); }}>Close</ArcadeButton>
         </div>
       )}
     </div>
