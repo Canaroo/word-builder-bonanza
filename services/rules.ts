@@ -196,3 +196,36 @@ export const advancePowerPlayMeter = (lettersSoFar: number, wordLength: number, 
     const full = total >= needed;
     return { letters: full ? needed : total, full };
 };
+
+/** One thing that changed at a level-up, shown as "from → to" on the level-up card. */
+export interface LevelChange { icon: string; label: string; from: string; to: string }
+
+/** What a level-up means: the level, its tier, whether the tier is new, what got harder, and boss warnings. */
+export interface LevelUpInfo {
+    level: number;
+    tier: string;
+    tone: 'cyan' | 'yellow' | 'orange' | 'red';
+    newTier: boolean;
+    changes: LevelChange[];
+    /** A boss round starts on this level, or on the next one. */
+    boss: 'now' | 'next' | null;
+}
+
+export const levelUpInfo = (level: number, gs?: WithCharms): LevelUpInfo => {
+    const prev = Math.max(1, level - 1);
+    const tier = levelTierFor(level);
+    const changes: LevelChange[] = [];
+    const speed = [clockSpeedFor(prev), clockSpeedFor(level)];
+    if (speed[1] !== speed[0]) changes.push({ icon: '⏱', label: 'Clock speed', from: `x${speed[0]}`, to: `x${speed[1]}` });
+    const scale = [wordTimeScaleFor(prev), wordTimeScaleFor(level)];
+    if (scale[1] !== scale[0]) changes.push({ icon: '⏳', label: 'Word time', from: `${Math.round(scale[0] * 100)}%`, to: `${Math.round(scale[1] * 100)}%` });
+    if (level === GAMEPLAY.timeBank.shortWordTimeStopsAtLevel) changes.push({ icon: '✂️', label: '3-letter words', from: `+${timeForWord(3)}s`, to: 'no time' });
+    const meter = [meterLettersFor(prev, gs), meterLettersFor(level, gs)];
+    if (meter[1] !== meter[0]) changes.push({ icon: '⚡', label: 'PowerPlay letters', from: `${meter[0]}`, to: `${meter[1]}` });
+    return {
+        level, tier: tier.name, tone: tier.tone,
+        newTier: tier !== levelTierFor(prev),
+        changes,
+        boss: bossNumberFor(level) ? 'now' : bossNumberFor(level + 1) ? 'next' : null,
+    };
+};
