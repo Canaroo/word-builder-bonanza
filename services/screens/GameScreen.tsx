@@ -592,11 +592,11 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
           let newTileBag = state.tileBag;
           
           const survivorWords = actuallyGotAStrike && activeCharms.some(c => c.id === 'survivor') ? CHARM_BONUS.survivorWords : gameState.survivorWords;
-          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, mixtapeChain: null, survivorWords };
+          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, mixtapeChain: null, survivorWords, frogStreak: 0 };
           
           if ((actuallyGotAStrike || strikeBlockedByShield) && action.payload?.source === 'invalid_word') {
-              // An invalid word costs time from the bank.
-              newTime = clampTime(state.time - GAMEPLAY.timeBank.invalidPenalty, bankMax(gameState));
+              // An invalid word costs time from the bank (not with the I'm Always Here charm).
+              if (!activeCharms.some(c => c.id === 'imAlwaysHere')) newTime = clampTime(state.time - GAMEPLAY.timeBank.invalidPenalty, bankMax(gameState));
               
               // Add a new tile while the hand is below the standard size; otherwise swap one.
               const hasSpace = newHand.filter(t => t !== null).length < HAND_SIZE;
@@ -1066,6 +1066,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 newGameState.powerStarResidualActive = false;
             }
             if (charm.id === 'gottaCatchEmAll') newGameState.pokedexVowels = '';
+            if (charm.id === 'crossTheRoad') newGameState.frogStreak = 0;
             if (charm.id === 'survivor') newGameState.survivorWords = 0;
             if (charm.id === 'weWereOnABreak') newGameState.breakReady = false;
             // I'm Ready! pays on the first word of a level after this one (or this one, if the next word starts it).
@@ -2685,6 +2686,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // --- A: GOLDEN ROUND SUBMISSION ---
         if (newState.roundType === 'golden') {
             scoreResult = gameUtils.calculateScore(word, submittedTiles, newState);
+            if (newState.activeCharms.some(c => c.id === 'goldenGirls')) {
+                const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.goldenGirlsPercent / 100);
+                scoreResult = { ...scoreResult, totalScore: scoreResult.totalScore + bonus, bonuses: [...scoreResult.bonuses, { name: 'Thank You for Being a Friend', description: `+${bonus} pts (${CHARM_BONUS.goldenGirlsPercent}%)` }] };
+            }
             const turnScore = scoreResult.totalScore;
             
             newState.score += turnScore;
@@ -2775,6 +2780,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (comboFilled) { // This is the 5th word in the streak.
           scoreResult = addWordMultiplier(scoreResult, 2);
           scoreResult.bonuses.push({ name: "⚡ 5-Word Combo!", description: "x2 Score"});
+          if (newState.activeCharms.some(c => c.id === 'noteStreak')) {
+              scoreResult.totalScore += CHARM_BONUS.noteStreak;
+              scoreResult.bonuses.push({ name: 'Note Streak', description: `+${CHARM_BONUS.noteStreak} pts` });
+          }
           newState.powerSurgeProgress = 0;
       } else {
           newState.powerSurgeProgress++;
@@ -2925,6 +2934,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
 
       // Charm Bonuses that add on top
+      if (newState.activeCharms.some(c => c.id === 'downToYourBoxers') && newState.strikes >= maxStrikesFor(newState) - 1) {
+        const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.boxersPercent / 100);
+        scoreResult.totalScore += bonus;
+        scoreResult.bonuses.push({ name: 'Down to Your Boxers', description: `+${bonus} pts (${CHARM_BONUS.boxersPercent}%)` });
+      }
       const currentHour = new Date().getHours();
       if (newState.activeCharms.some(c => c.id === 'buffyBonus') && (currentHour >= 20 || currentHour < 8)) {
         const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.buffyPercent / 100);
@@ -2981,6 +2995,19 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
       }
       
+      // Cross the Road: count 5+ letter words in a row; the 3rd pays and the count starts over.
+      if (newState.activeCharms.some(c => c.id === 'crossTheRoad')) {
+          const streak = word.length >= CHARM_BONUS.crossTheRoadLetters ? (newState.frogStreak ?? 0) + 1 : 0;
+          if (streak >= CHARM_BONUS.crossTheRoadWords) {
+              scoreResult.totalScore += CHARM_BONUS.crossTheRoad;
+              scoreResult.bonuses.push({ name: 'Cross the Road', description: `+${CHARM_BONUS.crossTheRoad} pts` });
+              showMessage(`🐸 Crossed the road! +${CHARM_BONUS.crossTheRoad} points.`, 2500);
+              newState.frogStreak = 0;
+          } else {
+              newState.frogStreak = streak;
+          }
+      }
+
       // Mixtape: remember the last letter (and grow the chain if this word continued it).
       if (newState.activeCharms.some(c => c.id === 'mixtape')) {
           const upper = word.toUpperCase();
@@ -3107,6 +3134,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               ? { name: `👊 Boss hit on ${boss.name}`, description: `${hits}/${BOSS.hitsToWin}` }
               : { name: `💨 ${boss.name} dodged`, description: boss.rule });
           newState.boss = round;
+          if (hit && newState.activeCharms.some(c => c.id === 'doubleDragon')) {
+              runningScore += CHARM_BONUS.doubleDragon;
+              scoreResult.bonuses.push({ name: 'Double Dragon', description: `+${CHARM_BONUS.doubleDragon} pts` });
+          }
           if (outcome) {
               trackMission({ type: 'boss', id: boss.id, outcome, hits });
               sendStat({ type: 'boss_end', boss: boss.id, number: bossRound.number, outcome, hits });
@@ -3299,9 +3330,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               newState.foundEasterEggs = [...newState.foundEasterEggs, egg];
               let eggScoreChange = 0;
               if (egg.reward.points) {
-                  runningScore += egg.reward.points;
-                  eggScoreChange = egg.reward.points;
-                  scoreResult.bonuses.push({ name: egg.name, description: `+${egg.reward.points} pts` });
+                  const treasure = newState.activeCharms.some(c => c.id === 'nationalTreasure');
+                  const eggPoints = egg.reward.points * (treasure ? CHARM_BONUS.nationalTreasureMultiplier : 1);
+                  runningScore += eggPoints;
+                  eggScoreChange = eggPoints;
+                  scoreResult.bonuses.push({ name: egg.name, description: `+${eggPoints} pts${treasure ? ' (National Treasure)' : ''}` });
               }
               if (egg.reward.shuffle) newState.shuffleCount += egg.reward.shuffle;
               // Saved to the device's Bonus Collection straight away, so it survives an abandoned run.

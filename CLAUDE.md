@@ -45,7 +45,7 @@ Resume.
 | Scoring | `services/gameUtils.ts` `calculateScore` |
 | Game state, reducer, turn logic | `services/screens/GameScreen.tsx` (large) |
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
-| PowerPlays / charms (75 / 71) | `data/powerPlays.ts`, `data/charms.ts` |
+| PowerPlays / charms (75 / 83) | `data/powerPlays.ts`, `data/charms.ts` |
 | Secret bonuses (78 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
 | Bosses (24) and Boss Badges | `data/bosses.ts` (villains, rules), `BOSS` in `config/gameplay.ts` (timing, rewards); badges in the profile (`recordBossBadge`) |
 | Cosmetics, streak milestones, themes, missions | `data/cosmetics.ts`, `data/packs.ts`, `data/missions.ts` |

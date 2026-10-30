@@ -172,6 +172,19 @@ export const CHARM_BONUS = {
   backpack: 60,            // per PowerPlay used
   eagle: 40,               // word right after one of eagleLetters+ letters
   eagleLetters: 5,
+  doubleDragon: 40,        // per boss hit
+  nationalTreasureMultiplier: 2, // secret bonus points
+  goldenGirlsPercent: 50,  // Golden Round words
+  noteStreak: 75,          // when the Word Combo fills
+  boxersPercent: 50,       // words while one strike from game over
+  crossTheRoad: 150,       // crossTheRoadWords words in a row of crossTheRoadLetters+ letters
+  crossTheRoadWords: 3,
+  crossTheRoadLetters: 5,
+  aTeam: 75,               // words starting with A
+  conjunctionJunction: 90, // letters in alphabetical order
+  voteForPedro: 50,        // only 1-point tiles
+  formVoltron: 75,         // uses a combo tile
+  titansPerCharm: 4,       // per charm equipped, every word
 } as const;
 
 /**
