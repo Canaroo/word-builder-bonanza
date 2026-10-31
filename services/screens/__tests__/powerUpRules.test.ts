@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 // Charm slots, PowerPlay keep-or-swap, and the PowerPlays/charms added or moved in v6.8.
 import { describe, test, expect, vi, afterEach } from 'vitest';
-import { gameReducer, screenInitialState, maxStrikesFor, savableScreenState, RESUME_COUNTDOWN, type GameScreenState } from '../GameScreen';
+import { gameReducer, screenInitialState, maxStrikesFor, savableScreenState, RESUME_COUNTDOWN, POST_WORD_MODALS, type GameScreenState } from '../GameScreen';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS } from '../../../data/powerPlays';
 import { CHARMS_LIST } from '../../../data/charms';
 import { SECRET_BONUSES } from '../../../data/secretBonuses';
@@ -679,5 +681,15 @@ describe('auto-save and resume', () => {
         expect(s.isPaused).toBe(false);
         const withPopup = gameReducer({ ...s3, resumeCountdown: 1, modalContent: { type: 'info', title: 'x' } } as any, { type: 'RESUME_COUNTDOWN_TICK' } as any);
         expect(withPopup.isPaused).toBe(true);
+    });
+});
+
+describe('closing the last pop-up after a word starts the next round', () => {
+    test('every pop-up type a word can queue is a post-word pop-up (v7.19 level-up regression)', () => {
+        const src = readFileSync(resolve(__dirname, '../GameScreen.tsx'), 'utf8');
+        const queued = new Set([...src.matchAll(/modalQueue\.push\(\{ type: '([a-z-]+)'/g), ...src.matchAll(/return \{ type: '([a-z-]+)', title/g)].map(m => m[1]));
+        expect(queued.size).toBeGreaterThan(5);
+        for (const type of queued) expect(POST_WORD_MODALS, `${type} must be in POST_WORD_MODALS`).toContain(type);
+        expect(POST_WORD_MODALS).toContain('level-up');
     });
 });
