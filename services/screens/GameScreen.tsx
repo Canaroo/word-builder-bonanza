@@ -354,6 +354,14 @@ const levelUpModal = (wordsBefore: number, gs?: GameState): ModalContent | null 
     return { type: 'level-up', title: `Level ${level} · ${info.tier}`, data: info };
 };
 
+/**
+ * Pop-ups a played word can end on: closing the last one starts the next round (fresh clock
+ * credit, refilled hand, round counters reset). A word pop-up type missing here leaves the run
+ * stuck in the old round: v7.19.0's level-up card was, so a word whose only pop-up was a
+ * level-up lost its word time, and Groundhog's Day saw a word "already played" and didn't fire.
+ */
+export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up'];
+
 /** Seconds of 3-2-1 before a resumed run continues. */
 export const RESUME_COUNTDOWN = 3;
 
@@ -2548,7 +2556,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
     dispatch({ type: 'CLOSE_MODAL' });
 
-    const postWordModals: (ModalContent['type'])[] = ['milestone', 'easter-egg', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine'];
+    const postWordModals = POST_WORD_MODALS;
     const afterAWord = state.awaitingNextRound || lastModalTitle.includes('Sonic Speed');
     if (afterAWord && wasLastInQueue && lastModalType && (postWordModals.includes(lastModalType) || lastModalTitle.includes('Sonic Speed')) && lastModalTitle !== '❌ Strike Challenge Lost') {
         if (state.gameState.roundType === 'normal') {
