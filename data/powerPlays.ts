@@ -1082,4 +1082,115 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     durationTag: 'ONE_TIME',
     activate: () => ({}), // Handled in GameScreen (trades clock seconds for points)
   },
+  {
+    id: 'neuralyzer',
+    name: 'Neuralyzer',
+    description: 'Removes all of your charms at once, for a clean start. Once per run.',
+    flavorText: 'Look right here. *flash* You never saw those charms.',
+    icon: '🕶️',
+    subtheme: 'utility',
+    effectType: 'immediate',
+    oncePerRun: true,
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (v7.25 gambles)
+  },
+  {
+    id: 'letsMakeADeal',
+    name: "Let's Make a Deal",
+    description: `Pick Door 1, 2 or 3. One hides +${POWER_PLAY_VALUES.doorPrizes[0].points} points, one +${POWER_PLAY_VALUES.doorPrizes[1].seconds} seconds, and one a Zonk (${POWER_PLAY_VALUES.doorPrizes[2].seconds} seconds).`,
+    flavorText: 'Do you want what is behind Door Number 2?',
+    icon: '🚪',
+    subtheme: 'utility',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (v7.25 gambles)
+  },
+  {
+    id: 'dealOrNoDeal',
+    name: 'Deal or No Deal',
+    description: `The Banker offers a sure +${POWER_PLAY_VALUES.dealOffer} points. Take the deal, or open your case: anywhere from ${POWER_PLAY_VALUES.dealCases[0]} to +${POWER_PLAY_VALUES.dealCases[POWER_PLAY_VALUES.dealCases.length - 1]} points.`,
+    flavorText: 'Deal... or no deal?',
+    icon: '💼',
+    subtheme: 'score',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (v7.25 gambles)
+  },
+  {
+    id: 'noWhammies',
+    name: 'No Whammies!',
+    description: `Spin up to ${POWER_PLAY_VALUES.whammySpins} times. Each spin adds +${POWER_PLAY_VALUES.whammyPot} to the pot, but a Whammy (${POWER_PLAY_VALUES.whammyChance * 100}% each spin) wipes it. Stop any time to bank the pot.`,
+    flavorText: 'No whammies, no whammies... STOP!',
+    icon: '🎰',
+    subtheme: 'score',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (v7.25 gambles)
+  },
+  {
+    id: 'plinko',
+    name: 'Plinko',
+    description: `Drop the chip: 0, +100, +300, +700, or the +${POWER_PLAY_VALUES.plinko[POWER_PLAY_VALUES.plinko.length - 1].points} jackpot. No downside.`,
+    flavorText: 'Plinko!',
+    icon: '📍',
+    subtheme: 'score',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (v7.25 gambles)
+  },
+  {
+    id: 'minesweeper',
+    name: 'Minesweeper',
+    description: `Pick 1 of ${POWER_PLAY_VALUES.minesweeperSquares} squares. Safe squares pay +${POWER_PLAY_VALUES.minesweeperPoints} points. One hides a mine: a strike.`,
+    flavorText: "Don't click the mine. Don't click the mine.",
+    icon: '💣',
+    subtheme: 'strike',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (v7.25 gambles)
+  },
+  {
+    id: 'hotTubTimeMachine',
+    name: 'Hot Tub Time Machine',
+    description: `A time gamble: ${Math.round(POWER_PLAY_VALUES.hotTub[0].chance * 100)}% +${POWER_PLAY_VALUES.hotTub[0].seconds} seconds, ${Math.round(POWER_PLAY_VALUES.hotTub[1].chance * 100)}% +${POWER_PLAY_VALUES.hotTub[1].seconds} seconds, or ${Math.round(POWER_PLAY_VALUES.hotTub[2].chance * 100)}% ${POWER_PLAY_VALUES.hotTub[2].seconds} seconds.`,
+    flavorText: "It's a hot tub... time machine.",
+    icon: '♨️',
+    subtheme: 'timer',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (v7.25 gambles)
+  },
+  {
+    id: 'luckyCharms',
+    name: 'Lucky Charms',
+    description: 'Equips a random charm right now (any of them, even the trade-offs). With full slots, it replaces a random charm.',
+    flavorText: "They're always after me Lucky Charms!",
+    icon: '🍀',
+    subtheme: 'utility',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (v7.25 gambles)
+  },
+  {
+    id: 'dailyDouble',
+    name: 'Daily Double',
+    description: `Wager ${POWER_PLAY_VALUES.dailyDoublePercent}% of your score (${POWER_PLAY_VALUES.dailyDoubleMin}-${POWER_PLAY_VALUES.dailyDoubleMax}). If your next word has ${POWER_PLAY_VALUES.dailyDoubleLetters}+ letters, win twice the wager. If not, lose it.`,
+    flavorText: "Let's make it a true Daily Double.",
+    icon: '❓',
+    subtheme: 'score',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (v7.25 gambles)
+  },
+  {
+    id: 'popQuizHotshot',
+    name: 'Pop Quiz, Hotshot',
+    description: `Play your next word within ${POWER_PLAY_VALUES.popQuizSeconds} seconds for +${POWER_PLAY_VALUES.popQuizPoints} points and +${POWER_PLAY_VALUES.popQuizBonusSeconds} seconds. Slower, and you lose ${POWER_PLAY_VALUES.popQuizPenaltySeconds} seconds.`,
+    flavorText: 'Pop quiz, hotshot. What do you do?',
+    icon: '🚌',
+    subtheme: 'timer',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (v7.25 gambles)
+  },
 ];

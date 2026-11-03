@@ -18,9 +18,10 @@ import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor, bossHitsToWin
 import LevelBadge from '../../components/LevelBadge';
 import LevelUpCard from '../../components/LevelUpCard';
 import OutcomeCard from '../../components/OutcomeCard';
+import GambleCard, { type GambleResult } from '../../components/GambleCard';
 
 export type ModalContent = {
-  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome';
+  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -83,6 +84,8 @@ export interface GameScreenViewProps {
   time: number;
   /** Seconds left in the 3-2-1 after resuming a saved run (0 once play continues). */
   resumeCountdown?: number;
+  /** A gamble PowerPlay's decision (doors, deal, spins, mines) is in. */
+  handleResolveGamble?: (r: GambleResult) => void;
   timeGain?: { seconds: number; key: number; taxed?: boolean };
   /** Short game feedback (PowerPlay results, combos, hints). Empty when nothing to say. */
   message?: string;
@@ -135,7 +138,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, resumeCountdown = 0, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, resumeCountdown = 0, handleResolveGamble, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
@@ -220,6 +223,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
             case 'level-up':
                 return <LevelUpCard info={data} onClose={handleCloseModal} />;
+
+            case 'gamble':
+                return <GambleCard id={data.id} icon={data.icon} name={title} onResolve={r => handleResolveGamble?.(r)} />;
 
             case 'outcome':
                 return <OutcomeCard name={title} detail={typeof content === 'string' ? content : undefined} data={data} onClose={handleCloseModal} />;

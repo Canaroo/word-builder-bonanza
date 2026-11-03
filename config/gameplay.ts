@@ -109,6 +109,25 @@ export const POWER_PLAY_VALUES = {
   gumpLuckPoints: 75,            // one of Gump Luck's four outcomes
   spaceInvaderMultiplier: 3,     // Space Invader: 50% for this...
   spaceInvaderCap: 5,            // ...or the word is capped at this many points
+  // v7.25 gambles. Expected values sit near Fluncle's sure +300 so a gamble is worth the risk.
+  doorPrizes: [{ points: 500 }, { seconds: 20 }, { seconds: -5 }] as { points?: number; seconds?: number }[], // Let's Make a Deal
+  dealOffer: 250,                                // Deal or No Deal: the Banker's sure thing...
+  dealCases: [0, 25, 100, 200, 400, 750, 1500],  // ...or one of these, equal odds
+  whammyPot: 150,                                // No Whammies!: each spin adds this...
+  whammyChance: 0.2,                             // ...unless a Whammy wipes the pot
+  whammySpins: 3,
+  plinko: [{ points: 0, chance: 0.2 }, { points: 100, chance: 0.35 }, { points: 300, chance: 0.25 }, { points: 700, chance: 0.15 }, { points: 2000, chance: 0.05 }],
+  minesweeperSquares: 9,                         // one is a mine (a strike); the rest pay...
+  minesweeperPoints: 300,
+  hotTub: [{ seconds: 25, chance: 0.35 }, { seconds: 10, chance: 0.45 }, { seconds: -8, chance: 0.2 }],
+  dailyDoublePercent: 10,                        // wager this share of your score...
+  dailyDoubleMin: 100,
+  dailyDoubleMax: 500,
+  dailyDoubleLetters: 5,                         // ...on your next word having this many letters (win 2x the wager)
+  popQuizSeconds: 5,                             // Pop Quiz, Hotshot: play your next word this fast...
+  popQuizPoints: 300,                            // ...for this
+  popQuizBonusSeconds: 5,                        // ...and this
+  popQuizPenaltySeconds: 10,                     // or lose this
   donkeyKongMultiplier: 3,       // one tile of the fresh hand becomes this word multiplier
 };
 
