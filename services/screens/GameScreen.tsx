@@ -2849,6 +2849,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       const oldScore = newState.score;
       const totalWordsSubmitted = totalWords + 1;
       let scoreResult: ScoreCalculationResult = { totalScore: finalWordScore, baseScore: rawBaseScoreParam, bonuses: [...baseBonuses], ...scoreBreakdown };
+      // A gamble that wipes or caps the word (Heisenberg, Double or Nothing, Space Invader, Schrute
+      // Bucks, Gift From Thanos, Fast Cash): the word ends at this many points. 0 means 0, so the
+      // flat bonuses added later (chain, charms, Super Hand...) don't sneak points back on.
+      let wordCeiling: number | null = scoreResult.capped ? scoreResult.totalScore : null;
 
       // Level-up charms: My Precious pays for unused shuffles, Hit the Flagpole for clock seconds.
       const payLevelUp = (result: ScoreCalculationResult) => {
@@ -2953,6 +2957,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         } else {
             scoreResult.totalScore = 0;
             scoreResult.bonuses = [{ name: 'Heisenberg (Loss)', description: 'Score x0' }]; // Overwrite bonuses
+            wordCeiling = 0;
             modalContent = "You broke bad. Your score for this word is zero.";
         }
         modalQueue.push(outcome(ppById('heisenberg'), isWin ? 'TRIPLE SCORE!' : 'SCORE WIPED TO 0', modalContent, isWin ? 'win' : 'lose'));
@@ -2967,6 +2972,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             scoreResult.bonuses.push({ name: 'Space Invader (Win)', description: `x${mult} Score` });
         } else {
             scoreResult = { ...scoreResult, totalScore: Math.min(scoreResult.totalScore, cap), capped: true };
+            wordCeiling = Math.min(wordCeiling ?? cap, cap);
             scoreResult.bonuses.push({ name: 'Space Invader (Miss)', description: `Capped at ${cap} pts` });
         }
         modalQueue.push(outcome(ppById('spaceInvader'), isWin ? `DIRECT HIT: x${mult}!` : `MISSED: ${cap} PTS MAX`, isWin ? 'Wave cleared! Your word scores triple.' : `The invaders got through. This word scores at most ${cap} points.`, isWin ? 'win' : 'lose'));
@@ -3265,10 +3271,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
       
       // --- 5. GAME STATE BONUSES (Refactored) ---
+      const wordLocked = wordCeiling !== null;
+      if (wordLocked && scoreResult.totalScore > wordCeiling!) {
+          scoreResult.totalScore = wordCeiling!;
+          scoreResult.bonuses.push({ name: `🔒 Locked at ${wordCeiling} ${wordCeiling === 1 ? 'pt' : 'pts'}`, description: "the bonuses above don't count" });
+      }
       runningScore += scoreResult.totalScore;
 
       const isSuperHand = ((hand ?? []).filter(t => t !== null).length === 0);
-      if (isSuperHand) {
+      if (isSuperHand && !wordLocked) {
           const superHandBonus = SUPER_HAND_BONUS;
           runningScore += superHandBonus;
           scoreResult.bonuses.push({ name: "Super Hand", description: `+${superHandBonus} pts`});
@@ -3278,7 +3289,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           modalQueue.push({ type: 'super-hand', title: '✨ SUPER HAND! ✨', content: superHandText, data: { points: superHandBonus } });
       }
 
-      if (word.length === 8) {
+      if (word.length === 8 && !wordLocked) {
           const niceRackBonus = 555;
           runningScore += niceRackBonus;
           scoreResult.bonuses.push({ name: "Whoa, Nice Rack!", description: `+${niceRackBonus} pts`});
@@ -3289,13 +3300,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           });
       }
 
-      if (newState.activeCharms.some(c => c.id === 'fluxCapacitor') && (totalWordsSubmitted) % CHARM_BONUS.fluxCapacitorEvery === 0) {
+      if (!wordLocked && newState.activeCharms.some(c => c.id === 'fluxCapacitor') && (totalWordsSubmitted) % CHARM_BONUS.fluxCapacitorEvery === 0) {
           const bonus = CHARM_BONUS.fluxCapacitor;
           runningScore += bonus;
           scoreResult.bonuses.push({ name: "Flux Capacitor", description: `+${bonus} pts`});
           showMessage(`🕰️ Flux Capacitor! +${bonus} bonus points.`, 2500);
       }
-      if (newState.activeCharms.some(c => c.id === 'thrillerNight') && (totalWordsSubmitted) % 4 === 0) {
+      if (!wordLocked && newState.activeCharms.some(c => c.id === 'thrillerNight') && (totalWordsSubmitted) % 4 === 0) {
         const thrillerBonus = CHARM_BONUS.thrillerNight;
         runningScore += thrillerBonus;
         scoreResult.bonuses.push({ name: 'Thriller Night', description: `+${thrillerBonus} pts` });

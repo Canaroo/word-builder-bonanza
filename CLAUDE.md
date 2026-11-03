@@ -99,6 +99,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   close, every 5 s, and when the game leaves the screen; it's cleared at game over. Resume shows
   a 3-2-1 with the board hidden. The back gesture opens the save prompt instead of leaving, and
   New Game asks first when a saved run exists. `savableScreenState()` in `GameScreen.tsx`.
+- **0 means 0:** a word wiped or capped by a gamble (Heisenberg, Double or Nothing, Space Invader,
+  Schrute Bucks, Gift From Thanos, Fast Cash) stays at that score: later flat bonuses (chain,
+  charms, Super Hand, Nice Rack, Flux, Thriller) don't count (`wordCeiling` in `completeSubmission`).
+  Separate rewards (secrets, boss badges, milestones, streak charms) still pay.
 - **Run-savers** are once per run. Time from items goes through `bonusTime()`.
 - **Slurs:** never unblock a word without the owner's confirmation. Allowed slur-adjacent words
   (COON, DINK, FAG and its verb forms) are on `words/no-suggest.txt`, so the game never offers them.
