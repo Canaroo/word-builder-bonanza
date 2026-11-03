@@ -17,9 +17,10 @@ import { bossById } from '../../data/bosses';
 import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor, bossHitsToWin } from '../rules';
 import LevelBadge from '../../components/LevelBadge';
 import LevelUpCard from '../../components/LevelUpCard';
+import OutcomeCard from '../../components/OutcomeCard';
 
 export type ModalContent = {
-  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up';
+  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -219,6 +220,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
             case 'level-up':
                 return <LevelUpCard info={data} onClose={handleCloseModal} />;
+
+            case 'outcome':
+                return <OutcomeCard name={title} detail={typeof content === 'string' ? content : undefined} data={data} onClose={handleCloseModal} />;
 
             case 'slot-machine':
                 return <SlotMachine title={title} seconds={data.seconds} reels={data.reels} jackpot={data.jackpot} onClose={handleCloseModal} />;

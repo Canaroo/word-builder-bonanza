@@ -72,7 +72,9 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   level 6 the clock speeds up faster (to x2.0), words earn less time (to 65%), and the PowerPlay
   meter grows (25 → 60 letters).
 - **Pop-ups:** big notices (level-up, milestones, secret bonuses, Golden Round, Power Word, big
-  combos) wait for Continue. Only quick PowerPlay/charm results auto-close.
+  combos) wait for Continue. Chance PowerPlays (rolls, coin flips, random tiles) show their
+  result on a centered outcome card (`outcome()` in `GameScreen.tsx`, `components/OutcomeCard.tsx`)
+  that also waits for Continue. Only other quick PowerPlay/charm results auto-close.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
