@@ -747,3 +747,14 @@ describe('v7.25 gamble PowerPlays', () => {
         expect(pp('neuralyzer').oncePerRun).toBe(true);
     });
 });
+
+describe('Mission: Impossible', () => {
+    test('its text reads the deal from config, and +20s beats Time Boost', () => {
+        const d = pp('missionImpossible').description;
+        expect(d).toContain(`+${POWER_PLAY_VALUES.missionImpossibleSeconds} seconds`);
+        expect(d).toContain(`${POWER_PLAY_VALUES.missionImpossibleLetters}+ letters`);
+        expect(d).toContain(`-${POWER_PLAY_VALUES.missionImpossiblePenalty} seconds`);
+        expect(POWER_PLAY_VALUES.missionImpossibleSeconds).toBeGreaterThan(TIME_BONUS.timeBoost);
+        expect(POWER_PLAY_VALUES.missionImpossiblePenalty).toBeGreaterThan(0);
+    });
+});

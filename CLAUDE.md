@@ -45,7 +45,7 @@ Resume (wait out the 3-2-1 countdown before tapping tiles).
 | Scoring | `services/gameUtils.ts` `calculateScore` |
 | Game state, reducer, turn logic | `services/screens/GameScreen.tsx` (large) |
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
-| PowerPlays / charms (85 / 100) | `data/powerPlays.ts`, `data/charms.ts` |
+| PowerPlays / charms (86 / 100) | `data/powerPlays.ts`, `data/charms.ts` |
 | Secret bonuses (100 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
 | Hidden desktop pages | `/?stats` and `/?bonuses` (tabs: `&tab=words`, `scores`, `counts`, `charms`, `powerPlays`) render full-width outside the phone frame (`showToolPage` in `App.tsx`) |
 | Bosses (24) and Boss Badges | `data/bosses.ts` (villains, rules), `BOSS` in `config/gameplay.ts` (timing, rewards); badges in the profile (`recordBossBadge`) |
