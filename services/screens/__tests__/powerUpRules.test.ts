@@ -693,3 +693,20 @@ describe('closing the last pop-up after a word starts the next round', () => {
         expect(POST_WORD_MODALS).toContain('level-up');
     });
 });
+
+describe('chance PowerPlays show their result on a card that waits for Continue', () => {
+    test("Fortune's Favor opens an outcome card (no auto-close) with the roll's points", () => {
+        const after = gameReducer({ ...start({ score: 1000 }), modalContent: null }, { type: 'ACTIVATE_POWER_PLAY', payload: pp('fortunesFavor') } as any);
+        expect(after.modalContent).toMatchObject({ type: 'outcome', title: pp('fortunesFavor').name });
+        expect(after.modalContent!.autoClose).toBeUndefined();
+        expect((after.modalContent!.data as any).headline).toMatch(/POINTS$/);
+        expect(after.isPaused).toBe(true);
+    });
+    test('outcome cards start the next round when they close after a word', () => {
+        expect(POST_WORD_MODALS).toContain('outcome');
+    });
+    test('Space Invader reads its numbers from config', () => {
+        expect(pp('spaceInvader').description).toContain(`x${POWER_PLAY_VALUES.spaceInvaderMultiplier}`);
+        expect(pp('spaceInvader').description).toContain(`${POWER_PLAY_VALUES.spaceInvaderCap} points`);
+    });
+});

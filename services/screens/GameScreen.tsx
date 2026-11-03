@@ -360,7 +360,15 @@ const levelUpModal = (wordsBefore: number, gs?: GameState): ModalContent | null 
  * stuck in the old round: v7.19.0's level-up card was, so a word whose only pop-up was a
  * level-up lost its word time, and Groundhog's Day saw a word "already played" and didn't fire.
  */
-export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up'];
+export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome'];
+
+/**
+ * A chance PowerPlay's result (a roll, a coin flip, a random tile): a centered card that waits
+ * for Continue, so the player sees what happened (components/OutcomeCard.tsx).
+ */
+const outcome = (pp: { icon: string; name: string }, headline: string, detail: string, tone: 'win' | 'lose' | 'neutral' = 'neutral'): ModalContent =>
+    ({ type: 'outcome', title: pp.name, content: detail, data: { icon: pp.icon, headline, tone } });
+const ppById = (id: string) => POWER_PLAYS_LIST.find(p => p.id === id)!;
 
 /** Seconds of 3-2-1 before a resumed run continues. */
 export const RESUME_COUNTDOWN = 3;
@@ -1348,7 +1356,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                   scoreChange: actualScoreChange, cumulativeScore: newScore
                 });
                 changes = { score: newScore, log: newLog };
-                newModalContent = { type: 'info', title: 'Fortune\'s Favor', content: message, autoClose: 3000 };
+                newModalContent = outcome(powerPlay, `${actualScoreChange >= 0 ? '+' : ''}${actualScoreChange} POINTS`, message, actualScoreChange >= 0 ? 'win' : 'lose');
                 shouldPause = true;
             }
 
@@ -1381,7 +1389,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     hand: finalHand,
                     tileBag: finalBag,
                     buildRow: Array(BUILD_ROW_SIZE).fill(null),
-                    modalContent: { type: 'info', title: 'Donkey Kong Smash!', content: `Fresh hand, plus a barrel: '${barrelLetter}' is a ${POWER_PLAY_VALUES.donkeyKongMultiplier}x word tile!`, autoClose: 2500 },
+                    modalContent: outcome(powerPlay, `'${barrelLetter}' IS A ${POWER_PLAY_VALUES.donkeyKongMultiplier}X TILE`, 'Fresh hand, plus a barrel: that tile multiplies the word it is in.', 'win'),
                     isPaused: true,
                     gameState: {
                         ...state.gameState,
@@ -1488,6 +1496,8 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 return {
                     ...state,
                     hand: newHand,
+                    modalContent: outcome(powerPlay, `'${tileToRescue.letter}' WAS RESCUED`, `Your '${tileToRescue.letter}' tile left your hand. It comes back next round worth 20 points.`),
+                    isPaused: true,
                     gameState: {
                       ...gameState,
                       ...activationChanges,
@@ -1541,7 +1551,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     ...state,
                     hand: finalHand,
                     tileBag: finalBag,
-                    modalContent: { type: 'info', title: '⚡️ Morphin Time!', content: modalText, autoClose: 2500 },
+                    modalContent: outcome(powerPlay, `NEW '${morphedTiles.find(t => t.multiplier === 2)!.letter}' 2X · '${morphedTiles.find(t => t.multiplier === 4)!.letter}' 4X`, modalText, 'win'),
                     isPaused: true,
                     gameState: {
                         ...state.gameState,
@@ -1668,6 +1678,9 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 const tempHand = [...state.hand];
                 tilesToRemove.forEach(item => { if(item.tile) tempHand[item.index] = null; });
                 newHand = tempHand;
+                const lost = tilesToRemove.map(item => `'${item.tile!.letter}'`).join(' AND ');
+                newModalContent = outcome(powerPlay, `${lost} ${tilesToRemove.length === 1 ? 'IS' : 'ARE'} GONE`, 'Two tiles met an untimely end. Your next word scores x5.');
+                shouldPause = true;
             }
             if (powerPlay.id === 'animaniacsMayhem') {
                 const tilesToReturn = [...state.hand, ...state.buildRow.map(item => item?.tile)].filter((t): t is Tile => t != null);
@@ -1715,11 +1728,11 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 if (balancingMessage) {
                     modalText += `\n\n${balancingMessage}`;
                 }
-                newModalContent = { type: 'info', title: 'Animaniacs Mayhem!', content: modalText, autoClose: 2500 };
+                newModalContent = outcome(powerPlay, `'${randomLetter1}' AND '${randomLetter2}' ARE 2X`, modalText, 'win');
                 shouldPause = true;
             }
             if (powerPlay.id === 'treehouseOfHorror') {
-                newModalContent = { type: 'info', title: '🎃 Treehouse of Horror!', content: 'Things just got weird. Tile values are randomized for 3 turns.', autoClose: 2500 };
+                newModalContent = outcome(powerPlay, 'TILE VALUES SCRAMBLED', 'Things just got weird. Every tile has a random value for 3 turns: check the numbers on your tiles.');
                 shouldPause = true;
             }
             
@@ -1729,7 +1742,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     const chosen = slots[Math.floor(Math.random() * slots.length)];
                     newHand = [...newHand];
                     newHand[chosen.index] = { ...chosen.tile, tempPoints: 30, tempPointsSource: powerPlay.name };
-                    newModalContent = { type: 'info', title: '💍 One Tile to Rule Them All', content: `Your '${chosen.tile.letter}' tile is worth 30 points this round.`, autoClose: 2200 };
+                    newModalContent = outcome(powerPlay, `'${chosen.tile.letter}' IS WORTH 30`, `Your '${chosen.tile.letter}' tile is worth 30 points this round. Use it in your word!`, 'win');
                     shouldPause = true;
                 }
             }
@@ -2820,7 +2833,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     baseBonuses: ScoreBonusInfo[],
     validationDef: string,
     wordLockActive: boolean,
-    infoMessage?: string,
+    infoMessage?: string | ModalContent,
     scoreBreakdown?: Pick<ScoreCalculationResult, 'scoreBeforeMultiplier' | 'wordMultiplier' | 'capped'>
     ) => {
       dispatch({ type: 'STORE_LAST_TURN' });
@@ -2830,7 +2843,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       const now = Date.now();
       const modalQueue: ModalContent[] = [];
       if (infoMessage) {
-        modalQueue.push({ type: 'info', title: 'PowerPlay Result', content: infoMessage, autoClose: 2500 });
+        modalQueue.push(typeof infoMessage === 'string' ? { type: 'info', title: 'PowerPlay Result', content: infoMessage, autoClose: 2500 } : infoMessage);
       }
       const eventLogQueue: EventLogEntry[] = [];
       const oldScore = newState.score;
@@ -2942,7 +2955,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             scoreResult.bonuses = [{ name: 'Heisenberg (Loss)', description: 'Score x0' }]; // Overwrite bonuses
             modalContent = "You broke bad. Your score for this word is zero.";
         }
-        modalQueue.push({ type: 'info', title: '⚗️ Heisenberg', content: modalContent, autoClose: 2500 });
+        modalQueue.push(outcome(ppById('heisenberg'), isWin ? 'TRIPLE SCORE!' : 'SCORE WIPED TO 0', modalContent, isWin ? 'win' : 'lose'));
+      }
+
+      // --- Space Invader PowerPlay: 50% x3, 50% the word is capped at a few points ---
+      if (newState.activePowerPlays.spaceInvader) {
+        const { spaceInvaderMultiplier: mult, spaceInvaderCap: cap } = POWER_PLAY_VALUES;
+        const isWin = Math.random() < 0.5;
+        if (isWin) {
+            scoreResult = addWordMultiplier(scoreResult, mult);
+            scoreResult.bonuses.push({ name: 'Space Invader (Win)', description: `x${mult} Score` });
+        } else {
+            scoreResult = { ...scoreResult, totalScore: Math.min(scoreResult.totalScore, cap), capped: true };
+            scoreResult.bonuses.push({ name: 'Space Invader (Miss)', description: `Capped at ${cap} pts` });
+        }
+        modalQueue.push(outcome(ppById('spaceInvader'), isWin ? `DIRECT HIT: x${mult}!` : `MISSED: ${cap} PTS MAX`, isWin ? 'Wave cleared! Your word scores triple.' : `The invaders got through. This word scores at most ${cap} points.`, isWin ? 'win' : 'lose'));
       }
 
       // --- 2. WORD COMBO LOGIC ---
@@ -3053,7 +3080,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               scoreResult.bonuses.push({ name: 'Blue Shell (Loss)', description: `-${loss} pts` });
               modalContent = `Oh no, it backfired! You lost ${loss} points from this turn's score.`;
           }
-          modalQueue.push({ type: 'info', title: 'Blue Shell Surprise', content: modalContent, autoClose: 2500 });
+          modalQueue.push(outcome(ppById('blueShellSurprise'), isWin ? `DIRECT HIT: x${mult}!` : `BACKFIRE: -${loss}`, modalContent, isWin ? 'win' : 'lose'));
       }
 
 
@@ -4097,7 +4124,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             }
             
             // The coin flip is a gamble on the final score; a lost flip stays at 0.
-            await completeSubmission(word, submittedTiles, scoreResult.totalScore, scoreResult.baseScore, scoreResult.bonuses, validationResult.definition ?? '', wordLockActive, message, isDouble ? { scoreBeforeMultiplier: scoreResult.scoreBeforeMultiplier! * 2, wordMultiplier: scoreResult.wordMultiplier } : { capped: true });
+            const flip = outcome(ppById('doubleOrNothing'), isDouble ? 'HEADS: DOUBLED!' : 'TAILS: ZERO', message, isDouble ? 'win' : 'lose');
+            await completeSubmission(word, submittedTiles, scoreResult.totalScore, scoreResult.baseScore, scoreResult.bonuses, validationResult.definition ?? '', wordLockActive, flip, isDouble ? { scoreBeforeMultiplier: scoreResult.scoreBeforeMultiplier! * 2, wordMultiplier: scoreResult.wordMultiplier } : { capped: true });
             return;
         }
         
@@ -4404,7 +4432,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             dispatch({ type: 'UPDATE_GAME_STATE', payload: changes });
             if (timeChange > 0) dispatch({ type: 'ADD_TIME', payload: timeChange });
             
-            showMessage(outcomeMessage, 3000);
+            const gumpHeadline = timeChange > 0 ? `+${timeChange} SECONDS` : changes.score ? `+${points} POINTS` : changes.shuffleCount ? '+1 SHUFFLE' : 'EMPTY BOX';
+            dispatch({ type: 'SET_MODAL_CONTENT', payload: outcome(powerPlay, gumpHeadline, outcomeMessage, gumpHeadline === 'EMPTY BOX' ? 'lose' : 'win') });
             return;
         }
 
@@ -4499,7 +4528,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 log: [...gameState.log, newLogEntry],
                 availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
             }});
-            showMessage(`Your '${newTile.letter}' tile is now a 4X Super Tile!`, 2500);
+            dispatch({ type: 'SET_MODAL_CONTENT', payload: outcome(powerPlay, `'${newTile.letter}' IS A 4X SUPER TILE`, `Your '${newTile.letter}' tile is worth 4x its points this turn. Use it in your word!`, 'win') });
             return;
         }
 

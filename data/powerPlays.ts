@@ -1010,7 +1010,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'spaceInvader',
     name: 'Space Invader',
-    description: "Next word: 50% chance for x3, 50% chance it's capped at 5 points.",
+    description: `Next word: 50% chance for x${POWER_PLAY_VALUES.spaceInvaderMultiplier}, 50% chance it's capped at ${POWER_PLAY_VALUES.spaceInvaderCap} points.`,
     flavorText: 'Destroy all words… or just barely survive.',
     icon: '👾',
     subtheme: 'score',

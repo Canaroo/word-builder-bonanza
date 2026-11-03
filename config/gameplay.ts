@@ -107,6 +107,8 @@ export const POWER_PLAY_VALUES = {
   doubleOrNothingWinChance: 0.6, // otherwise the word scores 0
   nuclearOptionMultiplier: 3,    // next word, on top of the fresh hand
   gumpLuckPoints: 75,            // one of Gump Luck's four outcomes
+  spaceInvaderMultiplier: 3,     // Space Invader: 50% for this...
+  spaceInvaderCap: 5,            // ...or the word is capped at this many points
   donkeyKongMultiplier: 3,       // one tile of the fresh hand becomes this word multiplier
 };
 
