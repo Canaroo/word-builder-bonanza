@@ -18,7 +18,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
@@ -2744,7 +2744,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           if (gameState?.activePowerPlays?.continueScreen) {
               dispatch({ type: 'PAUSE_GAME' });
               const { continueScreen, ...remainingPowerPlays } = gameState.activePowerPlays;
-              const cost = Math.round(gameState.score * POWER_PLAY_VALUES.continueScoreCostPercent / 100);
+              const cost = continueCost(gameState.score);
               const newScore = gameState.score - cost;
               dispatch({
                   type: 'UPDATE_GAME_STATE',
@@ -2754,12 +2754,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                       activeBuffs: (gameState.activeBuffs ?? []).filter(b => b.id !== 'continueScreen'),
                       log: [...gameState.log, {
                           type: 'event', id: `pp-continueScreen-${Date.now()}`, name: 'Continue?', icon: '🕹️',
-                          description: `Continued with ${TIME_BONUS.continueScreen} seconds for ${POWER_PLAY_VALUES.continueScoreCostPercent}% of your score.`,
+                          description: `Continued with ${TIME_BONUS.continueScreen} seconds for ${cost.toLocaleString()} points.`,
                           scoreChange: -cost, cumulativeScore: newScore,
                       } as EventLogEntry],
                   }
               });
-              dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'info', title: CONTINUE_TITLE, content: `Coin inserted! You keep playing with ${TIME_BONUS.continueScreen} seconds. It cost ${cost.toLocaleString()} points (${POWER_PLAY_VALUES.continueScoreCostPercent}% of your score).` }});
+              dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'info', title: CONTINUE_TITLE, content: `Coin inserted! You keep playing with ${TIME_BONUS.continueScreen} seconds. It cost ${cost.toLocaleString()} points (${POWER_PLAY_VALUES.continueScoreCostPercent}% of your score, never more than ${POWER_PLAY_VALUES.continueScoreCostMax.toLocaleString()}).` }});
               soundService.playMilestone();
               return;
           }

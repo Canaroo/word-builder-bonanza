@@ -270,3 +270,9 @@ export const shuffledDoors = (rand: () => number = Math.random) => {
     for (let i = doors.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [doors[i], doors[j]] = [doors[j], doors[i]]; }
     return doors;
 };
+
+/** Continue?: the points a rescue costs, a share of the score up to a cap. */
+export const continueCost = (score: number): number => {
+    const { continueScoreCostPercent, continueScoreCostMax } = POWER_PLAY_VALUES;
+    return Math.min(continueScoreCostMax, Math.round(Math.max(0, score) * continueScoreCostPercent / 100));
+};

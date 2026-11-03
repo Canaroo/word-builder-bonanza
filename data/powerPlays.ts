@@ -1062,7 +1062,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'continueScreen',
     name: 'Continue?',
-    description: `Arms right away: the first time your clock hits 0, you keep playing with ${TIME_BONUS.continueScreen} seconds, but lose ${POWER_PLAY_VALUES.continueScoreCostPercent}% of your score.`,
+    description: `Arms right away: the first time your clock hits 0, you keep playing with ${TIME_BONUS.continueScreen} seconds, but lose ${POWER_PLAY_VALUES.continueScoreCostPercent}% of your score (never more than ${POWER_PLAY_VALUES.continueScoreCostMax.toLocaleString()} points).`,
     flavorText: 'Continue? 9… 8… 7…',
     icon: '🕹️',
     subtheme: 'timer',
