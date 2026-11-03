@@ -3322,6 +3322,24 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       // Daily Double and Pop Quiz, Hotshot (v7.25) settle on this word. Separate from the word's
       // own points, so a locked word still settles the bet.
+      // Mission: Impossible: each 5+ letter word counts down the promise; a shorter one breaks it.
+      const mission = newState.activePowerPlays.missionImpossible as { words: number } | undefined;
+      if (mission) {
+          const V = POWER_PLAY_VALUES;
+          const kept = word.length >= V.missionImpossibleLetters;
+          const left = mission.words - 1;
+          if (kept && left > 0) {
+              newState.activePowerPlays = { ...newState.activePowerPlays, missionImpossible: { words: left } };
+              showMessage(`🕵️ ${word.toUpperCase()} counts. ${left} more ${left === 1 ? 'word' : 'words'} of ${V.missionImpossibleLetters}+ letters to go.`, 2500);
+          } else {
+              const { missionImpossible: _m, ...rest } = newState.activePowerPlays;
+              newState.activePowerPlays = rest;
+              newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'missionImpossible');
+              if (!kept) newState.ludicrousTimeCost = (newState.ludicrousTimeCost ?? 0) + V.missionImpossiblePenalty;
+              eventLogQueue.push({ type: 'event', id: `pp-mission-${now}`, name: 'Mission: Impossible', icon: '🕵️', description: kept ? 'Mission complete: both words had 5+ letters.' : `${word.toUpperCase()} has only ${word.length} letters: mission failed, -${V.missionImpossiblePenalty}s.`, scoreChange: 0, cumulativeScore: runningScore });
+              modalQueue.push(outcome(ppById('missionImpossible'), kept ? 'MISSION COMPLETE' : `MISSION FAILED: -${V.missionImpossiblePenalty}s`, kept ? `Both words had ${V.missionImpossibleLetters}+ letters. You keep the time. This message will self-destruct.` : `${word.toUpperCase()} has only ${word.length} letters (you promised ${V.missionImpossibleLetters}+). The clock loses ${V.missionImpossiblePenalty} seconds next round.`, kept ? 'win' : 'lose'));
+          }
+      }
       const daily = newState.activePowerPlays.dailyDouble as { wager: number } | undefined;
       const quiz = newState.activePowerPlays.popQuizHotshot as { startClock: number } | undefined;
       if (daily || quiz) {
@@ -4523,6 +4541,17 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             const replaced = gameState.activeCharms.length >= CHARM_SLOTS ? gameState.activeCharms[Math.floor(Math.random() * gameState.activeCharms.length)] : undefined;
             dispatch({ type: 'APPLY_GAMBLE', payload: { powerPlay, headline: `${charm.icon} ${charm.name.toUpperCase()}`, detail: `${charm.description}${replaced ? `\n\nIt replaced ${replaced.icon} ${replaced.name}.` : ''}`, tone: 'neutral' } });
             dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand: hand ?? [], allOffered: [charm], replaceId: replaced?.id } });
+            return;
+        }
+        if (powerPlay.id === 'missionImpossible') {
+            const V = POWER_PLAY_VALUES;
+            const gained = bonusTime(V.missionImpossibleSeconds, time, levelFor(totalWords));
+            const buff = { ...powerPlay, description: `Mission: your next ${V.missionImpossibleWords} words need ${V.missionImpossibleLetters}+ letters. A shorter word costs ${V.missionImpossiblePenalty} seconds.` };
+            dispatch({ type: 'APPLY_GAMBLE', payload: { powerPlay, seconds: V.missionImpossibleSeconds, headline: `MISSION ACCEPTED: +${gained}s`, detail: `Now keep your promise: your next ${V.missionImpossibleWords} words must have ${V.missionImpossibleLetters}+ letters. A shorter word costs ${V.missionImpossiblePenalty} seconds.`, tone: 'neutral' } });
+            dispatch({ type: 'UPDATE_GAME_STATE', payload: {
+                activePowerPlays: { ...gameState.activePowerPlays, missionImpossible: { words: V.missionImpossibleWords } },
+                activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== 'missionImpossible'), buff],
+            } });
             return;
         }
         if (powerPlay.id === 'dailyDouble' || powerPlay.id === 'popQuizHotshot') {

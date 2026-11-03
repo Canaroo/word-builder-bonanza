@@ -1193,4 +1193,15 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     durationTag: 'ONE_TIME',
     activate: () => ({}), // Handled in GameScreen (v7.25 gambles)
   },
+  {
+    id: 'missionImpossible',
+    name: 'Mission: Impossible',
+    description: `+${POWER_PLAY_VALUES.missionImpossibleSeconds} seconds now, if you promise your next ${POWER_PLAY_VALUES.missionImpossibleWords} words will have ${POWER_PLAY_VALUES.missionImpossibleLetters}+ letters. A shorter word breaks the promise: -${POWER_PLAY_VALUES.missionImpossiblePenalty} seconds.`,
+    flavorText: 'Your mission, should you choose to accept it...',
+    icon: '🕵️',
+    subtheme: 'timer',
+    effectType: 'immediate',
+    durationTag: 'LIMITED',
+    activate: () => ({}), // Handled in GameScreen
+  },
 ];

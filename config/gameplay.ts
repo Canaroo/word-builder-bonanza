@@ -129,6 +129,12 @@ export const POWER_PLAY_VALUES = {
   popQuizPoints: 300,                            // ...for this
   popQuizBonusSeconds: 5,                        // ...and this
   popQuizPenaltySeconds: 10,                     // or lose this
+  // Mission: Impossible: time now for a promise. Two 5+ letter words in a row happen in about 63%
+  // of random hands, so keeping it takes some effort; breaking it costs more than it gave.
+  missionImpossibleSeconds: 20,
+  missionImpossibleWords: 2,
+  missionImpossibleLetters: 5,
+  missionImpossiblePenalty: 15,
   donkeyKongMultiplier: 3,       // one tile of the fresh hand becomes this word multiplier
 };
 
