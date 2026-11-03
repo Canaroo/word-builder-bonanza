@@ -1,5 +1,5 @@
 // Pure gameplay rules. No React, no DOM: easy to test and to tune via config/gameplay.ts.
-import { BOSS, CHARM_BONUS, GAMEPLAY, POWER_GLOVE_BANK_MAX, POWER_WORD_EFFECTS } from '../config/gameplay';
+import { BOSS, CHARM_BONUS, GAMEPLAY, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS } from '../config/gameplay';
 import { BossRound, PowerWordEffect, ScoreCalculationResult } from '../types';
 
 const lookupByLength = (table: Record<number, number>, length: number, below: number): number => {
@@ -247,4 +247,26 @@ export const powerWordInfo = (effect: PowerWordEffect): { label: string; does: s
         cake: { label: 'CAKE', does: 'A charm offer appears. The cake was real this time.' },
     }[effect];
     return { ...info, again: 'Play it again on a later level to use it again (once per level).' };
+};
+
+// --- v7.25 gamble PowerPlays: the rolls, kept pure so they can be tested (POWER_PLAY_VALUES). ---
+const pickByChance = <T extends { chance: number }>(list: T[], roll: number): T => {
+    let acc = 0;
+    for (const item of list) { acc += item.chance; if (roll < acc) return item; }
+    return list[list.length - 1];
+};
+/** Plinko: the chip's points for a roll in [0, 1). */
+export const plinkoPayout = (roll: number): number => pickByChance(POWER_PLAY_VALUES.plinko, roll).points;
+/** Hot Tub Time Machine: seconds (negative = lost) for a roll in [0, 1). */
+export const hotTubSeconds = (roll: number): number => pickByChance(POWER_PLAY_VALUES.hotTub, roll).seconds;
+/** Daily Double: the wager, a share of the score kept between a floor and a cap. */
+export const dailyDoubleWager = (score: number): number => {
+    const { dailyDoublePercent, dailyDoubleMin, dailyDoubleMax } = POWER_PLAY_VALUES;
+    return Math.min(dailyDoubleMax, Math.max(dailyDoubleMin, Math.round(score * dailyDoublePercent / 100)));
+};
+/** Let's Make a Deal: the three prizes behind the doors, shuffled. */
+export const shuffledDoors = (rand: () => number = Math.random) => {
+    const doors = [...POWER_PLAY_VALUES.doorPrizes];
+    for (let i = doors.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [doors[i], doors[j]] = [doors[j], doors[i]]; }
+    return doors;
 };

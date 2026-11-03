@@ -5,6 +5,7 @@ import { RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, VOWELS, INITIAL_SHUFFLES, 
 import * as gameUtils from '../gameUtils';
 import { MILESTONES_LIST } from '../../data/milestones';
 import { CHARMS_LIST } from '../../data/charms';
+import { GAMBLE_CARD_IDS, type GambleResult } from '../../components/GambleCard';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS } from '../../data/powerPlays';
 import { EASTER_EGGS } from '../../data/easterEggs';
 import { recordFound, collectionProgress } from '../collection';
@@ -17,7 +18,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
@@ -238,7 +239,9 @@ type GameAction =
     | { type: 'SET_HIGHLIGHTED_TILES', payload: { first: string | null; rest: string[] } }
     | { type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: boolean }
     | { type: 'CHARM_PAYOUT', payload: { id: string; points: number; description: string } }
-    | { type: 'RESUME_COUNTDOWN_TICK' };
+    | { type: 'RESUME_COUNTDOWN_TICK' }
+    | { type: 'APPLY_GAMBLE', payload: { powerPlay: PowerPlay; points?: number; seconds?: number; headline: string; detail: string; tone: 'win' | 'lose' | 'neutral' } }
+    | { type: 'NEURALYZE', payload: { powerPlay: PowerPlay } };
 
 
 /**
@@ -500,6 +503,45 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             };
         case 'SET_HIGHLIGHTED_TILES': return { ...state, highlightedTileIds: action.payload };
         case 'SET_LONG_WORD_BONUS_NOTIFIED': return { ...state, longWordBonusNotified: action.payload };
+        // A gamble PowerPlay's result (v7.25): points and/or seconds, the PowerPlay leaves the pocket,
+        // and the outcome card opens. A strike result is dispatched separately (ADD_STRIKE).
+        case 'APPLY_GAMBLE': {
+            const { powerPlay, points = 0, seconds = 0, headline, detail, tone } = action.payload;
+            const score = Math.max(0, gameState.score + points);
+            const gained = seconds > 0 ? bonusTime(seconds, state.time, runLevel(gameState)) : seconds;
+            const time = clampTime(state.time + gained, bankMax(gameState));
+            const entry: EventLogEntry = { type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon, description: `${headline}. ${detail.split('\n')[0]}`, scoreChange: score - gameState.score, cumulativeScore: score };
+            return {
+                ...state, time,
+                timeGain: time !== state.time ? { seconds: time - state.time, key: Date.now() } : state.timeGain,
+                isPaused: true,
+                modalContent: outcome(powerPlay, headline, detail, tone),
+                gameState: {
+                    ...gameState, score, log: [...gameState.log, entry],
+                    availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                    powerPlayUses: { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 },
+                },
+            };
+        }
+        // Neuralyzer: every charm is wiped at once.
+        case 'NEURALYZE': {
+            const { powerPlay } = action.payload;
+            const wiped = gameState.activeCharms;
+            const ids = new Set(wiped.map(c => c.id));
+            const entry: EventLogEntry = { type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon, description: `Wiped ${wiped.length} ${wiped.length === 1 ? 'charm' : 'charms'}: ${wiped.map(c => c.name).join(', ')}.`, scoreChange: 0, cumulativeScore: gameState.score };
+            return {
+                ...state,
+                // Without Power Glove, the bank's normal max applies again.
+                time: ids.has('powerGlove') ? clampTime(state.time, GAMEPLAY.timeBank.max) : state.time,
+                isPaused: true,
+                modalContent: outcome(powerPlay, `${wiped.length} ${wiped.length === 1 ? 'CHARM' : 'CHARMS'} WIPED`, `Clean slate: ${wiped.map(c => `${c.icon} ${c.name}`).join(', ')} ${wiped.length === 1 ? 'is' : 'are'} gone. New charm offers fill your slots again.`),
+                gameState: {
+                    ...gameState, activeCharms: [], activeBuffs: gameState.activeBuffs.filter(b => !ids.has(b.id)), log: [...gameState.log, entry],
+                    availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                    powerPlayUses: { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 },
+                },
+            };
+        }
         case 'RESUME_COUNTDOWN_TICK': {
             const left = (state.resumeCountdown ?? 0) - 1;
             // When it ends the clock starts again, unless a restored pop-up is still open.
@@ -3278,6 +3320,36 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
       runningScore += scoreResult.totalScore;
 
+      // Daily Double and Pop Quiz, Hotshot (v7.25) settle on this word. Separate from the word's
+      // own points, so a locked word still settles the bet.
+      const daily = newState.activePowerPlays.dailyDouble as { wager: number } | undefined;
+      const quiz = newState.activePowerPlays.popQuizHotshot as { startClock: number } | undefined;
+      if (daily || quiz) {
+          const V = POWER_PLAY_VALUES;
+          const { dailyDouble: _d, popQuizHotshot: _q, ...rest } = newState.activePowerPlays;
+          newState.activePowerPlays = rest;
+          newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'dailyDouble' && b.id !== 'popQuizHotshot');
+          if (daily) {
+              const won = word.length >= V.dailyDoubleLetters;
+              const change = won ? daily.wager * 2 : -Math.min(daily.wager, runningScore);
+              runningScore += change;
+              eventLogQueue.push({ type: 'event', id: `pp-dailyDouble-${now}`, name: 'Daily Double', icon: '❓', description: won ? `${word.toUpperCase()} has ${word.length} letters: won ${change}.` : `${word.toUpperCase()} is under ${V.dailyDoubleLetters} letters: lost the wager.`, scoreChange: change, cumulativeScore: runningScore });
+              modalQueue.push(outcome(ppById('dailyDouble'), won ? `CORRECT! +${change} POINTS` : `WRONG! ${change} POINTS`, won ? `${word.toUpperCase()} has ${word.length} letters. Your ${daily.wager} wager pays double.` : `${word.toUpperCase()} has only ${word.length} letters (you needed ${V.dailyDoubleLetters}+). You lose your ${daily.wager} wager.`, won ? 'win' : 'lose'));
+          }
+          if (quiz) {
+              const took = Math.max(0, quiz.startClock - time);
+              const fast = took <= V.popQuizSeconds;
+              if (fast) {
+                  runningScore += V.popQuizPoints;
+                  newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + V.popQuizBonusSeconds;
+              } else {
+                  newState.ludicrousTimeCost = (newState.ludicrousTimeCost ?? 0) + V.popQuizPenaltySeconds;
+              }
+              eventLogQueue.push({ type: 'event', id: `pp-popQuiz-${now}`, name: 'Pop Quiz, Hotshot', icon: '🚌', description: fast ? `Answered in ${took}s: +${V.popQuizPoints} points and +${V.popQuizBonusSeconds}s.` : `Took ${took}s: -${V.popQuizPenaltySeconds}s.`, scoreChange: fast ? V.popQuizPoints : 0, cumulativeScore: runningScore });
+              modalQueue.push(outcome(ppById('popQuizHotshot'), fast ? `+${V.popQuizPoints} POINTS, +${V.popQuizBonusSeconds}s` : `TOO SLOW: -${V.popQuizPenaltySeconds}s`, fast ? `You answered in ${took} ${took === 1 ? 'second' : 'seconds'}. The bus keeps rolling.` : `That took ${took} seconds (you had ${V.popQuizSeconds}). The clock loses ${V.popQuizPenaltySeconds} seconds next round.`, fast ? 'win' : 'lose'));
+          }
+      }
+
       const isSuperHand = ((hand ?? []).filter(t => t !== null).length === 0);
       if (isSuperHand && !wordLocked) {
           const superHandBonus = SUPER_HAND_BONUS;
@@ -3771,6 +3843,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                   !newState.activeBuffs.some(ab => ab.id === pp.id) &&
                   !newState.availablePowerPlays.some(held => held.id === pp.id) &&
                   !(newState.oncePerRunTaken ?? []).includes(pp.id) &&
+                  // Neuralyzer only makes sense with a charm to wipe.
+                  !(pp.id === 'neuralyzer' && newState.activeCharms.length === 0) &&
                   !newState.powerPlayCooldowns[pp.id]
               );
               const { offeredItems: offeredPowerPlays, offerDetails } = gameUtils.getOffer(powerPlaysToOfferFrom, 3, newState);
@@ -4294,6 +4368,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         ? `GAMBLE STRIKE (${strikesRemaining})`
         : `CHALLENGE (${gameState?.challengeCount ?? 0})`, [isStrikeChallenge, strikesRemaining, gameState?.challengeCount]);
 
+    /** A gamble card's decision is in: apply it (and a Minesweeper strike) and show the outcome. */
+    const handleResolveGamble = (r: GambleResult) => {
+        const powerPlay = ppById(state.modalContent?.data?.id);
+        if (!powerPlay) return;
+        dispatch({ type: 'APPLY_GAMBLE', payload: { powerPlay, points: r.points, seconds: r.seconds, headline: r.headline, detail: r.detail, tone: r.tone } });
+        if (r.strike) dispatch({ type: 'ADD_STRIKE' });
+    };
+
     const handleSaveClick = () => {
         soundService.playUIClick();
         dispatch({ type: 'SHOW_SAVE_MODAL' });
@@ -4405,6 +4487,59 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         if (powerPlay.id === 'carmenSandiego') {
             soundService.playPowerUp();
             handleCarmenSandiegoActivation();
+            return;
+        }
+
+        // --- v7.25 gambles ---
+        if (GAMBLE_CARD_IDS.includes(powerPlay.id)) {
+            soundService.playPowerUp();
+            dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gamble', title: powerPlay.name, data: { id: powerPlay.id, icon: powerPlay.icon } } });
+            return;
+        }
+        if (powerPlay.id === 'neuralyzer') {
+            if (gameState.activeCharms.length === 0) { showMessage('🕶️ No charms to wipe. The Neuralyzer stays in your pocket.', 2500); return; }
+            dispatch({ type: 'NEURALYZE', payload: { powerPlay } });
+            return;
+        }
+        if (powerPlay.id === 'plinko') {
+            const points = plinkoPayout(Math.random());
+            const jackpot = points === POWER_PLAY_VALUES.plinko[POWER_PLAY_VALUES.plinko.length - 1].points;
+            dispatch({ type: 'APPLY_GAMBLE', payload: { powerPlay, points, headline: jackpot ? `JACKPOT! +${points} POINTS` : points ? `+${points} POINTS` : 'ZERO SLOT', detail: points ? 'The chip bounced your way.' : 'So close. The chip landed in the empty slot.', tone: points ? 'win' : 'lose' } });
+            return;
+        }
+        if (powerPlay.id === 'hotTubTimeMachine') {
+            const seconds = hotTubSeconds(Math.random());
+            dispatch({ type: 'APPLY_GAMBLE', payload: { powerPlay, seconds, headline: `${seconds > 0 ? '+' : ''}${seconds} SECONDS`, detail: seconds > 0 ? 'Great Scott, it worked! Extra time.' : 'The hot tub went the wrong way. You lost time.', tone: seconds > 0 ? 'win' : 'lose' } });
+            return;
+        }
+        if (powerPlay.id === 'luckyCharms') {
+            const pool = CHARMS_LIST.filter(c =>
+                c.effectType !== 'selection' && !gameState.activeCharms.some(a => a.id === c.id) &&
+                !(c.id === 'goldenSnitch' && snitchTargetFor(gameState.snitchCatches ?? 0) === null) &&
+                !(c.id === 'gottaCatchEmAll' && gameState.pokedexComplete) &&
+                !(c.id === 'mrGlass' && gameState.strikes >= maxStrikesFor({ ...gameState, activeCharms: [...gameState.activeCharms, c] })));
+            const charm = pool[Math.floor(Math.random() * pool.length)];
+            if (!charm) { showMessage('🍀 No charms left to give!', 2500); return; }
+            const replaced = gameState.activeCharms.length >= CHARM_SLOTS ? gameState.activeCharms[Math.floor(Math.random() * gameState.activeCharms.length)] : undefined;
+            dispatch({ type: 'APPLY_GAMBLE', payload: { powerPlay, headline: `${charm.icon} ${charm.name.toUpperCase()}`, detail: `${charm.description}${replaced ? `\n\nIt replaced ${replaced.icon} ${replaced.name}.` : ''}`, tone: 'neutral' } });
+            dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand: hand ?? [], allOffered: [charm], replaceId: replaced?.id } });
+            return;
+        }
+        if (powerPlay.id === 'dailyDouble' || powerPlay.id === 'popQuizHotshot') {
+            soundService.playPowerUp();
+            const V = POWER_PLAY_VALUES;
+            const wager = dailyDoubleWager(gameState.score);
+            const armed = powerPlay.id === 'dailyDouble' ? { wager } : { startClock: time };
+            const buff = { ...powerPlay, description: powerPlay.id === 'dailyDouble'
+                ? `Wager ${wager}: if your next word has ${V.dailyDoubleLetters}+ letters, win ${wager * 2}. If not, lose ${wager}.`
+                : `Play your next word within ${V.popQuizSeconds} seconds for +${V.popQuizPoints} and +${V.popQuizBonusSeconds}s, or lose ${V.popQuizPenaltySeconds}s.` };
+            dispatch({ type: 'UPDATE_GAME_STATE', payload: {
+                activePowerPlays: { ...gameState.activePowerPlays, [powerPlay.id]: armed },
+                activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== powerPlay.id), buff],
+                availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                powerPlayUses: { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 },
+                lastPowerPlayResult: { message: `${powerPlay.icon} ${buff.description}`, scoreChange: 0 },
+            } });
             return;
         }
 
@@ -4681,6 +4816,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         gameState,
         time,
         resumeCountdown: state.resumeCountdown ?? 0,
+        handleResolveGamble,
         timeGain: state.timeGain,
         message,
         hand,

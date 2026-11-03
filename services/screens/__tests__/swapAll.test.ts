@@ -66,9 +66,9 @@ describe('Once-per-run PowerPlays', () => {
     const get = (id: string) => POWER_PLAYS_LIST.find(p => p.id === id)!;
     const choose = (s: GameScreenState, id: string) => gameReducer(s, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: get(id), allOffered: [get(id)] } });
 
-    test('exactly the run-saving ones are flagged', () => {
+    test('exactly the run-saving ones (and the Neuralyzer, by design) are flagged', () => {
         expect(POWER_PLAYS_LIST.filter(p => p.oncePerRun).map(p => p.id).sort())
-            .toEqual(['chubbsPepTalk', 'continueScreen', 'deepFreeze', 'groundhogsDay', 'happyPlace', 'lifeFindsAWay', 'rewind', 'sliders', 'timeTurner', 'whoYouGonnaCall']);
+            .toEqual(['chubbsPepTalk', 'continueScreen', 'deepFreeze', 'groundhogsDay', 'happyPlace', 'lifeFindsAWay', 'neuralyzer', 'rewind', 'sliders', 'timeTurner', 'whoYouGonnaCall']);
     });
 
     test('taking one marks it spent for the run, even after it is used up', () => {
