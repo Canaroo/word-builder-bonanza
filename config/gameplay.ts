@@ -96,6 +96,7 @@ export const POWER_PLAY_VALUES = {
   comboBreakerWords: 3,
   // Continue?: when the clock hits 0, keep playing for this share of your score.
   continueScoreCostPercent: 20,
+  continueScoreCostMax: 2000,    // ...but never more than this, so a big late score isn't punished harder
   // Act Clear!: cash in clock seconds for points, but always keep a few on the clock.
   actClearMaxSeconds: 20,
   actClearPointsPerSecond: 20,

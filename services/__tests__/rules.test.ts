@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest';
 import { GAMEPLAY, POWER_WORD_EFFECTS } from '../../config/gameplay';
 import { SECRET_BONUSES } from '../../data/secretBonuses';
 import {
-    levelUpInfo, powerWordInfo,
+    levelUpInfo, powerWordInfo, continueCost,
     timeForWord, clampTime, lengthMultiplier, combineMultipliers, addWordMultiplier,
     refillCount, advancePowerPlayMeter, levelFor, clockSpeedFor, tickMsFor, timeForWordAtLevel, wordTimeScaleFor, meterLettersFor, levelTierFor, levelProgressFor,
     taxWordTime, snitchTargetFor, bonusTimeScale, bonusTime,
@@ -164,5 +164,14 @@ describe('powerWordInfo', () => {
             expect(b.message).toBe(info.does);
         }
         expect(powerWordInfo('slow').does).toContain(`${POWER_WORD_EFFECTS.slowWords} words`);
+    });
+});
+
+describe('continueCost', () => {
+    test('20% of the score, capped at 2,000', () => {
+        expect(continueCost(2000)).toBe(400);
+        expect(continueCost(10000)).toBe(2000);
+        expect(continueCost(30000)).toBe(2000);
+        expect(continueCost(0)).toBe(0);
     });
 });
