@@ -111,15 +111,22 @@ export const POWER_PLAY_VALUES = {
   spaceInvaderMultiplier: 3,     // Space Invader: 50% for this...
   spaceInvaderCap: 5,            // ...or the word is capped at this many points
   // v7.25 gambles. Expected values sit near Fluncle's sure +300 so a gamble is worth the risk.
-  doorPrizes: [{ points: 500 }, { seconds: 20 }, { seconds: -5 }] as { points?: number; seconds?: number }[], // Let's Make a Deal
-  dealOffer: 250,                                // Deal or No Deal: the Banker's sure thing...
-  dealCases: [0, 25, 100, 200, 400, 750, 1500],  // ...or one of these, equal odds
+  // Let's Make a Deal: each round, two doors hold these prizes and one hides a Zonk that wipes
+  // the pot. Bank after any win, or play the next round (bigger prizes). EV if you play all 3: ~340.
+  doorRounds: [[150, 250], [300, 400], [500, 700]] as number[][],
+  // Deal or No Deal: you hold one of these cases (equal odds, average 425). Each round more cases
+  // open and the Banker offers this share of the average of what's left. Deal, or go on.
+  dealCases: [0, 25, 100, 200, 400, 750, 1500],
+  dealOpenPerRound: [2, 2, 1],
+  dealBankerFactors: [0.6, 0.75, 0.9],
   whammyPot: 150,                                // No Whammies!: each spin adds this...
   whammyChance: 0.2,                             // ...unless a Whammy wipes the pot
   whammySpins: 3,
   plinko: [{ points: 0, chance: 0.2 }, { points: 100, chance: 0.35 }, { points: 300, chance: 0.25 }, { points: 700, chance: 0.15 }, { points: 2000, chance: 0.05 }],
-  minesweeperSquares: 9,                         // one is a mine (a strike); the rest pay...
-  minesweeperPoints: 300,
+  // Minesweeper: pick squares one at a time. Each safe square adds the next step of the ladder to
+  // the pot; the mine wipes it. Bank any time. Best stop is around 5-6 picks (EV ~370).
+  minesweeperSquares: 9,                         // one is a mine
+  minesweeperLadder: [100, 125, 150, 200, 250, 300, 400, 500],
   hotTub: [{ seconds: 25, chance: 0.35 }, { seconds: 10, chance: 0.45 }, { seconds: -8, chance: 0.2 }],
   dailyDoublePercent: 10,                        // wager this share of your score...
   dailyDoubleMin: 100,

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ArcadeButton from './ArcadeButton';
 import { POWER_PLAY_VALUES as V } from '../config/gameplay';
-import { shuffledDoors } from '../services/rules';
+import { doorsForRound, minesweeperPot, bankerOffer, dealGame } from '../services/rules';
 import { soundService } from '../services/soundService';
 
 // The PowerPlays where the player makes the call (v7.25): pick a door, take the Banker's deal,
@@ -20,54 +20,77 @@ const Frame: React.FC<{ icon: string; name: string; children: React.ReactNode }>
   </div>
 );
 
-const prizeText = (p: { points?: number; seconds?: number }) =>
-  p.points ? `+${p.points} points` : (p.seconds ?? 0) > 0 ? `+${p.seconds} seconds` : `a Zonk (${p.seconds} seconds)`;
-
+/** Let's Make a Deal: each round, two doors pay and one is a Zonk that wipes the pot. Bank after any win. */
 const Doors: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
-  const [doors] = useState(() => shuffledDoors());
+  const rounds = V.doorRounds.length;
+  const [round, setRound] = useState(0);
+  const [pot, setPot] = useState(0);
+  const [doors, setDoors] = useState(() => doorsForRound(0));
+  const [last, setLast] = useState<string | null>(null);
+  const bank = (amount: number, played: number) =>
+    onResolve({ points: amount, headline: `BANKED: +${amount} POINTS`, detail: `You walked away after ${played} ${played === 1 ? 'round' : 'rounds'} with the cash.`, tone: 'win' });
   const pick = (i: number) => {
     const prize = doors[i];
-    const others = doors.map((d, j) => (j === i ? null : `Door ${j + 1}: ${prizeText(d)}`)).filter(Boolean).join(' · ');
-    const zonk = !prize.points && (prize.seconds ?? 0) < 0;
-    onResolve({
-      ...prize,
-      headline: zonk ? `DOOR ${i + 1}: ZONK!` : `DOOR ${i + 1}: ${prizeText(prize).toUpperCase()}`,
-      detail: `${zonk ? 'A Zonk! You lose a little time.' : 'Behind your door!'}\n\n${others}`,
-      tone: zonk ? 'lose' : 'win',
-    });
+    const others = doors.map((d, j) => (j === i ? null : `Door ${j + 1}: ${d ? `+${d}` : 'Zonk'}`)).filter(Boolean).join(' · ');
+    if (!prize) {
+      onResolve({ points: 0, headline: `DOOR ${i + 1}: ZONK!`, detail: `${pot ? `The Zonk took your pot of ${pot} points.` : 'A Zonk on the first door. Nothing won this time.'}\n\n${others}`, tone: 'lose' });
+      return;
+    }
+    const next = pot + prize;
+    if (round + 1 >= rounds) { bank(next, round + 1); return; }
+    soundService.playTileClick();
+    setPot(next); setRound(round + 1); setDoors(doorsForRound(round + 1));
+    setLast(`Door ${i + 1}: +${prize}! (${others})`);
   };
+  const prizes = V.doorRounds[round];
   return (
     <>
-      <p className="text-slate-200">One door hides +{V.doorPrizes[0].points} points, one +{V.doorPrizes[1].seconds} seconds, one a Zonk.</p>
+      <p className="osd-text text-lg text-neon-cyan">ROUND {round + 1} OF {rounds}</p>
+      {last && <p className="text-neon-green text-sm">{last}</p>}
+      <p className="text-slate-200">Two doors hold +{prizes[0]} and +{prizes[1]}. One hides a Zonk that wipes your pot.</p>
+      <p className="font-display text-3xl text-neon-yellow" aria-live="polite">POT: {pot}</p>
       <div className="grid grid-cols-3 gap-2 w-full">
         {doors.map((_, i) => (
-          <button key={i} type="button" onClick={() => pick(i)} className="rounded-xl bg-gradient-to-b from-[#8b5a2b] to-[#5a3a1a] ring-2 ring-neon-yellow/70 py-5 font-display text-2xl text-neon-yellow hover:brightness-110" aria-label={`Door ${i + 1}`}>
+          <button key={`${round}-${i}`} type="button" onClick={() => pick(i)} className="rounded-xl bg-gradient-to-b from-[#8b5a2b] to-[#5a3a1a] ring-2 ring-neon-yellow/70 py-5 font-display text-2xl text-neon-yellow hover:brightness-110" aria-label={`Door ${i + 1}`}>
             🚪<br />{i + 1}
           </button>
         ))}
       </div>
+      {pot > 0 && <ArcadeButton color="green" className="w-full" onClick={() => bank(pot, round)}>Take the {pot} and walk away</ArcadeButton>}
     </>
   );
 };
 
+/** Deal or No Deal: open cases round by round; each round the Banker makes an offer. */
 const Deal: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
-  const take = () => onResolve({ points: V.dealOffer, headline: `DEAL! +${V.dealOffer} POINTS`, detail: 'You took the Banker\'s offer. Safe money.', tone: 'neutral' });
-  const open = () => {
-    const value = V.dealCases[Math.floor(Math.random() * V.dealCases.length)];
-    const better = value > V.dealOffer;
-    onResolve({
-      points: value,
-      headline: `YOUR CASE: +${value} POINTS`,
-      detail: better ? `No deal paid off! The Banker only offered ${V.dealOffer}.` : `The Banker offered ${V.dealOffer}. Ouch.`,
-      tone: better ? 'win' : 'lose',
-    });
+  const [game] = useState(() => dealGame());
+  const [round, setRound] = useState(0);
+  const opened = game.others.slice(0, V.dealOpenPerRound.slice(0, round + 1).reduce((a, b) => a + b, 0));
+  const left = game.others.slice(opened.length);
+  const offer = bankerOffer([game.mine, ...left], round);
+  const lastRound = round >= V.dealOpenPerRound.length - 1;
+  const deal = () => onResolve({
+    points: offer, headline: `DEAL! +${offer} POINTS`,
+    detail: `Your case held ${game.mine}. ${offer >= game.mine ? 'Good deal!' : 'You left points on the table.'}`,
+    tone: offer >= game.mine ? 'win' : 'neutral',
+  });
+  const noDeal = () => {
+    if (!lastRound) { soundService.playTileClick(); setRound(round + 1); return; }
+    onResolve({ points: game.mine, headline: `YOUR CASE: +${game.mine} POINTS`, detail: game.mine >= offer ? `No deal paid off! The Banker's last offer was ${offer}.` : `The Banker's last offer was ${offer}. Ouch.`, tone: game.mine >= offer ? 'win' : 'lose' });
   };
   return (
     <>
-      <p className="text-slate-200">The Banker is calling. Your case holds anywhere from {V.dealCases[0]} to {V.dealCases[V.dealCases.length - 1]} points.</p>
-      <p className="font-display text-3xl text-neon-yellow">OFFER: +{V.dealOffer}</p>
-      <ArcadeButton color="green" className="w-full" onClick={take}>Deal</ArcadeButton>
-      <ArcadeButton color="red" className="w-full" onClick={open}>No deal: open my case</ArcadeButton>
+      <p className="osd-text text-lg text-neon-cyan">ROUND {round + 1} OF {V.dealOpenPerRound.length}</p>
+      <div className="flex flex-wrap justify-center gap-1" aria-label="Cases">
+        {V.dealCases.map(v => {
+          const gone = opened.includes(v);
+          return <span key={v} className={`osd-text text-base leading-none px-2 py-1 rounded ${gone ? 'bg-crt-950 text-slate-600 line-through' : 'bg-neon-yellow/20 text-neon-yellow'}`}>{v}</span>;
+        })}
+      </div>
+      <p className="text-slate-200 text-sm">Crossed-out amounts were in opened cases. Your case is still closed.</p>
+      <p className="font-display text-3xl text-neon-yellow">OFFER: +{offer}</p>
+      <ArcadeButton color="green" className="w-full" onClick={deal}>Deal</ArcadeButton>
+      <ArcadeButton color="red" className="w-full" onClick={noDeal}>{lastRound ? 'No deal: open my case' : 'No deal: open more cases'}</ArcadeButton>
     </>
   );
 };
@@ -97,19 +120,42 @@ const Whammies: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolv
   );
 };
 
+/** Minesweeper: keep picking squares to grow the pot; the mine wipes it. Bank any time. */
 const Mines: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
   const [mine] = useState(() => Math.floor(Math.random() * V.minesweeperSquares));
-  const pick = (i: number) => onResolve(i === mine
-    ? { strike: true, headline: 'BOOM! A STRIKE', detail: `Square ${i + 1} was the mine.`, tone: 'lose' }
-    : { points: V.minesweeperPoints, headline: `SAFE! +${V.minesweeperPoints} POINTS`, detail: `The mine was under square ${mine + 1}.`, tone: 'win' });
+  const [cleared, setCleared] = useState<number[]>([]);
+  const pot = minesweeperPot(cleared.length);
+  const nextStep = V.minesweeperLadder[cleared.length] ?? 0;
+  const bank = (amount: number, picks: number) =>
+    onResolve({ points: amount, headline: picks === V.minesweeperSquares - 1 ? `BOARD CLEARED! +${amount}` : `BANKED: +${amount} POINTS`, detail: `You cleared ${picks} ${picks === 1 ? 'square' : 'squares'}. The mine was under square ${mine + 1}.`, tone: 'win' });
+  const pick = (i: number) => {
+    if (cleared.includes(i)) return;
+    if (i === mine) {
+      onResolve({ points: 0, headline: 'BOOM! POT WIPED', detail: `Square ${i + 1} was the mine. Your pot of ${pot} points went up in smoke.`, tone: 'lose' });
+      return;
+    }
+    const now = [...cleared, i];
+    if (now.length >= V.minesweeperSquares - 1) { bank(minesweeperPot(now.length), now.length); return; }
+    soundService.playTileClick();
+    setCleared(now);
+  };
   return (
     <>
-      <p className="text-slate-200">Safe squares pay +{V.minesweeperPoints}. One hides a mine: a strike.</p>
+      <p className="text-slate-200">One square hides a mine that wipes your pot. Next safe square: +{nextStep}.</p>
+      <p className="font-display text-3xl text-neon-yellow" aria-live="polite">POT: {pot}</p>
       <div className="grid grid-cols-3 gap-2 w-48">
-        {Array.from({ length: V.minesweeperSquares }, (_, i) => (
-          <button key={i} type="button" onClick={() => pick(i)} className="aspect-square rounded-md bg-slate-300 ring-2 ring-white/60 shadow-[inset_-3px_-3px_0_rgba(0,0,0,0.25)] hover:bg-slate-200" aria-label={`Square ${i + 1}`} />
-        ))}
+        {Array.from({ length: V.minesweeperSquares }, (_, i) => {
+          const safe = cleared.includes(i);
+          return (
+            <button key={i} type="button" onClick={() => pick(i)} disabled={safe}
+              className={`aspect-square rounded-md ring-2 ${safe ? 'bg-crt-950 ring-neon-green/60 text-neon-green' : 'bg-slate-300 ring-white/60 shadow-[inset_-3px_-3px_0_rgba(0,0,0,0.25)] hover:bg-slate-200'}`}
+              aria-label={safe ? `Square ${i + 1}, safe` : `Square ${i + 1}`}>
+              {safe ? '✓' : ''}
+            </button>
+          );
+        })}
       </div>
+      {cleared.length > 0 && <ArcadeButton color="green" className="w-full" onClick={() => bank(pot, cleared.length)}>Stop and bank {pot}</ArcadeButton>}
     </>
   );
 };

@@ -75,6 +75,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   combos) wait for Continue. Chance PowerPlays (rolls, coin flips, random tiles) show their
   result on a centered outcome card (`outcome()` in `GameScreen.tsx`, `components/OutcomeCard.tsx`)
   that also waits for Continue. Only other quick PowerPlay/charm results auto-close.
+- **Decision gambles are push-your-luck** (`components/GambleCard.tsx`): Minesweeper, Let's Make a
+  Deal, No Whammies! and Deal or No Deal keep going round after round until the player banks (or
+  takes the deal) or busts; a bust wipes the pot, nothing more. One-roll gambles (Plinko, Hot Tub,
+  Lucky Charms) stay single-shot. Ladders, rounds and offers in `POWER_PLAY_VALUES`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
