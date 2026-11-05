@@ -1097,7 +1097,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'letsMakeADeal',
     name: "Let's Make a Deal",
-    description: `Pick Door 1, 2 or 3. One hides +${POWER_PLAY_VALUES.doorPrizes[0].points} points, one +${POWER_PLAY_VALUES.doorPrizes[1].seconds} seconds, and one a Zonk (${POWER_PLAY_VALUES.doorPrizes[2].seconds} seconds).`,
+    description: `Up to ${POWER_PLAY_VALUES.doorRounds.length} rounds of 3 doors: two pay (round 1: +${POWER_PLAY_VALUES.doorRounds[0][0]} or +${POWER_PLAY_VALUES.doorRounds[0][1]}, bigger each round) and one Zonk wipes your pot. Walk away with the pot after any win.`,
     flavorText: 'Do you want what is behind Door Number 2?',
     icon: '🚪',
     subtheme: 'utility',
@@ -1108,7 +1108,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'dealOrNoDeal',
     name: 'Deal or No Deal',
-    description: `The Banker offers a sure +${POWER_PLAY_VALUES.dealOffer} points. Take the deal, or open your case: anywhere from ${POWER_PLAY_VALUES.dealCases[0]} to +${POWER_PLAY_VALUES.dealCases[POWER_PLAY_VALUES.dealCases.length - 1]} points.`,
+    description: `You hold one of ${POWER_PLAY_VALUES.dealCases.length} cases (${POWER_PLAY_VALUES.dealCases[0]} to ${POWER_PLAY_VALUES.dealCases[POWER_PLAY_VALUES.dealCases.length - 1]} points). Each round more cases open and the Banker makes an offer: take the deal, or keep going and open your case at the end.`,
     flavorText: 'Deal... or no deal?',
     icon: '💼',
     subtheme: 'score',
@@ -1141,7 +1141,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'minesweeper',
     name: 'Minesweeper',
-    description: `Pick 1 of ${POWER_PLAY_VALUES.minesweeperSquares} squares. Safe squares pay +${POWER_PLAY_VALUES.minesweeperPoints} points. One hides a mine: a strike.`,
+    description: `Pick squares one at a time: each safe square grows your pot (+${POWER_PLAY_VALUES.minesweeperLadder[0]}, then more each time, up to ${POWER_PLAY_VALUES.minesweeperLadder.reduce((a, b) => a + b, 0)}). One of ${POWER_PLAY_VALUES.minesweeperSquares} hides a mine that wipes the pot. Stop and bank any time.`,
     flavorText: "Don't click the mine. Don't click the mine.",
     icon: '💣',
     subtheme: 'strike',

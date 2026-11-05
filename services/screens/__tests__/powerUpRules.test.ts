@@ -12,7 +12,7 @@ import { calculateScore } from '../../gameUtils';
 import * as gameUtils from '../../gameUtils';
 import { RACK_SIZE } from '../../../constants';
 import type { GameState, Tile } from '../../../types';
-import { catchVowels, handSizeFor, meterLettersFor, bossHitsToWin, advanceBoss, plinkoPayout, hotTubSeconds, dailyDoubleWager, shuffledDoors } from '../../rules';
+import { catchVowels, handSizeFor, meterLettersFor, bossHitsToWin, advanceBoss, plinkoPayout, hotTubSeconds, dailyDoubleWager, doorsForRound, minesweeperPot, bankerOffer, dealGame } from '../../rules';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -713,22 +713,33 @@ describe('chance PowerPlays show their result on a card that waits for Continue'
 
 describe('v7.25 gamble PowerPlays', () => {
     test('the rolls pay what the config says, and expected values sit near Fluncle', () => {
-        const { plinko, hotTub, dealCases, dealOffer } = POWER_PLAY_VALUES;
+        const { plinko, hotTub, dealCases } = POWER_PLAY_VALUES;
         expect(plinkoPayout(0)).toBe(plinko[0].points);
         expect(plinkoPayout(0.999)).toBe(plinko[plinko.length - 1].points);
         const ev = plinko.reduce((s, p) => s + p.points * p.chance, 0);
         expect(ev).toBeGreaterThan(250); expect(ev).toBeLessThan(400);
         expect(hotTubSeconds(0)).toBe(hotTub[0].seconds);
         expect(hotTubSeconds(0.99)).toBe(hotTub[2].seconds);
-        expect(dealCases.reduce((a, b) => a + b, 0) / dealCases.length).toBeGreaterThan(dealOffer);
+        expect(dealCases.reduce((a, b) => a + b, 0) / dealCases.length).toBe(425);
     });
     test('Daily Double wagers 10% of the score, between 100 and 500', () => {
         expect(dailyDoubleWager(0)).toBe(100);
         expect(dailyDoubleWager(3000)).toBe(300);
         expect(dailyDoubleWager(99999)).toBe(500);
     });
-    test('the doors are the three prizes, shuffled', () => {
-        expect(shuffledDoors(() => 0).map(d => JSON.stringify(d)).sort()).toEqual(POWER_PLAY_VALUES.doorPrizes.map(d => JSON.stringify(d)).sort());
+    test('push your luck: doors, Minesweeper and Deal or No Deal', () => {
+        // Each round of doors: its two prizes and a Zonk (0), shuffled.
+        expect(doorsForRound(0, () => 0).sort((a, b) => a - b)).toEqual([0, ...POWER_PLAY_VALUES.doorRounds[0]]);
+        expect(doorsForRound(2, () => 0.5).sort((a, b) => a - b)).toEqual([0, ...POWER_PLAY_VALUES.doorRounds[2]]);
+        // The Minesweeper pot climbs the ladder.
+        expect(minesweeperPot(0)).toBe(0);
+        expect(minesweeperPot(1)).toBe(POWER_PLAY_VALUES.minesweeperLadder[0]);
+        expect(minesweeperPot(5)).toBe(825);
+        // The Banker offers a share of what's left, rising each round.
+        expect(bankerOffer([0, 100, 200, 400], 0)).toBe(Math.round(175 * 0.6 / 5) * 5);
+        expect(bankerOffer([1500, 0], 2)).toBe(Math.round(750 * 0.9 / 5) * 5);
+        const g = dealGame(() => 0.3);
+        expect([g.mine, ...g.others].sort((a, b) => a - b)).toEqual([...POWER_PLAY_VALUES.dealCases].sort((a, b) => a - b));
     });
     test('a gamble result applies points and time, empties the pocket and opens the outcome card', () => {
         const base = { ...start({ score: 100, availablePowerPlays: [pp('plinko')] }, 30), modalContent: null };

@@ -264,11 +264,26 @@ export const dailyDoubleWager = (score: number): number => {
     const { dailyDoublePercent, dailyDoubleMin, dailyDoubleMax } = POWER_PLAY_VALUES;
     return Math.min(dailyDoubleMax, Math.max(dailyDoubleMin, Math.round(score * dailyDoublePercent / 100)));
 };
-/** Let's Make a Deal: the three prizes behind the doors, shuffled. */
-export const shuffledDoors = (rand: () => number = Math.random) => {
-    const doors = [...POWER_PLAY_VALUES.doorPrizes];
-    for (let i = doors.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [doors[i], doors[j]] = [doors[j], doors[i]]; }
-    return doors;
+const shuffle = <T,>(list: T[], rand: () => number): T[] => {
+    const out = [...list];
+    for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
+    return out;
+};
+/** Let's Make a Deal: a round's three doors, shuffled (0 = the Zonk). */
+export const doorsForRound = (round: number, rand: () => number = Math.random): number[] =>
+    shuffle([...POWER_PLAY_VALUES.doorRounds[Math.min(round, POWER_PLAY_VALUES.doorRounds.length - 1)], 0], rand);
+/** Minesweeper: the pot after this many safe squares. */
+export const minesweeperPot = (safePicks: number): number =>
+    POWER_PLAY_VALUES.minesweeperLadder.slice(0, safePicks).reduce((a, b) => a + b, 0);
+/** Deal or No Deal: the Banker's offer for this round, from the cases still unopened (yours included). */
+export const bankerOffer = (unopened: number[], round: number): number => {
+    const avg = unopened.reduce((a, b) => a + b, 0) / Math.max(1, unopened.length);
+    return Math.round(avg * POWER_PLAY_VALUES.dealBankerFactors[Math.min(round, POWER_PLAY_VALUES.dealBankerFactors.length - 1)] / 5) * 5;
+};
+/** Deal or No Deal: a fresh game: your case and the others, shuffled. */
+export const dealGame = (rand: () => number = Math.random) => {
+    const [mine, ...others] = shuffle(POWER_PLAY_VALUES.dealCases, rand);
+    return { mine, others };
 };
 
 /** Continue?: the points a rescue costs, a share of the score up to a cap. */
