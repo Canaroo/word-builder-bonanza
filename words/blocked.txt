@@ -10,7 +10,6 @@
 # A starting set; extend it as you find more. Official lists removed similar words in 2020.
 abo
 abos
-chinks
 dago
 dagoes
 dagos
@@ -24,8 +23,6 @@ golliwogs
 gippo
 gook
 gooks
-gyp
-gyps
 honkeys
 honkie
 honkies
@@ -59,27 +56,13 @@ yids
 # Added with the SCOWL merge (scripts/build-wordlist.mjs). SCOWL restores real Scrabble words the
 # base list dropped (BUM, BUTT, CRAP, DAMN, SEXY, VAPE...), and these come back with them.
 # Slurs:
-chink
-dyke
-dykes
 faggot
 faggots
-fagot
-fagots
 nigga
 niggas
 niggaz
 nigger
 niggers
-niggard
-niggardliness
-niggardly
-niggards
-retard
-retards
-retarded
-spastic
-spastics
 wetback
 wetbacks
 slumdog
@@ -98,11 +81,5 @@ cocksucker
 cocksuckers
 cunt
 cunts
-whore
-whores
-whorehouse
-whorehouses
-sluts
-sluttish
 milf
 milfs

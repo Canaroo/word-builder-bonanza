@@ -17,3 +17,11 @@ poop
 ew
 ok
 zen
+
+# Forms of words the owner allowed in v7.27.2 (playable, never suggested: see no-suggest.txt)
+dildos
+twats
+wanks
+wanked
+wanking
+wankers
