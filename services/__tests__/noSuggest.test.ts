@@ -53,7 +53,7 @@ describe('playable but never suggested', () => {
     test('words unblocked in v7.27.2 are playable, defined where needed, and never suggested', () => {
         const list = new Set(readFileSync(resolve(__dirname, '../../public/words/wordlist.txt'), 'utf8').split('\n'));
         const words = ['sluts', 'sluttish', 'niggard', 'niggardly', 'retard', 'retarded', 'chink', 'chinks', 'dyke', 'dykes', 'fagot', 'spastic', 'gyp', 'gyps',
-            'whore', 'whores', 'whorehouse', 'dildo', 'dildos', 'skank', 'twat', 'twats', 'wank', 'wanked', 'wanking', 'wanker', 'wankers', 'bollocks'];
+            'whore', 'whores', 'whorehouse', 'dildo', 'dildos', 'skank', 'twat', 'twats', 'wank', 'wanked', 'wanking', 'wanker', 'wankers', 'bollocks', 'cum', 'cums', 'cummed', 'cumming'];
         for (const w of words) {
             expect(isBlocked(w), w).toBe(false);
             expect(list.has(w), w).toBe(true);
