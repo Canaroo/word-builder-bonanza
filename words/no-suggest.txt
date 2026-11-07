@@ -82,3 +82,10 @@ wanking
 wanker
 wankers
 bollocks
+
+# Together with (Latin, as in SUMMA CUM LAUDE); also vulgar slang. Allowed at the owner's request
+# (v7.27.3), never suggested.
+cum
+cums
+cummed
+cumming

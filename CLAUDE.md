@@ -110,7 +110,7 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
 - **Run-savers** are once per run. Time from items goes through `bonusTime()`.
 - **Slurs:** never unblock a word without the owner's confirmation. Allowed slur-adjacent words
   (COON, DINK, FAG, POOF, NIGGARD, RETARD, CHINK, DYKE, FAGOT, SPASTIC, GYP and their forms) and
-  allowed profanity (SLUT, WHORE, DILDO, SKANK, TWAT, WANK, BOLLOCKS) are on `words/no-suggest.txt`,
+  allowed profanity (SLUT, WHORE, DILDO, SKANK, TWAT, WANK, BOLLOCKS, CUM) are on `words/no-suggest.txt`,
   so the game never offers them. Still blocked: true slurs, the F- and C-word families, COCKSUCKER,
   MILF, SLUMDOG. HOMO was left out on purpose.
 - **Every run starts from a fresh state** (`createInitialGameState()`). Copy nested state before

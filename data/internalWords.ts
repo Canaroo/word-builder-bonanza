@@ -118,6 +118,7 @@ export const internalWords = new Map<string, string>([
   ['cues', 'Multiple signals or hints, like breadcrumbs leading you to brilliance… or disaster. Follow wisely.'],
   ['cuff', 'A wrist wrap or sudden slap—context matters.'],
   ['cuing', 'The act of lining things up just right. In billiards or life, timing is everything.'],
+  ['cum', 'Together with (as in SUMMA CUM LAUDE); also vulgar slang.'],
   ['cwm', 'A Welsh word for a steep valley hollow. Don’t question it, just play it.'],
   ['da', 'A heavy knife.'],
   ['dab', 'To lightly press or touch, often with a cloth or your swagger.'],
