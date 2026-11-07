@@ -1201,6 +1201,7 @@ export const internalWords = new Map<string, string>([
   ['slushee', 'A slushy frozen drink.'],
   ['slushees', 'Slushy frozen drinks.'],
   ['slushie', 'A slushy frozen drink.'],
+  ['slut', 'A promiscuous or slovenly woman (an insult).'],
   ['sly', 'Cunning or crafty.'],
   ['smishing', 'Scamming people by text message.'],
   ['smog', 'Air pollution from smoke and fog.'],

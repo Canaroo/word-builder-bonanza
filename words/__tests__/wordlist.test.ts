@@ -33,8 +33,9 @@ describe('generated word list', () => {
     });
 
     test('keeps slurs and the harshest profanity out', () => {
-        for (const w of ['nigger', 'faggot', 'retard', 'wetback', 'cunt', 'fuck', 'fucking', 'slut']) expect(words).not.toContain(w);
+        for (const w of ['nigger', 'faggot', 'retard', 'wetback', 'cunt', 'fuck', 'fucking', 'sluts']) expect(words).not.toContain(w);
         expect(words).toContain('retardant'); // only the exact listed words are blocked
+        expect(words).toContain('slut'); // unblocked at the owner's request (v7.27.1), never suggested
     });
 
     test('the common list is an everyday subset of the full list', () => {
