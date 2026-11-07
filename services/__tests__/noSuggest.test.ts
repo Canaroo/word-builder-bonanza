@@ -41,13 +41,29 @@ describe('playable but never suggested', () => {
         }
     });
 
-    test('SLUT is playable with a definition and never suggested; SLUTS stays blocked', () => {
+    test('SLUT is playable with a definition and never suggested', () => {
         const list = new Set(readFileSync(resolve(__dirname, '../../public/words/wordlist.txt'), 'utf8').split('\n'));
         expect(isBlocked('slut')).toBe(false);
         expect(list.has('slut')).toBe(true);
         expect(curatedWords.get('slut')).toBe('A promiscuous or slovenly woman (an insult).');
         expect(suggestableWords.has('slut')).toBe(false);
-        expect(isBlocked('sluts')).toBe(true);
+        expect(isBlocked('sluts')).toBe(false);
+    });
+
+    test('words unblocked in v7.27.2 are playable, defined where needed, and never suggested', () => {
+        const list = new Set(readFileSync(resolve(__dirname, '../../public/words/wordlist.txt'), 'utf8').split('\n'));
+        const words = ['sluts', 'sluttish', 'niggard', 'niggardly', 'retard', 'retarded', 'chink', 'chinks', 'dyke', 'dykes', 'fagot', 'spastic', 'gyp', 'gyps',
+            'whore', 'whores', 'whorehouse', 'dildo', 'dildos', 'skank', 'twat', 'twats', 'wank', 'wanked', 'wanking', 'wanker', 'wankers', 'bollocks'];
+        for (const w of words) {
+            expect(isBlocked(w), w).toBe(false);
+            expect(list.has(w), w).toBe(true);
+            expect(suggestableWords.has(w), w).toBe(false);
+            expect(NO_SUGGEST_WORDS.has(w), w).toBe(true);
+        }
+        expect(curatedWords.get('chink')).toBe('A narrow crack or opening.');
+        expect(curatedWords.get('dyke')).toBe('An embankment that holds back water (also DIKE).');
+        // The slurs themselves stay out.
+        for (const w of ['faggot', 'nigger', 'nigga', 'wetback', 'gook', 'kike', 'homo']) expect(list.has(w), w).toBe(false);
     });
 
     test('CROWBAR has its definition', () => {

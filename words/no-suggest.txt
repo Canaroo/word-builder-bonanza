@@ -29,5 +29,56 @@ poofed
 poofing
 
 # A promiscuous or slovenly woman (an insult, not a slur). Unblocked at the owner's request;
-# never suggested. (SLUTS and SLUTTISH stay blocked unless the owner asks for them too.)
+# never suggested. SLUTS and SLUTTISH were unblocked the same way in v7.27.2.
 slut
+sluts
+sluttish
+
+# Words with an everyday meaning that are also slurs. Unblocked at the owner's request (v7.27.2),
+# never suggested. The slurs themselves (FAGGOT, the N-word, WETBACK...) stay in blocked.txt.
+# Stingy:
+niggard
+niggards
+niggardly
+niggardliness
+# To slow down:
+retard
+retards
+retarded
+# A narrow opening:
+chink
+chinks
+# An embankment (a variant of DIKE):
+dyke
+dykes
+# A bundle of sticks (a variant of FAGGOT in that sense only):
+fagot
+fagots
+# Medical: affected by muscle spasms:
+spastic
+spastics
+# To cheat or swindle:
+gyp
+gyps
+
+# Profanity the owner allowed (v7.27.2). Playable, never suggested.
+whore
+whores
+whorehouse
+whorehouses
+whoring
+whorish
+dildo
+dildos
+skank
+skanks
+skanky
+twat
+twats
+wank
+wanks
+wanked
+wanking
+wanker
+wankers
+bollocks

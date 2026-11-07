@@ -109,7 +109,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Separate rewards (secrets, boss badges, milestones, streak charms) still pay.
 - **Run-savers** are once per run. Time from items goes through `bonusTime()`.
 - **Slurs:** never unblock a word without the owner's confirmation. Allowed slur-adjacent words
-  (COON, DINK, FAG and its verb forms) are on `words/no-suggest.txt`, so the game never offers them.
+  (COON, DINK, FAG, POOF, NIGGARD, RETARD, CHINK, DYKE, FAGOT, SPASTIC, GYP and their forms) and
+  allowed profanity (SLUT, WHORE, DILDO, SKANK, TWAT, WANK, BOLLOCKS) are on `words/no-suggest.txt`,
+  so the game never offers them. Still blocked: true slurs, the F- and C-word families, COCKSUCKER,
+  MILF, SLUMDOG. HOMO was left out on purpose.
 - **Every run starts from a fresh state** (`createInitialGameState()`). Copy nested state before
   changing it; shared objects once leaked charm offers between runs.
 - **Firebase rules** live in the Firebase console; `docs/LEADERBOARD.md` mirrors them. Sync both.
