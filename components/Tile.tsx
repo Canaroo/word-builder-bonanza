@@ -10,9 +10,24 @@ interface TileProps {
   isGolden?: boolean;
   /** Boss round: 'dim' if the tile would break the rule, 'glow' if the rule needs it. */
   bossHint?: 'dim' | 'glow' | null;
+  /** Bird Box: the tile is face down (letter and points hidden) but can still be played. */
+  faceDown?: boolean;
 }
 
-const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hintOrder, isGolden, bossHint }) => {
+const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hintOrder, isGolden, bossHint, faceDown }) => {
+  if (faceDown) {
+    return (
+      <button
+        onPointerDown={e => { if (e.button !== 0) return; e.preventDefault(); if (!tile.isLocked) onClick(); }}
+        onClick={e => { e.preventDefault(); if (e.detail === 0 && !tile.isLocked) onClick(); }}
+        onContextMenu={e => e.preventDefault()}
+        className="tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none bg-slate-700 text-slate-400"
+        aria-label="Tile, face down"
+      >
+        <span className="font-display text-2xl leading-none" aria-hidden="true">🙈</span>
+      </button>
+    );
+  }
   const hasMultiplier = tile.multiplier && tile.multiplier > 1;
   const hasTempPoints = tile.tempPoints && tile.tempPoints > 0;
   

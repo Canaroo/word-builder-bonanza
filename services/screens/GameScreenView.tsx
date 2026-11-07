@@ -19,6 +19,8 @@ import LevelBadge from '../../components/LevelBadge';
 import LevelUpCard from '../../components/LevelUpCard';
 import OutcomeCard from '../../components/OutcomeCard';
 import GambleCard, { type GambleResult } from '../../components/GambleCard';
+import PowerPlayTrackers from '../../components/PowerPlayTrackers';
+import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
   type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble';
@@ -86,6 +88,8 @@ export interface GameScreenViewProps {
   resumeCountdown?: number;
   /** A gamble PowerPlay's decision (doors, deal, spins, mines) is in. */
   handleResolveGamble?: (r: GambleResult) => void;
+  /** Psychic Friends Network: the next tiles in the bag, in draw order. */
+  upcomingTiles?: string[];
   timeGain?: { seconds: number; key: number; taxed?: boolean };
   /** Short game feedback (PowerPlay results, combos, hints). Empty when nothing to say. */
   message?: string;
@@ -138,7 +142,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, resumeCountdown = 0, handleResolveGamble, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, resumeCountdown = 0, handleResolveGamble, upcomingTiles, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
@@ -148,6 +152,16 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     handleAddTileToSwap, handleRemoveTileFromSwap, handleExecuteSwap, dispatch
 }) => {
     const timerRef = useRef<HTMLDivElement>(null);
+    // Bird Box (v7.28): each new hand shows its letters for a few seconds, then flips face down.
+    const blind = !!gameState?.activePowerPlays?.birdBox;
+    const handKey = (hand ?? []).map(t => t?.id ?? '-').join(',');
+    const [peeking, setPeeking] = useState(true);
+    useEffect(() => {
+        if (!blind) { setPeeking(true); return; }
+        setPeeking(true);
+        const t = setTimeout(() => setPeeking(false), POWER_PLAY_VALUES.birdBoxSeconds * 1000);
+        return () => clearTimeout(t);
+    }, [blind, handKey]);
     // After a level-up (once every pop-up it came with is closed), the level badge under the timer
     // flashes in its tier color, so the card and the badge read as one thing.
     const [levelFlash, setLevelFlash] = useState(0);
@@ -225,7 +239,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 return <LevelUpCard info={data} onClose={handleCloseModal} />;
 
             case 'gamble':
-                return <GambleCard id={data.id} icon={data.icon} name={title} onResolve={r => handleResolveGamble?.(r)} />;
+                return <GambleCard id={data.id} icon={data.icon} name={title} hand={hand} onResolve={r => handleResolveGamble?.(r)} />;
 
             case 'outcome':
                 return <OutcomeCard name={title} detail={typeof content === 'string' ? content : undefined} data={data} onClose={handleCloseModal} />;
@@ -879,6 +893,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           </div>
         </div>
 
+        <PowerPlayTrackers gameState={gameState} upcomingTiles={upcomingTiles} onStand={() => dispatch({ type: 'BLACKJACK_STAND' })} />
+
         {/* --- HAND: the standard hand in a 4x2 grid; widens to all rack slots when a power-up overfills it --- */}
         {(() => {
           const rack = hand ?? Array(RACK_SIZE).fill(null);
@@ -894,7 +910,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 const hintOrder = hintIndex >= 0 ? hintIndex + 1 : undefined;
                 return (
                   <div key={item?.id || originalIndex} className="w-full h-12 min-[375px]:h-14 sm:h-16 flex items-center justify-center">
-                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} hintOrder={hintOrder} bossHint={bossTileHint(item)} /> : <div className="w-full h-full rounded-lg bg-crt-950/60 ring-1 ring-white/5"></div>}
+                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} hintOrder={hintOrder} bossHint={bossTileHint(item)} faceDown={blind && !peeking} /> : <div className="w-full h-full rounded-lg bg-crt-950/60 ring-1 ring-white/5"></div>}
                   </div>
                 );
               })}

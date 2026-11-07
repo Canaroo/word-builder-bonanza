@@ -1,0 +1,151 @@
+// @vitest-environment jsdom
+// The v7.28 PowerPlays (86 -> 100): rules, scoring and reducer paths. The per-word settling in the
+// turn hook (Tamagotchi, Time Capsule, rival race, blackjack count, REDRUM, Hadouken...) is
+// checked in the real game with the playtest helper.
+import { describe, test, expect, vi, afterEach } from 'vitest';
+import { gameReducer, screenInitialState, type GameScreenState } from '../GameScreen';
+import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS } from '../../../data/powerPlays';
+import { POWER_PLAY_VALUES as V, TIME_BONUS } from '../../../config/gameplay';
+import { calculateScore } from '../../gameUtils';
+import * as gameUtils from '../../gameUtils';
+import { RACK_SIZE } from '../../../constants';
+import type { GameState, Tile } from '../../../types';
+import { tamagotchiPot, tamagotchiFeed, blackjackPayout, cardSharksPot, drawCard, cardFace, rivalScore, redrumReverse } from '../../rules';
+
+afterEach(() => vi.restoreAllMocks());
+
+const NEW_IDS = ['tamagotchi', 'priceIsRight', 'timeCapsule', 'redrum', 'jackass', 'multiplicity', 'hadouken', 'over9000', 'draftDay', 'smellYaLater', 'birdBox', 'chickenDinner', 'cardSharks', 'psychicFriends'];
+const pp = (id: string) => POWER_PLAYS_LIST.find(p => p.id === id)!;
+const start = (overrides: Partial<GameState> = {}, time = 40): GameScreenState => {
+    const { hand, tileBag } = gameUtils.dealNewHand(gameUtils.createTileBag());
+    const padded = Array(RACK_SIZE).fill(null);
+    hand.forEach((t, i) => (padded[i] = t));
+    return { ...screenInitialState, hand: padded, tileBag, time, isLoading: false, gameState: { ...screenInitialState.gameState, ...overrides } };
+};
+const tiles = (word: string): Tile[] => word.split('').map(l => ({ ...gameUtils.createTile(l), multiplier: 1, isSuper: false, isCombo: false }));
+const scoreWith = (active: Record<string, unknown>) =>
+    calculateScore('cat', tiles('CAT'), { ...screenInitialState.gameState, activePowerPlays: active }).totalScore;
+
+describe('v7.28 PowerPlays', () => {
+    test('all 14 exist, with unique ids, and the total is 100', () => {
+        for (const id of NEW_IDS) expect(pp(id), id).toBeTruthy();
+        expect(POWER_PLAYS_LIST).toHaveLength(100);
+        expect(new Set(POWER_PLAYS_LIST.map(p => p.id)).size).toBe(100);
+    });
+
+    test('descriptions read their numbers from config', () => {
+        expect(pp('tamagotchi').description).toContain(`+${tamagotchiPot(V.tamagotchiWords)}`);
+        expect(pp('priceIsRight').description).toContain(`+${V.priceIsRightBids[3].prize}`);
+        expect(pp('timeCapsule').description).toContain(`x${V.timeCapsuleMultiplier} after ${V.timeCapsuleWords} more words`);
+        expect(pp('jackass').description).toContain(`+${TIME_BONUS.jackass} seconds`);
+        expect(pp('chickenDinner').description).toContain('21 pays +400, 19-20 pays +200, 17-18 pays +100');
+        expect(pp('smellYaLater').description).toContain(`+${V.rivalPrize}`);
+    });
+});
+
+describe('v7.28 rules', () => {
+    test('Tamagotchi pot grows by a bigger step each feeding', () => {
+        expect([1, 2, 3].map(tamagotchiFeed)).toEqual([20, 40, 60]);
+        expect(tamagotchiPot(0)).toBe(0);
+        expect(tamagotchiPot(V.tamagotchiWords)).toBe(420);
+    });
+    test('blackjack pays 17+ and busts over 21', () => {
+        expect([16, 17, 18, 19, 20, 21, 22].map(blackjackPayout)).toEqual([0, 100, 100, 200, 200, 400, 0]);
+    });
+    test('Card Sharks ladder and cards', () => {
+        expect([0, 1, 2, 5, 9].map(cardSharksPot)).toEqual([0, 50, 125, 600, 600]);
+        expect(drawCard(() => 0)).toBe(2);
+        expect(drawCard(() => 0.9999)).toBe(14);
+        expect([10, 11, 14].map(cardFace)).toEqual(['10', 'J', 'A']);
+    });
+    test('rival scores per second; REDRUM needs 4+ letters', () => {
+        expect(rivalScore(10)).toBe(10 * V.rivalPointsPerSecond);
+        expect(rivalScore(-3)).toBe(0);
+        expect(redrumReverse('STAR')).toBe('rats');
+        expect(redrumReverse('CAT')).toBeNull();
+    });
+    test('Card Sharks: calling right on every card is roughly a 70% bet each time', () => {
+        // Best call from each card, over 2..14: higher when the card is low, lower when high.
+        let right = 0, wrong = 0;
+        for (let c = 2; c <= 14; c++) {
+            const higher = 14 - c, lower = c - 2;
+            right += Math.max(higher, lower); wrong += Math.min(higher, lower);
+        }
+        expect(right / (right + wrong)).toBeGreaterThan(0.7);
+    });
+});
+
+describe('v7.28 scoring', () => {
+    test('Jackass x3 and Bird Box x4 on the next word, nothing without them', () => {
+        const base = scoreWith({});
+        expect(scoreWith({ jackass: true })).toBe(base * V.jackassMultiplier);
+        expect(scoreWith({ birdBox: true })).toBe(base * V.birdBoxMultiplier);
+    });
+});
+
+describe('v7.28 reducer paths', () => {
+    test('arming from the pocket stores the right starting state', () => {
+        for (const [id, value] of [['redrum', { words: V.redrumWords }], ['chickenDinner', { total: 0 }], ['hadouken', { hits: V.hadoukenHits }], ['tamagotchi', { feeds: 0 }], ['over9000', { words: V.over9000Words }], ['psychicFriends', { words: V.psychicWords }], ['timeCapsule', true], ['birdBox', true]] as const) {
+            const s = start({ availablePowerPlays: [pp(id)] });
+            const next = gameReducer(s, { type: 'ACTIVATE_POWER_PLAY', payload: pp(id) });
+            expect(next.gameState.activePowerPlays[id], id).toEqual(value);
+            expect(next.gameState.availablePowerPlays.some(p => p.id === id)).toBe(false);
+        }
+    });
+
+    test('Jackass takes a strike for time and a x3 next word, and scares off a Tamagotchi', () => {
+        const s = start({ strikes: 0, availablePowerPlays: [pp('jackass')], activePowerPlays: { tamagotchi: { feeds: 2 } }, activeBuffs: [pp('tamagotchi')] }, 30);
+        const next = gameReducer(s, { type: 'JACKASS', payload: { powerPlay: pp('jackass') } });
+        expect(next.gameState.strikes).toBe(1);
+        expect(next.time).toBeGreaterThan(30);
+        expect(next.gameState.activePowerPlays.jackass).toBe(true);
+        expect(next.gameState.activePowerPlays.tamagotchi).toBeUndefined();
+        expect(next.gameState.activeBuffs.some(b => b.id === 'tamagotchi')).toBe(false);
+        expect(next.modalContent?.type).toBe('outcome');
+    });
+
+    test('Jackass never takes the strike that would end the run', () => {
+        const s = start({ strikes: 2, availablePowerPlays: [pp('jackass')] });
+        expect(gameReducer(s, { type: 'JACKASS', payload: { powerPlay: pp('jackass') } })).toBe(s);
+    });
+
+    test('standing in blackjack pays by the count and ends the game', () => {
+        const s = start({ score: 100, activePowerPlays: { chickenDinner: { total: 19 } }, activeBuffs: [pp('chickenDinner')] });
+        const next = gameReducer(s, { type: 'BLACKJACK_STAND' });
+        expect(next.gameState.score).toBe(300);
+        expect(next.gameState.activePowerPlays.chickenDinner).toBeUndefined();
+        expect(next.modalContent?.type).toBe('outcome');
+        const low = gameReducer(start({ score: 100, activePowerPlays: { chickenDinner: { total: 12 } } }), { type: 'BLACKJACK_STAND' });
+        expect(low.gameState.score).toBe(100);
+        const none = start();
+        expect(gameReducer(none, { type: 'BLACKJACK_STAND' })).toBe(none);
+    });
+
+    test('Draft Day replaces the lowest-value tiles', () => {
+        const s = start();
+        const hand = [...tiles('QZEATRSN'), null, null];
+        const next = gameReducer({ ...s, hand }, { type: 'DRAFT_TILES', payload: { letters: ['X', 'J', 'K'] } });
+        const letters = next.hand.filter(Boolean).map(t => t!.letter);
+        expect(letters).toContain('Q');
+        expect(letters).toContain('Z');
+        expect(letters.filter(l => ['X', 'J', 'K'].includes(l))).toHaveLength(3);
+        expect(next.hand.filter(Boolean)).toHaveLength(8);
+    });
+
+    test('a strike scares off the Tamagotchi', () => {
+        const s = start({ strikes: 0, activePowerPlays: { tamagotchi: { feeds: 3 } }, activeBuffs: [pp('tamagotchi')] });
+        const next = gameReducer(s, { type: 'ADD_STRIKE' });
+        expect(next.gameState.activePowerPlays.tamagotchi).toBeUndefined();
+    });
+
+    test('Multiplicity remembers the last PowerPlay used, but not instant, once-per-run or itself', () => {
+        const used = gameReducer(start({ availablePowerPlays: [pp('konamiCode')] }), { type: 'ACTIVATE_POWER_PLAY', payload: pp('konamiCode') });
+        expect(used.gameState.lastPowerPlayUsed).toBe('konamiCode');
+        const instantId = [...INSTANT_POWER_PLAY_IDS][0];
+        const instant = gameReducer({ ...used, gameState: { ...used.gameState, powerPlayOffer: [pp(instantId)] } }, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp(instantId), allOffered: [pp(instantId)] } });
+        expect(instant.gameState.lastPowerPlayUsed).toBe('konamiCode');
+        const oncePerRun = POWER_PLAYS_LIST.find(p => p.oncePerRun && !INSTANT_POWER_PLAY_IDS.has(p.id))!;
+        const saver = gameReducer({ ...used, gameState: { ...used.gameState, availablePowerPlays: [oncePerRun] } }, { type: 'ACTIVATE_POWER_PLAY', payload: oncePerRun });
+        expect(saver.gameState.lastPowerPlayUsed).toBe('konamiCode');
+    });
+});
