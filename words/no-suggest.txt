@@ -27,3 +27,7 @@ poof
 poofs
 poofed
 poofing
+
+# A promiscuous or slovenly woman (an insult, not a slur). Unblocked at the owner's request;
+# never suggested. (SLUTS and SLUTTISH stay blocked unless the owner asks for them too.)
+slut

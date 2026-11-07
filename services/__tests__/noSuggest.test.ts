@@ -41,6 +41,15 @@ describe('playable but never suggested', () => {
         }
     });
 
+    test('SLUT is playable with a definition and never suggested; SLUTS stays blocked', () => {
+        const list = new Set(readFileSync(resolve(__dirname, '../../public/words/wordlist.txt'), 'utf8').split('\n'));
+        expect(isBlocked('slut')).toBe(false);
+        expect(list.has('slut')).toBe(true);
+        expect(curatedWords.get('slut')).toBe('A promiscuous or slovenly woman (an insult).');
+        expect(suggestableWords.has('slut')).toBe(false);
+        expect(isBlocked('sluts')).toBe(true);
+    });
+
     test('CROWBAR has its definition', () => {
         expect(curatedWords.get('crowbar')).toBe('To use a steel bar as a lever.');
     });
