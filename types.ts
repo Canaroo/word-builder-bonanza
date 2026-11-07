@@ -236,6 +236,8 @@ export interface GameState {
   snitchCatches?: number;
   /** Identifies this run (kept in saves) for "in one run" daily missions. */
   runId?: string;
+  /** Multiplicity: the last PowerPlay used (once-per-run and pick-and-fire ones aren't tracked). */
+  lastPowerPlayUsed?: string;
   /** Mixtape charm: the letter the next word must start with, and how many links so far. */
   mixtapeChain?: { next: string; links: number } | null;
   /** Gotta Catch 'Em All: vowels caught so far, and whether all five were caught this run. */

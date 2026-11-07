@@ -143,6 +143,41 @@ export const POWER_PLAY_VALUES = {
   missionImpossibleLetters: 5,
   missionImpossiblePenalty: 15,
   donkeyKongMultiplier: 3,       // one tile of the fresh hand becomes this word multiplier
+  // v7.28 PowerPlays. A typical word scores about 14 points (p50; p90 ~44), and the gamble EVs
+  // above sit near 300, so rewards here aim for the same 150-400 range.
+  // Tamagotchi: each 4+ letter word feeds the pet and its pot grows by step x feed number
+  // (20, 40, 60...). A 3-letter word or a strike and it runs off with the pot.
+  tamagotchiWords: 6,
+  tamagotchiLetters: 4,
+  tamagotchiStep: 20,
+  // The Price Is Right: bid that your next word scores at least this much; hit it for the prize.
+  priceIsRightBids: [{ bid: 15, prize: 100 }, { bid: 30, prize: 200 }, { bid: 50, prize: 300 }, { bid: 80, prize: 450 }],
+  // Time Capsule: the next word scores 0 now and comes back this many times over, this many words later.
+  timeCapsuleMultiplier: 4,
+  timeCapsuleWords: 4,
+  // REDRUM: words of this many letters that are also a word backward (STAR/RATS) score x this.
+  // 4+ letter reversible words show up in about 56% of random hands.
+  redrumWords: 3,
+  redrumLetters: 4,
+  redrumMultiplier: 4,
+  jackassMultiplier: 3,          // Jackass: take a strike for time (TIME_BONUS.jackass) and this on the next word
+  hadoukenHits: 2,               // Hadouken!: this many boss-rule misses count as hits
+  over9000Words: 3,              // It's Over 9000!: charm points pay double for this many words
+  draftDayTiles: 3,              // Draft Day: packs of this many tiles replace your lowest-value tiles
+  draftDayPacks: 3,
+  // Smell Ya Later!: a rival earns this many points per second while you play your next few words.
+  rivalPointsPerSecond: 3,
+  rivalWords: 3,
+  rivalPrize: 250,
+  birdBoxSeconds: 3,             // Bird Box: tiles flip face down after this many seconds...
+  birdBoxMultiplier: 4,          // ...and the next word scores this
+  // Winner Winner Chicken Dinner: the letters of your words add up. Stand any time; over 21 busts.
+  blackjackTarget: 21,
+  blackjackPayouts: [{ min: 21, points: 400 }, { min: 19, points: 200 }, { min: 17, points: 100 }],
+  // Card Sharks: higher or lower on cards 2-14 (A high). The pot after each right call; a tie is a free pass.
+  cardSharksLadder: [50, 125, 225, 375, 600],
+  psychicWords: 8,               // Psychic Friends Network: see the next tiles for this many words
+  psychicTiles: 6,
 };
 
 // Seconds from the time PowerPlays and charms (before the bonus-time rules above).
@@ -153,6 +188,7 @@ export const TIME_BONUS = {
   saveByTheBell: 5,        // per turn, for 3 turns
   executeOrder66: 3,
   glitchInTheCode: 3,
+  jackass: 15,             // Jackass: a strike taken on purpose
   rescue: 10,              // Rewind, Neo's Choice (time), Deep Freeze, Gump's Luck
   continueScreen: 25,      // Continue?: a once-per-run rescue, so it skips the bonus-time rules
   sandsOfTime: 3,          // per word of sandsOfTimeLetters+ letters

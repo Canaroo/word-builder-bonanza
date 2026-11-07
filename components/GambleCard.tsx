@@ -1,13 +1,21 @@
 import React, { useState } from 'react';
 import ArcadeButton from './ArcadeButton';
 import { POWER_PLAY_VALUES as V } from '../config/gameplay';
-import { doorsForRound, minesweeperPot, bankerOffer, dealGame } from '../services/rules';
+import { doorsForRound, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace } from '../services/rules';
+import { createTile, createTileBag, shuffleArray } from '../services/gameUtils';
+import type { Tile } from '../types';
 import { soundService } from '../services/soundService';
 
 // The PowerPlays where the player makes the call (v7.25): pick a door, take the Banker's deal,
 // keep spinning for No Whammies, or pick a Minesweeper square. The card rolls and then hands the
 // result to the game, which applies it and shows the outcome card.
-export interface GambleResult { points?: number; seconds?: number; strike?: boolean; headline: string; detail: string; tone: 'win' | 'lose' | 'neutral' }
+export interface GambleResult {
+  points?: number; seconds?: number; strike?: boolean; headline: string; detail: string; tone: 'win' | 'lose' | 'neutral';
+  /** Arms the PowerPlay for a later word (The Price Is Right's bid). */
+  arm?: { value: unknown; description: string };
+  /** Draft Day: letters that replace the lowest-value tiles in the hand. */
+  draft?: string[];
+}
 
 const Frame: React.FC<{ icon: string; name: string; children: React.ReactNode }> = ({ icon, name, children }) => (
   <div className="absolute inset-0 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label={name}>
@@ -160,15 +168,97 @@ const Mines: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }
   );
 };
 
-const GAMES: Record<string, React.FC<{ onResolve: (r: GambleResult) => void }>> = {
+/** The Price Is Right (v7.28): bid on the next word's score. The bid settles on that word. */
+const PriceIsRight: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => (
+  <>
+    <p className="text-slate-200">Bid on your next word: it will score at least...</p>
+    <div className="grid grid-cols-2 gap-2 w-full">
+      {V.priceIsRightBids.map(({ bid, prize }) => (
+        <button key={bid} type="button" aria-label={`Bid ${bid} or more for ${prize}`}
+          onClick={() => onResolve({ headline: `BID: ${bid}+ POINTS`, detail: `If your next word scores ${bid} or more, you win +${prize}. If not, no prize.`, tone: 'neutral', arm: { value: { bid, prize }, description: `Bid ${bid}+: if your next word scores ${bid} or more, win +${prize}.` } })}
+          className="rounded-xl bg-crt-950 ring-2 ring-neon-yellow/70 py-3 hover:brightness-125">
+          <span className="block font-display text-3xl text-neon-yellow leading-none">{bid}+</span>
+          <span className="block osd-text text-lg text-neon-green leading-none mt-1">WIN +{prize}</span>
+        </button>
+      ))}
+    </div>
+    <p className="text-slate-400 text-sm">The score preview above the Submit button shows what a word is worth.</p>
+  </>
+);
+
+/** Draft Day (v7.28): three face-up packs; the pick replaces the lowest-value tiles in the hand. */
+const DraftDay: React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[] }> = ({ onResolve, hand }) => {
+  const [packs] = useState(() => {
+    const letters = shuffleArray(createTileBag()).slice(0, V.draftDayPacks * V.draftDayTiles);
+    return Array.from({ length: V.draftDayPacks }, (_, i) => letters.slice(i * V.draftDayTiles, (i + 1) * V.draftDayTiles));
+  });
+  const lowest = (hand ?? []).filter((t): t is Tile => t !== null).sort((a, b) => (a.tempPoints ?? a.points) - (b.tempPoints ?? b.points)).slice(0, V.draftDayTiles);
+  return (
+    <>
+      <p className="text-slate-200">Pick a pack. It replaces {lowest.length ? <strong className="text-white">{lowest.map(t => t.letter).join(', ')}</strong> : `your ${V.draftDayTiles} lowest tiles`}.</p>
+      <div className="flex flex-col gap-2 w-full">
+        {packs.map((pack, i) => (
+          <button key={i} type="button" aria-label={`Pack ${i + 1}: ${pack.join(', ')}`}
+            onClick={() => onResolve({ headline: `DRAFTED: ${pack.join(' ')}`, detail: `${pack.join(', ')} ${lowest.length ? `replace ${lowest.map(t => t.letter).join(', ')}` : 'join your hand'}.`, tone: 'neutral', draft: pack })}
+            className="flex items-center justify-center gap-2 rounded-xl bg-crt-950 ring-2 ring-neon-cyan/60 py-2 hover:brightness-125">
+            <span className="osd-text text-lg text-neon-cyan w-16">PACK {i + 1}</span>
+            {pack.map((l, k) => (
+              <span key={k} className="relative w-10 h-10 rounded-md bg-amber-100 text-slate-900 font-tile font-extrabold text-2xl leading-10">
+                {l}<span className="absolute bottom-0 right-0.5 font-osd text-xs leading-none">{createTile(l).points}</span>
+              </span>
+            ))}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+};
+
+/** Card Sharks (v7.28): higher or lower, push your luck. A tie is a free pass. */
+const CardSharks: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
+  const steps = V.cardSharksLadder.length;
+  const [card, setCard] = useState(() => drawCard());
+  const [right, setRight] = useState(0);
+  const [last, setLast] = useState<string | null>(null);
+  const pot = cardSharksPot(right);
+  const bank = (amount: number, calls: number) => onResolve({ points: amount, headline: calls >= steps ? `RAN THE BOARD! +${amount}` : `BANKED: +${amount} POINTS`, detail: `You made ${calls} right ${calls === 1 ? 'call' : 'calls'}.`, tone: 'win' });
+  const call = (higher: boolean) => {
+    const next = drawCard();
+    if (next === card) { soundService.playTileClick(); setLast(`${cardFace(next)}: a tie. Free pass!`); setCard(next); return; }
+    if ((next > card) !== higher) {
+      onResolve({ points: 0, headline: `${cardFace(next)}! WRONG CALL`, detail: `You called ${higher ? 'higher' : 'lower'} than ${cardFace(card)}. ${pot ? `Your pot of ${pot} is gone.` : 'Nothing won this time.'}`, tone: 'lose' });
+      return;
+    }
+    const now = right + 1;
+    if (now >= steps) { bank(cardSharksPot(now), now); return; }
+    soundService.playTileClick();
+    setLast(`${cardFace(next)}: right!`); setRight(now); setCard(next);
+  };
+  return (
+    <>
+      {last && <p className="text-neon-green text-sm">{last}</p>}
+      <div className="w-20 h-28 rounded-xl bg-white text-slate-900 flex items-center justify-center font-display text-5xl shadow-lg" aria-label={`Card: ${cardFace(card)}`}>{cardFace(card)}</div>
+      <p className="font-display text-3xl text-neon-yellow" aria-live="polite">POT: {pot}</p>
+      <p className="text-slate-200 text-sm">Next right call: {cardSharksPot(right + 1)}. A wrong call wipes the pot.</p>
+      <div className="grid grid-cols-2 gap-2 w-full">
+        <ArcadeButton color="cyan" onClick={() => call(true)}>Higher</ArcadeButton>
+        <ArcadeButton color="pink" onClick={() => call(false)}>Lower</ArcadeButton>
+      </div>
+      {right > 0 && <ArcadeButton color="green" className="w-full" onClick={() => bank(pot, right)}>Stop and bank {pot}</ArcadeButton>}
+    </>
+  );
+};
+
+const GAMES: Record<string, React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[] }>> = {
   letsMakeADeal: Doors, dealOrNoDeal: Deal, noWhammies: Whammies, minesweeper: Mines,
+  priceIsRight: PriceIsRight, draftDay: DraftDay, cardSharks: CardSharks,
 };
 
 /** The interactive part of a gamble PowerPlay. */
-const GambleCard: React.FC<{ id: string; icon: string; name: string; onResolve: (r: GambleResult) => void }> = ({ id, icon, name, onResolve }) => {
+const GambleCard: React.FC<{ id: string; icon: string; name: string; onResolve: (r: GambleResult) => void; hand?: (Tile | null)[] }> = ({ id, icon, name, onResolve, hand }) => {
   const Game = GAMES[id];
   if (!Game) return null;
-  return <Frame icon={icon} name={name}><Game onResolve={onResolve} /></Frame>;
+  return <Frame icon={icon} name={name}><Game onResolve={onResolve} hand={hand} /></Frame>;
 };
 
 export const GAMBLE_CARD_IDS = Object.keys(GAMES);

@@ -93,6 +93,9 @@ Pick the pattern that matches the effect:
 | Changes **a tile's points** | Set `tempPoints` **and** `tempPointsSource: powerPlay.name` so the breakdown shows "Name (E) 1 → 20 pts". `tempPoints` clear after the next word. | `captainPlanet`, `oneTileToRuleThemAll` |
 | **Adds time** | Use `TIME_BONUS.<name>` and `bonusTime(seconds, bank, level)`, never a raw `+= 30`. | `timeTurner`, `timeBoost` |
 | **Run-saver** | `oncePerRun: true`. The offer filter, badge and swap rule follow automatically. | `happyPlace` |
+| **Settles over several words** (a pot, a count, a race) | Arm a state object (`arm(id, { feeds: 0 })`) and settle it in `completeSubmission` (search `--- v7.28 PowerPlays that settle`, which has `dropPP`/`setPP` helpers). Pay outside the word (`runningScore +=`, an event-log entry and an `outcome()` card) so "0 means 0" never blocks it. Show progress with a chip in `components/PowerPlayTrackers.tsx`; a chip can be a button (blackjack's Stand dispatches `BLACKJACK_STAND`). | `tamagotchi`, `chickenDinner`, `smellYaLater` |
+| **A choice card** (bid, pick a pack, higher/lower) | Add a game to `GAMES` in `components/GambleCard.tsx`. `onResolve` can pay now (`points`, `seconds`), arm the PowerPlay for a later word (`arm: { value, description }`) or swap tiles in (`draft`). | `priceIsRight`, `draftDay`, `cardSharks` |
+| **Changes how tiles look** (hidden, previewed) | Read the armed state in `GameScreenView.tsx` (Bird Box's `faceDown` tiles) or pass data in `viewProps` (Psychic Friends' `upcomingTiles`). | `birdBox`, `psychicFriends` |
 
 Feedback the player should see:
 - an event-log entry (`EventLogEntry`),

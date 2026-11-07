@@ -291,3 +291,27 @@ export const continueCost = (score: number): number => {
     const { continueScoreCostPercent, continueScoreCostMax } = POWER_PLAY_VALUES;
     return Math.min(continueScoreCostMax, Math.round(Math.max(0, score) * continueScoreCostPercent / 100));
 };
+
+// --- v7.28 PowerPlays: pure rules (POWER_PLAY_VALUES). ---
+/** Tamagotchi: what the next feeding adds to the pot (feed 1 = one step, feed 2 = two...). */
+export const tamagotchiFeed = (feedNumber: number): number => POWER_PLAY_VALUES.tamagotchiStep * feedNumber;
+/** Tamagotchi: the pot after this many feedings. */
+export const tamagotchiPot = (feeds: number): number =>
+    Array.from({ length: feeds }, (_, i) => tamagotchiFeed(i + 1)).reduce((a, b) => a + b, 0);
+/** Winner Winner Chicken Dinner: points for standing on this many letters (0 = nothing, or a bust over 21). */
+export const blackjackPayout = (total: number): number => {
+    if (total > POWER_PLAY_VALUES.blackjackTarget) return 0;
+    return POWER_PLAY_VALUES.blackjackPayouts.find(p => total >= p.min)?.points ?? 0;
+};
+/** Card Sharks: the pot after this many right calls. */
+export const cardSharksPot = (right: number): number =>
+    right <= 0 ? 0 : POWER_PLAY_VALUES.cardSharksLadder[Math.min(right, POWER_PLAY_VALUES.cardSharksLadder.length) - 1];
+/** Card Sharks: a card from 2 to 14 (11 J, 12 Q, 13 K, 14 A). */
+export const drawCard = (rand: () => number = Math.random): number => 2 + Math.floor(rand() * 13);
+/** Card Sharks: the card's face (2-10, J, Q, K, A). */
+export const cardFace = (card: number): string => ({ 11: 'J', 12: 'Q', 13: 'K', 14: 'A' } as Record<number, string>)[card] ?? String(card);
+/** Smell Ya Later!: the rival's score after this many seconds. */
+export const rivalScore = (seconds: number): number => Math.round(Math.max(0, seconds) * POWER_PLAY_VALUES.rivalPointsPerSecond);
+/** REDRUM: the word spelled backward (lowercase) when it's long enough to count, else null. */
+export const redrumReverse = (word: string): string | null =>
+    word.length >= POWER_PLAY_VALUES.redrumLetters ? word.split('').reverse().join('').toLowerCase() : null;

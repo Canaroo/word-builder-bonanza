@@ -604,6 +604,16 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         bonuses.push({ name: 'Pinky and the Brain', description: 'x2 Score', source: 'word' });
     }
 
+    // PowerPlays: Jackass (after a strike taken on purpose) and Bird Box (a word spelled blind).
+    if (gameState.activePowerPlays.jackass) {
+        wordMultipliers.push(POWER_PLAY_VALUES.jackassMultiplier);
+        bonuses.push({ name: 'Jackass', description: `x${POWER_PLAY_VALUES.jackassMultiplier} Score`, source: 'word' });
+    }
+    if (gameState.activePowerPlays.birdBox) {
+        wordMultipliers.push(POWER_PLAY_VALUES.birdBoxMultiplier);
+        bonuses.push({ name: 'Bird Box', description: `x${POWER_PLAY_VALUES.birdBoxMultiplier} Score`, source: 'word' });
+    }
+
     // PowerPlay: Let's Get Dangerous
     if (gameState.activePowerPlays.letsGetDangerous) {
         const vowelCount = lettersInWord.filter(l => VOWELS.has(l)).length;

@@ -18,7 +18,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, rivalScore, redrumReverse } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
@@ -241,7 +241,10 @@ type GameAction =
     | { type: 'CHARM_PAYOUT', payload: { id: string; points: number; description: string } }
     | { type: 'RESUME_COUNTDOWN_TICK' }
     | { type: 'APPLY_GAMBLE', payload: { powerPlay: PowerPlay; points?: number; seconds?: number; headline: string; detail: string; tone: 'win' | 'lose' | 'neutral' } }
-    | { type: 'NEURALYZE', payload: { powerPlay: PowerPlay } };
+    | { type: 'NEURALYZE', payload: { powerPlay: PowerPlay } }
+    | { type: 'JACKASS', payload: { powerPlay: PowerPlay } }
+    | { type: 'BLACKJACK_STAND' }
+    | { type: 'DRAFT_TILES', payload: { letters: string[] } };
 
 
 /**
@@ -274,7 +277,7 @@ export const maxStrikesFor = (gs: (Pick<GameState, 'charmUses'> & Partial<Pick<G
 };
 
 // Multi-word PowerPlays: activePowerPlays[id] = { words } counts down one valid word at a time.
-const WORD_COUNTDOWN_POWER_PLAYS = ['konamiCode', 'bigHeadMode', 'ludicrousSpeed', 'letterUpgrade', 'polish', 'comboBreaker'];
+const WORD_COUNTDOWN_POWER_PLAYS = ['konamiCode', 'bigHeadMode', 'ludicrousSpeed', 'letterUpgrade', 'polish', 'comboBreaker', 'redrum', 'over9000', 'psychicFriends'];
 
 // Time bank (config/gameplay.ts): the clock never resets between words. A Golden Round runs on
 // its own short clock; the bank is set aside when it starts and given back when it ends.
@@ -430,7 +433,10 @@ function logPowerPlayUse(state: GameScreenState, next: GameScreenState, action: 
     if (!used) return next;
     // Anonymous usage stat (fire-and-forget; off in dev, so a dev double-render never double-counts).
     sendStat({ type: 'pp_use', pp: used.id, level: runLevel(next.gameState) });
-    const gs = next.gameState;
+    // Multiplicity copies the last PowerPlay used (not itself, a once-per-run one or a pick-and-fire one).
+    const copyable = used.id !== 'multiplicity' && !used.oncePerRun && !INSTANT_POWER_PLAY_IDS.has(used.id);
+    const gs = copyable ? { ...next.gameState, lastPowerPlayUsed: used.id } : next.gameState;
+    next = { ...next, gameState: gs };
     const added = gs.log.slice(state.gameState?.log.length ?? 0);
     if (added.some(e => e.type === 'event' && e.name === used.name)) return next;
     return {
@@ -522,6 +528,54 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     powerPlayUses: { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 },
                 },
             };
+        }
+        // Jackass (v7.28): a strike taken on purpose (shields don't stop it) for time and a x3 next word.
+        case 'JACKASS': {
+            const { powerPlay } = action.payload;
+            if (gameState.strikes + 1 >= maxStrikesFor(gameState)) return state;
+            const gained = bonusTime(TIME_BONUS.jackass, state.time, runLevel(gameState));
+            const time = clampTime(state.time + gained, bankMax(gameState));
+            const runAway = !!gameState.activePowerPlays.tamagotchi;
+            const { tamagotchi: _pet, ...stillActive } = gameState.activePowerPlays;
+            const entry: EventLogEntry = { type: 'event', id: `pp-jackass-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon, description: `Took a strike on purpose: +${gained}s, next word x${POWER_PLAY_VALUES.jackassMultiplier}.${runAway ? ' The Tamagotchi ran away.' : ''}`, scoreChange: 0, cumulativeScore: gameState.score };
+            return {
+                ...state, time,
+                timeGain: { seconds: gained, key: Date.now() },
+                isPaused: true,
+                modalContent: outcome(powerPlay, `STRIKE TAKEN: +${gained}s`, `That's gonna leave a mark. Your next word scores x${POWER_PLAY_VALUES.jackassMultiplier}.${runAway ? '\n\nYour Tamagotchi got scared and ran away.' : ''}`, 'neutral'),
+                gameState: {
+                    ...gameState, strikes: gameState.strikes + 1, consecutiveSuccesses: 0, consecutiveValidWords: 0, perfectChainProgress: 0, mixtapeChain: null, frogStreak: 0,
+                    activePowerPlays: { ...stillActive, jackass: true },
+                    activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== 'jackass' && b.id !== 'tamagotchi'), { ...powerPlay, description: `Your next word scores x${POWER_PLAY_VALUES.jackassMultiplier}.` }],
+                    log: [...gameState.log, entry],
+                    availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                    powerPlayUses: { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 },
+                },
+            };
+        }
+        // Winner Winner Chicken Dinner (v7.28): stand on the current count.
+        case 'BLACKJACK_STAND': {
+            const game = gameState.activePowerPlays.chickenDinner as { total: number } | undefined;
+            if (!game) return state;
+            const powerPlay = ppById('chickenDinner');
+            const points = blackjackPayout(game.total);
+            const score = gameState.score + points;
+            const { chickenDinner: _done, ...rest } = gameState.activePowerPlays;
+            const entry: EventLogEntry = { type: 'event', id: `pp-chickenDinner-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon, description: `Stood on ${game.total}: +${points}.`, scoreChange: points, cumulativeScore: score };
+            return {
+                ...state, isPaused: true,
+                modalContent: outcome(powerPlay, points ? `STAND ON ${game.total}: +${points}` : `STAND ON ${game.total}: NO PAYOUT`, points ? (game.total === POWER_PLAY_VALUES.blackjackTarget ? 'Winner winner, chicken dinner!' : 'The dealer pays out.') : `You need ${POWER_PLAY_VALUES.blackjackPayouts[POWER_PLAY_VALUES.blackjackPayouts.length - 1].min}+ to get paid.`, points ? 'win' : 'lose'),
+                gameState: { ...gameState, score, activePowerPlays: rest, activeBuffs: gameState.activeBuffs.filter(b => b.id !== 'chickenDinner'), log: [...gameState.log, entry] },
+            };
+        }
+        // Draft Day (v7.28): the picked pack replaces the lowest-value tiles in the hand.
+        case 'DRAFT_TILES': {
+            const letters: string[] = action.payload.letters;
+            const slots = state.hand.map((t, i) => ({ t, i })).filter((x): x is { t: Tile; i: number } => x.t !== null)
+                .sort((a, b) => (a.t.tempPoints ?? a.t.points) - (b.t.tempPoints ?? b.t.points)).slice(0, letters.length);
+            const hand = [...state.hand];
+            slots.forEach((x, k) => { hand[x.i] = gameUtils.createTile(letters[k]); });
+            return { ...state, hand };
         }
         // Neuralyzer: every charm is wiped at once.
         case 'NEURALYZE': {
@@ -693,6 +747,12 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             }
           }
           
+          if (actuallyGotAStrike && activePowerPlays.tamagotchi) {
+              activePowerPlays = { ...activePowerPlays };
+              delete activePowerPlays.tamagotchi;
+              activeBuffs = activeBuffs.filter(b => b.id !== 'tamagotchi');
+              lastPowerPlayResult = { message: '🥚 The strike scared your Tamagotchi away. Its pot is gone.', scoreChange: 0 };
+          }
           if (activePowerPlays.sonicSpeed) {
               delete activePowerPlays.sonicSpeed;
               activeBuffs = activeBuffs.filter(b => b.id !== 'sonicSpeed');
@@ -3052,6 +3112,17 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // We Were on a Break! is scored in calculateScore; any valid word uses it up.
       newState.breakReady = false;
 
+      // REDRUM (v7.28): a long enough word that's also a word backward scores extra.
+      if (wordScored && newState.activePowerPlays.redrum) {
+          const reversed = redrumReverse(word);
+          if (reversed && (await dictionaryService.lookupWord(reversed)).isValid) {
+              const mult = POWER_PLAY_VALUES.redrumMultiplier;
+              scoreResult = addWordMultiplier(scoreResult, mult);
+              scoreResult.bonuses.push({ name: `REDRUM (${reversed.toUpperCase()})`, description: `x${mult} Score`, source: 'word' });
+              showMessage(`🪞 ${word.toUpperCase()} backward is ${reversed.toUpperCase()}! x${mult}.`, 2500);
+          }
+      }
+
       // --- 4. STATEFUL & RANDOM BONUSES on top of word score ---
       
       let runningScore = oldScore;
@@ -3312,13 +3383,131 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         showMessage(`⏳ Sands of Time! +${TIME_BONUS.sandsOfTime}s next round.`, 2500);
       }
       
+      // It's Over 9000! (v7.28): every charm bonus worth points on this word pays again.
+      if (newState.activePowerPlays.over9000) {
+          const charmNames = newState.activeCharms.map(c => c.name);
+          const extra = scoreResult.bonuses
+              .filter(b => charmNames.some(n => b.name.startsWith(n)))
+              .reduce((sum, b) => sum + Number(/^\+(\d+) pts/.exec(b.description)?.[1] ?? 0), 0);
+          if (extra > 0) {
+              scoreResult.totalScore += extra;
+              scoreResult.bonuses.push({ name: "It's Over 9000!", description: `+${extra} pts (charm points doubled)` });
+          }
+      }
+
       // --- 5. GAME STATE BONUSES (Refactored) ---
       const wordLocked = wordCeiling !== null;
       if (wordLocked && scoreResult.totalScore > wordCeiling!) {
           scoreResult.totalScore = wordCeiling!;
           scoreResult.bonuses.push({ name: `🔒 Locked at ${wordCeiling} ${wordCeiling === 1 ? 'pt' : 'pts'}`, description: "the bonuses above don't count" });
       }
+
+      // --- v7.28 PowerPlays that settle on this word's points ---
+      const V28 = POWER_PLAY_VALUES;
+      const dropPP = (id: string) => {
+          const { [id]: _gone, ...rest } = newState.activePowerPlays;
+          newState.activePowerPlays = rest;
+          newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== id);
+      };
+      const setPP = (id: string, value: unknown, description?: string) => {
+          newState.activePowerPlays = { ...newState.activePowerPlays, [id]: value };
+          if (description) newState.activeBuffs = newState.activeBuffs.map(b => (b.id === id ? { ...b, description } : b));
+      };
+      // The Price Is Right: did the word make the bid? (The prize is paid below, outside the word.)
+      const priceBid = newState.activePowerPlays.priceIsRight as { bid: number; prize: number } | undefined;
+      const pricePaid = priceBid && scoreResult.totalScore >= priceBid.bid ? priceBid.prize : 0;
+      if (priceBid) {
+          dropPP('priceIsRight');
+          modalQueue.push(outcome(ppById('priceIsRight'), pricePaid ? `ACTUAL RETAIL: ${scoreResult.totalScore}. +${pricePaid}!` : `ACTUAL RETAIL: ${scoreResult.totalScore}`, pricePaid ? `You bid ${priceBid.bid}+ and ${word.toUpperCase()} made it. Come on down!` : `You bid ${priceBid.bid}+ but ${word.toUpperCase()} scored ${scoreResult.totalScore}. No prize this time.`, pricePaid ? 'win' : 'lose'));
+      }
+      // Time Capsule: a capsule already buried counts down; a fresh one buries this word.
+      let capsulePaid = 0;
+      const capsule = newState.activePowerPlays.timeCapsule as true | { points: number; words: number } | undefined;
+      if (capsule && capsule !== true) {
+          if (capsule.words > 1) {
+              setPP('timeCapsule', { ...capsule, words: capsule.words - 1 }, `Buried: ${capsule.points} points, back in ${capsule.words - 1} ${capsule.words - 1 === 1 ? 'word' : 'words'}.`);
+          } else {
+              capsulePaid = capsule.points;
+              dropPP('timeCapsule');
+              modalQueue.push(outcome(ppById('timeCapsule'), `CAPSULE OPENED: +${capsule.points}`, `The word you buried came back x${V28.timeCapsuleMultiplier}.`, capsule.points ? 'win' : 'neutral'));
+          }
+      } else if (capsule === true) {
+          const buried = scoreResult.totalScore * V28.timeCapsuleMultiplier;
+          setPP('timeCapsule', { points: buried, words: V28.timeCapsuleWords }, `Buried: ${buried} points, back in ${V28.timeCapsuleWords} words.`);
+          scoreResult.bonuses.push({ name: 'Time Capsule', description: `Buried: ${buried} pts in ${V28.timeCapsuleWords} words` });
+          scoreResult.totalScore = 0;
+          showMessage(`📦 ${word.toUpperCase()} is buried. It comes back as +${buried} in ${V28.timeCapsuleWords} words.`, 3000);
+      }
       runningScore += scoreResult.totalScore;
+      const wordPoints = scoreResult.totalScore;
+      if (pricePaid) {
+          runningScore += pricePaid;
+          eventLogQueue.push({ type: 'event', id: `pp-priceIsRight-${now}`, name: 'The Price Is Right', icon: '🏷️', description: `Bid ${priceBid!.bid}+, ${word.toUpperCase()} made it: +${pricePaid}.`, scoreChange: pricePaid, cumulativeScore: runningScore });
+      }
+      if (capsulePaid) {
+          runningScore += capsulePaid;
+          eventLogQueue.push({ type: 'event', id: `pp-timeCapsule-${now}`, name: 'Time Capsule', icon: '📦', description: `The buried word came back: +${capsulePaid}.`, scoreChange: capsulePaid, cumulativeScore: runningScore });
+      }
+      // Tamagotchi: 4+ letter words feed the pet; a shorter one and it runs off with the pot.
+      const pet = newState.activePowerPlays.tamagotchi as { feeds: number } | undefined;
+      if (pet) {
+          const tama = ppById('tamagotchi');
+          if (word.length >= V28.tamagotchiLetters) {
+              const feeds = pet.feeds + 1;
+              const pot = tamagotchiPot(feeds);
+              if (feeds >= V28.tamagotchiWords) {
+                  dropPP('tamagotchi');
+                  runningScore += pot;
+                  eventLogQueue.push({ type: 'event', id: `pp-tamagotchi-${now}`, name: tama.name, icon: tama.icon, description: `Fed ${feeds} times and fully grown: +${pot}.`, scoreChange: pot, cumulativeScore: runningScore });
+                  modalQueue.push(outcome(tama, `FULLY GROWN! +${pot}`, `${feeds} good meals in a row. Your pet pays out its whole pot.`, 'win'));
+              } else {
+                  setPP('tamagotchi', { feeds }, `Fed ${feeds}/${V28.tamagotchiWords}. Pot: ${pot}. Next ${V28.tamagotchiLetters}+ letter word adds +${tamagotchiFeed(feeds + 1)}.`);
+                  showMessage(`🥚 Yum! Fed ${feeds}/${V28.tamagotchiWords}, pot ${pot}.`, 2000);
+              }
+          } else {
+              dropPP('tamagotchi');
+              modalQueue.push(outcome(tama, 'IT RAN AWAY', `${word.toUpperCase()} was too small a meal (${V28.tamagotchiLetters}+ letters keeps it fed). It took its pot of ${tamagotchiPot(pet.feeds)} with it.`, 'lose'));
+          }
+      }
+      // Smell Ya Later!: your words' points against the rival's points per second.
+      const race = newState.activePowerPlays.smellYaLater as { words: number; mine: number; rival: number; clock?: number } | undefined;
+      if (race) {
+          const rivalPP = ppById('smellYaLater');
+          const startClock = race.clock ?? newState.roundStartClock ?? time;
+          const mine = race.mine + wordPoints;
+          const rival = race.rival + rivalScore(startClock - time);
+          const left = race.words - 1;
+          if (left > 0) {
+              setPP('smellYaLater', { words: left, mine, rival }, `You ${mine}, rival ${rival}. ${left} ${left === 1 ? 'word' : 'words'} to go.`);
+              showMessage(`🏃 You ${mine} · Rival ${rival}`, 2000);
+          } else {
+              dropPP('smellYaLater');
+              const won = mine > rival;
+              if (won) runningScore += V28.rivalPrize;
+              eventLogQueue.push({ type: 'event', id: `pp-smellYaLater-${now}`, name: rivalPP.name, icon: rivalPP.icon, description: `You ${mine}, rival ${rival}: ${won ? `won +${V28.rivalPrize}` : 'he won'}.`, scoreChange: won ? V28.rivalPrize : 0, cumulativeScore: runningScore });
+              modalQueue.push(outcome(rivalPP, won ? `YOU WIN! +${V28.rivalPrize}` : 'YOUR RIVAL WINS', `You ${mine}, rival ${rival}. ${won ? 'Smell ya later!' : 'He scores while you think. Play faster next time.'}`, won ? 'win' : 'lose'));
+          }
+      }
+      // Winner Winner Chicken Dinner: the word's letters add to the count.
+      const dinner = newState.activePowerPlays.chickenDinner as { total: number } | undefined;
+      if (dinner) {
+          const dinnerPP = ppById('chickenDinner');
+          const total = dinner.total + word.length;
+          const target = V28.blackjackTarget;
+          if (total > target) {
+              dropPP('chickenDinner');
+              modalQueue.push(outcome(dinnerPP, `BUST! ${total}`, `${word.toUpperCase()} took you over ${target}. No payout.`, 'lose'));
+          } else if (total === target) {
+              dropPP('chickenDinner');
+              const pts = blackjackPayout(total);
+              runningScore += pts;
+              eventLogQueue.push({ type: 'event', id: `pp-chickenDinner-${now}`, name: dinnerPP.name, icon: dinnerPP.icon, description: `Hit ${target} exactly: +${pts}.`, scoreChange: pts, cumulativeScore: runningScore });
+              modalQueue.push(outcome(dinnerPP, `${target}! +${pts}`, 'Winner winner, chicken dinner!', 'win'));
+          } else {
+              setPP('chickenDinner', { total }, `Count: ${total}. Tap the 🍗 chip to stand, or keep playing (over ${target} busts).`);
+              showMessage(`🍗 Count: ${total}${blackjackPayout(total) ? ` (stand for +${blackjackPayout(total)})` : ''}`, 2200);
+          }
+      }
 
       // Daily Double and Pop Quiz, Hotshot (v7.25) settle on this word. Separate from the word's
       // own points, so a locked word still settles the bet.
@@ -3450,7 +3639,20 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           const rack = [...(hand ?? []).filter((t): t is Tile => t !== null), ...submittedTiles];
           // This word isn't in the log yet, so the log's last valid word is the one before it.
           const lastWord = [...newState.log].reverse().find(e => e.type === 'word' && e.status === 'valid') as WordLogEntry | undefined;
-          const hit = boss.check(word.toUpperCase(), rack, { last: (lastWord?.word ?? '').toUpperCase(), score: scoreResult.totalScore, lastScore: lastWord?.score ?? 0 });
+          const followed = boss.check(word.toUpperCase(), rack, { last: (lastWord?.word ?? '').toUpperCase(), score: scoreResult.totalScore, lastScore: lastWord?.score ?? 0 });
+          // Hadouken! (v7.28): a word that breaks the rule still counts as a hit.
+          const hadouken = newState.activePowerPlays.hadouken as { hits: number } | undefined;
+          const hit = followed || !!hadouken;
+          if (!followed && hadouken) {
+              if (hadouken.hits > 1) {
+                  newState.activePowerPlays = { ...newState.activePowerPlays, hadouken: { hits: hadouken.hits - 1 } };
+              } else {
+                  const { hadouken: _used, ...rest } = newState.activePowerPlays;
+                  newState.activePowerPlays = rest;
+                  newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'hadouken');
+              }
+              scoreResult.bonuses.push({ name: '💥 Hadouken!', description: 'counts as a hit' });
+          }
           const need = bossHitsToWin(newState);
           const { round, outcome } = advanceBoss(bossRound, hit, need);
           const hits = bossRound.hits + (hit ? 1 : 0);
@@ -4084,7 +4286,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
 
       if (wordLockActive) { delete consumedPPs.wordLock; consumedBuffs = consumedBuffs.filter(b => b.id !== 'wordLock'); }
-      ['biglyScore', 'multiverseOfSadness', 'nuclearOption', 'schruteBucks', 'redWedding', 'wakandaForever', 'heisenberg', 'skywalkerBloodline', 'leafOnTheWind', 'thanosGift', 'doubleOrNothing', 'cassiesClue', 'cowabunga', 'holdOntoYourButts', 'tetrisTouch', 'blueShellSurprise', 'pinkyAndTheBrain', 'letsGetDangerous', 'slimShadyShuffle', 'spaceInvader', 'upsideDown'].forEach(id => { 
+      ['biglyScore', 'multiverseOfSadness', 'nuclearOption', 'schruteBucks', 'redWedding', 'wakandaForever', 'heisenberg', 'skywalkerBloodline', 'leafOnTheWind', 'thanosGift', 'doubleOrNothing', 'cassiesClue', 'cowabunga', 'holdOntoYourButts', 'tetrisTouch', 'blueShellSurprise', 'pinkyAndTheBrain', 'letsGetDangerous', 'slimShadyShuffle', 'spaceInvader', 'upsideDown', 'jackass', 'birdBox'].forEach(id => { 
           if ((consumedPPs as any)[id]) { 
               delete (consumedPPs as any)[id]; 
               consumedBuffs = consumedBuffs.filter(b => b.id !== id); 
@@ -4392,6 +4594,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         if (!powerPlay) return;
         dispatch({ type: 'APPLY_GAMBLE', payload: { powerPlay, points: r.points, seconds: r.seconds, headline: r.headline, detail: r.detail, tone: r.tone } });
         if (r.strike) dispatch({ type: 'ADD_STRIKE' });
+        // The Price Is Right: the bid waits for the next word.
+        if (r.arm) dispatch({ type: 'UPDATE_GAME_STATE', payload: {
+            activePowerPlays: { ...gameState.activePowerPlays, [powerPlay.id]: r.arm.value },
+            activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== powerPlay.id), { ...powerPlay, description: r.arm.description }],
+        } });
+        // Draft Day: the picked pack joins the hand.
+        if (r.draft) dispatch({ type: 'DRAFT_TILES', payload: { letters: r.draft } });
     };
 
     const handleSaveClick = () => {
@@ -4568,6 +4777,38 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
                 powerPlayUses: { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 },
                 lastPowerPlayResult: { message: `${powerPlay.icon} ${buff.description}`, scoreChange: 0 },
+            } });
+            return;
+        }
+
+        // --- v7.28 ---
+        if (powerPlay.id === 'jackass') {
+            if (gameState.strikes + 1 >= maxStrikes) { showMessage('🛒 One more strike would end your run. Jackass stays in your pocket.', 3000); return; }
+            soundService.playPowerUp();
+            dispatch({ type: 'JACKASS', payload: { powerPlay } });
+            return;
+        }
+        if (powerPlay.id === 'multiplicity') {
+            const last = gameState.lastPowerPlayUsed ? ppById(gameState.lastPowerPlayUsed) : undefined;
+            if (!last) { showMessage('👯 Nothing to copy yet. Use a PowerPlay first, then Multiplicity copies it.', 3000); return; }
+            soundService.playPowerUp();
+            dispatch({ type: 'UPDATE_GAME_STATE', payload: {
+                availablePowerPlays: gameState.availablePowerPlays.map(p => (p.id === 'multiplicity' ? { ...last } : p)),
+                powerPlayUses: { ...gameState.powerPlayUses, multiplicity: (gameState.powerPlayUses.multiplicity || 0) + 1 },
+                lastPowerPlayResult: { message: `👯 Copied ${last.icon} ${last.name}. It's in your pocket.`, scoreChange: 0 },
+            } });
+            return;
+        }
+        if (powerPlay.id === 'smellYaLater') {
+            soundService.playPowerUp();
+            const V = POWER_PLAY_VALUES;
+            const buff = { ...powerPlay, description: `Race on: your next ${V.rivalWords} words against ${V.rivalPointsPerSecond} points a second. Outscore him for +${V.rivalPrize}.` };
+            dispatch({ type: 'UPDATE_GAME_STATE', payload: {
+                activePowerPlays: { ...gameState.activePowerPlays, smellYaLater: { words: V.rivalWords, mine: 0, rival: 0, clock: time } },
+                activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== 'smellYaLater'), buff],
+                availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
+                powerPlayUses: { ...gameState.powerPlayUses, smellYaLater: (gameState.powerPlayUses.smellYaLater || 0) + 1 },
+                lastPowerPlayResult: { message: `🏃 The race is on! Your rival scores ${V.rivalPointsPerSecond} points a second.`, scoreChange: 0 },
             } });
             return;
         }
@@ -4846,6 +5087,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         time,
         resumeCountdown: state.resumeCountdown ?? 0,
         handleResolveGamble,
+        upcomingTiles: gameState.activePowerPlays?.psychicFriends ? tileBag.slice(-POWER_PLAY_VALUES.psychicTiles).reverse() : [],
         timeGain: state.timeGain,
         message,
         hand,
