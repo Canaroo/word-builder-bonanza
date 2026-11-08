@@ -304,6 +304,13 @@ export const blackjackPayout = (total: number): number => {
     if (total > POWER_PLAY_VALUES.blackjackTarget) return 0;
     return POWER_PLAY_VALUES.blackjackPayouts.find(p => total >= p.min)?.points ?? 0;
 };
+/** Winner Winner Chicken Dinner (v7.28.9): each valid word deals a card. 2-10 count as shown,
+ * J/Q/K as 10, and an A as 11 unless that would bust (then 1). */
+export const blackjackCard = (total: number, rand: () => number = Math.random): { face: string; value: number } => {
+    const card = drawCard(rand);
+    const value = card === 14 ? (total + 11 > POWER_PLAY_VALUES.blackjackTarget ? 1 : 11) : Math.min(card, 10);
+    return { face: cardFace(card), value };
+};
 /** Card Sharks: the pot after this many right calls. */
 export const cardSharksPot = (right: number): number =>
     right <= 0 ? 0 : POWER_PLAY_VALUES.cardSharksLadder[Math.min(right, POWER_PLAY_VALUES.cardSharksLadder.length) - 1];

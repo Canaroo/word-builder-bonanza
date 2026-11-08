@@ -47,7 +47,7 @@ export const INSTANT_POWER_PLAY_IDS = new Set([
   'deepFreeze', 'groundhogsDay', 'lifeFindsAWay', 'wildcardWake', 'continueScreen',
   // Timed or blind challenges, and Daily Double's bet, start on the fresh hand, so a player can't
   // wait for (or build) the right word before they begin.
-  'popQuizHotshot', 'smellYaLater', 'birdBox', 'dailyDouble',
+  'popQuizHotshot', 'smellYaLater', 'birdBox', 'dailyDouble', 'missionImpossible',
 ]);
 
 export const POWER_PLAYS_LIST: PowerPlay[] = [
@@ -1206,13 +1206,19 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'missionImpossible',
     name: 'Mission: Impossible',
-    description: `+${POWER_PLAY_VALUES.missionImpossibleSeconds} seconds now, if you promise your next ${POWER_PLAY_VALUES.missionImpossibleWords} words will have ${POWER_PLAY_VALUES.missionImpossibleLetters}+ letters. A shorter word breaks the promise: -${POWER_PLAY_VALUES.missionImpossiblePenalty} seconds.`,
+    description: `Starts the moment you pick it: +${POWER_PLAY_VALUES.missionImpossibleSeconds} seconds now, if you promise your next ${POWER_PLAY_VALUES.missionImpossibleWords} words will have ${POWER_PLAY_VALUES.missionImpossibleLetters}+ letters. A shorter word breaks the promise: -${POWER_PLAY_VALUES.missionImpossiblePenalty} seconds.`,
     flavorText: 'Your mission, should you choose to accept it...',
     icon: '🕵️',
     subtheme: 'timer',
     effectType: 'immediate',
     durationTag: 'LIMITED',
-    activate: () => ({}), // Handled in GameScreen
+    activate: (gameState: GameState): Partial<GameState> => {
+      // Fires on pick (INSTANT_POWER_PLAY_IDS); the seconds are added in CHOOSE_POWER_PLAY.
+      const V = POWER_PLAY_VALUES;
+      const armed = arm('missionImpossible', { words: V.missionImpossibleWords })(gameState);
+      const description = `Mission: your next ${V.missionImpossibleWords} words need ${V.missionImpossibleLetters}+ letters. A shorter word costs ${V.missionImpossiblePenalty} seconds.`;
+      return { ...armed, activeBuffs: armed.activeBuffs!.map(b => (b.id === 'missionImpossible' ? { ...b, description } : b)) };
+    }
   },
 
   // --- v7.28: new kinds of play (betting on yourself, payouts later, rivals, blind play, boss and charm boosts) ---
@@ -1340,7 +1346,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'chickenDinner',
     name: 'Winner Winner Chicken Dinner',
-    description: `Blackjack with word lengths: each word's letters add to your count. Stand any time (tap the 🍗 chip). ${POWER_PLAY_VALUES.blackjackPayouts.map((p, i, all) => `${i === 0 ? p.min : `${p.min}-${all[i - 1].min - 1}`} pays +${p.points}`).join(', ')}. Go over ${POWER_PLAY_VALUES.blackjackTarget} and you bust.`,
+    description: `Blackjack: each valid word deals you a card (J/Q/K are 10, A is 11 or 1). Stand any time (tap the 🍗 chip). ${POWER_PLAY_VALUES.blackjackPayouts.map((p, i, all) => `${i === 0 ? p.min : `${p.min}-${all[i - 1].min - 1}`} pays +${p.points}`).join(', ')}. Go over ${POWER_PLAY_VALUES.blackjackTarget} and you bust.`,
     flavorText: 'Winner winner, chicken dinner!',
     icon: '🍗',
     subtheme: 'score',

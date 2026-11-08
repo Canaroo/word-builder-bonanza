@@ -18,7 +18,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, rivalScore, redrumReverse } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, redrumReverse } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
@@ -245,6 +245,7 @@ type GameAction =
     | { type: 'JACKASS', payload: { powerPlay: PowerPlay } }
     | { type: 'BLACKJACK_STAND' }
     | { type: 'RETURN_BUILD_ROW' }
+    | { type: 'SET_GAMBLE_STATE', payload: { key: string; value: unknown } }
     | { type: 'DRAFT_TILES', payload: { letters: string[] } };
 
 
@@ -312,6 +313,10 @@ const TIME_GAIN_SOURCE: Partial<Record<GameAction['type'], keyof TimeLedger>> = 
     CHOOSE_CHARM: 'powerUps',
     ADD_STRIKE: 'powerUps',
     RESTART_ROUND_GROUNDHOG: 'powerUps',
+    // Gamble and pick-and-fire time (Hot Tub, Mission: Impossible, Jackass) counts as power-up time too.
+    APPLY_GAMBLE: 'powerUps',
+    CHOOSE_POWER_PLAY: 'powerUps',
+    JACKASS: 'powerUps',
 };
 
 const LIFELINE_TIP_KEY = 'wordNerdLifelineTipSeen';
@@ -500,6 +505,12 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         case 'SET_IS_LOADING': return { ...state, isLoading: action.payload, loadingMessage: action.payload ? state.loadingMessage : null };
         case 'SET_LOADING_MESSAGE': return { ...state, loadingMessage: action.payload };
         case 'RETURN_BUILD_ROW': return withBuildRowReturned(state);
+        // A gamble card's board, kept in its pop-up so the auto-save stores it (v7.28.9).
+        case 'SET_GAMBLE_STATE': {
+            const m = state.modalContent;
+            if (m?.type !== 'gamble') return state;
+            return { ...state, modalContent: { ...m, data: { ...m.data, saved: { ...(m.data?.saved ?? {}), [action.payload.key]: action.payload.value } } } };
+        }
         case 'SET_HAND_AND_BAG': return { ...state, hand: action.payload.hand, tileBag: action.payload.tileBag };
         case 'SET_MESSAGE': return { ...state, message: action.payload };
         // Only clear the message this timer belongs to, so a newer message isn't cut short.
@@ -1444,6 +1455,18 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     newGameState.lastPowerPlayResult = { message: `⚡ ${powerPlay.icon} ${powerPlay.name} fired!${swappedOut}`, scoreChange: 0 };
                 }
                 
+                // Mission: Impossible (fires on pick, v7.28.9): the seconds come now, the promise follows.
+                if (powerPlay.id === 'missionImpossible') {
+                    const V = POWER_PLAY_VALUES;
+                    const gained = bonusTime(V.missionImpossibleSeconds, state.time, runLevel(newGameState));
+                    const time = clampTime(state.time + gained, bankMax(newGameState));
+                    newGameState.lastPowerPlayResult = { message: `🕵️ Mission accepted: +${gained}s. Your next ${V.missionImpossibleWords} words need ${V.missionImpossibleLetters}+ letters.${swappedOut}`, scoreChange: 0 };
+                    return {
+                        ...state, time, timeGain: { seconds: gained, key: Date.now() }, gameState: newGameState,
+                        modalQueue: [...state.modalQueue, outcome(powerPlay, `MISSION ACCEPTED: +${gained}s`, `Now keep your promise: your next ${V.missionImpossibleWords} words must have ${V.missionImpossibleLetters}+ letters. A shorter word costs ${V.missionImpossiblePenalty} seconds.`, 'neutral')],
+                    };
+                }
+
                 return {
                     ...state,
                     gameState: newGameState,
@@ -3539,24 +3562,25 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               modalQueue.push(outcome(rivalPP, won ? `YOU WIN! +${V28.rivalPrize}` : 'YOUR RIVAL WINS', `You ${mine}, rival ${rival}. ${won ? 'Smell ya later!' : 'He scores while you think. Play faster next time.'}`, won ? 'win' : 'lose'));
           }
       }
-      // Winner Winner Chicken Dinner: the word's letters add to the count.
-      const dinner = newState.activePowerPlays.chickenDinner as { total: number } | undefined;
+      // Winner Winner Chicken Dinner: each valid word deals a card to the count.
+      const dinner = newState.activePowerPlays.chickenDinner as { total: number; last?: string } | undefined;
       if (dinner) {
           const dinnerPP = ppById('chickenDinner');
-          const total = dinner.total + word.length;
+          const dealt = blackjackCard(dinner.total);
+          const total = dinner.total + dealt.value;
           const target = V28.blackjackTarget;
           if (total > target) {
               dropPP('chickenDinner');
-              modalQueue.push(outcome(dinnerPP, `BUST! ${total}`, `${word.toUpperCase()} took you over ${target}. No payout.`, 'lose'));
+              modalQueue.push(outcome(dinnerPP, `BUST! ${total}`, `${word.toUpperCase()} dealt you a ${dealt.face} (${dealt.value}), over ${target}. No payout.`, 'lose'));
           } else if (total === target) {
               dropPP('chickenDinner');
               const pts = blackjackPayout(total);
               runningScore += pts;
               eventLogQueue.push({ type: 'event', id: `pp-chickenDinner-${now}`, name: dinnerPP.name, icon: dinnerPP.icon, description: `Hit ${target} exactly: +${pts}.`, scoreChange: pts, cumulativeScore: runningScore });
-              modalQueue.push(outcome(dinnerPP, `${target}! +${pts}`, 'Winner winner, chicken dinner!', 'win'));
+              modalQueue.push(outcome(dinnerPP, `${target}! +${pts}`, `Dealt a ${dealt.face}. Winner winner, chicken dinner!`, 'win'));
           } else {
-              setPP('chickenDinner', { total }, `Count: ${total}. Tap the 🍗 chip to stand, or keep playing (over ${target} busts).`);
-              showMessage(`🍗 Count: ${total}${blackjackPayout(total) ? ` (stand for +${blackjackPayout(total)})` : ''}`, 2200);
+              setPP('chickenDinner', { total, last: dealt.face }, `Count: ${total} (last card ${dealt.face}). Tap the 🍗 chip to stand, or keep playing (over ${target} busts).`);
+              showMessage(`🍗 Dealt ${dealt.face}: count ${total}${blackjackPayout(total) ? ` (stand for +${blackjackPayout(total)})` : ''}`, 2200);
           }
       }
 
@@ -4803,17 +4827,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             const replaced = gameState.activeCharms.length >= CHARM_SLOTS ? gameState.activeCharms[Math.floor(Math.random() * gameState.activeCharms.length)] : undefined;
             dispatch({ type: 'APPLY_GAMBLE', payload: { powerPlay, headline: `${charm.icon} ${charm.name.toUpperCase()}`, detail: `${charm.description}${replaced ? `\n\nIt replaced ${replaced.icon} ${replaced.name}.` : ''}`, tone: 'neutral' } });
             dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand: hand ?? [], allOffered: [charm], replaceId: replaced?.id } });
-            return;
-        }
-        if (powerPlay.id === 'missionImpossible') {
-            const V = POWER_PLAY_VALUES;
-            const gained = bonusTime(V.missionImpossibleSeconds, time, levelFor(totalWords));
-            const buff = { ...powerPlay, description: `Mission: your next ${V.missionImpossibleWords} words need ${V.missionImpossibleLetters}+ letters. A shorter word costs ${V.missionImpossiblePenalty} seconds.` };
-            dispatch({ type: 'APPLY_GAMBLE', payload: { powerPlay, seconds: V.missionImpossibleSeconds, headline: `MISSION ACCEPTED: +${gained}s`, detail: `Now keep your promise: your next ${V.missionImpossibleWords} words must have ${V.missionImpossibleLetters}+ letters. A shorter word costs ${V.missionImpossiblePenalty} seconds.`, tone: 'neutral' } });
-            dispatch({ type: 'UPDATE_GAME_STATE', payload: {
-                activePowerPlays: { ...gameState.activePowerPlays, missionImpossible: { words: V.missionImpossibleWords } },
-                activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== 'missionImpossible'), buff],
-            } });
             return;
         }
         // --- v7.28 ---
