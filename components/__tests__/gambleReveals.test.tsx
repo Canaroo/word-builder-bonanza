@@ -59,3 +59,19 @@ describe('No Whammies! reveal', () => {
         expect(el.textContent).toContain(`would have added +${V.whammyPot}`);
     });
 });
+
+describe('Deal or No Deal reveal', () => {
+    test('taking the deal opens your case, then pays the offer on Take', () => {
+        const { el, onResolve, button } = render('dealOrNoDeal');
+        const offer = Number(/OFFER: \+(\d+)/.exec(el.textContent ?? '')?.[1]);
+        act(() => button('Deal').click());
+        expect(onResolve).not.toHaveBeenCalled();
+        const mine = Number(el.querySelector('[aria-label^="Your case: "]')?.getAttribute('aria-label')?.split(': ')[1]);
+        expect(V.dealCases).toContain(mine);
+        expect(el.textContent).toContain(`You took the Banker's ${offer}.`);
+        expect(el.textContent).toMatch(offer > mine ? /beat your case/ : offer === mine ? /Dead even/ : /left \d+ on the table/);
+        act(() => button('Take the').click());
+        expect(onResolve).toHaveBeenCalledWith(expect.objectContaining({ points: offer }));
+        expect(onResolve.mock.calls[0][0].detail).toContain(`Your case held ${mine}.`);
+    });
+});

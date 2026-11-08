@@ -98,15 +98,33 @@ const Deal: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve })
   const left = game.others.slice(opened.length);
   const offer = bankerOffer([game.mine, ...left], round);
   const lastRound = round >= V.dealOpenPerRound.length - 1;
-  const deal = () => onResolve({
-    points: offer, headline: `DEAL! +${offer} POINTS`,
-    detail: `Your case held ${game.mine}. ${offer >= game.mine ? 'Good deal!' : 'You left points on the table.'}`,
-    tone: offer >= game.mine ? 'win' : 'neutral',
+  // Taking the deal opens your case (v7.28.7), so you see whether the Banker beat it.
+  const [dealt, setDealt] = useState<number | null>(null);
+  const verdict = (taken: number) => taken > game.mine ? `You beat your case by ${taken - game.mine}. Good deal!` : taken === game.mine ? 'Dead even with your case.' : `You left ${game.mine - taken} on the table.`;
+  const take = (taken: number) => onResolve({
+    points: taken, headline: `DEAL! +${taken} POINTS`,
+    detail: `Your case held ${game.mine}. ${verdict(taken)}`,
+    tone: taken >= game.mine ? 'win' : 'neutral',
   });
+  const deal = () => { soundService.playTileClick(); setDealt(offer); };
   const noDeal = () => {
     if (!lastRound) { soundService.playTileClick(); setRound(round + 1); return; }
     onResolve({ points: game.mine, headline: `YOUR CASE: +${game.mine} POINTS`, detail: game.mine >= offer ? `No deal paid off! The Banker's last offer was ${offer}.` : `The Banker's last offer was ${offer}. Ouch.`, tone: game.mine >= offer ? 'win' : 'lose' });
   };
+  if (dealt !== null) {
+    const good = dealt >= game.mine;
+    return (
+      <>
+        <p className="osd-text text-lg text-neon-cyan">YOUR CASE HELD...</p>
+        <div className={`rounded-xl ring-4 px-6 py-3 font-display text-4xl level-stage-in ${good ? 'bg-crt-950 ring-neon-green text-neon-green' : 'bg-neon-red/20 ring-neon-red text-neon-red'}`} aria-label={`Your case: ${game.mine}`}>
+          💼 {game.mine}
+        </div>
+        <p className="text-slate-200" aria-live="polite">You took the Banker's {dealt}. {verdict(dealt)}</p>
+        <p className="font-display text-3xl text-neon-yellow">DEAL: {dealt}</p>
+        <ArcadeButton color="green" className="w-full" onClick={() => take(dealt)}>Take the {dealt}</ArcadeButton>
+      </>
+    );
+  }
   return (
     <>
       <p className="osd-text text-lg text-neon-cyan">ROUND {round + 1} OF {V.dealOpenPerRound.length}</p>
