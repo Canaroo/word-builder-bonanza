@@ -586,6 +586,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <h1 className="font-display text-4xl min-[375px]:text-5xl [@media(min-height:760px)]:text-6xl tracking-widest neon-text-cyan neon-flicker animate-slide-in-down leading-none">WORD</h1>
             <h2 className="font-display text-6xl min-[375px]:text-7xl [@media(min-height:760px)]:text-8xl tracking-normal marquee-3d animate-bounce-in-up leading-none" style={{ animationDelay: '0.1s' }}>NERD</h2>
             <p className="osd-text text-lg text-neon-pink mt-1 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>SERIOUS WORDS. RIDICULOUS FUN.</p>
+            <p className="osd-text text-sm leading-none text-slate-500 mt-1">VER {__APP_VERSION__}</p>
           </div>
 
           {/* Play card: one main action. A saved run makes it CONTINUE; New Game drops to an outline button. */}
