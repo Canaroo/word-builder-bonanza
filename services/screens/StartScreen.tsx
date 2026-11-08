@@ -19,6 +19,8 @@ import { todaysRun, dailyRecord, dailyShareText } from '../daily';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import { showToast } from '../toast';
 import MissionsPanel from '../../components/MissionsPanel';
+import { getTodaysMissions } from '../missions';
+import { levelFor } from '../rules';
 import StreakPanel from '../../components/StreakPanel';
 import { BadgeIcon, TitleText } from '../../components/PlayerPlate';
 import { getProfile, currentStreak, playedToday, powerWordBonusFor } from '../progression';
@@ -99,7 +101,17 @@ const StartScreen: React.FC<StartScreenProps> = ({
       setPlayerVersion(v => v + 1);
     }
   };
-  const [savedGame, setSavedGame] = useState<{playerName: string} | null>(null);
+  const [savedGame, setSavedGame] = useState<{ playerName: string; gameScreenState?: any } | null>(null);
+  // The name field only shows for a new player (first launch, or "New Player" from the switcher);
+  // after that the top bar's player chip shows who's playing.
+  const showNameEntry = !name.trim() || isNewName;
+  // A saved regular run makes the main button CONTINUE, with a hint of where the run is.
+  const continueRun = useMemo(() => {
+    if (!savedGame?.gameScreenState?.gameState) return null;
+    const gs = savedGame.gameScreenState.gameState;
+    const words = (gs.log ?? []).filter((e: any) => e.type === 'word' && e.status === 'valid').length;
+    return { label: `${savedGame.playerName} · LV ${levelFor(words)} · ${(gs.score ?? 0).toLocaleString()} PTS` };
+  }, [savedGame]);
   
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
@@ -117,6 +129,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [missedWords, setMissedWords] = useState<MissedWord[]>([]);
   
   const [showPowerWordInfo, setShowPowerWordInfo] = useState(false);
+  // v7.31 layout: the Collect / Me bottom sheets and the missions row's expanded panel.
+  const [sheet, setSheet] = useState<'collect' | 'me' | null>(null);
+  const [showMissions, setShowMissions] = useState(false);
+  const missionSummary = useMemo(() => {
+    const { missions } = getTodaysMissions();
+    return { done: missions.filter(m => m.done).length, total: missions.length };
+  }, [playerVersion, profileVersion]);
 
   useEffect(() => {
     if (rankingModalData) {
@@ -229,6 +248,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
   // where the score shows up). Backing out costs nothing: the try is only used once it starts.
   const [showDailyIntro, setShowDailyIntro] = useState(false);
   const startsScoredDaily = !todayRecord && !(dailySave && dailySave.playerName === name.trim());
+  // What the Today's Run card shows: not played, an unfinished run to resume, done (with its score),
+  // or a try that was started and never finished (replays are practice).
+  const dailyState: 'new' | 'resume' | 'done' | 'started' =
+    dailySave && dailySave.playerName === name.trim() && todayRecord?.score === undefined ? 'resume'
+      : todayRecord?.score !== undefined ? 'done'
+      : todayRecord ? 'started'
+      : 'new';
   const handleDailyClick = () => {
     if (!name.trim()) return;
     if (startsScoredDaily && !showDailyIntro) {
@@ -525,179 +551,195 @@ const StartScreen: React.FC<StartScreenProps> = ({
       )}
 
 
-      <div className="flex flex-col min-h-full p-4 text-center">
-        <div className="flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-2">
-            <button onClick={onShowVibez} className="flex items-center gap-1.5 bg-crt-950/70 ring-1 ring-neon-purple/60 hover:ring-neon-purple pl-2 pr-3 py-1.5 rounded-full transition-shadow shadow-md" aria-label={`Shop. ${lexCoins} credits`}>
-                <span className="text-xl" aria-hidden="true">🛒</span>
-                <span className="osd-text text-xl leading-none text-neon-yellow">🪙 {lexCoins}</span>
-            </button>
+      {/* --- START SCREEN (v7.31): top bar, logo, one Play card, Today's Run, a Today strip, bottom tabs --- */}
+      <div className="flex flex-col min-h-full text-center">
+        {/* Top bar: who's playing (tap to switch, add a player or see your ID), streak, credits, sound. */}
+        <div className="flex items-center justify-between gap-2 shrink-0 px-4 pt-4">
+          <button
+            type="button"
+            onClick={() => { soundService.playUIClick(); setShowSwitcher(true); }}
+            className="min-w-0 flex items-center gap-1.5 bg-crt-950/70 ring-1 ring-neon-cyan/50 hover:ring-neon-cyan pl-2 pr-3 py-1.5 rounded-full"
+            aria-label={name.trim() ? `Playing as ${name.trim()}. Switch player` : 'Choose a player'}
+          >
+            {profile.badge ? <BadgeIcon id={profile.badge} size="sm" /> : <span className="text-lg leading-none" aria-hidden="true">👤</span>}
+            <span className="osd-text text-xl leading-none text-neon-cyan uppercase truncate max-w-[7rem]">{showNameEntry ? 'NEW PLAYER' : name.trim()}</span>
+            <span className="text-slate-400 text-xs" aria-hidden="true">▾</span>
+          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => { soundService.playUIClick(); setShowStreak(true); }}
-              className={`flex items-center gap-1 pl-2 pr-3 py-1.5 rounded-full ring-1 shadow-md transition-shadow ${bankedToday ? 'bg-neon-orange/15 ring-neon-orange' : 'bg-crt-950/70 ring-neon-orange/50 hover:ring-neon-orange'}`}
+              className={`flex items-center gap-1 pl-2 pr-2.5 py-1.5 rounded-full ring-1 ${bankedToday ? 'bg-neon-orange/15 ring-neon-orange' : 'bg-crt-950/70 ring-neon-orange/50 hover:ring-neon-orange'}`}
               aria-label={`Daily streak: ${streak} days${bankedToday ? ', today banked' : ''}`}
             >
-                <span className={`text-xl ${streak > 0 && !bankedToday ? 'animate-pulse' : ''}`} aria-hidden="true">🔥</span>
-                <span className="osd-text text-xl leading-none text-neon-orange">{streak}</span>
+              <span className={`text-lg leading-none ${streak > 0 && !bankedToday ? 'animate-pulse' : ''}`} aria-hidden="true">🔥</span>
+              <span className="osd-text text-xl leading-none text-neon-orange">{streak}</span>
+            </button>
+            <button onClick={onShowVibez} className="flex items-center gap-1 bg-crt-950/70 ring-1 ring-neon-yellow/50 hover:ring-neon-yellow pl-2 pr-2.5 py-1.5 rounded-full" aria-label={`${lexCoins} credits. Open the shop`}>
+              <span className="text-lg leading-none" aria-hidden="true">🪙</span>
+              <span className="osd-text text-xl leading-none text-neon-yellow">{lexCoins}</span>
+            </button>
+            <button onClick={handleMuteToggle} className="text-xl text-slate-400 hover:text-white p-1.5" aria-label={isMuted ? 'Sound off. Turn on' : 'Sound on. Turn off'}>
+              {isMuted ? '🔇' : '🔊'}
             </button>
           </div>
-          <button onClick={handleMuteToggle} className="text-2xl text-slate-400 hover:text-white p-2 transition-transform hover:scale-110">
-            {isMuted ? '🔇' : '🔊'}
-          </button>
         </div>
 
-        <div className="w-full max-w-sm mx-auto flex flex-col items-center gap-4 my-auto py-4">
-            <div className="text-center">
-                <h1 className="font-display text-5xl min-[375px]:text-6xl md:text-7xl tracking-widest neon-text-cyan neon-flicker animate-slide-in-down">
-                    WORD
-                </h1>
-                <h2
-                    className="font-display text-7xl min-[375px]:text-8xl tracking-normal -mt-1 marquee-3d animate-bounce-in-up"
-                    style={{ animationDelay: '0.1s' }}
-                >
-                    NERD
-                </h2>
-                <p className="osd-text text-xl text-neon-pink mt-3 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>SERIOUS WORDS. RIDICULOUS FUN.</p>
-            </div>
-            
-            <div className="w-full flex gap-2">
-              <input
-                id="player-name"
-                type="text"
-                value={name}
-                onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="Enter Your Name"
-                maxLength={12}
-                aria-label="Player name"
-                className="min-w-0 flex-1 px-4 py-2 font-osd text-3xl uppercase tracking-widest text-center bg-crt-950/80 border-2 border-neon-cyan/50 rounded-lg focus:outline-none focus:border-neon-cyan focus:shadow-glow-cyan transition-shadow duration-200 text-neon-cyan placeholder:text-neon-cyan/40 placeholder:normal-case"
-              />
-              <button
-                type="button"
-                onClick={() => { soundService.playUIClick(); setShowSwitcher(true); }}
-                className="shrink-0 w-14 rounded-lg bg-crt-950/80 border-2 border-neon-cyan/50 text-2xl hover:border-neon-cyan"
-                aria-label={`Switch player. ${players.length} ${players.length === 1 ? 'player' : 'players'} on this device`}
-                title="Switch player"
-              >👥</button>
-            </div>
-            {isNewName ? (
-              <p className="-mt-2 osd-text text-base leading-none text-neon-yellow min-h-[2rem] flex items-center">✨ NEW PLAYER · PRESS START TO MAKE YOUR ID</p>
-            ) : (
-              <div className="-mt-2 flex items-center justify-center gap-1 min-h-[2rem]">
-                <button
-                  onClick={onShowVibez}
-                  className="flex items-center justify-center gap-2 min-h-[2rem] px-3 rounded-lg hover:bg-white/5"
-                  aria-label="Customize your badge and title"
-                >
-                  {profile.badge || profile.title ? (
-                    <>
-                      <BadgeIcon id={profile.badge} size="sm" />
-                      <TitleText id={profile.title} className="text-lg leading-none" />
-                      <span className="osd-text text-base leading-none text-slate-500">EDIT ›</span>
-                    </>
-                  ) : (
-                    <span className="osd-text text-base leading-none text-neon-purple">🏷️ ADD A BADGE &amp; TITLE ›</span>
-                  )}
-                </button>
-                <button
-                  onClick={onShowProfile}
-                  className="flex items-center gap-1 min-h-[2rem] px-3 rounded-lg ring-1 ring-neon-cyan/40 hover:bg-white/5"
-                  aria-label="See my player ID and stats"
-                >
-                  <span className="osd-text text-base leading-none text-neon-cyan">🪪 MY ID ›</span>
-                </button>
+        <div className="flex-1 w-full max-w-sm mx-auto flex flex-col items-center gap-3 px-4 pt-3 pb-4">
+          {/* Logo: the hero, centered in the space above the actions; smaller than before, same neon. */}
+          <div className="flex-1 flex flex-col items-center justify-center text-center min-h-[9rem]">
+            <h1 className="font-display text-4xl min-[375px]:text-5xl [@media(min-height:760px)]:text-6xl tracking-widest neon-text-cyan neon-flicker animate-slide-in-down leading-none">WORD</h1>
+            <h2 className="font-display text-6xl min-[375px]:text-7xl [@media(min-height:760px)]:text-8xl tracking-normal marquee-3d animate-bounce-in-up leading-none" style={{ animationDelay: '0.1s' }}>NERD</h2>
+            <p className="osd-text text-lg text-neon-pink mt-1 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>SERIOUS WORDS. RIDICULOUS FUN.</p>
+          </div>
+
+          {/* Play card: one main action. A saved run makes it CONTINUE; New Game drops to an outline button. */}
+          <section className="w-full flex flex-col gap-2.5" aria-label="Play">
+            {showNameEntry && (
+              <div className="w-full flex flex-col gap-1">
+                <input
+                  id="player-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  placeholder="Enter Your Name"
+                  maxLength={12}
+                  aria-label="Player name"
+                  className="w-full px-4 py-2 font-osd text-3xl uppercase tracking-widest text-center bg-crt-950/80 border-2 border-neon-cyan/50 rounded-lg focus:outline-none focus:border-neon-cyan focus:shadow-glow-cyan text-neon-cyan placeholder:text-neon-cyan/40 placeholder:normal-case"
+                />
+                <p className="osd-text text-base leading-none text-slate-400">{isNewName ? '✨ NEW PLAYER · PRESS START TO MAKE YOUR ID' : 'ENTER YOUR NAME TO PLAY'}</p>
               </div>
             )}
-            
-            <div className="w-full flex flex-col gap-3 mt-2">
-                <ArcadeButton color="yellow" size="lg" className="w-full" disabled={!name.trim()} onClick={handlePlayClick}>
-                    ▶ New Game
+            {continueRun ? (
+              <>
+                <ArcadeButton color="yellow" size="lg" className="w-full flex-col !gap-0" onClick={handleResumeClick}>
+                  <span>▶ Continue</span>
+                  <span className="osd-text text-base leading-none normal-case tracking-normal opacity-80">{continueRun.label}</span>
                 </ArcadeButton>
-                <p className={`osd-text text-lg leading-none ${name.trim() ? 'text-neon-yellow blink' : 'text-slate-500'}`}>
-                    {name.trim() ? 'PRESS START' : 'ENTER YOUR NAME TO PLAY'}
-                </p>
+                <ArcadeButton color="yellow" variant="outline" className="w-full" disabled={!name.trim()} onClick={handlePlayClick}>New Game</ArcadeButton>
+              </>
+            ) : (
+              <>
+                <ArcadeButton color="yellow" size="lg" className="w-full" disabled={!name.trim()} onClick={handlePlayClick}>▶ New Game</ArcadeButton>
+                {!showNameEntry && <p className="osd-text text-lg leading-none text-neon-yellow blink -mt-1">PRESS START</p>}
+              </>
+            )}
+          </section>
 
-                {savedGame && (
-                    <ArcadeButton color="green" className="w-full" onClick={handleResumeClick}>
-                        ⏯ Resume: {savedGame.playerName}
-                    </ArcadeButton>
-                )}
-
-                {/* Today's Daily Run (v7.30): one shared deal a day; your first run of the day is scored. */}
-                {dailySave && (!todayRecord || todayRecord.score === undefined || dailySave.playerName !== name.trim()) ? (
-                    <ArcadeButton color="cyan" className="w-full" disabled={!name.trim()} onClick={handleDailyClick}>
-                        ⏯ Resume Daily #{today.number}
-                    </ArcadeButton>
-                ) : todayRecord?.score !== undefined ? (
-                    <div className="rounded-xl bg-crt-950/70 ring-1 ring-neon-cyan/50 p-2 flex flex-col gap-2">
-                        <p className="osd-text text-lg leading-none text-neon-cyan">
-                            📅 DAILY #{today.number} · {todayRecord.score.toLocaleString()}{todayRecord.rank ? ` · #${todayRecord.rank} TODAY` : ''}
-                        </p>
-                        <div className="grid grid-cols-2 gap-2">
-                            <ArcadeButton color="green" size="sm" onClick={handleShareDaily}>📤 Share</ArcadeButton>
-                            <ArcadeButton color="slate" size="sm" disabled={!name.trim()} onClick={handleDailyClick}>Practice</ArcadeButton>
-                        </div>
-                    </div>
-                ) : (
-                    <ArcadeButton color="cyan" className="w-full" disabled={!name.trim()} onClick={handleDailyClick}>
-                        {todayRecord ? `📅 Daily #${today.number} · Practice` : `📅 Today's Run #${today.number}`}
-                    </ArcadeButton>
-                )}
+          {/* Today's Run: one shared deal a day. Its own card so it reads as a separate mode. */}
+          <section className="w-full rounded-xl bg-crt-950/70 ring-1 ring-neon-cyan/50 p-3 text-left flex items-center gap-3" aria-label={`Today's Run number ${today.number}`}>
+            <span className="text-3xl leading-none" aria-hidden="true">📅</span>
+            <div className="flex-1 min-w-0">
+              <p className="font-display text-base leading-tight text-neon-cyan">TODAY'S RUN #{today.number}</p>
+              <p className="osd-text text-base leading-tight text-slate-300">
+                {dailyState === 'resume' ? 'UNFINISHED · PICK UP WHERE YOU LEFT OFF'
+                  : dailyState === 'done' ? `${todayRecord!.score!.toLocaleString()} PTS${todayRecord!.rank ? ` · #${todayRecord!.rank} TODAY` : ''}`
+                  : dailyState === 'started' ? 'TRY USED · REPLAY AS PRACTICE'
+                  : 'SAME DEAL FOR EVERYONE. ONE SCORED TRY.'}
+              </p>
             </div>
-
-            <div className="w-full my-2 flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                {powerWordData && !canSpin ? (
-                    <div className="bg-slate-900/50 p-3 rounded-lg text-center w-full animate-fade-in">
-                        <div className="flex justify-center items-center gap-2">
-                            <h3 className="text-md font-bold text-yellow-300">Power Word:</h3>
-                            <p className="font-bold text-2xl text-white font-digital tracking-widest">{powerWordData.powerWord.toUpperCase()}</p>
-                            <button 
-                                onClick={handleShowPowerWordInfo}
-                                aria-label="Show Power Word information"
-                                className="text-slate-400 hover:text-white text-xl"
-                            >
-                                ℹ️
-                            </button>
-                        </div>
-                    </div>
-                ) : (
-                    <p className="text-sm text-slate-400 italic">Spin for your daily Power Word!</p>
-                )}
+            {dailyState === 'done' ? (
+              <div className="flex flex-col gap-1.5 shrink-0">
+                <ArcadeButton color="cyan" size="sm" onClick={handleShareDaily}>Share</ArcadeButton>
+                <ArcadeButton color="cyan" variant="outline" size="sm" disabled={!name.trim()} onClick={handleDailyClick}>Practice</ArcadeButton>
               </div>
-              <button
-                  onClick={onSpin}
-                  disabled={!canSpin}
-                  title={!canSpin ? powerWordService.getCooldownMessage() : 'Spin for your daily Power Word!'}
-                  aria-label="Spin for your daily Power Word"
-                  className="arcade-btn shrink-0 w-14 h-14 bg-gradient-to-b from-[#ff86c6] to-neon-pink rounded-full flex items-center justify-center disabled:cursor-not-allowed"
-                  style={{ ['--btn-edge' as string]: '#a3175f' }}
-              >
-                  <span className={`text-3xl ${canSpin ? 'animate-spin' : ''}`}>💥</span>
+            ) : (
+              <ArcadeButton color="cyan" size="sm" className="shrink-0" disabled={!name.trim()} onClick={handleDailyClick}>
+                {dailyState === 'resume' ? '⏯ Resume' : dailyState === 'started' ? 'Practice' : '▶ Play'}
+              </ArcadeButton>
+            )}
+          </section>
+
+          {/* Today strip: the daily rituals side by side. */}
+          <section className="w-full grid grid-cols-2 gap-2" aria-label="Today">
+            {canSpin ? (
+              <button type="button" onClick={onSpin} className="flex items-center justify-center gap-2 rounded-xl ring-1 ring-neon-pink/60 bg-neon-pink/10 hover:bg-neon-pink/20 px-2 py-2.5" aria-label="Spin for your daily Power Word">
+                <span className="text-xl leading-none animate-spin" aria-hidden="true">💥</span>
+                <span className="osd-text text-base min-[390px]:text-lg leading-none text-neon-pink whitespace-nowrap">SPIN POWER WORD</span>
               </button>
-            </div>
-
-            <MissionsPanel />
-
-            <div className="w-full h-px bg-gradient-to-r from-transparent via-neon-pink/60 to-transparent my-1" />
-            
-            <ArcadeButton color="pink" className="w-full" onClick={onShowCollection} aria-label={`Collection. ${collection.found} of ${collection.total} secrets found`}>
-                📼 Collection <span className="font-osd text-2xl leading-none normal-case tracking-normal">{collection.found}/{collection.total}</span>
-            </ArcadeButton>
-
-            <ArcadeButton color="red" className="w-full" onClick={onShowBadgeCase} aria-label={`Boss Badges. ${profile.bossBadges.length} of ${BOSSES.length} bosses beaten`}>
-                🏅 Boss Badges <span className="font-osd text-2xl leading-none normal-case tracking-normal">{profile.bossBadges.length}/{BOSSES.length}</span>
-            </ArcadeButton>
-
-            <div className="w-full grid grid-cols-2 gap-x-3 gap-y-4 pb-1">
-                <ArcadeButton color="cyan" size="sm" onClick={handleShowLeaderboard}>🏆 Top 50</ArcadeButton>
-                <ArcadeButton color="purple" size="sm" onClick={onShowHowToPlay}>📘 How to Play</ArcadeButton>
-                <ArcadeButton color="green" size="sm" onClick={handleShowEventLogs}>📼 Event Logs</ArcadeButton>
-                <ArcadeButton color="pink" size="sm" onClick={handleShowMissedWords}>🧠 Missed Words</ArcadeButton>
-            </div>
+            ) : (
+              <button type="button" onClick={handleShowPowerWordInfo} disabled={!powerWordData} className="flex items-center justify-center gap-1.5 rounded-xl ring-1 ring-neon-pink/40 bg-crt-950/70 px-2 py-2.5 min-w-0" aria-label={powerWordData ? `Power Word: ${powerWordData.powerWord}. Show info` : powerWordService.getCooldownMessage()}>
+                <span className="text-lg leading-none" aria-hidden="true">💥</span>
+                <span className="osd-text text-lg leading-none text-slate-300 truncate">{powerWordData ? powerWordData.powerWord.toUpperCase() : 'SPUN'}</span>
+                {powerWordData && <span className="text-xs text-slate-500" aria-hidden="true">ⓘ</span>}
+              </button>
+            )}
+            <button type="button" onClick={() => { soundService.playUIClick(); setShowMissions(v => !v); }} aria-expanded={showMissions}
+              className={`flex items-center justify-center gap-1.5 rounded-xl ring-1 px-2 py-2.5 ${missionSummary.done === missionSummary.total ? 'ring-neon-green/60 bg-neon-green/10' : 'ring-neon-cyan/40 bg-crt-950/70'}`}
+              aria-label={`Missions: ${missionSummary.done} of ${missionSummary.total} done. ${showMissions ? 'Hide' : 'Show'}`}>
+              <span className="text-lg leading-none" aria-hidden="true">🎯</span>
+              <span className="osd-text text-base min-[390px]:text-lg leading-none text-neon-cyan whitespace-nowrap">MISSIONS {missionSummary.done}/{missionSummary.total}</span>
+              <span className="text-xs text-slate-400" aria-hidden="true">{showMissions ? '▴' : '▾'}</span>
+            </button>
+          </section>
+          {showMissions && <MissionsPanel />}
         </div>
-        
-        <p className="shrink-0 osd-text text-center text-neon-cyan/60 text-base">VER {__APP_VERSION__}</p>
+
+        {/* Bottom tabs: everything that isn't playing, in the thumb zone. */}
+        <nav className="sticky bottom-0 z-20 shrink-0 grid grid-cols-5 border-t border-white/10 bg-crt-950/95 backdrop-blur-sm" aria-label="Menu">
+          {([
+            { icon: '🏠', label: 'PLAY', onClick: undefined, current: true },
+            { icon: '🏆', label: 'TOP 50', onClick: handleShowLeaderboard },
+            { icon: '📼', label: 'COLLECT', onClick: () => { soundService.playUIClick(); setSheet('collect'); } },
+            { icon: '🛒', label: 'SHOP', onClick: onShowVibez },
+            { icon: '🪪', label: 'ME', onClick: () => { soundService.playUIClick(); setSheet('me'); } },
+          ] as const).map(tab => (
+            <button key={tab.label} type="button" onClick={tab.onClick} aria-current={'current' in tab ? 'page' : undefined}
+              className={`flex flex-col items-center justify-center gap-0.5 py-2 min-h-[3.5rem] ${'current' in tab ? 'text-neon-yellow' : 'text-slate-400 hover:text-white'}`}>
+              <span className="text-xl leading-none" aria-hidden="true">{tab.icon}</span>
+              <span className="osd-text text-sm leading-none">{tab.label}</span>
+            </button>
+          ))}
+        </nav>
       </div>
+
+      {/* Bottom sheets for the Collect and Me tabs. */}
+      {sheet && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-crt-950/80 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label={sheet === 'collect' ? 'Collection' : 'Me'} onClick={() => setSheet(null)}>
+          <div className="w-full max-w-xl rounded-t-2xl bg-crt-900 ring-1 ring-white/15 p-4 pb-6 flex flex-col gap-3 bonus-insert" onClick={e => e.stopPropagation()}>
+            <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
+            {sheet === 'collect' ? (
+              <>
+                <h2 className="font-display text-xl text-neon-pink text-center">COLLECTION</h2>
+                <button type="button" onClick={() => { setSheet(null); onShowCollection(); }} className="flex items-center gap-3 rounded-xl ring-1 ring-neon-pink/50 bg-crt-950/70 p-3 text-left hover:bg-neon-pink/10">
+                  <span className="text-3xl" aria-hidden="true">📼</span>
+                  <span className="flex-1"><span className="block font-display text-base text-white">Secret Bonuses</span><span className="osd-text text-base text-slate-400">HIDDEN WORDS AND SCORES YOU'VE FOUND</span></span>
+                  <span className="font-osd text-2xl text-neon-pink">{collection.found}/{collection.total}</span>
+                </button>
+                <button type="button" onClick={() => { setSheet(null); onShowBadgeCase(); }} className="flex items-center gap-3 rounded-xl ring-1 ring-neon-red/50 bg-crt-950/70 p-3 text-left hover:bg-neon-red/10">
+                  <span className="text-3xl" aria-hidden="true">🏅</span>
+                  <span className="flex-1"><span className="block font-display text-base text-white">Boss Badges</span><span className="osd-text text-base text-slate-400">ONE FOR EACH BOSS YOU'VE BEATEN</span></span>
+                  <span className="font-osd text-2xl text-neon-red">{profile.bossBadges.length}/{BOSSES.length}</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 className="font-display text-xl text-neon-cyan text-center">{name.trim() ? name.trim().toUpperCase() : 'ME'}</h2>
+                <ul className="flex flex-col divide-y divide-white/10 rounded-xl ring-1 ring-white/10 bg-crt-950/60 overflow-hidden">
+                  {[
+                    { icon: '🪪', label: 'My ID', onClick: () => { setSheet(null); onShowProfile(); } },
+                    { icon: '🏷️', label: 'Badge & Title', onClick: () => { setSheet(null); onShowVibez(); } },
+                    { icon: '👥', label: 'Switch Player', onClick: () => { setSheet(null); setShowSwitcher(true); } },
+                    { icon: '🔥', label: 'Streak', onClick: () => { setSheet(null); setShowStreak(true); } },
+                    { icon: '📘', label: 'How to Play', onClick: () => { setSheet(null); onShowHowToPlay(); } },
+                    { icon: '📼', label: 'Event Logs', onClick: () => { setSheet(null); handleShowEventLogs(); } },
+                    { icon: '🧠', label: 'Missed Words', onClick: () => { setSheet(null); handleShowMissedWords(); } },
+                  ].map(item => (
+                    <li key={item.label}>
+                      <button type="button" onClick={() => { soundService.playUIClick(); item.onClick(); }} className="w-full flex items-center gap-3 px-4 min-h-[3rem] text-left hover:bg-white/5">
+                        <span className="text-xl leading-none" aria-hidden="true">{item.icon}</span>
+                        <span className="flex-1 font-display text-base text-slate-100">{item.label}</span>
+                        <span className="text-slate-500" aria-hidden="true">›</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <p className="osd-text text-center text-neon-cyan/60 text-base">VER {__APP_VERSION__}</p>
+              </>
+            )}
+            <ArcadeButton color="slate" variant="text" className="mx-auto" onClick={() => setSheet(null)}>Close</ArcadeButton>
+          </div>
+        </div>
+      )}
     </>
   );
 };

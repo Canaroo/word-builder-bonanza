@@ -33,7 +33,7 @@ Check UI changes at phone size (390×844) with Playwright against `npx vite prev
 (it kills the shell). Select tiles by `aria-label^="Tile "`, not position. Some test words trigger
 secret bonuses and pop-ups; dismiss "Continue/Take/Equip" buttons in scripts. To test a mid-run
 state, save a game, edit `localStorage.wordBuilderBonanzaSave` (`gameScreenState.gameState`), then
-Resume (wait out the 3-2-1 countdown before tapping tiles).
+tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 
 ## Where things live
 
@@ -118,6 +118,13 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Daily board and Top 50, Credits) with Start or "Not yet"; backing out doesn't use the try.
   New tile randomness in `gameUtils.ts` must use `tileRandom()`, not `Math.random()`, or the daily
   deal stops matching. Browser checks: block `firebaseio.com` so test scores don't post.
+- **Start screen (v7.31):** top bar (player chip → switcher, 🔥 streak, 🪙 credits → shop, sound),
+  the logo, then the actions anchored above a bottom tab bar (🏠 Play · 🏆 Top 50 · 📼 Collect sheet ·
+  🛒 Shop · 🪪 Me sheet). One main button: ▶ CONTINUE when a run is saved (New Game becomes an
+  outline button), else ▶ NEW GAME; then the Today's Run card and a Today strip (Power Word spin,
+  Missions row that expands). The name field shows only for a new player. It fits one phone screen.
+  Buttons use three tiers (`ArcadeButton` `variant`): solid for the one main action, `outline` for
+  the rest, `text` for Cancel/Close links. Keep a screen to one solid button where possible.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
