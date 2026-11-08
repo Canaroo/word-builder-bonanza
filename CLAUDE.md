@@ -79,8 +79,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Deal, No Whammies! and Deal or No Deal keep going round after round until the player banks (or
   takes the deal) or busts; a bust wipes the pot, nothing more. One-roll gambles (Plinko, Hot Tub,
   Lucky Charms) stay single-shot. Ladders, rounds and offers in `POWER_PLAY_VALUES`.
-  After a Minesweeper bank, the board reveals the mine and the odds the next pick had, then pays
-  on "Take the N".
+  After a bank, Minesweeper reveals the mine and the odds the next pick had, and Card Sharks turns
+  over the next card (which call would have won); both pay on "Take the N".
 - **Multi-word PowerPlays (v7.28)** settle in `completeSubmission` and pay outside the word, with
   a progress chip above the hand (`components/PowerPlayTrackers.tsx`): Tamagotchi (pot), Time
   Capsule (buried word), Smell Ya Later! (rival race), Winner Winner Chicken Dinner (blackjack count,
