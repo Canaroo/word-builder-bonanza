@@ -75,3 +75,19 @@ describe('Deal or No Deal reveal', () => {
         expect(onResolve.mock.calls[0][0].detail).toContain(`Your case held ${mine}.`);
     });
 });
+
+describe('a resumed gamble card picks up where it was (v7.28.9)', () => {
+    test('Card Sharks restores its card and pot instead of dealing fresh', () => {
+        const onResolve = vi.fn<(r: GambleResult) => void>();
+        const el = document.createElement('div');
+        act(() => createRoot(el).render(<GambleCard id="cardSharks" icon="🃏" name="Card Sharks" onResolve={onResolve} saved={{ card: 14, right: 2, last: null, banked: null }} />));
+        expect(el.querySelector('[aria-label="Card: A"]')).toBeTruthy();
+        expect(el.textContent).toContain('POT: 125');
+    });
+    test('a fresh card saves its opening deal right away', () => {
+        const onSave = vi.fn();
+        const el = document.createElement('div');
+        act(() => createRoot(el).render(<GambleCard id="dealOrNoDeal" icon="💼" name="Deal" onResolve={() => {}} onSave={onSave} />));
+        expect(onSave).toHaveBeenCalledWith('game', expect.objectContaining({ mine: expect.any(Number) }));
+    });
+});

@@ -10,7 +10,7 @@ import { calculateScore } from '../../gameUtils';
 import * as gameUtils from '../../gameUtils';
 import { RACK_SIZE } from '../../../constants';
 import type { GameState, Tile } from '../../../types';
-import { tamagotchiPot, tamagotchiFeed, blackjackPayout, cardSharksPot, drawCard, cardFace, rivalScore, redrumReverse } from '../../rules';
+import { tamagotchiPot, tamagotchiFeed, blackjackPayout, blackjackCard, cardSharksPot, drawCard, cardFace, rivalScore, redrumReverse } from '../../rules';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -224,5 +224,36 @@ describe('Daily Double cheese fixes (v7.28.8)', () => {
         expect(undone.gameState.score).toBe(800); // back before the word, but the -200 stays
         expect(undone.gameState.activePowerPlays.dailyDouble).toBeUndefined();
         expect(undone.gameState.log.some(e => e.type === 'event' && e.id === 'pp-dailyDouble-1')).toBe(true);
+    });
+});
+
+describe('gamble cheese fixes (v7.28.9)', () => {
+    const roll = (card: number) => () => (card - 2 + 0.5) / 13; // drawCard gives 2 + floor(r * 13)
+    test('blackjack deals cards: faces count 10, an ace is 11 unless that busts', () => {
+        expect(blackjackCard(0, roll(7))).toEqual({ face: '7', value: 7 });
+        expect(blackjackCard(0, roll(13))).toEqual({ face: 'K', value: 10 });
+        expect(blackjackCard(5, roll(14))).toEqual({ face: 'A', value: 11 });
+        expect(blackjackCard(15, roll(14))).toEqual({ face: 'A', value: 1 });
+        expect(pp('chickenDinner').description).toContain('each valid word deals you a card');
+    });
+
+    test('Mission: Impossible fires on pick: time now, the promise armed', () => {
+        expect(INSTANT_POWER_PLAY_IDS.has('missionImpossible')).toBe(true);
+        const s = start({ powerPlayOffer: [pp('missionImpossible')] }, 30);
+        const next = gameReducer(s, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('missionImpossible'), allOffered: [pp('missionImpossible')] } });
+        expect(next.time).toBeGreaterThan(30);
+        expect(next.gameState.activePowerPlays.missionImpossible).toEqual({ words: V.missionImpossibleWords });
+        expect(next.gameState.availablePowerPlays.some(p => p.id === 'missionImpossible')).toBe(false);
+        expect(next.modalQueue.some(m => m?.type === 'outcome')).toBe(true);
+        expect(pp('missionImpossible').description).toMatch(/^Starts the moment you pick it/);
+    });
+
+    test('an open gamble card keeps its board in the pop-up (saved with the run)', () => {
+        const s = { ...start(), modalContent: { type: 'gamble', title: 'Card Sharks', data: { id: 'cardSharks', icon: '🃏' } } as any };
+        const a = gameReducer(s, { type: 'SET_GAMBLE_STATE', payload: { key: 'card', value: 9 } });
+        const b = gameReducer(a, { type: 'SET_GAMBLE_STATE', payload: { key: 'right', value: 2 } });
+        expect(b.modalContent?.data.saved).toEqual({ card: 9, right: 2 });
+        const closed = { ...start(), modalContent: null };
+        expect(gameReducer(closed, { type: 'SET_GAMBLE_STATE', payload: { key: 'card', value: 9 } })).toBe(closed);
     });
 });

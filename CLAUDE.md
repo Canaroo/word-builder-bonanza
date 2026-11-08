@@ -82,13 +82,17 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   After a bank, each shows what would have come next, then pays on "Take the N": Minesweeper the
   mine (and the odds the next pick had), Card Sharks the next card, Let's Make a Deal the doors you
   passed on, No Whammies! the next spin, Deal or No Deal your case (when you take the deal).
+  An open gamble card keeps its board in the pop-up (`useSaved` in `GambleCard.tsx`, action
+  `SET_GAMBLE_STATE`), so quitting and resuming restores it instead of redealing. New card games
+  use `useSaved` for any state, especially the opening deal.
 - **Multi-word PowerPlays (v7.28)** settle in `completeSubmission` and pay outside the word, with
   a progress chip above the hand (`components/PowerPlayTrackers.tsx`): Tamagotchi (pot), Time
-  Capsule (buried word), Smell Ya Later! (rival race), Winner Winner Chicken Dinner (blackjack count,
-  tap the chip to stand), Hadouken! (boss hits), The Price Is Right (bid), Psychic Friends Network
+  Capsule (buried word), Smell Ya Later! (rival race), Winner Winner Chicken Dinner (each valid word
+  deals a random card, tap the chip to stand), Hadouken! (boss hits), The Price Is Right (bid), Psychic Friends Network
   (next tiles). Jackass takes a strike on purpose (shields don't stop it, never the last strike).
 - **Timed, blind and bet PowerPlays fire on pick** (`INSTANT_POWER_PLAY_IDS`): Pop Quiz, Hotshot,
-  Smell Ya Later!, Bird Box and Daily Double start on the fresh hand when chosen from the offer.
+  Smell Ya Later!, Bird Box, Daily Double and Mission: Impossible start on the fresh hand when chosen
+  from the offer.
   Held in the pocket, a player could wait for (or build) the right word, then activate and submit.
   New timed or bet ones go there too. Daily Double's wager is never more than the score (it isn't
   offered under 100 points), and a Sliders undo keeps a settled Daily Double or Price Is Right bet.

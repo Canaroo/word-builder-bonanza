@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import ArcadeButton from './ArcadeButton';
 import { POWER_PLAY_VALUES as V } from '../config/gameplay';
 import { doorsForRound, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace } from '../services/rules';
@@ -17,6 +17,19 @@ export interface GambleResult {
   draft?: string[];
 }
 
+// A gamble card's board is saved with the run (v7.28.9). Without it, quitting and resuming brought
+// the card back fresh: a free reroll of Card Sharks' first card, Deal or No Deal's cases, Draft
+// Day's packs. Each piece of state lives in the open pop-up's data, so the auto-save keeps it.
+const GambleSave = createContext<{ saved?: Record<string, unknown>; save?: (key: string, value: unknown) => void }>({});
+function useSaved<T>(key: string, init: T | (() => T)): [T, (value: T) => void] {
+  const { saved, save } = useContext(GambleSave);
+  const restored = !!saved && key in saved;
+  const [value, setValue] = useState<T>(() => (restored ? (saved![key] as T) : typeof init === 'function' ? (init as () => T)() : init));
+  // The opening deal (cards, cases, the mine) is saved right away, so a resume can't redraw it.
+  useEffect(() => { if (!restored) save?.(key, value); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return [value, (next: T) => { setValue(next); save?.(key, next); }];
+}
+
 const Frame: React.FC<{ icon: string; name: string; children: React.ReactNode }> = ({ icon, name, children }) => (
   <div className="absolute inset-0 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label={name}>
     <div className="bg-crt-900 border-4 border-neon-pink rounded-2xl px-5 py-6 max-w-md w-full flex flex-col items-center text-center gap-3 level-stage-in shadow-[0_0_28px_rgba(255,45,149,0.5)]">
@@ -31,12 +44,12 @@ const Frame: React.FC<{ icon: string; name: string; children: React.ReactNode }>
 /** Let's Make a Deal: each round, two doors pay and one is a Zonk that wipes the pot. Bank after any win. */
 const Doors: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
   const rounds = V.doorRounds.length;
-  const [round, setRound] = useState(0);
-  const [pot, setPot] = useState(0);
-  const [doors, setDoors] = useState(() => doorsForRound(0));
-  const [last, setLast] = useState<string | null>(null);
+  const [round, setRound] = useSaved('round', 0);
+  const [pot, setPot] = useSaved('pot', 0);
+  const [doors, setDoors] = useSaved('doors', () => doorsForRound(0));
+  const [last, setLast] = useSaved<string | null>('last', null);
   // Walking away opens the doors you passed on (v7.28.6), so you see what you'd have faced.
-  const [walked, setWalked] = useState<{ amount: number; played: number } | null>(null);
+  const [walked, setWalked] = useSaved<{ amount: number; played: number } | null>('walked', null);
   const behind = doors.map((d, j) => `Door ${j + 1}: ${d ? `+${d}` : 'Zonk'}`).join(' · ');
   const bank = (amount: number, played: number, revealed = false) =>
     onResolve({ points: amount, headline: `BANKED: +${amount} POINTS`, detail: `You walked away after ${played} ${played === 1 ? 'round' : 'rounds'} with the cash.${revealed ? `\n\nBehind the doors: ${behind}.` : ''}`, tone: 'win' });
@@ -92,14 +105,14 @@ const Doors: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }
 
 /** Deal or No Deal: open cases round by round; each round the Banker makes an offer. */
 const Deal: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
-  const [game] = useState(() => dealGame());
-  const [round, setRound] = useState(0);
+  const [game] = useSaved('game', () => dealGame());
+  const [round, setRound] = useSaved('round', 0);
   const opened = game.others.slice(0, V.dealOpenPerRound.slice(0, round + 1).reduce((a, b) => a + b, 0));
   const left = game.others.slice(opened.length);
   const offer = bankerOffer([game.mine, ...left], round);
   const lastRound = round >= V.dealOpenPerRound.length - 1;
   // Taking the deal opens your case (v7.28.7), so you see whether the Banker beat it.
-  const [dealt, setDealt] = useState<number | null>(null);
+  const [dealt, setDealt] = useSaved<number | null>('dealt', null);
   const verdict = (taken: number) => taken > game.mine ? `You beat your case by ${taken - game.mine}. Good deal!` : taken === game.mine ? 'Dead even with your case.' : `You left ${game.mine - taken} on the table.`;
   const take = (taken: number) => onResolve({
     points: taken, headline: `DEAL! +${taken} POINTS`,
@@ -143,10 +156,10 @@ const Deal: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve })
 };
 
 const Whammies: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
-  const [pot, setPot] = useState(0);
-  const [spins, setSpins] = useState(0);
+  const [pot, setPot] = useSaved('pot', 0);
+  const [spins, setSpins] = useSaved('spins', 0);
   // Stopping spins the board once more for show (v7.28.6): was the next spin a Whammy?
-  const [stopped, setStopped] = useState<{ amount: number; spun: number; whammy: boolean } | null>(null);
+  const [stopped, setStopped] = useSaved<{ amount: number; spun: number; whammy: boolean } | null>('stopped', null);
   const nextSpin = (whammy: boolean) => whammy ? 'The next spin was a WHAMMY. Good call!' : `The next spin was safe: it would have added +${V.whammyPot}.`;
   const bank = (amount: number, spun: number, whammy?: boolean) => onResolve({ points: amount, headline: `BANKED: +${amount} POINTS`, detail: `You stopped after ${spun} ${spun === 1 ? 'spin' : 'spins'} with no Whammy.${whammy !== undefined ? ` ${nextSpin(whammy)}` : ''}`, tone: 'win' });
   const spin = () => {
@@ -186,9 +199,9 @@ const Whammies: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolv
 /** Minesweeper: keep picking squares to grow the pot; the mine wipes it. Bank any time. After a
  * bank the board reveals where the mine was (and the odds the next pick had) before paying out. */
 const Mines: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
-  const [mine] = useState(() => Math.floor(Math.random() * V.minesweeperSquares));
-  const [cleared, setCleared] = useState<number[]>([]);
-  const [banked, setBanked] = useState<{ amount: number; picks: number } | null>(null);
+  const [mine] = useSaved('mine', () => Math.floor(Math.random() * V.minesweeperSquares));
+  const [cleared, setCleared] = useSaved<number[]>('cleared', []);
+  const [banked, setBanked] = useSaved<{ amount: number; picks: number } | null>('banked', null);
   const pot = minesweeperPot(cleared.length);
   const nextStep = V.minesweeperLadder[cleared.length] ?? 0;
   const boardCleared = (picks: number) => picks === V.minesweeperSquares - 1;
@@ -276,7 +289,7 @@ const PriceIsRight: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onRe
 
 /** Draft Day (v7.28): three face-up packs; the pick replaces the lowest-value tiles in the hand. */
 const DraftDay: React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[] }> = ({ onResolve, hand }) => {
-  const [packs] = useState(() => {
+  const [packs] = useSaved('packs', () => {
     const letters = shuffleArray(createTileBag()).slice(0, V.draftDayPacks * V.draftDayTiles);
     return Array.from({ length: V.draftDayPacks }, (_, i) => letters.slice(i * V.draftDayTiles, (i + 1) * V.draftDayTiles));
   });
@@ -306,10 +319,10 @@ const DraftDay: React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | 
  * next card turns over, so the player sees whether their next call would have been right. */
 const CardSharks: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
   const steps = V.cardSharksLadder.length;
-  const [card, setCard] = useState(() => drawCard());
-  const [right, setRight] = useState(0);
-  const [last, setLast] = useState<string | null>(null);
-  const [banked, setBanked] = useState<{ amount: number; calls: number; next: number } | null>(null);
+  const [card, setCard] = useSaved('card', () => drawCard());
+  const [right, setRight] = useSaved('right', 0);
+  const [last, setLast] = useSaved<string | null>('last', null);
+  const [banked, setBanked] = useSaved<{ amount: number; calls: number; next: number } | null>('banked', null);
   const pot = cardSharksPot(right);
   const verdict = (next: number) =>
     next === card ? `a tie: a free pass either way` : `${next > card ? 'HIGHER' : 'LOWER'} would have been right`;
@@ -371,10 +384,14 @@ const GAMES: Record<string, React.FC<{ onResolve: (r: GambleResult) => void; han
 };
 
 /** The interactive part of a gamble PowerPlay. */
-const GambleCard: React.FC<{ id: string; icon: string; name: string; onResolve: (r: GambleResult) => void; hand?: (Tile | null)[] }> = ({ id, icon, name, onResolve, hand }) => {
+const GambleCard: React.FC<{ id: string; icon: string; name: string; onResolve: (r: GambleResult) => void; hand?: (Tile | null)[]; saved?: Record<string, unknown>; onSave?: (key: string, value: unknown) => void }> = ({ id, icon, name, onResolve, hand, saved, onSave }) => {
   const Game = GAMES[id];
   if (!Game) return null;
-  return <Frame icon={icon} name={name}><Game onResolve={onResolve} hand={hand} /></Frame>;
+  return (
+    <GambleSave.Provider value={{ saved, save: onSave }}>
+      <Frame icon={icon} name={name}><Game onResolve={onResolve} hand={hand} /></Frame>
+    </GambleSave.Provider>
+  );
 };
 
 export const GAMBLE_CARD_IDS = Object.keys(GAMES);
