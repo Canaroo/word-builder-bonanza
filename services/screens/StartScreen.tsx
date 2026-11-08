@@ -16,6 +16,7 @@ import { BOSSES } from '../../data/bosses';
 import { listPlayers, switchToPlayer, currentPlayer, sameName } from '../players';
 import { storage, STORAGE_KEYS } from '../storage';
 import { todaysRun, dailyRecord, dailyShareText } from '../daily';
+import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import { showToast } from '../toast';
 import MissionsPanel from '../../components/MissionsPanel';
 import StreakPanel from '../../components/StreakPanel';
@@ -224,8 +225,19 @@ const StartScreen: React.FC<StartScreenProps> = ({
     }
   };
   
+  // Before the scored Daily Run starts, a pop-up explains it (one shared deal, one scored try,
+  // where the score shows up). Backing out costs nothing: the try is only used once it starts.
+  const [showDailyIntro, setShowDailyIntro] = useState(false);
+  const startsScoredDaily = !todayRecord && !(dailySave && dailySave.playerName === name.trim());
   const handleDailyClick = () => {
     if (!name.trim()) return;
+    if (startsScoredDaily && !showDailyIntro) {
+      soundService.initialize();
+      soundService.playUIClick();
+      setShowDailyIntro(true);
+      return;
+    }
+    setShowDailyIntro(false);
     soundService.initialize();
     musicService.play();
     soundService.playUIClick();
@@ -315,6 +327,30 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   return (
     <>
+      {showDailyIntro && (
+        <div className="absolute inset-0 z-50 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label={`Today's Run #${today.number}`}>
+          <div className="bg-crt-900 border-2 border-neon-cyan shadow-glow-cyan rounded-2xl p-5 max-w-sm w-full text-center flex flex-col gap-3 bonus-insert">
+            <p className="osd-text text-lg tracking-[0.3em] text-slate-300">HEADS UP, WORD NERD</p>
+            <div className="text-5xl leading-none" aria-hidden="true">📅</div>
+            <h2 className="font-display text-2xl text-neon-cyan leading-tight">Today's Run #{today.number}</h2>
+            <p className="text-slate-200 leading-snug">
+              You're about to start <strong className="text-white">Today's Run</strong>. Everyone in the world gets the
+              <strong className="text-white"> same tiles, offers and bosses</strong> today, so it's a fair fight.
+            </p>
+            <ul className="text-left text-sm text-slate-200 space-y-1.5 rounded-lg bg-crt-950/70 ring-1 ring-white/10 p-3">
+              <li>🎯 <strong className="text-white">One scored try.</strong> Once you start, this is the one that counts. Replays later are just practice.</li>
+              <li>📅 Your score goes on <strong className="text-white">today's Daily board</strong>, and you can add it to the <strong className="text-white">🏆 Top 50</strong> too.</li>
+              <li>🪙 Finish for <strong className="text-neon-yellow">+{DAILY_RUN.finishCredits} Credits</strong>, plus <strong className="text-neon-yellow">+{DAILY_RUN.topCredits}</strong> for a top-{DAILY_RUN.topRank} finish.</li>
+            </ul>
+            <p className="osd-text text-lg text-neon-yellow leading-none">READY TO STEP UP TO THE MIC?</p>
+            <ArcadeButton color="cyan" size="lg" className="w-full" onClick={handleDailyClick}>▶ Start</ArcadeButton>
+            <button type="button" className="osd-text text-lg text-slate-400 underline leading-tight" onClick={() => { soundService.playUIClick(); setShowDailyIntro(false); }}>
+              Not yet. Save it for later
+            </button>
+            <p className="text-xs text-slate-500">Backing out doesn't use your try. It's here until the {DAILY_RESET_HOUR} AM reset.</p>
+          </div>
+        </div>
+      )}
       {confirmNewGame && savedGame && (
         <div className="absolute inset-0 z-50 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Start a new game?">
           <div className="bg-crt-900 border-2 border-neon-yellow rounded-2xl p-6 max-w-sm w-full text-center flex flex-col gap-3">

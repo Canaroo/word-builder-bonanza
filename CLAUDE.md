@@ -114,6 +114,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   bosses. Gamble rolls stay random. A player's first daily run of the day is scored (posted to
   `daily/<day>`, +5 Credits, +5 more for a top-10 finish, can go on the Top 50 with a 📅); later
   ones are practice (no posting or Credits). The daily run has its own save slot (`savedDailyGame`).
+  Before the scored run starts, a pop-up explains it (same deal for everyone, one scored try, the
+  Daily board and Top 50, Credits) with Start or "Not yet"; backing out doesn't use the try.
   New tile randomness in `gameUtils.ts` must use `tileRandom()`, not `Math.random()`, or the daily
   deal stops matching. Browser checks: block `firebaseio.com` so test scores don't post.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
