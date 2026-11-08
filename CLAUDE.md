@@ -122,7 +122,7 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   the logo, then the actions anchored above a bottom tab bar (🏠 Play · 🏆 Top 50 · 📼 Collect sheet ·
   🛒 Shop · 🪪 Me sheet). One main button: ▶ CONTINUE when a run is saved (New Game becomes an
   outline button), else ▶ NEW GAME; then the Today's Run card and a Today strip (Power Word spin,
-  Missions row that expands). The name field shows only for a new player. It fits one phone screen.
+  Missions row that expands). The name field shows only for a new player. The version (`VER x.y.z`) shows under the tagline so the owner can check what's live. It fits one phone screen.
   Buttons use three tiers (`ArcadeButton` `variant`): solid for the one main action, `outline` for
   the rest, `text` for Cancel/Close links. Keep a screen to one solid button where possible.
   Every other menu screen uses `components/ScreenShell.tsx` (◀ back, neon title, 🪙 chip, optional
