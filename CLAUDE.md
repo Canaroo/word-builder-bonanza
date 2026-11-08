@@ -131,6 +131,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   with Switch Player, Streak, How to Play, Event Logs, Missed Words; the home-screen pop-ups open via
   `openOnMount`). How to Play has the header only and folds into sections; Collection's Missing
   view folds by shelf. New menu screens should use ScreenShell rather than their own title/Back.
+  Top 50, Event Logs, Missed Words and Streak are full-screen panels in that frame too (`renderPanel`
+  in `StartScreen.tsx`); opened from Me, their ◀ goes back to Me. Small choices stay pop-ups.
   In a run, Golden Round, PowerPlay meter and Word Combo share one compact row (`GameScreenView`),
   and the buffs tray labels itself inline ("BUFFS 2/5").
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in

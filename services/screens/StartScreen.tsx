@@ -20,6 +20,7 @@ import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import { showToast } from '../toast';
 import MissionsPanel from '../../components/MissionsPanel';
 import BottomTabs, { type TabId } from '../../components/BottomTabs';
+import ScreenShell from '../../components/ScreenShell';
 import { getTodaysMissions } from '../missions';
 import { levelFor } from '../rules';
 import StreakPanel from '../../components/StreakPanel';
@@ -293,41 +294,18 @@ const StartScreen: React.FC<StartScreenProps> = ({
     }
   };
 
+  // Panels opened from the Me page go back there; ones opened here go back home.
+  const [fromMe, setFromMe] = useState(false);
   // Another screen asked for one of these pop-ups (the Me page links here).
   useEffect(() => {
     if (!openOnMount) return;
+    setFromMe(openOnMount !== 'switcher');
     if (openOnMount === 'switcher') setShowSwitcher(true);
     else if (openOnMount === 'streak') setShowStreak(true);
     else if (openOnMount === 'logs') setShowEventLogsModal(true);
     else if (openOnMount === 'missed') setShowMissedWordsModal(true);
     onOpened?.();
   }, [openOnMount, onOpened]);
-
-  const handleCloseLeaderboard = () => {
-    soundService.playUIClick();
-    setShowLeaderboardModal(false);
-  }
-
-  const handleShowEventLogs = () => {
-    soundService.playUIClick();
-    setShowEventLogsModal(true);
-  };
-
-  const handleCloseEventLogs = () => {
-      soundService.playUIClick();
-      setShowEventLogsModal(false);
-      setSelectedRun(null); // Reset selection on close
-  };
-
-  const handleShowMissedWords = () => {
-    soundService.playUIClick();
-    setShowMissedWordsModal(true);
-  };
-
-  const handleCloseMissedWords = () => {
-    soundService.playUIClick();
-    setShowMissedWordsModal(false);
-  };
 
   const handleDeleteRun = (timestamp: string) => {
       if (window.confirm("Are you sure you want to delete this event log? This cannot be undone.")) {
@@ -370,6 +348,100 @@ const StartScreen: React.FC<StartScreenProps> = ({
       dateStyle: "medium",
       timeStyle: "short"
     });
+  };
+
+  // Full-screen panels (v7.32.1) share the menu-screen frame instead of floating pop-ups.
+  const panel: 'top50' | 'logs' | 'missed' | 'streak' | null =
+    showLeaderboardModal ? 'top50' : showEventLogsModal ? 'logs' : showMissedWordsModal ? 'missed' : showStreak ? 'streak' : null;
+  const closePanels = () => {
+    setShowLeaderboardModal(false);
+    setShowEventLogsModal(false);
+    setShowMissedWordsModal(false);
+    setShowStreak(false);
+    setSelectedRun(null);
+  };
+  const panelBack = () => {
+    if (panel === 'logs' && selectedRun) { setSelectedRun(null); return; }
+    closePanels();
+    if (fromMe) { setFromMe(false); onTab('me'); }
+  };
+  const panelTab = (tab: TabId) => {
+    if (tab === 'top50') { closePanels(); setFromMe(false); setShowLeaderboardModal(true); return; }
+    closePanels();
+    setFromMe(false);
+    if (tab !== 'play') onTab(tab);
+  };
+
+  const renderPanel = () => {
+    if (panel === 'top50') return (
+      <ScreenShell title="TOP 50" tone="pink" onBack={panelBack} credits={lexCoins} tab="top50" onTab={panelTab} subheader={
+        <div className="grid grid-cols-2 gap-1" role="tablist" aria-label="Leaderboards">
+          {(['all', 'daily'] as const).map(tab => (
+            <button key={tab} type="button" role="tab" aria-selected={leaderboardTab === tab}
+              onClick={() => { soundService.playUIClick(); setLeaderboardTab(tab); }}
+              className={`osd-text text-lg leading-none rounded-lg py-2 ring-1 ${leaderboardTab === tab ? 'bg-neon-pink/25 ring-neon-pink text-white' : 'ring-white/15 text-slate-400'}`}>
+              {tab === 'all' ? '🏆 ALL-TIME' : `📅 TODAY #${today.number}`}
+            </button>
+          ))}
+        </div>
+      }>
+        <div className="h-full flex flex-col">
+          <Leaderboard key={leaderboardTab} data={leaderboardData} isLoading={isLoadingLeaderboard} source={leaderboardSource} offlineReason={leaderboardOfflineReason} onRetry={() => fetchLeaderboard(true)} />
+        </div>
+      </ScreenShell>
+    );
+    if (panel === 'logs') return (
+      <ScreenShell title={selectedRun ? 'RUN LOG' : 'EVENT LOGS'} onBack={panelBack} credits={lexCoins} tab="me" onTab={panelTab}
+        subheader={selectedRun ? undefined : <p className="osd-text text-base leading-none text-slate-400 text-center">{eventLogs.length}/{logService.MAX_LOGS} SAVED · ⭐ PIN ONE TO KEEP IT</p>}>
+        {selectedRun ? (
+          <div className="text-left"><EventLogDisplay log={selectedRun.log} /></div>
+        ) : eventLogs.length > 0 ? (
+          <ul className="space-y-2">
+            {eventLogs.map(run => (
+              <li key={run.saveTimestamp} className="bg-crt-950/70 ring-1 ring-white/10 px-3 py-2 rounded-xl flex items-center gap-2">
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="flex items-center gap-2">
+                    <span className="font-osd text-2xl leading-none text-neon-yellow tabular-nums">{run.score.toLocaleString()}</span>
+                    {!run.isViewed && <span className="osd-text text-sm leading-none bg-neon-green text-crt-900 px-1.5 py-0.5 rounded">NEW</span>}
+                  </p>
+                  <p className="text-xs text-slate-400 truncate">{formatDate(run.saveTimestamp)}</p>
+                </div>
+                <button onClick={() => handleTogglePin(run.saveTimestamp!)} aria-label={run.isPinned ? 'Unpin this run' : 'Pin this run'} className={`p-1.5 rounded-md text-xl ${run.isPinned ? '' : 'opacity-50 hover:opacity-100'}`}>
+                  {run.isPinned ? '🌟' : '⭐'}
+                </button>
+                <ArcadeButton color="cyan" variant="outline" size="sm" onClick={() => handleViewRun(run)}>View</ArcadeButton>
+                <button onClick={() => handleDeleteRun(run.saveTimestamp!)} aria-label="Delete this run" className="p-1.5 rounded-md text-lg text-slate-400 hover:text-neon-red">🗑️</button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="osd-text text-xl text-slate-400 text-center py-12 px-4">NO SAVED RUNS YET. FINISH A RUN TO SEE ITS LOG.</p>
+        )}
+      </ScreenShell>
+    );
+    if (panel === 'missed') return (
+      <ScreenShell title="MISSED WORDS" tone="pink" onBack={panelBack} credits={lexCoins} tab="me" onTab={panelTab}
+        subheader={<p className="osd-text text-base leading-none text-slate-400 text-center">YOUR LAST {missedWordsService.MAX_WORDS} FROM FAILED CHALLENGES</p>}>
+        {missedWords.length > 0 ? (
+          <ul className="space-y-2">
+            {missedWords.map(word => (
+              <li key={word.timestamp} className="bg-crt-950/70 ring-1 ring-white/10 px-3 py-2 rounded-xl text-left">
+                <p className="font-osd text-2xl leading-none uppercase tracking-wider text-neon-pink">{word.word}</p>
+                <p className="text-sm text-slate-300 italic leading-snug mt-0.5">{word.definition}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="osd-text text-xl text-slate-400 text-center py-12 px-4">NO MISSED WORDS YET. KEEP PLAYING!</p>
+        )}
+      </ScreenShell>
+    );
+    if (panel === 'streak') return (
+      <ScreenShell title="DAILY STREAK" onBack={panelBack} credits={lexCoins} tab={fromMe ? 'me' : 'play'} onTab={panelTab}>
+        <div className="p-1 -m-1"><StreakPanel coins={lexCoins} onBuyFreeze={onBuyFreeze} /></div>
+      </ScreenShell>
+    );
+    return null;
   };
 
   return (
@@ -420,24 +492,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
           />
       )}
       
-      {showLeaderboardModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-crt-900 border-2 border-neon-pink shadow-glow-pink rounded-2xl p-4 text-center max-w-md w-full flex flex-col modal-max-h bonus-insert">
-            <div className="grid grid-cols-2 gap-2 mb-2" role="tablist" aria-label="Leaderboards">
-              {(['all', 'daily'] as const).map(tab => (
-                <button key={tab} type="button" role="tab" aria-selected={leaderboardTab === tab}
-                  onClick={() => { soundService.playUIClick(); setLeaderboardTab(tab); }}
-                  className={`osd-text text-lg leading-none rounded-lg py-2 ring-1 ${leaderboardTab === tab ? 'bg-neon-pink/25 ring-neon-pink text-white' : 'ring-white/15 text-slate-400'}`}>
-                  {tab === 'all' ? '🏆 ALL-TIME' : `📅 TODAY #${today.number}`}
-                </button>
-              ))}
-            </div>
-            <Leaderboard key={leaderboardTab} data={leaderboardData} isLoading={isLoadingLeaderboard} source={leaderboardSource} offlineReason={leaderboardOfflineReason} onRetry={() => fetchLeaderboard(true)} />
-            <ArcadeButton color="slate" variant="outline" className="w-full mt-4" onClick={handleCloseLeaderboard}>Close</ArcadeButton>
-          </div>
-        </div>
-      )}
-
       {showSwitcher && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-crt-950/85 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="Who's playing?">
           <div className="w-full max-w-sm rounded-2xl bg-crt-900 ring-2 ring-neon-cyan/60 p-4 flex flex-col gap-3">
@@ -471,86 +525,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
       )}
 
-      {showEventLogsModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-crt-900 border-2 border-neon-green rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col modal-max-h">
-            {selectedRun ? (
-               <>
-                <h2 className="font-display text-2xl text-neon-green mb-2 flex-shrink-0">Viewing Event Log</h2>
-                <div className="flex-grow overflow-y-auto pr-2">
-                  <EventLogDisplay log={selectedRun.log} />
-                </div>
-               </>
-            ) : (
-              <>
-                <h2 className="font-display text-2xl text-neon-green mb-2">Event Logs ({eventLogs.length}/{logService.MAX_LOGS})</h2>
-                <div className="flex-grow overflow-y-auto pr-2 space-y-3 min-h-[350px]">
-                  {eventLogs.length > 0 ? (
-                    eventLogs.map(run => (
-                      <div key={run.saveTimestamp} className="bg-slate-900/50 p-3 rounded-lg text-left flex items-center justify-between">
-                        <div>
-                          <p className="font-bold text-white flex items-center gap-2">
-                            Score: <span className="text-amber-400 font-digital">{run.score}</span>
-                            {!run.isViewed && <span className="text-xs bg-green-500 text-white font-semibold px-2 py-0.5 rounded-full">NEW</span>}
-                          </p>
-                          <p className="text-xs text-slate-400">{formatDate(run.saveTimestamp)}</p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                           <button onClick={() => handleTogglePin(run.saveTimestamp!)} title={run.isPinned ? "Unpin this run" : "Pin this run"} className={`p-2 rounded-md hover:bg-slate-700 transition-colors text-xl ${run.isPinned ? '' : 'opacity-50 hover:opacity-100'}`}>
-                             {run.isPinned ? '🌟' : '⭐'}
-                           </button>
-                           <button onClick={() => handleViewRun(run)} className="px-3 py-1 font-display text-sm text-crt-900 bg-neon-cyan rounded-md hover:brightness-110">VIEW</button>
-                           <button onClick={() => handleDeleteRun(run.saveTimestamp!)} className="px-3 py-1 font-display text-sm text-white bg-neon-red rounded-md hover:brightness-110">DELETE</button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-slate-500 italic">No saved event logs yet.</div>
-                  )}
-                </div>
-              </>
-            )}
-            <ArcadeButton color="slate" variant="outline" className="w-full mt-4" onClick={handleCloseEventLogs}>Close</ArcadeButton>
-          </div>
-        </div>
-      )}
-
-      {showMissedWordsModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-crt-900 border-2 border-neon-red rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col modal-max-h">
-            <h2 className="font-display text-2xl text-neon-pink mb-2">Missed Words ({missedWords.length}/{missedWordsService.MAX_WORDS})</h2>
-            <p className="text-sm text-slate-400 mb-4">Your 10 most recent words from failed challenges.</p>
-            <div className="flex-grow overflow-y-auto pr-2 space-y-3 min-h-[350px]">
-              {missedWords.length > 0 ? (
-                missedWords.map(word => (
-                  <div key={word.timestamp} className="bg-slate-900/50 p-3 rounded-lg text-left">
-                    <p className="font-bold text-white text-lg">{word.word}</p>
-                    <p className="text-sm text-slate-300 italic">{word.definition}</p>
-                  </div>
-                ))
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-500 italic">
-                  You haven't missed any words during challenges yet. Keep playing!
-                </div>
-              )}
-            </div>
-            <ArcadeButton color="slate" variant="outline" className="w-full mt-4" onClick={handleCloseMissedWords}>Close</ArcadeButton>
-          </div>
-        </div>
-      )}
-
-      {showStreak && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Daily streak">
-          <div className="bg-crt-900 border-2 border-neon-orange rounded-2xl p-4 shadow-2xl max-w-md w-full flex flex-col modal-max-h">
-            <h2 className="font-display text-2xl text-neon-orange text-center leading-none mb-2">DAILY STREAK</h2>
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-1 -m-1">
-              <StreakPanel coins={lexCoins} onBuyFreeze={onBuyFreeze} />
-            </div>
-            <ArcadeButton color="slate" variant="outline" className="w-full mt-3" onClick={() => { soundService.playUIClick(); setShowStreak(false); }}>Close</ArcadeButton>
-          </div>
-        </div>
-      )}
-
       {showPowerWordInfo && powerWordData && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-crt-900 border-2 border-neon-yellow rounded-2xl p-6 text-center shadow-2xl max-w-md w-full flex flex-col">
@@ -573,6 +547,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
 
       {/* --- START SCREEN (v7.31): top bar, logo, one Play card, Today's Run, a Today strip, bottom tabs --- */}
+      {panel ? renderPanel() : (
       <div className="flex flex-col min-h-full text-center">
         {/* Top bar: who's playing (tap to switch, add a player or see your ID), streak, credits, sound. */}
         <div className="flex items-center justify-between gap-2 shrink-0 px-4 pt-4">
@@ -702,6 +677,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           else if (tab !== 'play') onTab(tab);
         }} />
       </div>
+      )}
 
     </>
   );
