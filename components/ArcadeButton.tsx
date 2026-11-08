@@ -14,6 +14,26 @@ const COLORS: Record<ArcadeButtonColor, { face: string; edge: string }> = {
   slate: { face: 'bg-gradient-to-b from-crt-600 to-crt-700 text-slate-100', edge: '#0c0a1d' },
 };
 
+// The three button tiers used across the game (v7.31):
+//   solid (default): the one main action on a screen, a chunky arcade push button;
+//   outline: other actions, in the same color family but quieter;
+//   text: low-key links (Cancel, Not yet).
+export type ArcadeButtonVariant = 'solid' | 'outline' | 'text';
+// Full class strings (not built from parts) so Tailwind keeps them.
+const OUTLINE: Record<ArcadeButtonColor, string> = {
+  yellow: 'ring-neon-yellow/80 text-neon-yellow hover:bg-neon-yellow/10',
+  cyan: 'ring-neon-cyan/80 text-neon-cyan hover:bg-neon-cyan/10',
+  pink: 'ring-neon-pink/80 text-neon-pink hover:bg-neon-pink/10',
+  green: 'ring-neon-green/80 text-neon-green hover:bg-neon-green/10',
+  red: 'ring-neon-red/80 text-neon-red hover:bg-neon-red/10',
+  purple: 'ring-neon-purple/80 text-neon-purple hover:bg-neon-purple/10',
+  slate: 'ring-white/25 text-slate-200 hover:bg-white/5',
+};
+const TEXT: Record<ArcadeButtonColor, string> = {
+  yellow: 'text-neon-yellow', cyan: 'text-neon-cyan', pink: 'text-neon-pink', green: 'text-neon-green',
+  red: 'text-neon-red', purple: 'text-neon-purple', slate: 'text-slate-400',
+};
+
 const SIZES: Record<Size, string> = {
   sm: 'px-3 py-2 text-sm',
   md: 'px-3 py-2.5 sm:py-3 text-sm min-[375px]:text-base sm:text-lg',
@@ -23,11 +43,28 @@ const SIZES: Record<Size, string> = {
 interface ArcadeButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   color?: ArcadeButtonColor;
   size?: Size;
+  variant?: ArcadeButtonVariant;
 }
 
 /** Chunky arcade push button that presses down when tapped. */
-const ArcadeButton = React.forwardRef<HTMLButtonElement, ArcadeButtonProps>(({ color = 'yellow', size = 'md', className = '', style, children, ...props }, ref) => {
+const ArcadeButton = React.forwardRef<HTMLButtonElement, ArcadeButtonProps>(({ color = 'yellow', size = 'md', variant = 'solid', className = '', style, children, ...props }, ref) => {
   const { face, edge } = COLORS[color];
+  if (variant !== 'solid') {
+    const look = variant === 'outline'
+      ? `rounded-xl ring-2 bg-crt-950/50 ${OUTLINE[color]} ${SIZES[size]} disabled:ring-white/10 disabled:text-slate-600`
+      : `rounded-lg underline underline-offset-4 decoration-1 px-2 py-1 osd-text text-lg normal-case tracking-normal ${TEXT[color]} hover:brightness-125 disabled:text-slate-600`;
+    return (
+      <button
+        ref={ref}
+        type="button"
+        {...props}
+        style={style}
+        className={`font-display uppercase tracking-wide flex items-center justify-center gap-2 select-none whitespace-nowrap transition-colors active:translate-y-px disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-white ${look} ${className}`}
+      >
+        {children}
+      </button>
+    );
+  }
   return (
     <button
       ref={ref}

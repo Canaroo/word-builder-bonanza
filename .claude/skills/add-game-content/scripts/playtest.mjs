@@ -122,7 +122,8 @@ const runScenario = async (browser, base, sc, index) => {
   await page.evaluate(([k, v]) => localStorage.setItem(k, v), [SAVE_KEY, JSON.stringify(applyScenario(base, sc))]);
   await page.reload();
   await page.waitForTimeout(1500);
-  await page.locator('button', { hasText: 'RESUME' }).click();
+  // The saved run's main button is "▶ Continue" (v7.31 start screen; it was "Resume").
+  await page.locator('button', { hasText: /^\W*Continue/i }).first().click();
   // A resumed run counts down 3-2-1 (board hidden) before play continues.
   await page.locator('text=RUN RESTORED').waitFor({ state: 'detached', timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(300);
