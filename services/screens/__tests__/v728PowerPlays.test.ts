@@ -200,3 +200,29 @@ describe('The Price Is Right: a missed bid costs points (v7.28.3)', () => {
         expect(pp('priceIsRight').description).toContain(`Miss and you lose ${V.priceIsRightBids.map(b => b.miss).join(', ')}`);
     });
 });
+
+describe('Daily Double cheese fixes (v7.28.8)', () => {
+    test('fires on pick with a wager set from the score right then', () => {
+        expect(INSTANT_POWER_PLAY_IDS.has('dailyDouble')).toBe(true);
+        const s = start({ score: 3000, powerPlayOffer: [pp('dailyDouble')] });
+        const next = gameReducer(s, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('dailyDouble'), allOffered: [pp('dailyDouble')] } });
+        expect(next.gameState.availablePowerPlays.some(p => p.id === 'dailyDouble')).toBe(false);
+        expect(next.gameState.activePowerPlays.dailyDouble).toEqual({ wager: 300 });
+        expect(next.gameState.activeBuffs.find(b => b.id === 'dailyDouble')?.description).toContain('Wager 300');
+        expect(pp('dailyDouble').description).toMatch(/^Starts the moment you pick it/);
+    });
+
+    test('a Sliders undo keeps a settled bet settled', () => {
+        const before = start({ score: 1000, activePowerPlays: { dailyDouble: { wager: 200 } }, activeBuffs: [pp('dailyDouble')], log: [] });
+        const loss = { type: 'event', id: 'pp-dailyDouble-1', name: 'Daily Double', description: 'lost', scoreChange: -200, cumulativeScore: 805 } as any;
+        const after: GameScreenState = {
+            ...before,
+            lastTurnState: { gameState: before.gameState, hand: before.hand, buildRow: before.buildRow, time: before.time, tileBag: before.tileBag } as any,
+            gameState: { ...before.gameState, score: 805, activePowerPlays: {}, activeBuffs: [], log: [{ type: 'word', word: 'CAT', score: 5 } as any, loss], availablePowerPlays: [pp('sliders')] },
+        };
+        const undone = gameReducer(after, { type: 'RESTORE_LAST_TURN' });
+        expect(undone.gameState.score).toBe(800); // back before the word, but the -200 stays
+        expect(undone.gameState.activePowerPlays.dailyDouble).toBeUndefined();
+        expect(undone.gameState.log.some(e => e.id === 'pp-dailyDouble-1')).toBe(true);
+    });
+});

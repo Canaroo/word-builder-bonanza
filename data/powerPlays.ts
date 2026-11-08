@@ -2,7 +2,7 @@
 import { PowerPlay, GameState, EventLogEntry } from '../types';
 import { labelize } from '../services/durationTags';
 import { TIME_BONUS, POWER_PLAY_VALUES } from '../config/gameplay';
-import { tamagotchiPot } from '../services/rules';
+import { tamagotchiPot, dailyDoubleWager } from '../services/rules';
 
 // The 'activate' function is for declaring the state change that should happen upon activation.
 // The actual logic is handled in the GameScreen reducer based on the power play's `effectType` and ID.
@@ -45,8 +45,9 @@ export const INSTANT_POWER_PLAY_IDS = new Set([
   'thwomped', 'fluncleIsProud',
   'strikeShield', 'plotArmor', 'saveByTheBell', 'timeTurner', 'mutationProtocol',
   'deepFreeze', 'groundhogsDay', 'lifeFindsAWay', 'wildcardWake', 'continueScreen',
-  // Timed or blind challenges start on the fresh hand, so a word can't be built before they begin.
-  'popQuizHotshot', 'smellYaLater', 'birdBox',
+  // Timed or blind challenges, and Daily Double's bet, start on the fresh hand, so a player can't
+  // wait for (or build) the right word before they begin.
+  'popQuizHotshot', 'smellYaLater', 'birdBox', 'dailyDouble',
 ]);
 
 export const POWER_PLAYS_LIST: PowerPlay[] = [
@@ -1177,13 +1178,19 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'dailyDouble',
     name: 'Daily Double',
-    description: `Wager ${POWER_PLAY_VALUES.dailyDoublePercent}% of your score (${POWER_PLAY_VALUES.dailyDoubleMin}-${POWER_PLAY_VALUES.dailyDoubleMax}). If your next word has ${POWER_PLAY_VALUES.dailyDoubleLetters}+ letters, win twice the wager. If not, lose it.`,
+    description: `Starts the moment you pick it: wager ${POWER_PLAY_VALUES.dailyDoublePercent}% of your score (${POWER_PLAY_VALUES.dailyDoubleMin}-${POWER_PLAY_VALUES.dailyDoubleMax}, never more than you have). If your next word has ${POWER_PLAY_VALUES.dailyDoubleLetters}+ letters, win twice the wager. If not, lose it.`,
     flavorText: "Let's make it a true Daily Double.",
     icon: '❓',
     subtheme: 'score',
     effectType: 'immediate',
     durationTag: 'ONE_TIME',
-    activate: () => ({}), // Handled in GameScreen (v7.25 gambles)
+    activate: (gameState: GameState): Partial<GameState> => {
+      // Fires on pick (INSTANT_POWER_PLAY_IDS): the wager is set from the score right then.
+      const wager = dailyDoubleWager(gameState.score);
+      const armed = arm('dailyDouble', { wager })(gameState);
+      const description = `Wager ${wager}: if your next word has ${POWER_PLAY_VALUES.dailyDoubleLetters}+ letters, win ${wager * 2}. If not, lose ${wager}.`;
+      return { ...armed, activeBuffs: armed.activeBuffs!.map(b => (b.id === 'dailyDouble' ? { ...b, description } : b)) };
+    },
   },
   {
     id: 'popQuizHotshot',

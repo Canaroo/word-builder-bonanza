@@ -723,7 +723,9 @@ describe('v7.25 gamble PowerPlays', () => {
         expect(dealCases.reduce((a, b) => a + b, 0) / dealCases.length).toBe(425);
     });
     test('Daily Double wagers 10% of the score, between 100 and 500', () => {
-        expect(dailyDoubleWager(0)).toBe(100);
+        expect(dailyDoubleWager(0)).toBe(0); // never more than the score (v7.28.8)
+        expect(dailyDoubleWager(60)).toBe(60);
+        expect(dailyDoubleWager(500)).toBe(100);
         expect(dailyDoubleWager(3000)).toBe(300);
         expect(dailyDoubleWager(99999)).toBe(500);
     });

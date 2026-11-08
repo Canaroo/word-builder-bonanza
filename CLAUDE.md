@@ -87,9 +87,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Capsule (buried word), Smell Ya Later! (rival race), Winner Winner Chicken Dinner (blackjack count,
   tap the chip to stand), Hadouken! (boss hits), The Price Is Right (bid), Psychic Friends Network
   (next tiles). Jackass takes a strike on purpose (shields don't stop it, never the last strike).
-- **Timed and blind PowerPlays fire on pick** (`INSTANT_POWER_PLAY_IDS`): Pop Quiz, Hotshot, Smell
-  Ya Later! and Bird Box start on the fresh hand when chosen from the offer. Held in the pocket, a
-  player could build the word first, then activate and submit at once. New timed ones go there too.
+- **Timed, blind and bet PowerPlays fire on pick** (`INSTANT_POWER_PLAY_IDS`): Pop Quiz, Hotshot,
+  Smell Ya Later!, Bird Box and Daily Double start on the fresh hand when chosen from the offer.
+  Held in the pocket, a player could wait for (or build) the right word, then activate and submit.
+  New timed or bet ones go there too. Daily Double's wager is never more than the score (it isn't
+  offered under 100 points), and a Sliders undo keeps a settled Daily Double or Price Is Right bet.
   Random-tile PowerPlays (`RANDOM_TILE_POWER_PLAYS`: One Tile to Rule Them All, Ice Ice Maybe,
   Morphin Time, Red Wedding, Rescue Drop) put the word-building row back in the hand first, so
   parking tiles there can't steer the pick. Add new random-tile ones to that set.
