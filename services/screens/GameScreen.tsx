@@ -1398,7 +1398,17 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 
                 const changes = powerPlay.activate(newGameState);
                 newGameState = { ...newGameState, ...changes };
-                if (!changes.lastPowerPlayResult) {
+                // Timed challenges start on the clock as it stands now (it runs once the offer closes).
+                if (powerPlay.id === 'popQuizHotshot') newGameState.activePowerPlays = { ...newGameState.activePowerPlays, popQuizHotshot: { startClock: state.time } };
+                if (powerPlay.id === 'smellYaLater') newGameState.activePowerPlays = { ...newGameState.activePowerPlays, smellYaLater: { ...newGameState.activePowerPlays.smellYaLater, clock: state.time } };
+                const startsNow: Record<string, string> = {
+                    popQuizHotshot: `🚌 Pop quiz! Play a word within ${POWER_PLAY_VALUES.popQuizSeconds} seconds.`,
+                    smellYaLater: `🏃 The race is on! Your rival scores ${POWER_PLAY_VALUES.rivalPointsPerSecond} points a second.`,
+                    birdBox: `🙈 Bird Box: look now. Your tiles flip face down in ${POWER_PLAY_VALUES.birdBoxSeconds} seconds.`,
+                };
+                if (startsNow[powerPlay.id]) {
+                    newGameState.lastPowerPlayResult = { message: `${startsNow[powerPlay.id]}${swappedOut}`, scoreChange: 0 };
+                } else if (!changes.lastPowerPlayResult) {
                     newGameState.lastPowerPlayResult = { message: `⚡ ${powerPlay.icon} ${powerPlay.name} fired!${swappedOut}`, scoreChange: 0 };
                 }
                 
@@ -4763,14 +4773,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             } });
             return;
         }
-        if (powerPlay.id === 'dailyDouble' || powerPlay.id === 'popQuizHotshot') {
+        if (powerPlay.id === 'dailyDouble') {
             soundService.playPowerUp();
             const V = POWER_PLAY_VALUES;
             const wager = dailyDoubleWager(gameState.score);
-            const armed = powerPlay.id === 'dailyDouble' ? { wager } : { startClock: time };
-            const buff = { ...powerPlay, description: powerPlay.id === 'dailyDouble'
-                ? `Wager ${wager}: if your next word has ${V.dailyDoubleLetters}+ letters, win ${wager * 2}. If not, lose ${wager}.`
-                : `Play your next word within ${V.popQuizSeconds} seconds for +${V.popQuizPoints} and +${V.popQuizBonusSeconds}s, or lose ${V.popQuizPenaltySeconds}s.` };
+            const armed = { wager };
+            const buff = { ...powerPlay, description: `Wager ${wager}: if your next word has ${V.dailyDoubleLetters}+ letters, win ${wager * 2}. If not, lose ${wager}.` };
             dispatch({ type: 'UPDATE_GAME_STATE', payload: {
                 activePowerPlays: { ...gameState.activePowerPlays, [powerPlay.id]: armed },
                 activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== powerPlay.id), buff],
@@ -4799,20 +4807,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             } });
             return;
         }
-        if (powerPlay.id === 'smellYaLater') {
-            soundService.playPowerUp();
-            const V = POWER_PLAY_VALUES;
-            const buff = { ...powerPlay, description: `Race on: your next ${V.rivalWords} words against ${V.rivalPointsPerSecond} points a second. Outscore him for +${V.rivalPrize}.` };
-            dispatch({ type: 'UPDATE_GAME_STATE', payload: {
-                activePowerPlays: { ...gameState.activePowerPlays, smellYaLater: { words: V.rivalWords, mine: 0, rival: 0, clock: time } },
-                activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== 'smellYaLater'), buff],
-                availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
-                powerPlayUses: { ...gameState.powerPlayUses, smellYaLater: (gameState.powerPlayUses.smellYaLater || 0) + 1 },
-                lastPowerPlayResult: { message: `🏃 The race is on! Your rival scores ${V.rivalPointsPerSecond} points a second.`, scoreChange: 0 },
-            } });
-            return;
-        }
-
         if (powerPlay.id === 'gumpLuck') {
             soundService.playPowerUp();
             const rand = Math.random();

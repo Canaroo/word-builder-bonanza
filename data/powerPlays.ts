@@ -45,6 +45,8 @@ export const INSTANT_POWER_PLAY_IDS = new Set([
   'thwomped', 'fluncleIsProud',
   'strikeShield', 'plotArmor', 'saveByTheBell', 'timeTurner', 'mutationProtocol',
   'deepFreeze', 'groundhogsDay', 'lifeFindsAWay', 'wildcardWake', 'continueScreen',
+  // Timed or blind challenges start on the fresh hand, so a word can't be built before they begin.
+  'popQuizHotshot', 'smellYaLater', 'birdBox',
 ]);
 
 export const POWER_PLAYS_LIST: PowerPlay[] = [
@@ -1186,13 +1188,13 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'popQuizHotshot',
     name: 'Pop Quiz, Hotshot',
-    description: `Play your next word within ${POWER_PLAY_VALUES.popQuizSeconds} seconds for +${POWER_PLAY_VALUES.popQuizPoints} points and +${POWER_PLAY_VALUES.popQuizBonusSeconds} seconds. Slower, and you lose ${POWER_PLAY_VALUES.popQuizPenaltySeconds} seconds.`,
+    description: `Starts the moment you pick it: play your next word within ${POWER_PLAY_VALUES.popQuizSeconds} seconds for +${POWER_PLAY_VALUES.popQuizPoints} points and +${POWER_PLAY_VALUES.popQuizBonusSeconds} seconds. Slower, and you lose ${POWER_PLAY_VALUES.popQuizPenaltySeconds} seconds.`,
     flavorText: 'Pop quiz, hotshot. What do you do?',
     icon: '🚌',
     subtheme: 'timer',
     effectType: 'immediate',
     durationTag: 'ONE_TIME',
-    activate: () => ({}), // Handled in GameScreen (v7.25 gambles)
+    activate: arm('popQuizHotshot', { startClock: 0 }), // the clock is stamped when picked (CHOOSE_POWER_PLAY)
   },
   {
     id: 'missionImpossible',
@@ -1309,18 +1311,18 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'smellYaLater',
     name: 'Smell Ya Later!',
-    description: `Race your rival for your next ${POWER_PLAY_VALUES.rivalWords} words: he scores ${POWER_PLAY_VALUES.rivalPointsPerSecond} points for every second you take. Outscore him with those words and win +${POWER_PLAY_VALUES.rivalPrize}.`,
+    description: `Starts the moment you pick it: race your rival for your next ${POWER_PLAY_VALUES.rivalWords} words: he scores ${POWER_PLAY_VALUES.rivalPointsPerSecond} points for every second you take. Outscore him with those words and win +${POWER_PLAY_VALUES.rivalPrize}.`,
     flavorText: 'Smell ya later!',
     icon: '🏃',
     subtheme: 'timer',
     effectType: 'immediate',
     durationTag: 'LIMITED',
-    activate: () => ({}), // Handled in GameScreen (the race starts on the clock)
+    activate: arm('smellYaLater', { words: POWER_PLAY_VALUES.rivalWords, mine: 0, rival: 0, clock: 0 }), // clock stamped when picked
   },
   {
     id: 'birdBox',
     name: 'Bird Box',
-    description: `Your tiles flip face down ${POWER_PLAY_VALUES.birdBoxSeconds} seconds after you see them. Spell your next word from memory for x${POWER_PLAY_VALUES.birdBoxMultiplier}. Tiles you place show their letters.`,
+    description: `Starts the moment you pick it: your tiles flip face down ${POWER_PLAY_VALUES.birdBoxSeconds} seconds after you see them. Spell your next word from memory for x${POWER_PLAY_VALUES.birdBoxMultiplier}. Tiles you place show their letters.`,
     flavorText: 'Don’t look.',
     icon: '🙈',
     subtheme: 'score',
