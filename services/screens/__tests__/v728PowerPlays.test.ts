@@ -193,3 +193,10 @@ describe('random-tile PowerPlays pick from the whole rack (v7.28.1)', () => {
         expect([...RANDOM_TILE_POWER_PLAYS].sort()).toEqual(['iceIceMaybe', 'morphinTime', 'oneTileToRuleThemAll', 'redWedding', 'rescueDrop']);
     });
 });
+
+describe('The Price Is Right: a missed bid costs points (v7.28.3)', () => {
+    test('each bid risks half its prize, and the description says so', () => {
+        for (const b of V.priceIsRightBids) expect(b.miss).toBe(b.prize / 2);
+        expect(pp('priceIsRight').description).toContain(`Miss and you lose ${V.priceIsRightBids.map(b => b.miss).join(', ')}`);
+    });
+});

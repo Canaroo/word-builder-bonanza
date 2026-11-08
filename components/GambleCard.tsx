@@ -173,12 +173,13 @@ const PriceIsRight: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onRe
   <>
     <p className="text-slate-200">Bid on your next word: it will score at least...</p>
     <div className="grid grid-cols-2 gap-2 w-full">
-      {V.priceIsRightBids.map(({ bid, prize }) => (
-        <button key={bid} type="button" aria-label={`Bid ${bid} or more for ${prize}`}
-          onClick={() => onResolve({ headline: `BID: ${bid}+ POINTS`, detail: `If your next word scores ${bid} or more, you win +${prize}. If not, no prize.`, tone: 'neutral', arm: { value: { bid, prize }, description: `Bid ${bid}+: if your next word scores ${bid} or more, win +${prize}.` } })}
+      {V.priceIsRightBids.map(({ bid, prize, miss }) => (
+        <button key={bid} type="button" aria-label={`Bid ${bid} or more: win ${prize}, miss and lose ${miss}`}
+          onClick={() => onResolve({ headline: `BID: ${bid}+ POINTS`, detail: `If your next word scores ${bid} or more, you win +${prize}. If not, you lose ${miss}.`, tone: 'neutral', arm: { value: { bid, prize, miss }, description: `Bid ${bid}+: if your next word scores ${bid} or more, win +${prize}. Miss and lose ${miss}.` } })}
           className="rounded-xl bg-crt-950 ring-2 ring-neon-yellow/70 py-3 hover:brightness-125">
           <span className="block font-display text-3xl text-neon-yellow leading-none">{bid}+</span>
           <span className="block osd-text text-lg text-neon-green leading-none mt-1">WIN +{prize}</span>
+          <span className="block osd-text text-base text-neon-red leading-none mt-1">MISS -{miss}</span>
         </button>
       ))}
     </div>
