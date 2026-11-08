@@ -35,9 +35,13 @@ const Doors: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }
   const [pot, setPot] = useState(0);
   const [doors, setDoors] = useState(() => doorsForRound(0));
   const [last, setLast] = useState<string | null>(null);
-  const bank = (amount: number, played: number) =>
-    onResolve({ points: amount, headline: `BANKED: +${amount} POINTS`, detail: `You walked away after ${played} ${played === 1 ? 'round' : 'rounds'} with the cash.`, tone: 'win' });
+  // Walking away opens the doors you passed on (v7.28.6), so you see what you'd have faced.
+  const [walked, setWalked] = useState<{ amount: number; played: number } | null>(null);
+  const behind = doors.map((d, j) => `Door ${j + 1}: ${d ? `+${d}` : 'Zonk'}`).join(' · ');
+  const bank = (amount: number, played: number, revealed = false) =>
+    onResolve({ points: amount, headline: `BANKED: +${amount} POINTS`, detail: `You walked away after ${played} ${played === 1 ? 'round' : 'rounds'} with the cash.${revealed ? `\n\nBehind the doors: ${behind}.` : ''}`, tone: 'win' });
   const pick = (i: number) => {
+    if (walked) return;
     const prize = doors[i];
     const others = doors.map((d, j) => (j === i ? null : `Door ${j + 1}: ${d ? `+${d}` : 'Zonk'}`)).filter(Boolean).join(' · ');
     if (!prize) {
@@ -51,6 +55,23 @@ const Doors: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }
     setLast(`Door ${i + 1}: +${prize}! (${others})`);
   };
   const prizes = V.doorRounds[round];
+  if (walked) {
+    return (
+      <>
+        <p className="osd-text text-lg text-neon-cyan">ROUND {round + 1}: WHAT YOU PASSED ON</p>
+        <div className="grid grid-cols-3 gap-2 w-full">
+          {doors.map((d, i) => (
+            <div key={i} className={`rounded-xl ring-2 py-4 font-display text-xl level-stage-in ${d ? 'bg-crt-950 ring-neon-green text-neon-green' : 'bg-neon-red/20 ring-neon-red text-neon-red'}`} aria-label={`Door ${i + 1}: ${d ? `+${d}` : 'Zonk'}`}>
+              {d ? `+${d}` : 'ZONK'}
+            </div>
+          ))}
+        </div>
+        <p className="text-slate-200" aria-live="polite">Two of the three doors would have paid. The Zonk was behind <strong className="text-neon-red">door {doors.indexOf(0) + 1}</strong>.</p>
+        <p className="font-display text-3xl text-neon-yellow">BANKED: {walked.amount}</p>
+        <ArcadeButton color="green" className="w-full" onClick={() => bank(walked.amount, walked.played, true)}>Take the {walked.amount}</ArcadeButton>
+      </>
+    );
+  }
   return (
     <>
       <p className="osd-text text-lg text-neon-cyan">ROUND {round + 1} OF {rounds}</p>
@@ -64,7 +85,7 @@ const Doors: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }
           </button>
         ))}
       </div>
-      {pot > 0 && <ArcadeButton color="green" className="w-full" onClick={() => bank(pot, round)}>Take the {pot} and walk away</ArcadeButton>}
+      {pot > 0 && <ArcadeButton color="green" className="w-full" onClick={() => { soundService.playTileClick(); setWalked({ amount: pot, played: round }); }}>Take the {pot} and walk away</ArcadeButton>}
     </>
   );
 };
@@ -106,8 +127,12 @@ const Deal: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve })
 const Whammies: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
   const [pot, setPot] = useState(0);
   const [spins, setSpins] = useState(0);
-  const bank = (amount: number, spun: number) => onResolve({ points: amount, headline: `BANKED: +${amount} POINTS`, detail: `You stopped after ${spun} ${spun === 1 ? 'spin' : 'spins'} with no Whammy.`, tone: 'win' });
+  // Stopping spins the board once more for show (v7.28.6): was the next spin a Whammy?
+  const [stopped, setStopped] = useState<{ amount: number; spun: number; whammy: boolean } | null>(null);
+  const nextSpin = (whammy: boolean) => whammy ? 'The next spin was a WHAMMY. Good call!' : `The next spin was safe: it would have added +${V.whammyPot}.`;
+  const bank = (amount: number, spun: number, whammy?: boolean) => onResolve({ points: amount, headline: `BANKED: +${amount} POINTS`, detail: `You stopped after ${spun} ${spun === 1 ? 'spin' : 'spins'} with no Whammy.${whammy !== undefined ? ` ${nextSpin(whammy)}` : ''}`, tone: 'win' });
   const spin = () => {
+    if (stopped) return;
     soundService.playTileClick();
     const spun = spins + 1;
     if (Math.random() < V.whammyChance) {
@@ -118,12 +143,24 @@ const Whammies: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolv
     if (spun >= V.whammySpins) { bank(next, spun); return; }
     setPot(next); setSpins(spun);
   };
+  if (stopped) {
+    return (
+      <>
+        <div className={`w-full rounded-xl ring-2 py-4 font-display text-3xl level-stage-in ${stopped.whammy ? 'bg-neon-red/20 ring-neon-red text-neon-red' : 'bg-crt-950 ring-neon-green text-neon-green'}`} aria-label={stopped.whammy ? 'Next spin: Whammy' : `Next spin: +${V.whammyPot}`}>
+          {stopped.whammy ? '👺 WHAMMY!' : `+${V.whammyPot}`}
+        </div>
+        <p className="text-slate-200" aria-live="polite">{nextSpin(stopped.whammy)}</p>
+        <p className="font-display text-3xl text-neon-yellow">BANKED: {stopped.amount}</p>
+        <ArcadeButton color="green" className="w-full" onClick={() => bank(stopped.amount, stopped.spun, stopped.whammy)}>Take the {stopped.amount}</ArcadeButton>
+      </>
+    );
+  }
   return (
     <>
       <p className="text-slate-200">Each spin adds +{V.whammyPot}. A Whammy ({V.whammyChance * 100}% a spin) wipes the pot. {V.whammySpins - spins} {V.whammySpins - spins === 1 ? 'spin' : 'spins'} left.</p>
       <p className="font-display text-4xl text-neon-yellow" aria-live="polite">POT: {pot}</p>
       <ArcadeButton color="pink" className="w-full" onClick={spin}>{spins === 0 ? 'Spin!' : 'Spin again'}</ArcadeButton>
-      {spins > 0 && <ArcadeButton color="green" className="w-full" onClick={() => bank(pot, spins)}>Stop and bank {pot}</ArcadeButton>}
+      {spins > 0 && <ArcadeButton color="green" className="w-full" onClick={() => { soundService.playTileClick(); setStopped({ amount: pot, spun: spins, whammy: Math.random() < V.whammyChance }); }}>Stop and bank {pot}</ArcadeButton>}
     </>
   );
 };

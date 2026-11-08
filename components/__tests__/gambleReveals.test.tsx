@@ -1,0 +1,61 @@
+// @vitest-environment jsdom
+// Let's Make a Deal and No Whammies!: banking shows what would have happened next (v7.28.6).
+import { describe, test, expect, vi, afterEach } from 'vitest';
+import React, { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import GambleCard, { type GambleResult } from '../GambleCard';
+import { POWER_PLAY_VALUES as V } from '../../config/gameplay';
+
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+afterEach(() => vi.restoreAllMocks());
+
+const render = (id: string) => {
+    const onResolve = vi.fn<(r: GambleResult) => void>();
+    const el = document.createElement('div');
+    act(() => createRoot(el).render(<GambleCard id={id} icon="🎲" name={id} onResolve={onResolve} />));
+    const button = (text: string) => [...el.querySelectorAll('button')].find(b => b.textContent?.includes(text)) as HTMLButtonElement;
+    const byLabel = (label: string) => el.querySelector(`[aria-label="${label}"]`) as HTMLElement;
+    return { el, onResolve, button, byLabel };
+};
+
+describe("Let's Make a Deal reveal", () => {
+    test('walking away opens the next round of doors, then pays on Take', () => {
+        // With random 0 the shuffle puts the prizes at [2nd, Zonk, 1st] each round.
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+        const [a, b] = V.doorRounds[1];
+        const { el, onResolve, button, byLabel } = render('letsMakeADeal');
+        act(() => byLabel('Door 1').click()); // round 1 prize
+        act(() => button('walk away').click());
+        expect(onResolve).not.toHaveBeenCalled();
+        expect(byLabel(`Door 1: +${b}`)).toBeTruthy();
+        expect(byLabel('Door 2: Zonk')).toBeTruthy();
+        expect(byLabel(`Door 3: +${a}`)).toBeTruthy();
+        expect(el.textContent).toContain('The Zonk was behind door 2');
+        act(() => button('Take the').click());
+        expect(onResolve).toHaveBeenCalledWith(expect.objectContaining({ points: V.doorRounds[0][1], tone: 'win' }));
+        expect(onResolve.mock.calls[0][0].detail).toContain(`Behind the doors: Door 1: +${b} · Door 2: Zonk · Door 3: +${a}.`);
+    });
+});
+
+describe('No Whammies! reveal', () => {
+    const spinThen = (...rolls: number[]) => vi.spyOn(Math, 'random').mockImplementation(() => rolls.shift() ?? 0.99);
+    test('stopping shows a Whammy on the next spin', () => {
+        spinThen(0.99, 0); // a safe spin, then the reveal rolls a Whammy
+        const { el, onResolve, button, byLabel } = render('noWhammies');
+        act(() => button('Spin!').click());
+        act(() => button('Stop and bank').click());
+        expect(onResolve).not.toHaveBeenCalled();
+        expect(byLabel('Next spin: Whammy')).toBeTruthy();
+        expect(el.textContent).toContain('Good call!');
+        act(() => button('Take the').click());
+        expect(onResolve).toHaveBeenCalledWith(expect.objectContaining({ points: V.whammyPot, tone: 'win' }));
+    });
+    test('or a safe spin you passed on', () => {
+        spinThen(0.99, 0.99);
+        const { el, button, byLabel } = render('noWhammies');
+        act(() => button('Spin!').click());
+        act(() => button('Stop and bank').click());
+        expect(byLabel(`Next spin: +${V.whammyPot}`)).toBeTruthy();
+        expect(el.textContent).toContain(`would have added +${V.whammyPot}`);
+    });
+});
