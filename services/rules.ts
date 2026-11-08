@@ -259,10 +259,11 @@ const pickByChance = <T extends { chance: number }>(list: T[], roll: number): T 
 export const plinkoPayout = (roll: number): number => pickByChance(POWER_PLAY_VALUES.plinko, roll).points;
 /** Hot Tub Time Machine: seconds (negative = lost) for a roll in [0, 1). */
 export const hotTubSeconds = (roll: number): number => pickByChance(POWER_PLAY_VALUES.hotTub, roll).seconds;
-/** Daily Double: the wager, a share of the score kept between a floor and a cap. */
+/** Daily Double: the wager, a share of the score kept between a floor and a cap, and never more
+ * than the score itself (v7.28.8: at a low score the floor made it a free bet). */
 export const dailyDoubleWager = (score: number): number => {
     const { dailyDoublePercent, dailyDoubleMin, dailyDoubleMax } = POWER_PLAY_VALUES;
-    return Math.min(dailyDoubleMax, Math.max(dailyDoubleMin, Math.round(score * dailyDoublePercent / 100)));
+    return Math.max(0, Math.min(score, dailyDoubleMax, Math.max(dailyDoubleMin, Math.round(score * dailyDoublePercent / 100))));
 };
 const shuffle = <T,>(list: T[], rand: () => number): T[] => {
     const out = [...list];

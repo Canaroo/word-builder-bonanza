@@ -629,11 +629,20 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         }
         case 'RESTORE_LAST_TURN': {
             if (state.lastTurnState) {
-                const scoreChange = state.lastTurnState.gameState.score - state.gameState.score;
+                // A bet the undone word settled (Daily Double, The Price Is Right) stays settled: its
+                // result is kept and it isn't armed again for another try.
+                const settledBets = ['dailyDouble', 'priceIsRight'].filter(id => state.lastTurnState!.gameState.activePowerPlays[id] && !state.gameState.activePowerPlays[id]);
+                const betEntries = state.gameState.log.slice(state.lastTurnState.gameState.log.length)
+                    .filter(e => e.type === 'event' && settledBets.some(id => e.id.startsWith(`pp-${id}-`))) as EventLogEntry[];
+                const betChange = betEntries.reduce((sum, e) => sum + (e.scoreChange ?? 0), 0);
+                const restoredActive = { ...state.lastTurnState.gameState.activePowerPlays };
+                settledBets.forEach(id => delete restoredActive[id]);
+                const restoredScore = Math.max(0, state.lastTurnState.gameState.score + betChange);
+                const scoreChange = restoredScore - state.gameState.score;
                 const newLogEntry: EventLogEntry = {
                     type: 'event', id: `pp-sliders-${Date.now()}`, name: 'Sliders',
-                    description: 'Reverted to the state of the previous turn.', icon: '📼',
-                    scoreChange: scoreChange, cumulativeScore: state.lastTurnState.gameState.score
+                    description: `Reverted to the state of the previous turn.${betEntries.length ? ' The bet it settled stays settled.' : ''}`, icon: '📼',
+                    scoreChange: scoreChange, cumulativeScore: restoredScore
                 };
 
                 // Reconstruct the hand by returning tiles from the saved buildRow to the saved hand.
@@ -647,7 +656,10 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 
                 const restoredGameState = {
                     ...state.lastTurnState.gameState,
-                    log: [...state.lastTurnState.gameState.log, newLogEntry],
+                    score: restoredScore,
+                    activePowerPlays: restoredActive,
+                    activeBuffs: state.lastTurnState.gameState.activeBuffs.filter(b => !settledBets.includes(b.id)),
+                    log: [...state.lastTurnState.gameState.log, ...betEntries, newLogEntry],
                     availablePowerPlays: state.gameState.availablePowerPlays.filter(p => p.id !== 'sliders'),
                     powerPlayUses: { ...state.gameState.powerPlayUses, sliders: 1 }
                 };
@@ -1424,6 +1436,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     popQuizHotshot: `🚌 Pop quiz! Play a word within ${POWER_PLAY_VALUES.popQuizSeconds} seconds.`,
                     smellYaLater: `🏃 The race is on! Your rival scores ${POWER_PLAY_VALUES.rivalPointsPerSecond} points a second.`,
                     birdBox: `🙈 Bird Box: look now. Your tiles flip face down in ${POWER_PLAY_VALUES.birdBoxSeconds} seconds.`,
+                    dailyDouble: `❓ Daily Double! Wager ${newGameState.activePowerPlays.dailyDouble?.wager ?? 0}: your next word needs ${POWER_PLAY_VALUES.dailyDoubleLetters}+ letters.`,
                 };
                 if (startsNow[powerPlay.id]) {
                     newGameState.lastPowerPlayResult = { message: `${startsNow[powerPlay.id]}${swappedOut}`, scoreChange: 0 };
@@ -4103,6 +4116,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                   !(newState.oncePerRunTaken ?? []).includes(pp.id) &&
                   // Neuralyzer only makes sense with a charm to wipe.
                   !(pp.id === 'neuralyzer' && newState.activeCharms.length === 0) &&
+                  // Daily Double needs a score to wager (the wager is never more than the score).
+                  !(pp.id === 'dailyDouble' && newState.score < POWER_PLAY_VALUES.dailyDoubleMin) &&
                   !newState.powerPlayCooldowns[pp.id]
               );
               const { offeredItems: offeredPowerPlays, offerDetails } = gameUtils.getOffer(powerPlaysToOfferFrom, 3, newState);
@@ -4801,22 +4816,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             } });
             return;
         }
-        if (powerPlay.id === 'dailyDouble') {
-            soundService.playPowerUp();
-            const V = POWER_PLAY_VALUES;
-            const wager = dailyDoubleWager(gameState.score);
-            const armed = { wager };
-            const buff = { ...powerPlay, description: `Wager ${wager}: if your next word has ${V.dailyDoubleLetters}+ letters, win ${wager * 2}. If not, lose ${wager}.` };
-            dispatch({ type: 'UPDATE_GAME_STATE', payload: {
-                activePowerPlays: { ...gameState.activePowerPlays, [powerPlay.id]: armed },
-                activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== powerPlay.id), buff],
-                availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
-                powerPlayUses: { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 },
-                lastPowerPlayResult: { message: `${powerPlay.icon} ${buff.description}`, scoreChange: 0 },
-            } });
-            return;
-        }
-
         // --- v7.28 ---
         if (powerPlay.id === 'jackass') {
             if (gameState.strikes + 1 >= maxStrikes) { showMessage('🛒 One more strike would end your run. Jackass stays in your pocket.', 3000); return; }
