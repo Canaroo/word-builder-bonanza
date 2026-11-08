@@ -223,6 +223,6 @@ describe('Daily Double cheese fixes (v7.28.8)', () => {
         const undone = gameReducer(after, { type: 'RESTORE_LAST_TURN' });
         expect(undone.gameState.score).toBe(800); // back before the word, but the -200 stays
         expect(undone.gameState.activePowerPlays.dailyDouble).toBeUndefined();
-        expect(undone.gameState.log.some(e => e.id === 'pp-dailyDouble-1')).toBe(true);
+        expect(undone.gameState.log.some(e => e.type === 'event' && e.id === 'pp-dailyDouble-1')).toBe(true);
     });
 });
