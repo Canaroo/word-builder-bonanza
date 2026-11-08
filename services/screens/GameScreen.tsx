@@ -3444,11 +3444,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           if (description) newState.activeBuffs = newState.activeBuffs.map(b => (b.id === id ? { ...b, description } : b));
       };
       // The Price Is Right: did the word make the bid? (The prize is paid below, outside the word.)
-      const priceBid = newState.activePowerPlays.priceIsRight as { bid: number; prize: number } | undefined;
-      const pricePaid = priceBid && scoreResult.totalScore >= priceBid.bid ? priceBid.prize : 0;
+      // A missed bid costs points (bids armed before v7.28.3 carry no miss cost).
+      const priceBid = newState.activePowerPlays.priceIsRight as { bid: number; prize: number; miss?: number } | undefined;
+      const priceMade = !!priceBid && scoreResult.totalScore >= priceBid.bid;
+      const pricePaid = priceBid && priceMade ? priceBid.prize : 0;
+      const priceMiss = priceBid && !priceMade ? (priceBid.miss ?? 0) : 0;
       if (priceBid) {
           dropPP('priceIsRight');
-          modalQueue.push(outcome(ppById('priceIsRight'), pricePaid ? `ACTUAL RETAIL: ${scoreResult.totalScore}. +${pricePaid}!` : `ACTUAL RETAIL: ${scoreResult.totalScore}`, pricePaid ? `You bid ${priceBid.bid}+ and ${word.toUpperCase()} made it. Come on down!` : `You bid ${priceBid.bid}+ but ${word.toUpperCase()} scored ${scoreResult.totalScore}. No prize this time.`, pricePaid ? 'win' : 'lose'));
+          modalQueue.push(outcome(ppById('priceIsRight'), priceMade ? `ACTUAL RETAIL: ${scoreResult.totalScore}. +${pricePaid}!` : `ACTUAL RETAIL: ${scoreResult.totalScore}${priceMiss ? `. -${priceMiss}` : ''}`, priceMade ? `You bid ${priceBid.bid}+ and ${word.toUpperCase()} made it. Come on down!` : `You bid ${priceBid.bid}+ but ${word.toUpperCase()} scored ${scoreResult.totalScore}.${priceMiss ? ` You overbid and lose ${priceMiss} points.` : ' No prize this time.'}`, priceMade ? 'win' : 'lose'));
       }
       // Time Capsule: a capsule already buried counts down; a fresh one buries this word.
       let capsulePaid = 0;
@@ -3473,6 +3476,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (pricePaid) {
           runningScore += pricePaid;
           eventLogQueue.push({ type: 'event', id: `pp-priceIsRight-${now}`, name: 'The Price Is Right', icon: '🏷️', description: `Bid ${priceBid!.bid}+, ${word.toUpperCase()} made it: +${pricePaid}.`, scoreChange: pricePaid, cumulativeScore: runningScore });
+      }
+      if (priceMiss) {
+          const lost = Math.min(priceMiss, runningScore);
+          runningScore -= lost;
+          eventLogQueue.push({ type: 'event', id: `pp-priceIsRight-${now}`, name: 'The Price Is Right', icon: '🏷️', description: `Bid ${priceBid!.bid}+, ${word.toUpperCase()} missed it: -${lost}.`, scoreChange: -lost, cumulativeScore: runningScore });
       }
       if (capsulePaid) {
           runningScore += capsulePaid;

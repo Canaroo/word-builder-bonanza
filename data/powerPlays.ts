@@ -1223,7 +1223,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'priceIsRight',
     name: 'The Price Is Right',
-    description: `Bid on your next word: it scores at least ${POWER_PLAY_VALUES.priceIsRightBids.map(b => b.bid).join(', ')} points. Make your bid and win ${POWER_PLAY_VALUES.priceIsRightBids.map(b => `+${b.prize}`).join(', ')}. Miss and you get nothing extra.`,
+    description: `Bid on your next word: it scores at least ${POWER_PLAY_VALUES.priceIsRightBids.map(b => b.bid).join(', ')} points. Make your bid and win ${POWER_PLAY_VALUES.priceIsRightBids.map(b => `+${b.prize}`).join(', ')}. Miss and you lose ${POWER_PLAY_VALUES.priceIsRightBids.map(b => b.miss).join(', ')}.`,
     flavorText: 'Come on down!',
     icon: '🏷️',
     subtheme: 'score',

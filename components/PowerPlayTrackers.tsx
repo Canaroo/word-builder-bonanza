@@ -26,7 +26,7 @@ const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string
       </button>);
   }
   if (a.hadouken) chips.push(<Chip key="hadouken" icon="💥" label={`Hadouken: ${a.hadouken.hits} boss hits saved`}>×{a.hadouken.hits}{gameState.boss ? '' : ' · next boss'}</Chip>);
-  if (a.priceIsRight) chips.push(<Chip key="price" icon="🏷️" label={`Bid: ${a.priceIsRight.bid} or more for ${a.priceIsRight.prize}`}>{a.priceIsRight.bid}+ → +{a.priceIsRight.prize}</Chip>);
+  if (a.priceIsRight) chips.push(<Chip key="price" icon="🏷️" label={`Bid: ${a.priceIsRight.bid} or more for ${a.priceIsRight.prize}, miss and lose ${a.priceIsRight.miss ?? 0}`}>{a.priceIsRight.bid}+ → +{a.priceIsRight.prize}{a.priceIsRight.miss ? ` / -${a.priceIsRight.miss}` : ''}</Chip>);
   if (a.psychicFriends && upcomingTiles.length) chips.push(<Chip key="psychic" icon="🔮" label={`Next tiles: ${upcomingTiles.join(', ')}`}><span className="font-tile font-bold tracking-widest text-neon-cyan">{upcomingTiles.join(' ')}</span></Chip>);
   if (!chips.length) return null;
   return <div className="flex flex-wrap justify-center gap-1" aria-label="PowerPlay trackers">{chips}</div>;

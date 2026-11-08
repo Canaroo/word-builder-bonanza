@@ -151,7 +151,8 @@ export const POWER_PLAY_VALUES = {
   tamagotchiLetters: 4,
   tamagotchiStep: 20,
   // The Price Is Right: bid that your next word scores at least this much; hit it for the prize.
-  priceIsRightBids: [{ bid: 15, prize: 100 }, { bid: 30, prize: 200 }, { bid: 50, prize: 300 }, { bid: 80, prize: 450 }],
+  // A miss costs half the prize (v7.28.3), so overbidding is a real risk, not a free roll.
+  priceIsRightBids: [{ bid: 15, prize: 100, miss: 50 }, { bid: 30, prize: 200, miss: 100 }, { bid: 50, prize: 300, miss: 150 }, { bid: 80, prize: 450, miss: 225 }],
   // Time Capsule: the next word scores 0 now and comes back this many times over, this many words later.
   timeCapsuleMultiplier: 4,
   timeCapsuleWords: 4,
