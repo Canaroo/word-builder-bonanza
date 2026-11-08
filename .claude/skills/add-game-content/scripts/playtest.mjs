@@ -20,6 +20,8 @@
 //   lastWords     words played just before, newest last, e.g. ["PLANT"]
 //   state         any other GameState fields, e.g. { "score": 1000, "pokedexVowels": "AEI" }
 //   tap           aria-label of something to tap and screenshot, e.g. "Charm: The Opposite"
+//   taps          with usePowerPlay: things to tap in order on the pop-up it opens, by aria-label or
+//                 "text:Button text", e.g. ["Square 1", "text:Stop and bank"]; screenshot <name>-taps.png
 //   waitMs        how long to wait after the word (or after resuming, with no word); default 2500
 //   report        extra GameState fields to print afterward, e.g. ["freezeLeft", "strikes"]
 //
@@ -134,6 +136,15 @@ const runScenario = async (browser, base, sc, index) => {
       const confirm = page.locator('button:visible', { hasText: /^\s*(use|activate)/i }).first();
       if (await confirm.count()) await confirm.click();
       await page.waitForTimeout(800);
+      // taps: play a pop-up by hand (a gamble card's squares or buttons) before anything is dismissed.
+      if (Array.isArray(sc.taps)) {
+        for (const t of sc.taps) {
+          const target = t.startsWith('text:') ? page.locator('button:visible', { hasText: t.slice(5) }) : page.locator(`[aria-label="${t}"]`);
+          await target.first().click({ timeout: 3000 }).catch(() => { out.error = `Could not tap "${t}"`; });
+          await page.waitForTimeout(400);
+        }
+        await page.screenshot({ path: join(outDir, `${name}-taps.png`) });
+      }
       out.popups.push(...await dismissPopups(page));
     }
   }
