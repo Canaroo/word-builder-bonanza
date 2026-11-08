@@ -77,7 +77,6 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
 
   return (
     <div className="w-full bg-crt-950/80 ring-1 ring-neon-cyan/30 p-4 rounded-xl flex-1 min-h-0 flex flex-col">
-      <h3 className="font-display text-2xl text-center neon-text-pink mb-1 shrink-0">HIGH SCORES</h3>
       {source === 'online' || !leaderboardService.isOnline() ? (
         <p className="osd-text text-base text-center text-neon-cyan/80 mb-3 shrink-0">
           {source === 'online' ? '🌐 Worldwide' : '📱 This device'}
