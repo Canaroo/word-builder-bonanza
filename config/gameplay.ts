@@ -177,6 +177,12 @@ export const POWER_PLAY_VALUES = {
   blackjackPayouts: [{ min: 21, points: 400 }, { min: 19, points: 200 }, { min: 17, points: 100 }],
   // Card Sharks: higher or lower on cards 2-14 (A high). The pot after each right call; a tie is a free pass.
   cardSharksLadder: [50, 125, 225, 375, 600],
+  // v7.29.1 reworks of PowerPlays nobody picked (stats: 0 picks in 24-35 offers each).
+  warioWarpPoints: 300,          // Wario Warp: this many points now...
+  warioWarpSeconds: 10,          // ...for this many seconds off the next round (was +100 for 10 s)
+  moneyBinScore: 40,             // Scrooge's Money Bin: a next word scoring this much...
+  moneyBinCredits: 3,            // ...earns these credits (was: lose 500 points for 1 credit)
+  zapperMultiplier: 3,           // Duck Hunt: the tile you shoot is replaced by one worth this many times its points
   psychicWords: 8,               // Psychic Friends Network: see the next tiles for this many words
   psychicTiles: 6,
 };

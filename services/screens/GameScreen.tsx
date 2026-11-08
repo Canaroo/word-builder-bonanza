@@ -1466,6 +1466,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     popQuizHotshot: `🚌 Pop quiz! Play a word within ${POWER_PLAY_VALUES.popQuizSeconds} seconds.`,
                     smellYaLater: `🏃 The race is on! Your rival scores ${POWER_PLAY_VALUES.rivalPointsPerSecond} points a second.`,
                     birdBox: `🙈 Bird Box: look now. Your tiles flip face down in ${POWER_PLAY_VALUES.birdBoxSeconds} seconds.`,
+                    scroogeSwipe: `🎩 Money Bin! Score ${POWER_PLAY_VALUES.moneyBinScore}+ with your next word for ${POWER_PLAY_VALUES.moneyBinCredits} Credits.`,
                     dailyDouble: `❓ Daily Double! Wager ${newGameState.activePowerPlays.dailyDouble?.wager ?? 0}: your next word needs ${POWER_PLAY_VALUES.dailyDoubleLetters}+ letters.`,
                 };
                 if (startsNow[powerPlay.id]) {
@@ -2222,29 +2223,25 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             };
           }
 
+          // Duck Hunt (Zapper, v7.29.1): the shot tile is replaced by a random one worth triple.
           if (powerPlay.id === 'duckHunt' && state.tileForSelection) {
               const { tile, originalIndex } = state.tileForSelection;
+              const { newTiles, remainingBag } = gameUtils.drawTiles(1, gameUtils.shuffleArray([...state.tileBag, tile.letter]));
+              const drawn = newTiles[0];
+              const mult = POWER_PLAY_VALUES.zapperMultiplier;
               const newHand = [...state.hand];
-              newHand[originalIndex] = null;
-              const newBag = gameUtils.shuffleArray([...state.tileBag, tile.letter]);
-              const buffDescription = `🦆 '${tile.letter}' sniped. Active next round.`;
-              const buff = { 
-                  ...POWER_PLAYS_LIST.find(p => p.id === 'duckHunt')!, 
-                  description: buffDescription,
-                  instanceId: `duckHunt_${tile.letter}`
-              };
-
+              newHand[originalIndex] = { ...drawn, tempPoints: drawn.points * mult, tempPointsSource: powerPlay.name };
+              const entry: EventLogEntry = { type: 'event', id: `pp-duckHunt-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon, description: `Shot '${tile.letter}': a '${drawn.letter}' worth ${drawn.points * mult} landed.`, scoreChange: 0, cumulativeScore: gameState.score };
               return {
                   ...state,
                   hand: newHand,
-                  tileBag: newBag,
-                  modalContent: null,
-                  isPaused: false,
+                  tileBag: remainingBag,
+                  modalContent: outcome(powerPlay, `'${drawn.letter}' IS WORTH ${drawn.points * mult}`, `You shot the '${tile.letter}'. A '${drawn.letter}' landed in its place, worth ${mult}x (${drawn.points} → ${drawn.points * mult}) for your next word.`, 'win'),
+                  isPaused: true,
                   tileForSelection: null,
                   gameState: {
                       ...gameState,
-                      activePowerPlays: { ...gameState.activePowerPlays, duckHunt: { letter: tile.letter, ready: false } },
-                      activeBuffs: [...gameState.activeBuffs, buff],
+                      log: [...gameState.log, entry],
                       availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
                       powerPlayToActivate: null,
                   }
@@ -3512,6 +3509,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (priceBid) {
           dropPP('priceIsRight');
           modalQueue.push(outcome(ppById('priceIsRight'), priceMade ? `ACTUAL RETAIL: ${scoreResult.totalScore}. +${pricePaid}!` : `ACTUAL RETAIL: ${scoreResult.totalScore}${priceMiss ? `. -${priceMiss}` : ''}`, priceMade ? `You bid ${priceBid.bid}+ and ${word.toUpperCase()} made it. Come on down!` : `You bid ${priceBid.bid}+ but ${word.toUpperCase()} scored ${scoreResult.totalScore}.${priceMiss ? ` You overbid and lose ${priceMiss} points.` : ' No prize this time.'}`, priceMade ? 'win' : 'lose'));
+      }
+      // Scrooge's Money Bin (v7.29.1): a big enough next word earns credits (paid outside the run).
+      if (newState.activePowerPlays.scroogeSwipe) {
+          const made = scoreResult.totalScore >= V28.moneyBinScore;
+          dropPP('scroogeSwipe');
+          if (made) {
+              onLexCoinChange(V28.moneyBinCredits, `🎩 Money Bin: +${V28.moneyBinCredits}`);
+              eventLogQueue.push({ type: 'event', id: `pp-scroogeSwipe-${now}`, name: 'Scrooge’s Money Bin', icon: '🎩', description: `${word.toUpperCase()} scored ${scoreResult.totalScore}: +${V28.moneyBinCredits} Credits.`, scoreChange: 0, cumulativeScore: runningScore });
+          }
+          modalQueue.push(outcome(ppById('scroogeSwipe'), made ? `+${V28.moneyBinCredits} CREDITS!` : 'THE BIN STAYS SHUT', made ? `${word.toUpperCase()} scored ${scoreResult.totalScore}. Swimming in money! Spend the Credits in Vibez.` : `${word.toUpperCase()} scored ${scoreResult.totalScore} (you needed ${V28.moneyBinScore}+). No Credits this time, and nothing lost.`, made ? 'win' : 'neutral'));
       }
       // Time Capsule: a capsule already buried counts down; a fresh one buries this word.
       let capsulePaid = 0;
@@ -4936,22 +4943,22 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
         if (powerPlay.id === 'warioWarp') {
             soundService.playPowerUp();
-            const scoreChange = 100;
+            const scoreChange = POWER_PLAY_VALUES.warioWarpPoints;
             const newScore = gameState.score + scoreChange;
     
             const newLogEntry: EventLogEntry = {
                 type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
-                description: 'Gained 100 points, lost 10s next turn.', icon: '🛸',
+                description: `Gained ${scoreChange} points, lost ${POWER_PLAY_VALUES.warioWarpSeconds}s next turn.`, icon: '🛸',
                 scoreChange: scoreChange, cumulativeScore: newScore
             };
     
             dispatch({ type: 'UPDATE_GAME_STATE', payload: {
                 score: newScore,
-                warioTimeDebt: 10,
+                warioTimeDebt: POWER_PLAY_VALUES.warioWarpSeconds,
                 log: [...gameState.log, newLogEntry],
                 availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
             }});
-            showMessage("Wario Warp! +100 points, -10s next turn.", 2500);
+            showMessage(`Wario Warp! +${scoreChange} points, -${POWER_PLAY_VALUES.warioWarpSeconds}s next turn.`, 2500);
             return;
         }
         
@@ -5014,28 +5021,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
         if (powerPlay.id === 'rescueDrop' && (hand ?? []).filter(t => t).length === 0 && !(buildRow ?? []).some(Boolean)) {
             showMessage("Hand is empty, cannot activate Rescue Drop.", 2000);
-            return;
-        }
-        
-        if (powerPlay.id === 'scroogeSwipe') {
-            soundService.playPowerUp();
-            onLexCoinChange(1);
-            const scoreChange = -500;
-            const newScore = Math.max(0, gameState.score + scoreChange);
-            const newLogEntry: EventLogEntry = {
-                type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
-                description: 'Traded 500 points for 1 Credit.', icon: '🪙',
-                scoreChange, cumulativeScore: newScore
-            };
-            dispatch({
-                type: 'UPDATE_GAME_STATE',
-                payload: {
-                    score: newScore,
-                    log: [...gameState.log, newLogEntry],
-                    availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
-                }
-            });
-            showMessage("Scrooge Swipe! +1 Credit, -500 points.", 2500);
             return;
         }
         
