@@ -3,6 +3,8 @@ import { soundService } from '../soundService';
 import { PACKS_LIST } from '../../data/packs';
 import { Pack } from '../../types';
 import ArcadeButton from '../../components/ArcadeButton';
+import ScreenShell from '../../components/ScreenShell';
+import type { TabId } from '../../components/BottomTabs';
 import PlayerPlate, { BadgeIcon, TitleText } from '../../components/PlayerPlate';
 import StreakPanel from '../../components/StreakPanel';
 import { COSMETICS, type Cosmetic, type CosmeticKind } from '../../data/cosmetics';
@@ -12,6 +14,7 @@ import { POINTS_PER_CREDIT, MISSION_REWARD } from '../../config/progression';
 
 interface VibezScreenProps {
   onBack: () => void;
+  onTab: (tab: TabId) => void;
   lexCoins: number;
   unlockedPackIds: string[];
   selectedPackId: string;
@@ -51,7 +54,7 @@ const PackPreview: React.FC<{ pack: Pack }> = ({ pack }) => (
 
 /** Shop for themes, badges, titles and streak freezes. Badges and titles are worn like Rocket League bling. */
 const VibezScreen: React.FC<VibezScreenProps> = ({
-  onBack, lexCoins, unlockedPackIds, selectedPackId, onUnlockPack, onSelectPack,
+  onBack, onTab, lexCoins, unlockedPackIds, selectedPackId, onUnlockPack, onSelectPack,
   profileVersion = 0, onBuyCosmetic, onEquipCosmetic, onBuyFreeze,
 }) => {
   const [tab, setTab] = useState<Tab>('themes');
@@ -118,33 +121,33 @@ const VibezScreen: React.FC<VibezScreenProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 p-4 gap-3 animate-fade-in">
-      <header className="shrink-0 text-center">
-        <h1 className="font-display text-4xl neon-text-pink leading-none">VIBEZ SHOP</h1>
-        <div className="mt-2 flex items-center justify-between gap-2 bg-crt-950/80 ring-1 ring-white/10 rounded-xl px-3 py-2">
-          <PlayerPlate name={name} badge={profile.badge} title={profile.title} streak={streak} />
-          <span className="osd-text text-2xl leading-none text-neon-yellow shrink-0">🪙 {lexCoins}</span>
-        </div>
-        <p className="osd-text text-sm leading-tight text-slate-400 mt-1">
-          EARN CREDITS: DAILY MISSIONS (🪙{MISSION_REWARD[1]}–{MISSION_REWARD[3]}), STREAK MILESTONES, AND 1 PER {POINTS_PER_CREDIT.toLocaleString()} PTS IN A RUN
+    <ScreenShell title="VIBEZ SHOP" tone="pink" onBack={onBack} credits={lexCoins} tab="shop" onTab={onTab} subheader={
+      <div className="flex flex-col gap-1.5">
+        <nav className="grid grid-cols-4 gap-1 bg-crt-950/70 rounded-xl p-1" role="tablist">
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              role="tab"
+              aria-selected={tab === t.id}
+              onClick={click(() => setTab(t.id))}
+              className={`osd-text text-base leading-none py-2 rounded-lg transition-colors ${tab === t.id ? 'bg-neon-purple text-white shadow-glow-pink' : 'text-slate-300 hover:bg-white/5'}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+        <p className="osd-text text-sm leading-tight text-slate-500 text-center">
+          EARN 🪙 FROM MISSIONS ({MISSION_REWARD[1]}–{MISSION_REWARD[3]}), STREAKS AND 1 PER {POINTS_PER_CREDIT.toLocaleString()} PTS
         </p>
-      </header>
-
-      <nav className="shrink-0 grid grid-cols-4 gap-1 bg-crt-950/70 rounded-xl p-1" role="tablist">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={click(() => setTab(t.id))}
-            className={`osd-text text-base leading-none py-2 rounded-lg transition-colors ${tab === t.id ? 'bg-neon-purple text-white shadow-glow-pink' : 'text-slate-300 hover:bg-white/5'}`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
-
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-1 -m-1">
+      </div>
+    }>
+      {/* Badges and titles: a live preview of how you look on the Top 50. */}
+      {(tab === 'badges' || tab === 'titles') && (
+        <div className="mb-2 flex items-center justify-center bg-crt-950/80 ring-1 ring-white/10 rounded-xl px-3 py-2">
+          <PlayerPlate name={name} badge={profile.badge} title={profile.title} streak={streak} />
+        </div>
+      )}
+      <div className="p-1 -m-1">
         {tab === 'themes' && (
           <ul className="space-y-3">
             {PACKS_LIST.map(pack => {
@@ -169,12 +172,7 @@ const VibezScreen: React.FC<VibezScreenProps> = ({
         {tab === 'streak' && <StreakPanel coins={lexCoins} onBuyFreeze={onBuyFreeze} />}
       </div>
 
-      <div className="shrink-0">
-        <ArcadeButton color="slate" variant="outline" className="w-full" onClick={click(onBack)}>
-          ◀ Back
-        </ArcadeButton>
-      </div>
-    </div>
+    </ScreenShell>
   );
 };
 
