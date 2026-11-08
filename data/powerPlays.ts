@@ -56,7 +56,7 @@ export const INSTANT_POWER_PLAY_IDS = new Set([
   'deepFreeze', 'groundhogsDay', 'lifeFindsAWay', 'wildcardWake', 'continueScreen',
   // Timed or blind challenges, and Daily Double's bet, start on the fresh hand, so a player can't
   // wait for (or build) the right word before they begin.
-  'popQuizHotshot', 'smellYaLater', 'birdBox', 'dailyDouble', 'missionImpossible',
+  'popQuizHotshot', 'smellYaLater', 'birdBox', 'dailyDouble', 'missionImpossible', 'scroogeSwipe',
 ]);
 
 export const POWER_PLAYS_LIST: PowerPlay[] = [
@@ -791,8 +791,8 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'duckHunt',
     name: 'Duck Hunt',
-    description: "Select a tile from your hand. It's returned to the bag and can't be used this round. If you use a tile with the same letter next round, gain +50 points.",
-    flavorText: 'One shot, one bonus.',
+    description: `Pick a tile to shoot. It's replaced by a new random tile worth ${POWER_PLAY_VALUES.zapperMultiplier}x its points for your next word.`,
+    flavorText: 'Grab the Zapper. Don’t let the dog laugh.',
     icon: '🦆',
     subtheme: 'utility',
     effectType: 'selection',
@@ -831,7 +831,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'warioWarp',
     name: 'Wario Warp',
-    description: 'Gain +100 points now; your next word costs 10 seconds from your clock.',
+    description: `Gain +${POWER_PLAY_VALUES.warioWarpPoints} points now; your next round starts ${POWER_PLAY_VALUES.warioWarpSeconds} seconds lower.`,
     flavorText: 'Classic Wario — future problems, present profits.',
     icon: '💰',
     subtheme: 'score',
@@ -959,14 +959,14 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   },
   { 
     id: 'scroogeSwipe', 
-    name: 'Scrooge Swipe', 
-    description: 'Gain 1 Credit (spend them in Vibez), but immediately lose 500 points.', 
+    name: 'Scrooge’s Money Bin', 
+    description: `Starts the moment you pick it: dive into the Money Bin. If your next word scores ${POWER_PLAY_VALUES.moneyBinScore}+ points, earn ${POWER_PLAY_VALUES.moneyBinCredits} Credits (spend them in Vibez). No downside.`, 
     flavorText: 'Some say fortune favors the bold. Others say it favors the rich duck in a top hat.',
     icon: '🎩',
     subtheme: 'utility',
     effectType: 'immediate',
     durationTag: 'ONE_TIME',
-    activate: (gameState) => ({...gameState}) // Handled in GameScreen
+    activate: arm('scroogeSwipe'), // fires on pick; settles on the next word (completeSubmission)
   },
   { 
     id: 'wordionaire', 
