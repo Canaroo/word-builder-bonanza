@@ -128,42 +128,74 @@ const Whammies: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolv
   );
 };
 
-/** Minesweeper: keep picking squares to grow the pot; the mine wipes it. Bank any time. */
+/** Minesweeper: keep picking squares to grow the pot; the mine wipes it. Bank any time. After a
+ * bank the board reveals where the mine was (and the odds the next pick had) before paying out. */
 const Mines: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
   const [mine] = useState(() => Math.floor(Math.random() * V.minesweeperSquares));
   const [cleared, setCleared] = useState<number[]>([]);
+  const [banked, setBanked] = useState<{ amount: number; picks: number } | null>(null);
   const pot = minesweeperPot(cleared.length);
   const nextStep = V.minesweeperLadder[cleared.length] ?? 0;
-  const bank = (amount: number, picks: number) =>
-    onResolve({ points: amount, headline: picks === V.minesweeperSquares - 1 ? `BOARD CLEARED! +${amount}` : `BANKED: +${amount} POINTS`, detail: `You cleared ${picks} ${picks === 1 ? 'square' : 'squares'}. The mine was under square ${mine + 1}.`, tone: 'win' });
+  const boardCleared = (picks: number) => picks === V.minesweeperSquares - 1;
+  // Squares still covered when the player banked, the mine among them.
+  const leftWhenBanked = V.minesweeperSquares - (banked?.picks ?? 0);
+  const take = () => {
+    if (!banked) return;
+    const { amount, picks } = banked;
+    onResolve({
+      points: amount, tone: 'win',
+      headline: boardCleared(picks) ? `BOARD CLEARED! +${amount}` : `BANKED: +${amount} POINTS`,
+      detail: boardCleared(picks)
+        ? `You cleared all ${picks} safe squares. The mine was under square ${mine + 1}.`
+        : `You cleared ${picks} ${picks === 1 ? 'square' : 'squares'}. The mine was under square ${mine + 1}: your next pick had a 1 in ${leftWhenBanked} chance of hitting it.`,
+    });
+  };
+  const bank = (amount: number, picks: number) => { soundService.playTileClick(); setBanked({ amount, picks }); };
   const pick = (i: number) => {
-    if (cleared.includes(i)) return;
+    if (banked || cleared.includes(i)) return;
     if (i === mine) {
       onResolve({ points: 0, headline: 'BOOM! POT WIPED', detail: `Square ${i + 1} was the mine. Your pot of ${pot} points went up in smoke.`, tone: 'lose' });
       return;
     }
     const now = [...cleared, i];
-    if (now.length >= V.minesweeperSquares - 1) { bank(minesweeperPot(now.length), now.length); return; }
     soundService.playTileClick();
     setCleared(now);
+    if (boardCleared(now.length)) setBanked({ amount: minesweeperPot(now.length), picks: now.length });
   };
   return (
     <>
-      <p className="text-slate-200">One square hides a mine that wipes your pot. Next safe square: +{nextStep}.</p>
-      <p className="font-display text-3xl text-neon-yellow" aria-live="polite">POT: {pot}</p>
+      {banked ? (
+        <p className="text-slate-200" aria-live="polite">
+          {boardCleared(banked.picks)
+            ? <>Every safe square cleared! The mine was under <strong className="text-neon-red">square {mine + 1}</strong>.</>
+            : <>The mine was under <strong className="text-neon-red">square {mine + 1}</strong>. Your next pick had a <strong className="text-white">1 in {leftWhenBanked}</strong> chance of hitting it.</>}
+        </p>
+      ) : (
+        <p className="text-slate-200">One square hides a mine that wipes your pot. Next safe square: +{nextStep}.</p>
+      )}
+      <p className="font-display text-3xl text-neon-yellow" aria-live="polite">{banked ? `BANKED: ${banked.amount}` : `POT: ${pot}`}</p>
       <div className="grid grid-cols-3 gap-2 w-48">
         {Array.from({ length: V.minesweeperSquares }, (_, i) => {
           const safe = cleared.includes(i);
+          const isMine = !!banked && i === mine;
+          const unpicked = !!banked && !safe && !isMine; // safe squares the player never opened
+          const look = isMine
+            ? 'bg-neon-red/25 ring-neon-red text-2xl animate-pulse'
+            : safe ? 'bg-crt-950 ring-neon-green/60 text-neon-green'
+            : unpicked ? 'bg-crt-950/60 ring-white/15 text-slate-500'
+            : 'bg-slate-300 ring-white/60 shadow-[inset_-3px_-3px_0_rgba(0,0,0,0.25)] hover:bg-slate-200';
           return (
-            <button key={i} type="button" onClick={() => pick(i)} disabled={safe}
-              className={`aspect-square rounded-md ring-2 ${safe ? 'bg-crt-950 ring-neon-green/60 text-neon-green' : 'bg-slate-300 ring-white/60 shadow-[inset_-3px_-3px_0_rgba(0,0,0,0.25)] hover:bg-slate-200'}`}
-              aria-label={safe ? `Square ${i + 1}, safe` : `Square ${i + 1}`}>
-              {safe ? '✓' : ''}
+            <button key={i} type="button" onClick={() => pick(i)} disabled={safe || !!banked}
+              className={`aspect-square rounded-md ring-2 ${look}`}
+              aria-label={isMine ? `Square ${i + 1}, the mine` : safe ? `Square ${i + 1}, safe` : unpicked ? `Square ${i + 1}, was safe` : `Square ${i + 1}`}>
+              {isMine ? '💣' : safe ? '✓' : unpicked ? '·' : ''}
             </button>
           );
         })}
       </div>
-      {cleared.length > 0 && <ArcadeButton color="green" className="w-full" onClick={() => bank(pot, cleared.length)}>Stop and bank {pot}</ArcadeButton>}
+      {banked
+        ? <ArcadeButton color="green" className="w-full" onClick={take}>Take the {banked.amount}</ArcadeButton>
+        : cleared.length > 0 && <ArcadeButton color="green" className="w-full" onClick={() => bank(pot, cleared.length)}>Stop and bank {pot}</ArcadeButton>}
     </>
   );
 };
