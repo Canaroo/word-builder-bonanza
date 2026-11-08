@@ -12,6 +12,7 @@ import { recordFound, collectionProgress } from '../collection';
 import { WORD_BONUSES } from '../../data/wordBonuses';
 import { soundService } from '../soundService';
 import { dictionaryService } from '../dictionaryService';
+import { seededStream, type DailyRun } from '../daily';
 import { missedWordsService } from '../missedWordsService';
 import { storage, STORAGE_KEYS } from '../storage';
 import { showToast } from '../toast';
@@ -43,6 +44,8 @@ interface GameScreenProps {
   onLexCoinChange: (amount: number, label?: string) => void;
   tileClass: string;
   powerWord?: string;
+  /** A Daily Run (v7.30): seeded tiles, offers and bosses, and its own save slot. */
+  daily?: DailyRun | null;
 }
 
 const BUILD_ROW_SIZE = 8;
@@ -346,7 +349,8 @@ const startBossRound = (gs: GameState, wordsBefore: number): ModalContent | null
     const level = levelFor(wordsBefore + 1);
     const number = level > levelFor(wordsBefore) ? bossNumberFor(level) : 0;
     if (!number) return null;
-    const boss = pickBoss(number, gs.bossesFaced ?? []);
+    // A Daily Run picks each boss level's villain from the day's seed, so everyone faces the same ones.
+    const boss = pickBoss(number, gs.bossesFaced ?? [], gs.daily ? seededStream((gs.daily.seed + number * 7919) >>> 0).next : Math.random);
     gs.boss = { id: boss.id, number, wordsLeft: BOSS.words, hits: 0 };
     gs.bossesFaced = [...(gs.bossesFaced ?? []), boss.id];
     sendStat({ type: 'boss_start', boss: boss.id, number });
@@ -412,6 +416,13 @@ export const savableScreenState = (state: GameScreenState): GameScreenState => {
 /** Level-ups show before anything else a word triggers, so they never get buried. */
 const levelUpFirst = (queue: ModalContent[]): ModalContent[] =>
     [...queue.filter(m => m?.type === 'level-up'), ...queue.filter(m => m?.type !== 'level-up')];
+
+/** Stamps a Daily Run's save with the tile stream's position, so a resume continues the same sequence. */
+export const withDailyStream = <T extends { gameState: GameState }>(screenState: T): T => {
+    const daily = screenState.gameState?.daily;
+    const rng = gameUtils.tileStreamState();
+    return daily && rng !== null ? { ...screenState, gameState: { ...screenState.gameState, daily: { ...daily, rng } } } : screenState;
+};
 
 /** At most one time card per PowerPlay offer (v7.29). Usage stats showed time cards picked 59% of
  * the time against 10-20% for every other kind, so a second time card crowded out the rest. Extra
@@ -2398,7 +2409,11 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
     }
 }
 
-export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveGame, isResuming, onTimeLow, onGoldenRoundChange, onBossRoundChange, onScoreUpdate, onLexCoinChange, tileClass, powerWord }) => {
+export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveGame, isResuming, onTimeLow, onGoldenRoundChange, onBossRoundChange, onScoreUpdate, onLexCoinChange, tileClass, powerWord, daily = null }) => {
+    // A Daily Run saves to its own slot, so a regular run can't wipe an unfinished daily attempt.
+    const saveSlot = daily ? STORAGE_KEYS.savedDailyGame : STORAGE_KEYS.savedGame;
+    // Stop using the daily's seeded tile luck once this run leaves the screen.
+    useEffect(() => () => gameUtils.setTileStream(null), []);
     
     /**
      * A robust safeguard to ensure the hand state is always a valid, renderable array.
@@ -2424,7 +2439,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
     const [state, dispatch] = useReducer(gameReducer, screenInitialState, (initialArg) => {
     if (isResuming) {
-        const savedData = storage.getJSON<any>(STORAGE_KEYS.savedGame, null);
+        const savedData = storage.getJSON<any>(saveSlot, null);
         if (savedData) {
             try {
                 // We need to ensure transient state like isLoading is reset on resume.
@@ -2450,10 +2465,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 savedData.gameScreenState.modalQueue = (savedData.gameScreenState.modalQueue ?? []).map(rehydrateModal).filter(Boolean);
                 savedData.gameScreenState.resumeCountdown = RESUME_COUNTDOWN;
                 savedData.gameScreenState.isPaused = true;
+                // A resumed Daily Run continues the day's tile sequence where it was saved.
+                const savedDaily = savedData.gameScreenState.gameState.daily;
+                gameUtils.setTileStream(savedDaily ? seededStream(savedDaily.rng ?? savedDaily.seed) : null);
                 return savedData.gameScreenState;
             } catch (e) {
                 console.error("Error parsing saved game. Starting fresh.", e);
-                storage.remove(STORAGE_KEYS.savedGame);
+                storage.remove(saveSlot);
             }
         }
     }
@@ -2652,10 +2670,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   autoSave.current = () => {
       if (!state.gameState || state.isLoading || (state.resumeCountdown ?? 0) > 0) return;
       if (state.gameState.log.some(e => e.type === 'game_over') || state.modalContent?.type === 'game-over-summary') {
-          storage.remove(STORAGE_KEYS.savedGame);
+          storage.remove(saveSlot);
           return;
       }
-      storage.setJSON(STORAGE_KEYS.savedGame, { playerName, gameScreenState: savableScreenState(state) });
+      storage.setJSON(saveSlot, { playerName, gameScreenState: withDailyStream(savableScreenState(state)) });
   };
   useEffect(() => { autoSave.current(); }, [state.gameState?.log.length, state.gameState?.strikes, state.modalContent, state.awaitingNextRound]);
   useEffect(() => {
@@ -2776,6 +2794,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
 
   const initialDeal = useCallback(() => {
+    // A Daily Run deals from the day's seed: the same bag, offers and bosses for everyone.
+    gameUtils.setTileStream(daily ? seededStream(daily.seed) : null);
+    if (daily) dispatch({ type: 'UPDATE_GAME_STATE', payload: { daily: { ...daily }, runSeed: daily.seed } });
     let bag = gameUtils.createTileBag();
     let { hand: newHand, tileBag: newBag } = gameUtils.dealNewHand(bag);
 
@@ -2790,7 +2811,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     }
     
     dispatch({ type: 'SET_HAND_AND_BAG', payload: { hand: sanitizeHand(finalHand), tileBag: finalBag } });
-  }, [showMessage, applyMutation]);
+  }, [showMessage, applyMutation, daily]);
 
   // Whether this game was resumed is decided once, when the screen mounts. Reacting to later
   // changes of the prop used to deal a fresh hand over a resumed game.
@@ -4725,7 +4746,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             isPaused: false, isLoading: false, loadingMessage: null, modalContent: null, modalQueue: [],
             tilesToSwap: [], tileToTransform: null, challengeWordData: null, tileForSelection: null, lastTurnState: null, highlightedTileIds: { first: null, rest: [] }, longWordBonusNotified: false,
         };
-        onSaveGame(screenState);
+        onSaveGame(withDailyStream(screenState));
     };
 
     const showBuffInfo = (buff: Charm | PowerPlay) => {

@@ -32,3 +32,12 @@ export const POWER_WORD_BONUS = { base: 500, perStreakDay: 50, max: 1000 };
 
 /** Daily reset hour (local time), shared by missions, streaks and the Power Word spin. */
 export const DAILY_RESET_HOUR = 8;
+
+/** The Daily Run (v7.30): one shared deal a day (services/daily.ts). */
+export const DAILY_RUN = {
+  launchDay: '2026-11-07',  // Daily Run #1 (launch day: the game day that was current when it shipped)
+  finishCredits: 5,         // for finishing your scored daily run
+  topRank: 10,              // a daily board finish this high or better...
+  topCredits: 5,            // ...pays this much more
+  shareUrl: 'wordnerd-game.netlify.app',
+};

@@ -236,6 +236,8 @@ export interface GameState {
   snitchCatches?: number;
   /** Identifies this run (kept in saves) for "in one run" daily missions. */
   runId?: string;
+  /** A Daily Run (v7.30): the day, its number, seed and whether it's practice; rng is the tile stream's saved position. */
+  daily?: { key: string; number: number; seed: number; practice: boolean; rng?: number } | null;
   /** Multiplicity: the last PowerPlay used (once-per-run and pick-and-fire ones aren't tracked). */
   lastPowerPlayUsed?: string;
   /** Mixtape charm: the letter the next word must start with, and how many links so far. */
@@ -321,6 +323,8 @@ export interface LeaderboardEntry {
   bosses?: number;
   /** The player's ID card stats when the score was posted (missing on older scores). */
   card?: IdCardStats;
+  /** Posted from a Daily Run. */
+  daily?: boolean;
 }
 
 /** The stats on a player's ID card (services/career.ts). Sent with each score as a snapshot. */
@@ -351,6 +355,8 @@ export interface PlayerFlair {
   bosses?: number;
   /** ID card stats at the time of posting. */
   card?: IdCardStats;
+  /** The score came from a Daily Run (shown as 📅 on the Top 50). */
+  daily?: boolean;
 }
 
 export interface ScoreBonusInfo {

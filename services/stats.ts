@@ -10,7 +10,7 @@ export type StatEvent =
     | { type: 'boss_end'; boss: string; number: number; outcome: 'won' | 'close' | 'escaped'; hits: number }
     | { type: 'mission_shown'; mission: string; tier: number }
     | { type: 'mission_done'; mission: string; tier: number }
-    | { type: 'run_end'; score: number; words: number; level: number; bosses: number; charms?: string }
+    | { type: 'run_end'; score: number; words: number; level: number; bosses: number; charms?: string; daily?: boolean }
     // Charm and PowerPlay offers (ids joined with commas; picked is '' for a pass or a keep), and uses.
     | { type: 'charm_offer'; offered: string; picked: string; level: number }
     | { type: 'pp_offer'; offered: string; picked: string; level: number }

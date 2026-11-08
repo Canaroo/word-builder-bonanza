@@ -15,6 +15,8 @@ import { collectionProgress } from '../collection';
 import { BOSSES } from '../../data/bosses';
 import { listPlayers, switchToPlayer, currentPlayer, sameName } from '../players';
 import { storage, STORAGE_KEYS } from '../storage';
+import { todaysRun, dailyRecord, dailyShareText } from '../daily';
+import { showToast } from '../toast';
 import MissionsPanel from '../../components/MissionsPanel';
 import StreakPanel from '../../components/StreakPanel';
 import { BadgeIcon, TitleText } from '../../components/PlayerPlate';
@@ -23,6 +25,8 @@ import { getProfile, currentStreak, playedToday, powerWordBonusFor } from '../pr
 
 interface StartScreenProps {
   onPlay: (name: string) => void;
+  /** Today's Daily Run (v7.30): starts, resumes or practices it. */
+  onPlayDaily: (name: string) => void;
   onResumeGame: (name: string) => void;
   onShowHowToPlay: () => void;
   onShowVibez: () => void;
@@ -44,6 +48,7 @@ interface StartScreenProps {
 
 const StartScreen: React.FC<StartScreenProps> = ({ 
   onPlay, 
+  onPlayDaily,
   onResumeGame, 
   onShowHowToPlay, 
   onShowVibez, 
@@ -65,6 +70,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [playerVersion, setPlayerVersion] = useState(0);
   const [showSwitcher, setShowSwitcher] = useState(false);
   const profile = useMemo(() => getProfile(), [profileVersion, playerVersion]);
+  // Today's Daily Run for the current player: whether it's been played, and any unfinished save.
+  const today = useMemo(() => todaysRun(), [profileVersion, playerVersion]);
+  const todayRecord = useMemo(() => dailyRecord(today.key), [today]);
+  const dailySave = useMemo(() => {
+    const saved = storage.getJSON<any>(STORAGE_KEYS.savedDailyGame, null);
+    return saved?.gameScreenState?.gameState?.daily?.key === today.key ? saved as { playerName: string } : null;
+  }, [today]);
   const streak = currentStreak(profile);
   const bankedToday = playedToday(profile);
   const [showStreak, setShowStreak] = useState(false);
@@ -93,6 +105,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
   const [leaderboardSource, setLeaderboardSource] = useState<LeaderboardSource>('local');
   const [leaderboardOfflineReason, setLeaderboardOfflineReason] = useState<string | undefined>();
+  // The Top 50 has two boards: all-time, and today's Daily Run.
+  const [leaderboardTab, setLeaderboardTab] = useState<'all' | 'daily'>('all');
 
   const [showEventLogsModal, setShowEventLogsModal] = useState(false);
   const [eventLogs, setEventLogs] = useState<FinalGameState[]>([]);
@@ -146,12 +160,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
   
   const fetchLeaderboard = useCallback(async (retry = false) => {
     setIsLoadingLeaderboard(true);
-    const { entries, source, offlineReason } = await leaderboardService.getLeaderboard({ retry });
+    const { entries, source, offlineReason } = leaderboardTab === 'daily'
+      ? await leaderboardService.getDailyLeaderboard(today.key, { retry })
+      : await leaderboardService.getLeaderboard({ retry });
     setLeaderboardData(entries);
     setLeaderboardSource(source);
     setLeaderboardOfflineReason(offlineReason);
     setIsLoadingLeaderboard(false);
-  }, []);
+  }, [leaderboardTab, today.key]);
 
   useEffect(() => {
     if (showLeaderboardModal) fetchLeaderboard();
@@ -208,6 +224,26 @@ const StartScreen: React.FC<StartScreenProps> = ({
     }
   };
   
+  const handleDailyClick = () => {
+    if (!name.trim()) return;
+    soundService.initialize();
+    musicService.play();
+    soundService.playUIClick();
+    onPlayDaily(name.trim());
+  };
+
+  const handleShareDaily = async () => {
+    if (todayRecord?.score === undefined) return;
+    const text = dailyShareText(today, { score: todayRecord.score, level: todayRecord.level ?? 1, bosses: todayRecord.bosses, rank: todayRecord.rank });
+    try {
+      if (navigator.share) { await navigator.share({ text }); return; }
+      await navigator.clipboard.writeText(text);
+      showToast('Copied! Paste it anywhere.');
+    } catch (e) {
+      if ((e as Error)?.name !== 'AbortError') showToast("Couldn't share from this browser.");
+    }
+  };
+
   const handleCloseLeaderboard = () => {
     soundService.playUIClick();
     setShowLeaderboardModal(false);
@@ -304,7 +340,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
       {showLeaderboardModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-crt-900 border-2 border-neon-pink shadow-glow-pink rounded-2xl p-4 text-center max-w-md w-full flex flex-col modal-max-h bonus-insert">
-            <Leaderboard data={leaderboardData} isLoading={isLoadingLeaderboard} source={leaderboardSource} offlineReason={leaderboardOfflineReason} onRetry={() => fetchLeaderboard(true)} />
+            <div className="grid grid-cols-2 gap-2 mb-2" role="tablist" aria-label="Leaderboards">
+              {(['all', 'daily'] as const).map(tab => (
+                <button key={tab} type="button" role="tab" aria-selected={leaderboardTab === tab}
+                  onClick={() => { soundService.playUIClick(); setLeaderboardTab(tab); }}
+                  className={`osd-text text-lg leading-none rounded-lg py-2 ring-1 ${leaderboardTab === tab ? 'bg-neon-pink/25 ring-neon-pink text-white' : 'ring-white/15 text-slate-400'}`}>
+                  {tab === 'all' ? '🏆 ALL-TIME' : `📅 TODAY #${today.number}`}
+                </button>
+              ))}
+            </div>
+            <Leaderboard key={leaderboardTab} data={leaderboardData} isLoading={isLoadingLeaderboard} source={leaderboardSource} offlineReason={leaderboardOfflineReason} onRetry={() => fetchLeaderboard(true)} />
             <ArcadeButton color="yellow" className="w-full mt-4" onClick={handleCloseLeaderboard}>Close</ArcadeButton>
           </div>
         </div>
@@ -538,6 +583,27 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 {savedGame && (
                     <ArcadeButton color="green" className="w-full" onClick={handleResumeClick}>
                         ⏯ Resume: {savedGame.playerName}
+                    </ArcadeButton>
+                )}
+
+                {/* Today's Daily Run (v7.30): one shared deal a day; your first run of the day is scored. */}
+                {dailySave && (!todayRecord || todayRecord.score === undefined || dailySave.playerName !== name.trim()) ? (
+                    <ArcadeButton color="cyan" className="w-full" disabled={!name.trim()} onClick={handleDailyClick}>
+                        ⏯ Resume Daily #{today.number}
+                    </ArcadeButton>
+                ) : todayRecord?.score !== undefined ? (
+                    <div className="rounded-xl bg-crt-950/70 ring-1 ring-neon-cyan/50 p-2 flex flex-col gap-2">
+                        <p className="osd-text text-lg leading-none text-neon-cyan">
+                            📅 DAILY #{today.number} · {todayRecord.score.toLocaleString()}{todayRecord.rank ? ` · #${todayRecord.rank} TODAY` : ''}
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                            <ArcadeButton color="green" size="sm" onClick={handleShareDaily}>📤 Share</ArcadeButton>
+                            <ArcadeButton color="slate" size="sm" disabled={!name.trim()} onClick={handleDailyClick}>Practice</ArcadeButton>
+                        </div>
+                    </div>
+                ) : (
+                    <ArcadeButton color="cyan" className="w-full" disabled={!name.trim()} onClick={handleDailyClick}>
+                        {todayRecord ? `📅 Daily #${today.number} · Practice` : `📅 Today's Run #${today.number}`}
                     </ArcadeButton>
                 )}
             </div>
