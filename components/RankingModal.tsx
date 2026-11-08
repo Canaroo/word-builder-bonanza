@@ -85,7 +85,7 @@ const RankingModal: React.FC<RankingModalProps> = ({ data, onClose, onShowLeader
 
             <div className="space-y-3">
                 <ArcadeButton color="cyan" className="w-full" onClick={onShowLeaderboard}>🏆 View Top 50</ArcadeButton>
-                <ArcadeButton color="slate" size="sm" className="w-full" onClick={onClose}>Close</ArcadeButton>
+                <ArcadeButton color="slate" variant="text" className="mx-auto" onClick={onClose}>Close</ArcadeButton>
             </div>
         </div>
       </div>

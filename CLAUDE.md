@@ -125,6 +125,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Missions row that expands). The name field shows only for a new player. It fits one phone screen.
   Buttons use three tiers (`ArcadeButton` `variant`): solid for the one main action, `outline` for
   the rest, `text` for Cancel/Close links. Keep a screen to one solid button where possible.
+  In a run, Golden Round, PowerPlay meter and Word Combo share one compact row (`GameScreenView`),
+  and the buffs tray labels itself inline ("BUFFS 2/5").
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

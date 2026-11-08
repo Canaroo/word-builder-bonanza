@@ -173,7 +173,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
       </div>
 
       <div className="shrink-0 pt-3">
-        <ArcadeButton color="yellow" size="lg" className="w-full" onClick={handleBackClick}>
+        <ArcadeButton color="slate" variant="outline" className="w-full" onClick={handleBackClick}>
           ▶ Got It, Let's Play
         </ArcadeButton>
       </div>

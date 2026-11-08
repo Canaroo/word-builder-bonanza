@@ -151,11 +151,11 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
           </ol>
           {totalPages > 1 && (
             <div className="flex justify-between items-center mt-3 shrink-0">
-              <ArcadeButton color="slate" size="sm" onClick={handlePrevPage} disabled={currentPage === 0}>◀ Prev</ArcadeButton>
+              <ArcadeButton color="slate" variant="outline" size="sm" onClick={handlePrevPage} disabled={currentPage === 0}>◀ Prev</ArcadeButton>
               <span className="osd-text text-xl text-slate-300">
                 {currentPage + 1} / {totalPages}
               </span>
-              <ArcadeButton color="slate" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages - 1}>Next ▶</ArcadeButton>
+              <ArcadeButton color="slate" variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages - 1}>Next ▶</ArcadeButton>
             </div>
           )}
         </>
@@ -183,11 +183,11 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
             )}
           </div>
           {viewing.card && (
-            <ArcadeButton color="purple" className="w-full max-w-sm" onClick={e => { e.stopPropagation(); soundService.playUIClick(); setComparing(c => !c); }}>
+            <ArcadeButton color="purple" variant="outline" className="w-full max-w-sm" onClick={e => { e.stopPropagation(); soundService.playUIClick(); setComparing(c => !c); }}>
               {comparing ? '🪪 Back to their ID' : '⚖️ Compare with my ID'}
             </ArcadeButton>
           )}
-          <ArcadeButton color="yellow" className="w-full max-w-sm" onClick={() => { soundService.playUIClick(); openId(null); }}>Close</ArcadeButton>
+          <ArcadeButton color="slate" variant="outline" className="w-full max-w-sm" onClick={() => { soundService.playUIClick(); openId(null); }}>Close</ArcadeButton>
         </div>
       )}
     </div>

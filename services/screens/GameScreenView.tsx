@@ -7,7 +7,6 @@ import { PowerPlayOffer, CharmOffer } from '../../components/OfferModals';
 import { GameState, Tile, WordData, Milestone, Charm, PowerPlay } from '../../types';
 import Timer from '../../components/Timer';
 import TileComponent from '../../components/Tile';
-import PowerSurgeMeter from '../../components/PowerSurgeMeter';
 import EventLogDisplay from '../../components/EventLogDisplay';
 import { MILESTONES_LIST } from '../../data/milestones';
 import DurationBadge from '../../ui/DurationBadge';
@@ -715,7 +714,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       {/* --- STATUS AREA --- */}
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col gap-1.5">
       {/* --- ICONS BAR --- */}
-      <div className="flex justify-between items-center bg-crt-950/60 ring-1 ring-white/5 p-1 rounded-lg flex-shrink-0">
+      <div className="flex justify-between items-center bg-crt-950/60 ring-1 ring-white/5 px-1 py-0.5 rounded-lg flex-shrink-0">
         <div className="flex gap-2 sm:gap-3">
           {MILESTONES_LIST.map(m => (
             <button key={m.id} onClick={() => handleShowMilestoneInfo(m)} disabled={!(gameState?.unlockedMilestoneIds ?? []).includes(m.id)} className="text-2xl transition-opacity disabled:opacity-30 enabled:hover:scale-110" title={m.name}>
@@ -729,67 +728,49 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         </div>
       </div>
 
-      {/* --- PROGRESS INDICATORS --- */}
-      <div className="flex gap-2 w-full flex-shrink-0">
-        {(gameState?.roundType ?? 'normal') === 'normal' && (
-          <div className="text-center flex-1">
-            <h3 className="osd-text text-base leading-none text-neon-cyan/80 uppercase tracking-widest mb-1">
-              Golden Round
-            </h3>
-            <div className="bg-crt-950/60 ring-1 ring-white/5 p-1 rounded-lg flex justify-center items-center h-10">
-              <span className="text-sm font-bold text-white drop-shadow-md">
-                Streak: <span className="font-osd text-lg text-neon-yellow">{(gameState?.consecutiveValidWords ?? 0)} / {(gameState?.goldenRoundThreshold ?? 11)}</span>
-              </span>
+      {/* --- PROGRESS INDICATORS (v7.31): Golden Round, PowerPlay meter and Word Combo share one compact row --- */}
+      {(() => {
+        const letters = gameState?.powerPlayProgress?.letters ?? 0;
+        const needed = meterLettersFor(levelFor(totalWords ?? 0), gameState);
+        const ppFull = letters >= needed;
+        const ppPct = Math.min(100, (letters / needed) * 100);
+        const combo = gameState?.powerSurgeProgress ?? 0;
+        const comboReady = combo >= 4;
+        const chain = gameState?.perfectChainProgress ?? 0;
+        const cell = 'bg-crt-950/60 ring-1 ring-white/5 rounded-lg px-1.5 py-1 flex flex-col justify-center gap-1 min-w-0';
+        const label = 'osd-text text-sm leading-none text-neon-cyan/80 uppercase tracking-wider whitespace-nowrap';
+        return (
+          <div className={`grid gap-1.5 w-full flex-shrink-0 ${(gameState?.roundType ?? 'normal') === 'normal' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            {(gameState?.roundType ?? 'normal') === 'normal' && (
+              <div className={cell} aria-label={`Golden Round streak ${gameState?.consecutiveValidWords ?? 0} of ${gameState?.goldenRoundThreshold ?? 11}`}>
+                <span className={label}>★ Golden</span>
+                <span className="font-osd text-lg leading-none text-neon-yellow tabular-nums">{gameState?.consecutiveValidWords ?? 0}/{gameState?.goldenRoundThreshold ?? 11}</span>
+              </div>
+            )}
+            <div className={cell} aria-label={`PowerPlay meter ${letters} of ${needed} letters`}>
+              <span className={`${label} flex justify-between`}><span>PowerPlay</span><span className="text-slate-300 tabular-nums">{letters}/{needed}</span></span>
+              <div className="h-2 rounded-full bg-crt-600 overflow-hidden">
+                <div className={`h-full rounded-full transition-all duration-500 ${ppFull ? 'bg-neon-green shadow-glow-cyan animate-pulse' : 'bg-neon-purple'}`} style={{ width: `${ppPct}%` }} />
+              </div>
+            </div>
+            <div className={`${cell} ${comboReady ? 'ring-neon-yellow/70' : ''}`} role="meter" aria-valuenow={combo} aria-valuemin={0} aria-valuemax={5} aria-valuetext={`Word Combo ${combo} of 5${comboReady ? ', next word scores x2' : ''}`}>
+              <span className={`${label} ${comboReady ? '!text-neon-yellow animate-pulse' : ''}`}>{comboReady ? 'Next x2!' : chain > 0 ? `Combo · ${'4️⃣'.repeat(chain)}` : 'Word Combo'}</span>
+              <div className="flex gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className={`flex-1 h-2 rounded-full transition-all duration-300 ${i < combo ? (comboReady ? 'bg-neon-yellow shadow-glow-yellow' : 'bg-neon-cyan shadow-glow-cyan') : 'bg-crt-600'}`} />
+                ))}
+              </div>
             </div>
           </div>
-        )}
-
-        <div className="text-center flex-1">
-          <h3 className="osd-text text-base leading-none text-neon-cyan/80 uppercase tracking-widest mb-1">
-            PowerPlay
-          </h3>
-          {(() => {
-            // PowerPlay meter: fills from letters played (config/gameplay.ts).
-            const letters = gameState?.powerPlayProgress?.letters ?? 0;
-            const needed = meterLettersFor(levelFor(totalWords ?? 0), gameState);
-            const full = letters >= needed;
-            const pct = Math.min(100, (letters / needed) * 100);
-            return (
-              <div className="bg-crt-950/60 ring-1 ring-white/5 px-2 rounded-lg h-10 flex items-center gap-2" aria-label={`PowerPlay meter ${letters} of ${needed} letters`}>
-                <div className="flex-1 h-2.5 rounded-full bg-crt-600 overflow-hidden">
-                  <div className={`h-full rounded-full transition-all duration-500 ${full ? 'bg-neon-green shadow-glow-cyan animate-pulse' : 'bg-neon-purple'}`} style={{ width: `${pct}%` }} />
-                </div>
-                <span className="font-osd text-lg leading-none text-slate-200 tabular-nums">{letters}/{needed}</span>
-              </div>
-            );
-          })()}
-        </div>
-
-        {(gameState?.perfectChainProgress ?? 0) > 0 && (
-            <div className="text-center flex-1">
-                <h3 className="osd-text text-base leading-none text-neon-cyan/80 uppercase tracking-widest mb-1">
-                    4-Letter Chain
-                </h3>
-                <div className="bg-crt-950/60 ring-1 ring-white/5 p-1 rounded-lg flex justify-center items-center h-10">
-                    <span className="text-2xl tracking-wider animate-pulse">
-                        {'4️⃣'.repeat(gameState.perfectChainProgress)}
-                    </span>
-                </div>
-            </div>
-        )}
-      </div>
-      
-      {/* --- WORD COMBO METER --- */}
-      <div className="flex-shrink-0">
-        <PowerSurgeMeter progress={gameState?.powerSurgeProgress ?? 0} />
-      </div>
+        );
+      })()}
 
       {/* --- ACTIVE BUFFS TRAY --- */}
       <div className="text-center w-full flex-shrink-0">
-        <h3 className="osd-text text-base leading-none text-neon-cyan/80 uppercase tracking-widest mb-1">
-          Active Buffs <span className="text-neon-purple">· Charms {(gameState?.activeCharms?.length ?? 0)}/{CHARM_SLOTS}</span>
-        </h3>
-        <div className="min-h-[2rem] bg-crt-950/60 ring-1 ring-white/5 p-0.5 rounded-lg flex flex-wrap justify-center items-center gap-1">
+        <div className="min-h-[2rem] bg-crt-950/60 ring-1 ring-white/5 p-0.5 pl-2 rounded-lg flex flex-wrap justify-center items-center gap-1">
+          <span className="osd-text text-sm leading-none text-neon-cyan/80 uppercase tracking-wider mr-auto" aria-label={`Active buffs. ${gameState?.activeCharms?.length ?? 0} of ${CHARM_SLOTS} charm slots used`}>
+            Buffs <span className="text-neon-purple">{gameState?.activeCharms?.length ?? 0}/{CHARM_SLOTS}</span>
+          </span>
           {(gameState?.activeBuffs?.length ?? 0) > 0 ? (
             <>
               {(() => {

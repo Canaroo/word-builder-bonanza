@@ -383,7 +383,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <h2 className="font-display text-2xl text-neon-yellow">Run in progress!</h2>
             <p className="text-slate-200">{savedGame.playerName}'s run is saved. Starting a new game will erase it.</p>
             <ArcadeButton color="green" className="w-full" onClick={() => { setConfirmNewGame(false); handleResumeClick(); }}>⏯ Resume the run</ArcadeButton>
-            <ArcadeButton color="red" className="w-full" onClick={handlePlayClick}>Start over</ArcadeButton>
+            <ArcadeButton color="red" variant="outline" className="w-full" onClick={handlePlayClick}>Start over</ArcadeButton>
             <button type="button" className="osd-text text-lg text-slate-400 underline" onClick={() => setConfirmNewGame(false)}>Cancel</button>
           </div>
         </div>
@@ -412,7 +412,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               ))}
             </div>
             <Leaderboard key={leaderboardTab} data={leaderboardData} isLoading={isLoadingLeaderboard} source={leaderboardSource} offlineReason={leaderboardOfflineReason} onRetry={() => fetchLeaderboard(true)} />
-            <ArcadeButton color="yellow" className="w-full mt-4" onClick={handleCloseLeaderboard}>Close</ArcadeButton>
+            <ArcadeButton color="slate" variant="outline" className="w-full mt-4" onClick={handleCloseLeaderboard}>Close</ArcadeButton>
           </div>
         </div>
       )}
@@ -439,13 +439,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 );
               })}
             </ul>
-            <ArcadeButton color="green" className="w-full" onClick={() => {
+            <ArcadeButton color="green" variant="outline" className="w-full" onClick={() => {
               soundService.playUIClick();
               setName('');
               setShowSwitcher(false);
               setTimeout(() => document.getElementById('player-name')?.focus(), 50);
             }}>＋ New Player</ArcadeButton>
-            <ArcadeButton color="yellow" className="w-full" onClick={() => { soundService.playUIClick(); setShowSwitcher(false); }}>Close</ArcadeButton>
+            <ArcadeButton color="slate" variant="text" className="mx-auto" onClick={() => { soundService.playUIClick(); setShowSwitcher(false); }}>Close</ArcadeButton>
           </div>
         </div>
       )}
@@ -489,7 +489,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 </div>
               </>
             )}
-            <ArcadeButton color="green" className="w-full mt-4" onClick={handleCloseEventLogs}>Close</ArcadeButton>
+            <ArcadeButton color="slate" variant="outline" className="w-full mt-4" onClick={handleCloseEventLogs}>Close</ArcadeButton>
           </div>
         </div>
       )}
@@ -513,7 +513,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 </div>
               )}
             </div>
-            <ArcadeButton color="pink" className="w-full mt-4" onClick={handleCloseMissedWords}>Close</ArcadeButton>
+            <ArcadeButton color="slate" variant="outline" className="w-full mt-4" onClick={handleCloseMissedWords}>Close</ArcadeButton>
           </div>
         </div>
       )}
@@ -525,7 +525,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-1 -m-1">
               <StreakPanel coins={lexCoins} onBuyFreeze={onBuyFreeze} />
             </div>
-            <ArcadeButton color="yellow" className="w-full mt-3" onClick={() => { soundService.playUIClick(); setShowStreak(false); }}>Close</ArcadeButton>
+            <ArcadeButton color="slate" variant="outline" className="w-full mt-3" onClick={() => { soundService.playUIClick(); setShowStreak(false); }}>Close</ArcadeButton>
           </div>
         </div>
       )}
