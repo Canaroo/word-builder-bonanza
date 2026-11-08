@@ -244,6 +244,7 @@ type GameAction =
     | { type: 'NEURALYZE', payload: { powerPlay: PowerPlay } }
     | { type: 'JACKASS', payload: { powerPlay: PowerPlay } }
     | { type: 'BLACKJACK_STAND' }
+    | { type: 'RETURN_BUILD_ROW' }
     | { type: 'DRAFT_TILES', payload: { letters: string[] } };
 
 
@@ -407,6 +408,23 @@ export const savableScreenState = (state: GameScreenState): GameScreenState => {
 const levelUpFirst = (queue: ModalContent[]): ModalContent[] =>
     [...queue.filter(m => m?.type === 'level-up'), ...queue.filter(m => m?.type !== 'level-up')];
 
+/** PowerPlays that pick random tiles from the hand. Tiles parked in the word-building row go back
+ * first, so the pick covers the whole rack (otherwise a player could park the tiles they want to
+ * protect and choose the outcome). */
+export const RANDOM_TILE_POWER_PLAYS = new Set(['oneTileToRuleThemAll', 'iceIceMaybe', 'morphinTime', 'redWedding', 'rescueDrop']);
+
+/** Puts the word-building row's tiles back in the hand (in their old slots where free). */
+export function withBuildRowReturned<T extends Pick<GameScreenState, 'hand' | 'buildRow'>>(state: T): T {
+    if (!state.buildRow.some(Boolean)) return state;
+    const hand = [...state.hand];
+    for (const item of state.buildRow) {
+        if (!item) continue;
+        const slot = hand[item.originalIndex] == null ? item.originalIndex : hand.indexOf(null);
+        if (slot >= 0) hand[slot] = item.tile;
+    }
+    return { ...state, hand, buildRow: Array(BUILD_ROW_SIZE).fill(null) };
+}
+
 /** The game reducer, plus the time ledger: clock gains from shuffles and power-ups are recorded by source. */
 export function gameReducer(state: GameScreenState, action: GameAction): GameScreenState {
     const next = payBackpack(state, logPowerPlayUse(state, baseGameReducer(state, action), action), action);
@@ -481,6 +499,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
     switch (action.type) {
         case 'SET_IS_LOADING': return { ...state, isLoading: action.payload, loadingMessage: action.payload ? state.loadingMessage : null };
         case 'SET_LOADING_MESSAGE': return { ...state, loadingMessage: action.payload };
+        case 'RETURN_BUILD_ROW': return withBuildRowReturned(state);
         case 'SET_HAND_AND_BAG': return { ...state, hand: action.payload.hand, tileBag: action.payload.tileBag };
         case 'SET_MESSAGE': return { ...state, message: action.payload };
         // Only clear the message this timer belongs to, so a newer message isn't cut short.
@@ -1439,6 +1458,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         
         case 'ACTIVATE_POWER_PLAY': {
             const powerPlay = action.payload;
+            if (RANDOM_TILE_POWER_PLAYS.has(powerPlay.id)) state = withBuildRowReturned(state);
             let changes = {};
             let newLog = [...state.gameState.log];
             let newModalContent: ModalContent = null;
@@ -4917,13 +4937,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
         if (powerPlay.id === 'iceIceMaybe') {
             soundService.playPowerUp();
-            const handTilesWithIndices = (hand ?? []).map((tile, index) => ({ tile, index })).filter((item): item is { tile: Tile, index: number } => item.tile !== null);
+            // Tiles in the word-building row count too (RANDOM_TILE_POWER_PLAYS).
+            const rack = withBuildRowReturned({ hand: hand ?? [], buildRow: buildRow ?? [] }).hand;
+            const handTilesWithIndices = rack.map((tile, index) => ({ tile, index })).filter((item): item is { tile: Tile, index: number } => item.tile !== null);
             if (handTilesWithIndices.length === 0) {
                 showMessage("Hand is empty, cannot activate!", 2000);
                 return;
             }
             const randomItem = handTilesWithIndices[Math.floor(Math.random() * handTilesWithIndices.length)];
-            const newHand = [...(hand ?? [])];
+            dispatch({ type: 'RETURN_BUILD_ROW' });
+            const newHand = [...rack];
             const newTile = { ...randomItem.tile, isSuper: true };
             newHand[randomItem.index] = newTile;
     
@@ -4942,7 +4965,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             return;
         }
 
-        if (powerPlay.id === 'rescueDrop' && (hand ?? []).filter(t => t).length === 0) {
+        if (powerPlay.id === 'rescueDrop' && (hand ?? []).filter(t => t).length === 0 && !(buildRow ?? []).some(Boolean)) {
             showMessage("Hand is empty, cannot activate Rescue Drop.", 2000);
             return;
         }

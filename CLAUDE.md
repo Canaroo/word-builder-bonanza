@@ -87,6 +87,9 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
 - **Timed and blind PowerPlays fire on pick** (`INSTANT_POWER_PLAY_IDS`): Pop Quiz, Hotshot, Smell
   Ya Later! and Bird Box start on the fresh hand when chosen from the offer. Held in the pocket, a
   player could build the word first, then activate and submit at once. New timed ones go there too.
+  Random-tile PowerPlays (`RANDOM_TILE_POWER_PLAYS`: One Tile to Rule Them All, Ice Ice Maybe,
+  Morphin Time, Red Wedding, Rescue Drop) put the word-building row back in the hand first, so
+  parking tiles there can't steer the pick. Add new random-tile ones to that set.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
