@@ -76,7 +76,7 @@ export const CHARMS_LIST: Charm[] = [
   { 
     id: 'theValve', 
     name: 'Vowel Lover', 
-    description: `All vowels now gain +${CHARM_BONUS.theValve} points each.`, 
+    description: `All vowels gain +${CHARM_BONUS.theValve} points each, but every word costs ${CHARM_BONUS.theValveSeconds} seconds.`, 
     flavorText: 'Sometimes, it is all about the little things.',
     icon: '📯',
     subtheme: 'tile',
@@ -505,7 +505,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'powerStarResidual',
     name: 'Power Star Residual',
-    description: `After you score 150+ on a single word, every word after that gets +${CHARM_BONUS.powerStarResidual} points.`,
+    description: `After you score ${CHARM_BONUS.powerStarResidualTrigger}+ on a single word, every word after that gets +${CHARM_BONUS.powerStarResidual} points.`,
     flavorText: 'One good hit echoes forever.',
     icon: '⭐',
     subtheme: 'score',

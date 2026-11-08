@@ -99,6 +99,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Random-tile PowerPlays (`RANDOM_TILE_POWER_PLAYS`: One Tile to Rule Them All, Ice Ice Maybe,
   Morphin Time, Red Wedding, Rescue Drop) put the word-building row back in the hand first, so
   parking tiles there can't steer the pick. Add new random-tile ones to that set.
+- **Balance from usage stats (v7.29.0, 50 runs):** a PowerPlay offer shows at most one time card
+  (`TIME_CARD_IDS`, `limitTimeCards`): time cards were picked 59% of the time against 10-20% for
+  the rest. Vowel Lover keeps +20 a vowel but every word costs 2 s (`theValveSeconds`; it was +61 a
+  word for free). E.T. Phone Home +30 → +15 per E. Power Star Residual turns on at 60 (was 150).
+  Pull the stats with `curl .../stats.json` (the session's environment allows the Firebase host).
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
@@ -151,3 +156,7 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
 - If late-game PowerPlay/charm time still dominates (see the Game Over "TIME EARNED" panel), make
   time PowerPlays rarer after level 6.
 - Missed-words list, more hard PowerPlay missions, medium charm missions, easy secret missions.
+- Re-check the never-picked charms (Little Mac, I'm Ready!, Sick Combo, Eagle!, Golden Girls,
+  Phil's-osophy, Battle of Wits, Supermarket Sweep, Lena, Turtle Power, Titans Go!, Star Power,
+  Mixtape, Inigo's Revenge) once more runs come in after the v7.29 Vowel Lover change.
+- Rework the PowerPlays nobody picks: Scrooge Swipe (0/34), Duck Hunt (0/35), Wario Warp (0/24).
