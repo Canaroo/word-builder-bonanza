@@ -32,7 +32,8 @@ describe('at most one time card per PowerPlay offer', () => {
 describe('charm changes', () => {
     test('Vowel Lover keeps +20 a vowel but costs time, and says so', () => {
         expect(CHARM_BONUS.theValve).toBe(20);
-        expect(charm('theValve').description).toContain(`every word costs ${CHARM_BONUS.theValveSeconds} seconds`);
+        expect(charm('theValve').description).toContain(`every word costs ${CHARM_BONUS.theValveSeconds} second`);
+        expect(charm('theValve').description).not.toContain('1 seconds');
     });
     test('E.T. is +15 an E and Power Star turns on at a reachable score', () => {
         expect(CHARM_BONUS.oneRing).toBe(15);

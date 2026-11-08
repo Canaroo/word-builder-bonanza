@@ -210,7 +210,7 @@ export const TIME_BONUS = {
 
 export const CHARM_BONUS = {
   theValve: 20,            // per vowel tile...
-  theValveSeconds: 2,      // ...but every word costs this many seconds (v7.29: it was +61/word for free)
+  theValveSeconds: 1,      // ...but every word costs this many seconds (v7.29: it was +61/word for free; 2 s in v7.29.0)
   oneRing: 15,             // per E tile (was 30: about +31 a word, now about +15)
   batSignal: 60,
   millenniumFalcon: 60,

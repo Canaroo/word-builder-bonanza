@@ -76,7 +76,7 @@ export const CHARMS_LIST: Charm[] = [
   { 
     id: 'theValve', 
     name: 'Vowel Lover', 
-    description: `All vowels gain +${CHARM_BONUS.theValve} points each, but every word costs ${CHARM_BONUS.theValveSeconds} seconds.`, 
+    description: `All vowels gain +${CHARM_BONUS.theValve} points each, but every word costs ${CHARM_BONUS.theValveSeconds} ${CHARM_BONUS.theValveSeconds === 1 ? 'second' : 'seconds'}.`, 
     flavorText: 'Sometimes, it is all about the little things.',
     icon: '📯',
     subtheme: 'tile',
