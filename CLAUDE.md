@@ -101,7 +101,7 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   parking tiles there can't steer the pick. Add new random-tile ones to that set.
 - **Balance from usage stats (v7.29.0, 50 runs):** a PowerPlay offer shows at most one time card
   (`TIME_CARD_IDS`, `limitTimeCards`): time cards were picked 59% of the time against 10-20% for
-  the rest. Vowel Lover keeps +20 a vowel but every word costs 2 s (`theValveSeconds`; it was +61 a
+  the rest. Vowel Lover keeps +20 a vowel but every word costs 1 s (`theValveSeconds`; it was +61 a
   word for free). E.T. Phone Home +30 → +15 per E. Power Star Residual turns on at 60 (was 150).
   Pull the stats with `curl .../stats.json` (the session's environment allows the Firebase host).
   v7.29.1 reworked three never-picked PowerPlays (ids kept for stats): Scrooge's Money Bin (fires
