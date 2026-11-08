@@ -3,7 +3,7 @@
 // turn hook (Tamagotchi, Time Capsule, rival race, blackjack count, REDRUM, Hadouken...) is
 // checked in the real game with the playtest helper.
 import { describe, test, expect, vi, afterEach } from 'vitest';
-import { gameReducer, screenInitialState, type GameScreenState } from '../GameScreen';
+import { gameReducer, screenInitialState, RANDOM_TILE_POWER_PLAYS, type GameScreenState } from '../GameScreen';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS } from '../../../data/powerPlays';
 import { POWER_PLAY_VALUES as V, TIME_BONUS } from '../../../config/gameplay';
 import { calculateScore } from '../../gameUtils';
@@ -165,5 +165,31 @@ describe('timed and blind PowerPlays start the moment they are picked (v7.28.1)'
         expect(quiz.gameState.activePowerPlays.popQuizHotshot).toEqual({ startClock: 33 });
         const race = gameReducer(start({ powerPlayOffer: [pp('smellYaLater')] }, 27), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('smellYaLater'), allOffered: [pp('smellYaLater')] } });
         expect(race.gameState.activePowerPlays.smellYaLater).toEqual({ words: V.rivalWords, mine: 0, rival: 0, clock: 27 });
+    });
+});
+
+describe('random-tile PowerPlays pick from the whole rack (v7.28.1)', () => {
+    // Parking tiles in the word-building row used to protect them from the random pick.
+    const parked = () => {
+        const s = start();
+        const rack = tiles('QZEATRSN');
+        return { ...s, hand: [rack[0], null, null, null, null, null, null, null, null, null], buildRow: rack.slice(1).map((tile, i) => ({ tile, originalIndex: i + 1 })).concat([null as any]) };
+    };
+    test('One Tile to Rule Them All can land on a parked tile, and the row goes back to the hand', () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0.99);
+        const s = { ...parked(), gameState: { ...parked().gameState, availablePowerPlays: [pp('oneTileToRuleThemAll')] } };
+        const next = gameReducer(s, { type: 'ACTIVATE_POWER_PLAY', payload: pp('oneTileToRuleThemAll') });
+        expect(next.buildRow.every(i => !i)).toBe(true);
+        expect(next.hand.filter(Boolean)).toHaveLength(8);
+        expect(next.hand[7]?.tempPoints).toBe(30); // a tile that was parked
+    });
+    test('Red Wedding takes 2 of all 8 tiles, parked ones included', () => {
+        const s = { ...parked(), gameState: { ...parked().gameState, availablePowerPlays: [pp('redWedding')] } };
+        const next = gameReducer(s, { type: 'ACTIVATE_POWER_PLAY', payload: pp('redWedding') });
+        expect(next.buildRow.every(i => !i)).toBe(true);
+        expect(next.hand.filter(Boolean)).toHaveLength(6);
+    });
+    test('the list covers every random-tile PowerPlay', () => {
+        expect([...RANDOM_TILE_POWER_PLAYS].sort()).toEqual(['iceIceMaybe', 'morphinTime', 'oneTileToRuleThemAll', 'redWedding', 'rescueDrop']);
     });
 });
