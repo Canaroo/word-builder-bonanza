@@ -33,6 +33,8 @@ import {leaderboardService} from './services/leaderboardService';
 import { sendStat } from './services/stats';
 import { levelFor } from './services/rules';
 import { switchToPlayer, currentPlayer } from './services/players';
+import type { TabId } from './components/BottomTabs';
+import type { StartOpen } from './services/screens/StartScreen';
 import { todaysRun, markScoredRunStarted, recordScoredRun, dailyCredits, type DailyRun } from './services/daily';
 import type { DailyResult } from './services/screens/GameOverScreen';
 import { recordCareerRun } from './services/career';
@@ -445,6 +447,22 @@ const App: React.FC = () => {
     setScreen(Screen.Vibez);
   }, []);
 
+  // Bottom tabs (v7.31): the same five destinations from every menu screen. Top 50 and the
+  // home-screen pop-ups (switch player, streak, Event Logs, Missed Words) open on the start screen.
+  const [startOpen, setStartOpen] = useState<StartOpen | null>(null);
+  const goHomeAnd = useCallback((what: StartOpen | null) => {
+    setStartOpen(what);
+    setLastGameResult(null);
+    setScreen(Screen.Start);
+  }, []);
+  const handleTab = useCallback((tab: TabId) => {
+    if (tab === 'play') goHomeAnd(null);
+    else if (tab === 'top50') { setAutoShowLeaderboard(true); goHomeAnd(null); }
+    else if (tab === 'collect') handleShowCollection();
+    else if (tab === 'shop') handleShowVibez();
+    else handleShowProfile();
+  }, [goHomeAnd, handleShowCollection, handleShowVibez, handleShowProfile]);
+
   const handleSpin = useCallback(() => {
     if (!canSpin) return;
     const newData = powerWordService.spin();
@@ -469,6 +487,9 @@ const App: React.FC = () => {
           onShowCollection={handleShowCollection}
           onShowBadgeCase={handleShowBadgeCase}
           onShowProfile={handleShowProfile}
+          onTab={handleTab}
+          openOnMount={startOpen}
+          onOpened={() => setStartOpen(null)}
           lexCoins={lexCoins} 
           autoShowLeaderboard={autoShowLeaderboard}
           setAutoShowLeaderboard={setAutoShowLeaderboard}
@@ -513,14 +534,15 @@ const App: React.FC = () => {
       case Screen.HowToPlay:
         return <HowToPlayScreen onBack={handleGoToMenu} />;
       case Screen.Collection:
-        return <CollectionScreen onBack={handleGoToMenu} />;
+        return <CollectionScreen onBack={handleGoToMenu} onTab={handleTab} onShowBadgeCase={handleShowBadgeCase} lexCoins={lexCoins} />;
       case Screen.BadgeCase:
-        return <BadgeCaseScreen onBack={handleGoToMenu} />;
+        return <BadgeCaseScreen onBack={handleGoToMenu} onTab={handleTab} onShowCollection={handleShowCollection} lexCoins={lexCoins} />;
       case Screen.Profile:
-        return <ProfileScreen onBack={handleGoToMenu} onEditBling={handleShowVibez} />;
+        return <ProfileScreen onBack={handleGoToMenu} onTab={handleTab} onEditBling={handleShowVibez} onShowHowToPlay={handleShowHowToPlay} onOpenOnHome={goHomeAnd} lexCoins={lexCoins} />;
       case Screen.Vibez:
         return <VibezScreen 
           onBack={handleGoToMenu} 
+          onTab={handleTab}
           lexCoins={lexCoins}
           unlockedPackIds={unlockedPackIds}
           selectedPackId={selectedPackId}
@@ -532,7 +554,7 @@ const App: React.FC = () => {
           onBuyFreeze={handleBuyFreeze}
           />;
       default:
-        return <StartScreen onPlay={handlePlay} onPlayDaily={handlePlayDaily} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} onShowBadgeCase={handleShowBadgeCase} onShowProfile={handleShowProfile} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin} profileVersion={profileVersion} onBuyFreeze={handleBuyFreeze}/>;
+        return <StartScreen onPlay={handlePlay} onPlayDaily={handlePlayDaily} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} onShowBadgeCase={handleShowBadgeCase} onShowProfile={handleShowProfile} onTab={handleTab} openOnMount={startOpen} onOpened={() => setStartOpen(null)} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin} profileVersion={profileVersion} onBuyFreeze={handleBuyFreeze}/>;
     }
   };
 

@@ -125,6 +125,12 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Missions row that expands). The name field shows only for a new player. It fits one phone screen.
   Buttons use three tiers (`ArcadeButton` `variant`): solid for the one main action, `outline` for
   the rest, `text` for Cancel/Close links. Keep a screen to one solid button where possible.
+  Every other menu screen uses `components/ScreenShell.tsx` (◀ back, neon title, 🪙 chip, optional
+  sticky subheader) and, on tab screens, `components/BottomTabs.tsx` with its tab lit: Shop (shop),
+  Collection and Boss Badges (collect, with a Secrets | Bosses switch, `CollectSwitch`), My ID (me,
+  with Switch Player, Streak, How to Play, Event Logs, Missed Words; the home-screen pop-ups open via
+  `openOnMount`). How to Play has the header only and folds into sections; Collection's Missing
+  view folds by shelf. New menu screens should use ScreenShell rather than their own title/Back.
   In a run, Golden Round, PowerPlay meter and Word Combo share one compact row (`GameScreenView`),
   and the buffs tray labels itself inline ("BUFFS 2/5").
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in

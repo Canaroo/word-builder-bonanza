@@ -19,6 +19,7 @@ import { todaysRun, dailyRecord, dailyShareText } from '../daily';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import { showToast } from '../toast';
 import MissionsPanel from '../../components/MissionsPanel';
+import BottomTabs, { type TabId } from '../../components/BottomTabs';
 import { getTodaysMissions } from '../missions';
 import { levelFor } from '../rules';
 import StreakPanel from '../../components/StreakPanel';
@@ -26,7 +27,15 @@ import { BadgeIcon, TitleText } from '../../components/PlayerPlate';
 import { getProfile, currentStreak, playedToday, powerWordBonusFor } from '../progression';
 
 
+/** Pop-ups another screen can ask the start screen to open (the Me page's switch player, streak, logs...). */
+export type StartOpen = 'switcher' | 'streak' | 'logs' | 'missed';
+
 interface StartScreenProps {
+  /** Bottom tabs: where each tab goes (App decides). */
+  onTab: (tab: TabId) => void;
+  /** A pop-up to open as soon as the screen shows, then onOpened clears it. */
+  openOnMount?: StartOpen | null;
+  onOpened?: () => void;
   onPlay: (name: string) => void;
   /** Today's Daily Run (v7.30): starts, resumes or practices it. */
   onPlayDaily: (name: string) => void;
@@ -52,6 +61,9 @@ interface StartScreenProps {
 const StartScreen: React.FC<StartScreenProps> = ({ 
   onPlay, 
   onPlayDaily,
+  onTab,
+  openOnMount = null,
+  onOpened,
   onResumeGame, 
   onShowHowToPlay, 
   onShowVibez, 
@@ -129,8 +141,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [missedWords, setMissedWords] = useState<MissedWord[]>([]);
   
   const [showPowerWordInfo, setShowPowerWordInfo] = useState(false);
-  // v7.31 layout: the Collect / Me bottom sheets and the missions row's expanded panel.
-  const [sheet, setSheet] = useState<'collect' | 'me' | null>(null);
+  // The missions row's expanded panel.
   const [showMissions, setShowMissions] = useState(false);
   const missionSummary = useMemo(() => {
     const { missions } = getTodaysMissions();
@@ -281,6 +292,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
       if ((e as Error)?.name !== 'AbortError') showToast("Couldn't share from this browser.");
     }
   };
+
+  // Another screen asked for one of these pop-ups (the Me page links here).
+  useEffect(() => {
+    if (!openOnMount) return;
+    if (openOnMount === 'switcher') setShowSwitcher(true);
+    else if (openOnMount === 'streak') setShowStreak(true);
+    else if (openOnMount === 'logs') setShowEventLogsModal(true);
+    else if (openOnMount === 'missed') setShowMissedWordsModal(true);
+    onOpened?.();
+  }, [openOnMount, onOpened]);
 
   const handleCloseLeaderboard = () => {
     soundService.playUIClick();
@@ -674,72 +695,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
           {showMissions && <MissionsPanel />}
         </div>
 
-        {/* Bottom tabs: everything that isn't playing, in the thumb zone. */}
-        <nav className="sticky bottom-0 z-20 shrink-0 grid grid-cols-5 border-t border-white/10 bg-crt-950/95 backdrop-blur-sm" aria-label="Menu">
-          {([
-            { icon: '🏠', label: 'PLAY', onClick: undefined, current: true },
-            { icon: '🏆', label: 'TOP 50', onClick: handleShowLeaderboard },
-            { icon: '📼', label: 'COLLECT', onClick: () => { soundService.playUIClick(); setSheet('collect'); } },
-            { icon: '🛒', label: 'SHOP', onClick: onShowVibez },
-            { icon: '🪪', label: 'ME', onClick: () => { soundService.playUIClick(); setSheet('me'); } },
-          ] as const).map(tab => (
-            <button key={tab.label} type="button" onClick={tab.onClick} aria-current={'current' in tab ? 'page' : undefined}
-              className={`flex flex-col items-center justify-center gap-0.5 py-2 min-h-[3.5rem] ${'current' in tab ? 'text-neon-yellow' : 'text-slate-400 hover:text-white'}`}>
-              <span className="text-xl leading-none" aria-hidden="true">{tab.icon}</span>
-              <span className="osd-text text-sm leading-none">{tab.label}</span>
-            </button>
-          ))}
-        </nav>
+        {/* Bottom tabs: everything that isn't playing, in the thumb zone (same bar on every menu screen). */}
+        <BottomTabs current="play" onTab={(tab) => {
+          soundService.playUIClick();
+          if (tab === 'top50') handleShowLeaderboard();
+          else if (tab !== 'play') onTab(tab);
+        }} />
       </div>
 
-      {/* Bottom sheets for the Collect and Me tabs. */}
-      {sheet && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-crt-950/80 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label={sheet === 'collect' ? 'Collection' : 'Me'} onClick={() => setSheet(null)}>
-          <div className="w-full max-w-xl rounded-t-2xl bg-crt-900 ring-1 ring-white/15 p-4 pb-6 flex flex-col gap-3 bonus-insert" onClick={e => e.stopPropagation()}>
-            <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
-            {sheet === 'collect' ? (
-              <>
-                <h2 className="font-display text-xl text-neon-pink text-center">COLLECTION</h2>
-                <button type="button" onClick={() => { setSheet(null); onShowCollection(); }} className="flex items-center gap-3 rounded-xl ring-1 ring-neon-pink/50 bg-crt-950/70 p-3 text-left hover:bg-neon-pink/10">
-                  <span className="text-3xl" aria-hidden="true">📼</span>
-                  <span className="flex-1"><span className="block font-display text-base text-white">Secret Bonuses</span><span className="osd-text text-base text-slate-400">HIDDEN WORDS AND SCORES YOU'VE FOUND</span></span>
-                  <span className="font-osd text-2xl text-neon-pink">{collection.found}/{collection.total}</span>
-                </button>
-                <button type="button" onClick={() => { setSheet(null); onShowBadgeCase(); }} className="flex items-center gap-3 rounded-xl ring-1 ring-neon-red/50 bg-crt-950/70 p-3 text-left hover:bg-neon-red/10">
-                  <span className="text-3xl" aria-hidden="true">🏅</span>
-                  <span className="flex-1"><span className="block font-display text-base text-white">Boss Badges</span><span className="osd-text text-base text-slate-400">ONE FOR EACH BOSS YOU'VE BEATEN</span></span>
-                  <span className="font-osd text-2xl text-neon-red">{profile.bossBadges.length}/{BOSSES.length}</span>
-                </button>
-              </>
-            ) : (
-              <>
-                <h2 className="font-display text-xl text-neon-cyan text-center">{name.trim() ? name.trim().toUpperCase() : 'ME'}</h2>
-                <ul className="flex flex-col divide-y divide-white/10 rounded-xl ring-1 ring-white/10 bg-crt-950/60 overflow-hidden">
-                  {[
-                    { icon: '🪪', label: 'My ID', onClick: () => { setSheet(null); onShowProfile(); } },
-                    { icon: '🏷️', label: 'Badge & Title', onClick: () => { setSheet(null); onShowVibez(); } },
-                    { icon: '👥', label: 'Switch Player', onClick: () => { setSheet(null); setShowSwitcher(true); } },
-                    { icon: '🔥', label: 'Streak', onClick: () => { setSheet(null); setShowStreak(true); } },
-                    { icon: '📘', label: 'How to Play', onClick: () => { setSheet(null); onShowHowToPlay(); } },
-                    { icon: '📼', label: 'Event Logs', onClick: () => { setSheet(null); handleShowEventLogs(); } },
-                    { icon: '🧠', label: 'Missed Words', onClick: () => { setSheet(null); handleShowMissedWords(); } },
-                  ].map(item => (
-                    <li key={item.label}>
-                      <button type="button" onClick={() => { soundService.playUIClick(); item.onClick(); }} className="w-full flex items-center gap-3 px-4 min-h-[3rem] text-left hover:bg-white/5">
-                        <span className="text-xl leading-none" aria-hidden="true">{item.icon}</span>
-                        <span className="flex-1 font-display text-base text-slate-100">{item.label}</span>
-                        <span className="text-slate-500" aria-hidden="true">›</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <p className="osd-text text-center text-neon-cyan/60 text-base">VER {__APP_VERSION__}</p>
-              </>
-            )}
-            <ArcadeButton color="slate" variant="text" className="mx-auto" onClick={() => setSheet(null)}>Close</ArcadeButton>
-          </div>
-        </div>
-      )}
     </>
   );
 };

@@ -1,21 +1,25 @@
 import React from 'react';
 import { soundService } from '../soundService';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, BOSS } from '../../config/gameplay';
+import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import ArcadeButton from '../../components/ArcadeButton';
+import ScreenShell from '../../components/ScreenShell';
 
 interface HowToPlayScreenProps {
   onBack: () => void;
 }
 
-// Styled like the instruction booklet that came in the cartridge box.
-const Section: React.FC<{ title: string; icon: string; tone: string; children: React.ReactNode }> = ({ title, icon, tone, children }) => (
-  <section className="bg-crt-950/70 ring-1 ring-white/10 rounded-xl p-4 text-left">
-    <h2 className={`font-display text-lg mb-2 flex items-center gap-2 ${tone}`}>
+// Styled like the instruction booklet that came in the cartridge box. Each section folds (v7.31),
+// so the booklet scans in one screen; tap a title to open it.
+const Section: React.FC<{ title: string; icon: string; tone: string; open?: boolean; children: React.ReactNode }> = ({ title, icon, tone, open = false, children }) => (
+  <details open={open} className="group bg-crt-950/70 ring-1 ring-white/10 rounded-xl text-left">
+    <summary className={`list-none cursor-pointer select-none font-display text-lg px-4 py-3 flex items-center gap-2 ${tone}`} onClick={() => soundService.playUIClick()}>
       <span aria-hidden="true">{icon}</span>
-      <span>{title}</span>
-    </h2>
-    <div className="space-y-2 text-slate-200 text-[15px] leading-snug">{children}</div>
-  </section>
+      <span className="flex-1">{title}</span>
+      <span className="text-slate-500 text-sm transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
+    </summary>
+    <div className="space-y-2 text-slate-200 text-[15px] leading-snug px-4 pb-4">{children}</div>
+  </details>
 );
 
 const Key: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -33,14 +37,9 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 p-4">
-      <div className="text-center shrink-0 mb-3">
-        <h1 className="font-display text-4xl neon-text-cyan">HOW TO PLAY</h1>
-        <p className="osd-text text-lg text-neon-pink">INSTRUCTION BOOKLET · PLEASE READ</p>
-      </div>
-
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-3 pr-1">
-        <Section title="The Basics" icon="🎯" tone="text-neon-cyan">
+    <ScreenShell title="HOW TO PLAY" onBack={onBack}>
+      <div className="space-y-2 max-w-lg mx-auto">
+        <Section title="The Basics" icon="🎯" tone="text-neon-cyan" open>
           <p>
             Tap tiles to spell words of <Key>3+ letters</Key>, then hit <Key>Submit</Key>. Your hand always refills to{' '}
             <Key>{GAMEPLAY.handSize} tiles</Key>. Rare letters (J, Q, X, Z) score big, and using every tile earns a{' '}
@@ -163,6 +162,22 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
           </p>
         </Section>
 
+        <Section title="Boss Rounds" icon="👹" tone="text-neon-red">
+          <p>
+            Every <Key>{BOSS.everyLevels}rd level</Key> a villain shows up with a rule (like <Key>no E</Key>) for your next{' '}
+            <Key>{BOSS.words} words</Key>. Land <Key>{BOSS.hitsToWin} hits</Key> (words that follow the rule) to win their{' '}
+            <Key>Boss Badge</Key>, worth points and time. Breaking the rule never costs you: the word still scores.
+          </p>
+        </Section>
+
+        <Section title="Today's Run" icon="📅" tone="text-neon-cyan">
+          <p>
+            One shared deal a day: everyone gets the <Key>same tiles, offers and bosses</Key>. Your first daily run is the
+            scored one and goes on the day's board; replays are practice. Finish it for <Key>+{DAILY_RUN.finishCredits} Credits</Key>,
+            plus <Key>+{DAILY_RUN.topCredits}</Key> for a top-{DAILY_RUN.topRank} finish. It resets at {DAILY_RESET_HOUR}:00 AM.
+          </p>
+        </Section>
+
         <Section title="Daily Power Word" icon="💥" tone="text-neon-orange">
           <p>
             Spin once a day on the main menu for a 4-letter <Key>Power Word</Key>. Play it during a run for{' '}
@@ -170,14 +185,12 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             8:00 AM.
           </p>
         </Section>
-      </div>
 
-      <div className="shrink-0 pt-3">
-        <ArcadeButton color="slate" variant="outline" className="w-full" onClick={handleBackClick}>
+        <ArcadeButton color="yellow" className="w-full !mt-4" onClick={handleBackClick}>
           ▶ Got It, Let's Play
         </ArcadeButton>
       </div>
-    </div>
+    </ScreenShell>
   );
 };
 
