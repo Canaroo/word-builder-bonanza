@@ -6,7 +6,7 @@ import * as gameUtils from '../gameUtils';
 import { MILESTONES_LIST } from '../../data/milestones';
 import { CHARMS_LIST } from '../../data/charms';
 import { GAMBLE_CARD_IDS, type GambleResult } from '../../components/GambleCard';
-import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS } from '../../data/powerPlays';
+import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, TIME_CARD_IDS } from '../../data/powerPlays';
 import { EASTER_EGGS } from '../../data/easterEggs';
 import { recordFound, collectionProgress } from '../collection';
 import { WORD_BONUSES } from '../../data/wordBonuses';
@@ -412,6 +412,25 @@ export const savableScreenState = (state: GameScreenState): GameScreenState => {
 /** Level-ups show before anything else a word triggers, so they never get buried. */
 const levelUpFirst = (queue: ModalContent[]): ModalContent[] =>
     [...queue.filter(m => m?.type === 'level-up'), ...queue.filter(m => m?.type !== 'level-up')];
+
+/** At most one time card per PowerPlay offer (v7.29). Usage stats showed time cards picked 59% of
+ * the time against 10-20% for every other kind, so a second time card crowded out the rest. Extra
+ * time cards are swapped for other PowerPlays from the same pool. */
+export function limitTimeCards<T extends { offeredItems: PowerPlay[]; offerDetails: { id: string; score: number }[] }>(
+    offer: T, pool: PowerPlay[], draw: (pool: PowerPlay[], n: number) => T,
+): T {
+    const firstTime = offer.offeredItems.findIndex(p => TIME_CARD_IDS.has(p.id));
+    const keep = offer.offeredItems.filter((p, i) => !TIME_CARD_IDS.has(p.id) || i === firstTime);
+    const missing = offer.offeredItems.length - keep.length;
+    if (missing === 0) return offer;
+    const others = pool.filter(p => !TIME_CARD_IDS.has(p.id) && !keep.some(k => k.id === p.id));
+    const extra = draw(others, missing);
+    return {
+        ...offer,
+        offeredItems: [...keep, ...extra.offeredItems],
+        offerDetails: [...offer.offerDetails.filter(o => keep.some(k => k.id === o.id)), ...extra.offerDetails],
+    };
+}
 
 /** PowerPlays that pick random tiles from the hand. Tiles parked in the word-building row go back
  * first, so the pick covers the whole rack (otherwise a player could park the tiles they want to
@@ -3367,6 +3386,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         addTime(TIME_BONUS.brewstersMillions);
         scoreResult.bonuses.push({ name: "Brewster's Millions", description: `-${CHARM_BONUS.brewstersMillionsCost} pts, +${TIME_BONUS.brewstersMillions}s next round` });
       }
+      // Vowel Lover's cost (v7.29): every word drains a little time from the next round.
+      if (hasCharm('theValve')) {
+        newState.ludicrousTimeCost = (newState.ludicrousTimeCost ?? 0) + CHARM_BONUS.theValveSeconds;
+        scoreResult.bonuses.push({ name: 'Vowel Lover', description: `-${CHARM_BONUS.theValveSeconds}s next round` });
+      }
       if (hasCharm('hammerTime')) {
         scoreResult.totalScore = Math.max(0, scoreResult.totalScore - CHARM_BONUS.hammerTimeCost);
         scoreResult.bonuses.push({ name: 'Hammer Time', description: `-${CHARM_BONUS.hammerTimeCost} pts` });
@@ -4064,7 +4088,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
       }
 
-      if (turnScore >= 150 && newState.activeCharms.some(c => c.id === 'powerStarResidual')) {
+      if (turnScore >= CHARM_BONUS.powerStarResidualTrigger && newState.activeCharms.some(c => c.id === 'powerStarResidual')) {
         newState.powerStarResidualActive = true;
         // Optionally update the buff description
         const buffIndex = newState.activeBuffs.findIndex(b => b.id === 'powerStarResidual');
@@ -4144,7 +4168,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                   !(pp.id === 'dailyDouble' && newState.score < POWER_PLAY_VALUES.dailyDoubleMin) &&
                   !newState.powerPlayCooldowns[pp.id]
               );
-              const { offeredItems: offeredPowerPlays, offerDetails } = gameUtils.getOffer(powerPlaysToOfferFrom, 3, newState);
+              const { offeredItems: offeredPowerPlays, offerDetails } = limitTimeCards(
+                  gameUtils.getOffer(powerPlaysToOfferFrom, 3, newState) as { offeredItems: PowerPlay[]; offerDetails: { id: string; score: number }[] },
+                  powerPlaysToOfferFrom,
+                  (pool, n) => gameUtils.getOffer(pool, n, newState) as { offeredItems: PowerPlay[]; offerDetails: { id: string; score: number }[] });
 
               if (offeredPowerPlays.length > 0) {
                   newState.powerPlayOffer = offeredPowerPlays;

@@ -203,8 +203,9 @@ export const TIME_BONUS = {
 };
 
 export const CHARM_BONUS = {
-  theValve: 20,            // per vowel tile
-  oneRing: 30,             // per E tile
+  theValve: 20,            // per vowel tile...
+  theValveSeconds: 2,      // ...but every word costs this many seconds (v7.29: it was +61/word for free)
+  oneRing: 15,             // per E tile (was 30: about +31 a word, now about +15)
   batSignal: 60,
   millenniumFalcon: 60,
   triforceOfCourage: 75,
@@ -225,6 +226,7 @@ export const CHARM_BONUS = {
   turtlePower: 75,
   iceAgeBonus: 75,
   powerStarResidual: 15,
+  powerStarResidualTrigger: 60, // a single word this big turns it on (was 150; a typical word is ~12)
   momentum: 75,
   beanCounter: 150,
   thrillerNight: 100,

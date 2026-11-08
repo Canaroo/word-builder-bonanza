@@ -40,6 +40,15 @@ const letterBoost = (id: 'letterUpgrade' | 'polish', words: number) => (gameStat
   };
 };
 
+/** Time cards: PowerPlays whose main value is clock time or a clock rescue. A PowerPlay offer shows
+ * at most one (limitTimeCards in GameScreen.tsx). Timed challenges (Pop Quiz, Smell Ya Later!)
+ * aren't here: they test speed rather than hand out time. */
+export const TIME_CARD_IDS = new Set([
+  'timeBoost', 'timeTurner', 'saveByTheBell', 'happyPlace', 'deepFreeze', 'groundhogsDay', 'continueScreen',
+  'hotTubTimeMachine', 'missionImpossible', 'leafOnTheWind', 'lifeFindsAWay', 'rewind', 'neosChoice',
+  'multiverseOfSadness', 'jackass',
+]);
+
 /** PowerPlays that fire the moment you pick them, so you also keep the one you're holding. */
 export const INSTANT_POWER_PLAY_IDS = new Set([
   'thwomped', 'fluncleIsProud',
