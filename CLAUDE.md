@@ -53,6 +53,7 @@ Resume (wait out the 3-2-1 countdown before tapping tiles).
 | Dictionary | `data/internalWords.ts` (words with definitions), `words/custom.txt`, `words/blocked.txt`, `words/no-suggest.txt` |
 | Online leaderboard | `services/onlineLeaderboard.ts` (Firebase REST, no SDK); rules in `docs/LEADERBOARD.md` |
 | Local players and player IDs | `services/players.ts` (who's playing, `playerKey()` for per-player saves), `services/career.ts` (ID stats), `components/IdCard.tsx`, `services/screens/ProfileScreen.tsx` |
+| Daily Run (one shared deal a day) | `services/daily.ts` (seed, one scored try, share text), `DAILY_RUN` in `config/progression.ts`, board at `daily/<day>` in Firebase |
 | Usage stats (bosses, missions, power words, runs, charm and PowerPlay offers, picks and uses) | `services/stats.ts` → Firebase `/stats`; read at `/?stats` (`components/StatsPage.tsx`); events and rules in `docs/LEADERBOARD.md` |
 
 Descriptions read their numbers from config in template strings, so text always matches the rules.
@@ -107,6 +108,14 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   v7.29.1 reworked three never-picked PowerPlays (ids kept for stats): Scrooge's Money Bin (fires
   on pick; a 40+ next word earns 3 Credits, no cost), Duck Hunt (Zapper: shoot a tile, a random
   replacement is worth 3x), Wario Warp (+300 now for 10 s).
+- **Daily Run (v7.30):** one deal a day from a date seed (8 AM reset, `dayKey`; #1 = 2026-11-07).
+  Seeded: the tile bag and tile luck (`setTileStream` in `gameUtils.ts`; its position is saved as
+  `gameState.daily.rng`), offers (`getOffer` ranks items by `dailyRank`, ignoring pick history), and
+  bosses. Gamble rolls stay random. A player's first daily run of the day is scored (posted to
+  `daily/<day>`, +5 Credits, +5 more for a top-10 finish, can go on the Top 50 with a 📅); later
+  ones are practice (no posting or Credits). The daily run has its own save slot (`savedDailyGame`).
+  New tile randomness in `gameUtils.ts` must use `tileRandom()`, not `Math.random()`, or the daily
+  deal stops matching. Browser checks: block `firebaseio.com` so test scores don't post.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

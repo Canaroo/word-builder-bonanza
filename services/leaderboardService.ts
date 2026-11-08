@@ -1,7 +1,7 @@
 import { LeaderboardEntry, PlayerFlair } from '../types';
 import { storage, STORAGE_KEYS } from './storage';
 import { localLeaderboard, MAX_LEADERBOARD_ENTRIES } from './localLeaderboard';
-import { onlineLeaderboard, isOnlineLeaderboardEnabled } from './onlineLeaderboard';
+import { onlineLeaderboard, isOnlineLeaderboardEnabled, dailyPath } from './onlineLeaderboard';
 
 export { MAX_LEADERBOARD_ENTRIES };
 
@@ -106,6 +106,35 @@ const getLeaderboard = async ({ retry = false } = {}): Promise<LeaderboardResult
     return { entries: localLeaderboard.list(), source: 'local', ...offline };
 };
 
+/**
+ * The Daily Run board for a game day (v7.30). Online only: a day's board only means something
+ * when everyone shares it, so offline it's simply empty with the reason.
+ */
+const getDailyLeaderboard = async (key: string, { retry = false } = {}): Promise<LeaderboardResult> => {
+    if (retry) onlineFailedAt = 0;
+    if (shouldTryOnline()) {
+        try {
+            return { entries: await onlineLeaderboard.list(dailyPath(key)), source: 'online' };
+        } catch (error) {
+            noteOnlineFailure(error, 'daily board unavailable');
+        }
+    }
+    return { entries: [], source: 'local', offlineReason: isOnlineLeaderboardEnabled() ? (lastOnlineError || 'unavailable') : 'offline only' };
+};
+
+/** Posts a scored Daily Run to the day's board; the rank there (0 if it missed the top 50 or couldn't post). */
+const submitDailyScore = async (key: string, rawName: string, score: number, flair?: PlayerFlair): Promise<number> => {
+    if (!shouldTryOnline()) return 0;
+    try {
+        const id = await onlineLeaderboard.submit(sanitizeName(rawName), score, flair, dailyPath(key));
+        const board = await onlineLeaderboard.list(dailyPath(key));
+        return board.findIndex(e => e.id === id) + 1;
+    } catch (error) {
+        noteOnlineFailure(error, 'daily score not posted');
+        return 0;
+    }
+};
+
 const getLastSubmitted = (): SubmittedScore | null =>
     storage.getJSON<SubmittedScore | null>(STORAGE_KEYS.lastSubmittedScore, null);
 
@@ -119,6 +148,8 @@ const resetOnlineBackoff = () => { onlineFailedAt = 0; };
 export const leaderboardService = {
     submitScore,
     getLeaderboard,
+    getDailyLeaderboard,
+    submitDailyScore,
     getLastSubmitted,
     isLastSubmitted,
     isOnline: isOnlineLeaderboardEnabled,

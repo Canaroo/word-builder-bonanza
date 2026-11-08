@@ -8,6 +8,10 @@ export const STORAGE_KEYS = {
     unlockedPacks: 'wordBuilderUnlockedPacks',
     selectedPack: 'wordBuilderSelectedPack',
     savedGame: 'wordBuilderBonanzaSave',
+    /** The daily run's own save slot, so a regular run can't wipe an unfinished daily attempt. */
+    savedDailyGame: 'wordNerdDailySave',
+    /** Per player: the day of their scored daily run and how it went (services/daily.ts). */
+    dailyRecord: 'wordNerdDailyRecord',
     savedLogs: 'wordBuilderBonanzaSavedLogs',
     missedWords: 'wordBuilderMissedWords',
     powerWord: 'wordBuilderPowerWord',

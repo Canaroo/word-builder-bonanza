@@ -6,6 +6,8 @@ import { cosmeticById } from '../data/cosmetics';
 import { BOSSES } from '../data/bosses';
 
 const LEADERBOARD_PATH = 'leaderboard';
+/** A Daily Run's board for one game day (v7.30), e.g. daily/2026-11-09. */
+export const dailyPath = (key: string): string => `daily/${key}`;
 const TOP_N = 50;
 const TIMEOUT_MS = 8000;
 
@@ -65,12 +67,13 @@ const toEntry = (id: string, row: any): LeaderboardEntry | null => {
         streak: Number.isInteger(row.streak) && row.streak > 0 ? Math.min(row.streak, 9999) : 0,
         bosses: Number.isInteger(row.bosses) && row.bosses > 0 ? Math.min(row.bosses, BOSSES.length) : 0,
         card: toCard(row.card),
+        daily: row.daily === true,
     };
 };
 
 /** Top scores, highest first. */
-const list = async (): Promise<LeaderboardEntry[]> => {
-    const data = await request(`${LEADERBOARD_PATH}.json?orderBy=%22score%22&limitToLast=${TOP_N}`);
+const list = async (path: string = LEADERBOARD_PATH): Promise<LeaderboardEntry[]> => {
+    const data = await request(`${path}.json?orderBy=%22score%22&limitToLast=${TOP_N}`);
     const rows = Object.entries(data ?? {})
         .map(([id, row]) => toEntry(id, row))
         .filter((e): e is LeaderboardEntry => e !== null);
@@ -83,7 +86,7 @@ const list = async (): Promise<LeaderboardEntry[]> => {
  * it tries again without the newest ones (the card, then Boss Badges, for rules not updated yet),
  * then with the score alone, so nothing is lost.
  */
-const submit = async (name: string, score: number, flair?: PlayerFlair): Promise<string> => {
+const submit = async (name: string, score: number, flair?: PlayerFlair, path: string = LEADERBOARD_PATH): Promise<string> => {
     // The server fills in the timestamp, so the rules can check it against its own clock.
     const base = { name, score, timestamp: { '.sv': 'timestamp' } };
     const extras: Record<string, unknown> = {};
@@ -92,17 +95,19 @@ const submit = async (name: string, score: number, flair?: PlayerFlair): Promise
     if (flair?.streak) extras.streak = flair.streak;
     if (flair?.bosses) extras.bosses = flair.bosses;
     if (flair?.card) extras.card = flair.card;
-    const post = (body: object) => request(`${LEADERBOARD_PATH}.json`, {
+    if (flair?.daily) extras.daily = true;
+    const post = (body: object) => request(`${path}.json`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
     // Only a rules rejection is worth retrying with fewer fields.
     const rejected = (e: unknown) => e instanceof LeaderboardError && (e.status === 400 || e.status === 401 || e.status === 403);
-    // Newest fields first, so rules that predate them still get everything else: card, then bosses.
-    const { card, ...withoutCard } = extras;
+    // Newest fields first, so rules that predate them still get everything else: daily, card, bosses.
+    const { daily, ...withoutDaily } = extras;
+    const { card, ...withoutCard } = withoutDaily;
     const { bosses, ...withoutBosses } = withoutCard;
-    const attempts = [extras, withoutCard, withoutBosses]
+    const attempts = [extras, withoutDaily, withoutCard, withoutBosses]
         .filter((x, i, all) => Object.keys(x).length && (i === 0 || Object.keys(x).length < Object.keys(all[i - 1]).length));
     for (const fields of attempts) {
         try {

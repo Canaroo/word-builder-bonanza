@@ -37,10 +37,32 @@ const THREE_LETTER_WORDS = new Set(
 
 
 // Fisher-Yates shuffle
+// Tile luck (shuffles, draws, multiplier and combo tiles, hand balancing) comes from here. A Daily
+// Run swaps in a seeded stream so everyone draws from the same bag (services/daily.ts); tile ids
+// keep using Math.random, since they aren't luck.
+const defaultRandom = () => Math.random(); // looked up each call, so tests can mock Math.random
+let tileRandom: () => number = defaultRandom;
+let tileStream: { next: () => number; state: () => number } | null = null;
+/** Use a seeded stream for tile luck (a Daily Run), or Math.random again with null. */
+export const setTileStream = (stream: { next: () => number; state: () => number } | null): void => {
+    tileStream = stream;
+    tileRandom = stream ? stream.next : defaultRandom;
+};
+/** The seeded stream's position, saved with a Daily Run so a resume continues the same sequence. */
+export const tileStreamState = (): number | null => (tileStream ? tileStream.state() : null);
+
+/** Daily Run offers: a seeded rank in [0, 1) for an item at a given offer number (lower comes first). */
+export const dailyRank = (seed: number, offerNumber: number, id: string): number => {
+    let h = (seed ^ Math.imul(offerNumber + 1, 0x9e3779b1)) >>> 0;
+    for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 0x01000193) >>> 0;
+    h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b) >>> 0; h ^= h >>> 13;
+    return (h >>> 0) / 4294967296;
+};
+
 export const shuffleArray = <T,>(array: T[]): T[] => {
   const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(tileRandom() * (i + 1));
     [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
   }
   return newArray;
@@ -61,7 +83,7 @@ export const createTileBag = (): string[] => {
 };
 
 export const createTile = (letter: string, isForGoldenRound = false): Tile => {
-  const isMultiplier = !isForGoldenRound && Math.random() < 0.15; // 15% chance for a 2x multiplier
+  const isMultiplier = !isForGoldenRound && tileRandom() < 0.15; // 15% chance for a 2x multiplier
   const comboData = COMBO_TILES.find(ct => ct.letter === letter);
 
   if (comboData) {
@@ -93,8 +115,8 @@ export const drawTiles = (count: number, tileBag: string[], isForGoldenRound = f
     }
 
     // Small chance to draw a special combo tile instead of one from the bag
-    if (Math.random() < COMBO_TILE_CHANCE) {
-      const comboTile = COMBO_TILES[Math.floor(Math.random() * COMBO_TILES.length)];
+    if (tileRandom() < COMBO_TILE_CHANCE) {
+      const comboTile = COMBO_TILES[Math.floor(tileRandom() * COMBO_TILES.length)];
       drawnLetters.push(comboTile.letter);
     } else {
       // This should not fail as the bag is replenished if empty.
@@ -195,7 +217,7 @@ export const postProcessHand = (hand: (Tile | null)[], tileBag: string[], isForG
 
             const handIndices = currentHand.map((t, i) => t !== null ? i : -1).filter(i => i !== -1);
             if (handIndices.length === 0) break;
-            const indexToReplace = handIndices[Math.floor(Math.random() * handIndices.length)];
+            const indexToReplace = handIndices[Math.floor(tileRandom() * handIndices.length)];
             const tileToReturn = currentHand[indexToReplace];
             
             if (tileToReturn) {
@@ -238,7 +260,7 @@ export const postProcessHand = (hand: (Tile | null)[], tileBag: string[], isForG
         
         if (heaviestTilesIndices.length === 0) break;
 
-        const indexToReplace = heaviestTilesIndices[Math.floor(Math.random() * heaviestTilesIndices.length)];
+        const indexToReplace = heaviestTilesIndices[Math.floor(tileRandom() * heaviestTilesIndices.length)];
         const tileToReturn = currentHand[indexToReplace];
 
         if(tileToReturn) {
@@ -287,12 +309,12 @@ export const postProcessHand = (hand: (Tile | null)[], tileBag: string[], isForG
                 if (replaceableConsonantIndices.length > 0) {
                     anyChanges = true;
                     needsChange = true;
-                    const indexToReplace = replaceableConsonantIndices[Math.floor(Math.random() * replaceableConsonantIndices.length)];
+                    const indexToReplace = replaceableConsonantIndices[Math.floor(tileRandom() * replaceableConsonantIndices.length)];
                     const tileToReturn = currentHand[indexToReplace];
                     if (tileToReturn) {
                         currentBag = shuffleArray([...currentBag, tileToReturn.letter]);
                         
-                        const vowelToDraw = availableVowelsInBag[Math.floor(Math.random() * availableVowelsInBag.length)];
+                        const vowelToDraw = availableVowelsInBag[Math.floor(tileRandom() * availableVowelsInBag.length)];
                         
                         // Remove the drawn vowel from bag and add a new tile to hand
                         const newBagWithoutVowel = [...currentBag];
@@ -321,12 +343,12 @@ export const postProcessHand = (hand: (Tile | null)[], tileBag: string[], isForG
                 if (replaceableVowelIndices.length > 0) {
                     anyChanges = true;
                     needsChange = true;
-                    const indexToReplace = replaceableVowelIndices[Math.floor(Math.random() * replaceableVowelIndices.length)];
+                    const indexToReplace = replaceableVowelIndices[Math.floor(tileRandom() * replaceableVowelIndices.length)];
                     const tileToReturn = currentHand[indexToReplace];
                     if(tileToReturn) {
                         currentBag = shuffleArray([...currentBag, tileToReturn.letter]);
                         
-                        const consonantToDraw = availableConsonantsInBag[Math.floor(Math.random() * availableConsonantsInBag.length)];
+                        const consonantToDraw = availableConsonantsInBag[Math.floor(tileRandom() * availableConsonantsInBag.length)];
 
                         const newBagWithoutConsonant = [...currentBag];
                         const consonantIndex = newBagWithoutConsonant.indexOf(consonantToDraw);
@@ -928,6 +950,19 @@ export function getOffer(
     gameState: GameState
 ): { offeredItems: (Charm | PowerPlay)[], offerDetails: { id: string, score: number }[] } {
     
+    // Daily Run: every item gets a seeded rank for this offer number, and the offer is the best-ranked
+    // items still eligible. Items you hold or have active drop out, but the order of the rest is the
+    // same for everyone, so offer #N matches across players (personal pick history is ignored).
+    if (gameState.daily) {
+        const rankOf = (id: string) => dailyRank(gameState.runSeed, gameState.totalOffersMade, id);
+        const ranked = allItems
+            .filter(item => !gameState.activeBuffs.some(active => active.id === item.id))
+            .map(item => ({ item, score: rankOf(item.id) }))
+            .sort((a, b) => a.score - b.score)
+            .slice(0, count);
+        return { offeredItems: ranked.map(r => r.item), offerDetails: ranked.map(r => ({ id: r.item.id, score: r.score })) };
+    }
+
     const rng = new SeededRNG(gameState.runSeed + gameState.totalOffersMade);
     const currentTurn = (gameState.log.filter(e => e.type === 'word' && e.status === 'valid').length) + 1;
 

@@ -32,7 +32,9 @@ import { GameState, FinalGameState, Pack, PowerWordData } from './types';
 import {leaderboardService} from './services/leaderboardService';
 import { sendStat } from './services/stats';
 import { levelFor } from './services/rules';
-import { switchToPlayer } from './services/players';
+import { switchToPlayer, currentPlayer } from './services/players';
+import { todaysRun, markScoredRunStarted, recordScoredRun, dailyCredits, type DailyRun } from './services/daily';
+import type { DailyResult } from './services/screens/GameOverScreen';
 import { recordCareerRun } from './services/career';
 import { soundService } from './services/soundService';
 import { musicService } from './services/musicService';
@@ -72,6 +74,9 @@ const App: React.FC = () => {
   // Bumped whenever badges, titles or freezes change, so screens re-read the profile.
   const [profileVersion, setProfileVersion] = useState(0);
   const [isResuming, setIsResuming] = useState(false);
+  // The Daily Run being played (or just finished), and how the finished one went.
+  const [dailyRun, setDailyRun] = useState<DailyRun | null>(null);
+  const [lastDaily, setLastDaily] = useState<DailyResult | null>(null);
   const [isTimeLow, setIsTimeLow] = useState(false);
   const [isGoldenRound, setIsGoldenRound] = useState(false);
   const [isBossRound, setIsBossRound] = useState(false);
@@ -241,9 +246,32 @@ const App: React.FC = () => {
     setProfileVersion(v => v + 1);
     storage.remove(STORAGE_KEYS.savedGame);
     setIsResuming(false);
+    setDailyRun(null);
     setPlayerName(name);
     setScreen(Screen.Game);
     setRankingModalData(null); // Clear any leftover ranking data
+    enterFullscreen();
+  }, []);
+
+  /** Today's Daily Run: resumes an unfinished one, else starts it (practice if today's try is used). */
+  const handlePlayDaily = useCallback((name: string) => {
+    runStartedAt.current = Date.now();
+    switchToPlayer(name);
+    setProfileVersion(v => v + 1);
+    const run = todaysRun();
+    const saved = storage.getJSON<any>(STORAGE_KEYS.savedDailyGame, null);
+    const savedDaily = saved?.gameScreenState?.gameState?.daily;
+    const resume = savedDaily?.key === run.key && saved?.playerName === name;
+    if (!resume) {
+      storage.remove(STORAGE_KEYS.savedDailyGame);
+      // Starting the scored run uses up today's try, even if it's never finished.
+      if (!run.practice) markScoredRunStarted(run.key);
+    }
+    setDailyRun(resume ? { key: savedDaily.key, number: savedDaily.number, seed: savedDaily.seed, practice: savedDaily.practice } : run);
+    setIsResuming(resume);
+    setPlayerName(name);
+    setScreen(Screen.Game);
+    setRankingModalData(null);
     enterFullscreen();
   }, []);
 
@@ -252,6 +280,7 @@ const App: React.FC = () => {
     switchToPlayer(name);
     setProfileVersion(v => v + 1);
     setIsResuming(true);
+    setDailyRun(null);
     setPlayerName(name);
     setScreen(Screen.Game);
     setRankingModalData(null); // Clear any leftover ranking data
@@ -263,16 +292,34 @@ const App: React.FC = () => {
         playerName: playerName,
         gameScreenState: gameScreenState,
     };
-    storage.setJSON(STORAGE_KEYS.savedGame, saveData);
+    storage.setJSON(gameScreenState?.gameState?.daily ? STORAGE_KEYS.savedDailyGame : STORAGE_KEYS.savedGame, saveData);
     setScreen(Screen.Start);
     musicService.pause();
   }, [playerName]);
 
 
   const handleGameOver = useCallback((gameState: GameState) => {
-    storage.remove(STORAGE_KEYS.savedGame);
+    const daily = gameState.daily ?? null;
+    storage.remove(daily ? STORAGE_KEYS.savedDailyGame : STORAGE_KEYS.savedGame);
     const validWords = gameState.log.filter(e => e.type === 'word' && e.status === 'valid').length;
-    sendStat({ type: 'run_end', score: gameState.score, words: validWords, level: levelFor(validWords), bosses: gameState.bossesBeaten ?? 0, charms: (gameState.activeCharms ?? []).map(c => c.id).join(',') });
+    sendStat({ type: 'run_end', score: gameState.score, words: validWords, level: levelFor(validWords), bosses: gameState.bossesBeaten ?? 0, charms: (gameState.activeCharms ?? []).map(c => c.id).join(','), ...(daily ? { daily: true } : {}) });
+    // A scored Daily Run posts to the day's board, then pays Credits (more for a top-10 finish).
+    if (daily) {
+      const run: DailyRun = { key: daily.key, number: daily.number, seed: daily.seed, practice: daily.practice };
+      const result: DailyResult = { run, score: gameState.score, level: levelFor(validWords), bosses: gameState.bossesBeaten ?? 0, rank: 0, credits: 0, posting: !daily.practice };
+      setLastDaily(result);
+      if (!daily.practice) {
+        recordScoredRun(run.key, { score: result.score, level: result.level, bosses: result.bosses, rank: 0 });
+        leaderboardService.submitDailyScore(run.key, currentPlayer().name, result.score, publicFlair()).then(rank => {
+          const credits = dailyCredits(rank);
+          recordScoredRun(run.key, { score: result.score, level: result.level, bosses: result.bosses, rank });
+          handleLexCoinChange(credits, `📅 Daily #${run.number}${rank ? `: #${rank} today` : ''} · 🪙 +${credits}`);
+          setLastDaily(d => (d && d.run.key === run.key ? { ...d, rank, credits, posting: false } : d));
+        });
+      }
+    } else {
+      setLastDaily(null);
+    }
     recordCareerRun({ score: gameState.score, level: levelFor(validWords), bestWord: gameState.highestScoringWord, longestWord: gameState.longestWord });
     const finalState: FinalGameState = {
       score: gameState.score,
@@ -315,20 +362,25 @@ const App: React.FC = () => {
     setLastGameResult(finalState);
     setScreen(Screen.GameOver);
     musicService.stop();
-  }, []);
+  }, [handleLexCoinChange]);
 
   const handlePlayAgain = useCallback(() => {
     runStartedAt.current = Date.now();
     setIsResuming(false);
+    // After a Daily Run, Play Again practices the same day's deal (a new day means a regular run).
+    const today = lastDaily ? todaysRun() : null;
+    if (today && today.key === lastDaily!.run.key) storage.remove(STORAGE_KEYS.savedDailyGame);
+    setDailyRun(today && today.key === lastDaily!.run.key ? { ...today, practice: true } : null);
     setLastGameResult(null);
     setScreen(Screen.Game);
     musicService.play();
-  }, []);
+  }, [lastDaily]);
   
   const handleSubmitScore = useCallback(async (name: string) => {
     if (lastGameResult) {
       const score = lastGameResult.score;
-      const { rank } = await leaderboardService.submitScore(name, score, publicFlair());
+      // A scored Daily Run is marked 📅 on the Top 50 (practice runs can't be submitted).
+      const { rank } = await leaderboardService.submitScore(name, score, { ...publicFlair(), ...(lastDaily && !lastDaily.run.practice ? { daily: true } : {}) });
       setPlayerName(name);
 
       if (rank > 0 && rank <= 10) {
@@ -343,7 +395,7 @@ const App: React.FC = () => {
     setLastGameResult(null);
     setScreen(Screen.Start);
     musicService.stop();
-  }, [lastGameResult]);
+  }, [lastGameResult, lastDaily]);
 
   const handleGoToMenu = useCallback(() => {
     setLastGameResult(null);
@@ -410,6 +462,7 @@ const App: React.FC = () => {
       case Screen.Start:
         return <StartScreen 
           onPlay={handlePlay} 
+          onPlayDaily={handlePlayDaily}
           onResumeGame={handleResumeGame} 
           onShowHowToPlay={handleShowHowToPlay} 
           onShowVibez={handleShowVibez} 
@@ -440,6 +493,7 @@ const App: React.FC = () => {
             onLexCoinChange={handleLexCoinChange}
             tileClass={selectedPack.tileClass}
             powerWord={powerWordData?.powerWord}
+            daily={dailyRun}
             />;
       case Screen.GameOver:
         return lastGameResult && (
@@ -453,6 +507,7 @@ const App: React.FC = () => {
             onPlayAgain={handlePlayAgain}
             onSubmitScore={handleSubmitScore}
             onGoToMenu={handleGoToMenu}
+            daily={lastDaily}
           />
         );
       case Screen.HowToPlay:
@@ -477,7 +532,7 @@ const App: React.FC = () => {
           onBuyFreeze={handleBuyFreeze}
           />;
       default:
-        return <StartScreen onPlay={handlePlay} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} onShowBadgeCase={handleShowBadgeCase} onShowProfile={handleShowProfile} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin} profileVersion={profileVersion} onBuyFreeze={handleBuyFreeze}/>;
+        return <StartScreen onPlay={handlePlay} onPlayDaily={handlePlayDaily} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} onShowBadgeCase={handleShowBadgeCase} onShowProfile={handleShowProfile} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin} profileVersion={profileVersion} onBuyFreeze={handleBuyFreeze}/>;
     }
   };
 

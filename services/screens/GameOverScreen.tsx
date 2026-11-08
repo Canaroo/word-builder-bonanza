@@ -12,6 +12,7 @@ import { BadgeIcon } from '../../components/PlayerPlate';
 import { cosmeticById } from '../../data/cosmetics';
 import { PACKS_LIST } from '../../data/packs';
 import { getProfile, nextMilestone, type StreakUpdate } from '../progression';
+import { dailyShareText, type DailyRun } from '../daily';
 
 
 interface GameOverScreenProps {
@@ -26,6 +27,20 @@ interface GameOverScreenProps {
   recap?: RunRecap | null;
   /** What this run did to the daily streak. */
   streak?: StreakUpdate | null;
+  /** A Daily Run's result (v7.30): its board rank once posted, and the Credits it paid. */
+  daily?: DailyResult | null;
+}
+
+export interface DailyResult {
+  run: DailyRun;
+  score: number;
+  level: number;
+  bosses: number;
+  /** Rank on the day's board (0 if it missed the top 50 or couldn't post). */
+  rank: number;
+  credits: number;
+  /** Still posting to the day's board. */
+  posting: boolean;
 }
 
 const TIME_SOURCES = [
@@ -82,7 +97,7 @@ const StatRow: React.FC<{ label: string; value: React.ReactNode; icon: string; i
 };
 
 
-const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, onPlayAgain, onSubmitScore, onGoToMenu, isNewBest = false, personalBest = 0, recap = null, streak = null }) => {
+const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, onPlayAgain, onSubmitScore, onGoToMenu, isNewBest = false, personalBest = 0, recap = null, streak = null, daily = null }) => {
   const [showMilestones, setShowMilestones] = useState(() => (streak?.milestones.length ?? 0) > 0);
   const next = streak ? nextMilestone(streak.count) : undefined;
   const [showWordLog, setShowWordLog] = useState(false);
@@ -127,7 +142,10 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
     if (!recap) return;
     const url = `${location.origin}${location.pathname}`;
     const p = getProfile();
-    const text = buildShareText(gameState, recap, isNewBest, url, { streak: streak?.count ?? 0, title: cosmeticById(p.title)?.name, badge: cosmeticById(p.badge)?.icon });
+    // A scored Daily Run shares its own card (same deal for everyone, so the numbers compare).
+    const text = daily && !daily.run.practice
+      ? dailyShareText(daily.run, daily)
+      : buildShareText(gameState, recap, isNewBest, url, { streak: streak?.count ?? 0, title: cosmeticById(p.title)?.name, badge: cosmeticById(p.badge)?.icon });
     try {
       if (navigator.share) {
         await navigator.share({ text });
@@ -245,6 +263,13 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
           ) : null}
           <div className={`font-osd leading-none text-neon-yellow drop-shadow-glow-yellow mt-2 tabular-nums ${gameState.score >= 100000 ? 'text-6xl' : 'text-7xl'}`}>{gameState.score.toLocaleString()}</div>
           <p className="osd-text text-lg text-neon-cyan/80">FINAL SCORE</p>
+          {daily && (
+            <p className={`osd-text text-lg leading-tight mt-1 ${daily.run.practice ? 'text-slate-400' : 'text-neon-cyan'}`} aria-live="polite">
+              📅 DAILY #{daily.run.number}{daily.run.practice
+                ? ' · PRACTICE (NOT POSTED)'
+                : daily.posting ? ' · POSTING…' : `${daily.rank ? ` · #${daily.rank} TODAY` : ''} · 🪙 +${daily.credits}`}
+            </p>
+          )}
           {streak && (
             <p className={`osd-text text-lg leading-tight mt-1 ${streak.extended ? 'text-neon-orange' : 'text-slate-400'}`}>
               {streak.extended
@@ -299,11 +324,15 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
 
       {/* Actions */}
       <div className="w-full max-w-sm mx-auto flex flex-col gap-3 flex-shrink-0 pb-1">
-        <ArcadeButton color="cyan" size="lg" className="w-full" onClick={handleSubmitScoreClick} disabled={isActionLocked}>
-          🏆 Submit Score
-        </ArcadeButton>
+        {daily?.run.practice ? (
+          <p className="osd-text text-base text-slate-400 leading-tight">PRACTICE RUNS DON'T POST TO THE TOP 50</p>
+        ) : (
+          <ArcadeButton color="cyan" size="lg" className="w-full" onClick={handleSubmitScoreClick} disabled={isActionLocked}>
+            🏆 Submit Score
+          </ArcadeButton>
+        )}
         <ArcadeButton color="yellow" size="lg" className="w-full" onClick={handlePlayAgainClick} disabled={isActionLocked}>
-          ▶ Play Again
+          {daily ? '▶ Practice Today’s Run' : '▶ Play Again'}
         </ArcadeButton>
         <div className="grid grid-cols-3 gap-2">
           <ArcadeButton color="purple" size="sm" onClick={handleShowWordLogClick} disabled={isActionLocked}>📼 Log</ArcadeButton>

@@ -660,6 +660,11 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
               </span>
             )}
           </div>
+          {gameState?.daily && (
+            <p className={`osd-text text-sm leading-none mt-0.5 ${gameState.daily.practice ? 'text-slate-400' : 'text-neon-cyan'}`} aria-label={gameState.daily.practice ? `Daily Run ${gameState.daily.number}, practice` : `Daily Run ${gameState.daily.number}`}>
+              📅 DAILY #{gameState.daily.number}{gameState.daily.practice ? ' · PRACTICE' : ''}
+            </p>
+          )}
           {gameState?.roundType !== 'golden' && (
             <LevelBadge key={levelFlash} validWords={totalWords ?? 0} flash={levelFlash > 0} />
           )}

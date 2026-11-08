@@ -131,6 +131,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
                         <span className="flex items-center gap-1.5 min-w-0 mt-0.5">
                           <StreakFlame count={entry.streak ?? 0} className="text-sm shrink-0" />
                           <BossBadgeCount count={entry.bosses ?? 0} className="text-sm shrink-0" />
+                          {entry.daily && <span className="text-sm shrink-0" title="Daily Run score" aria-label="Daily Run">📅</span>}
                           {entry.title && <TitleText id={entry.title} className="text-sm leading-none truncate" />}
                         </span>
                       ) : null}

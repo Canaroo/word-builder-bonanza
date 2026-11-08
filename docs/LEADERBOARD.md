@@ -113,8 +113,59 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
           "$other":    { ".validate": false }
         },
 
+        // The score came from a Daily Run (shown as a calendar on the Top 50)
+        "daily": { ".validate": "newData.isBoolean()" },
+
         // Block any extra fields
         "$other": { ".validate": false }
+      }
+    },
+
+    // Daily Run boards (v7.30): one board per game day ("2026-11-09"), same fields as the Top 50
+    "daily": {
+      ".read": true,
+
+      "$day": {
+        ".indexOn": ["score"],
+        ".validate": "$day.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)",
+
+        "$id": {
+          ".write": "!data.exists()",
+          ".validate": "newData.hasChildren(['name','score','timestamp'])",
+
+          "name": {
+            ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9 _.'-]{1,30}$/)"
+          },
+          "score": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+          },
+          "timestamp": {
+            ".validate": "newData.isNumber() && newData.val() > now - 5 * 60 * 1000 && newData.val() < now + 5 * 60 * 1000"
+          },
+
+          // Optional player flair: badge id, title id, streak days
+          "badge":  { ".validate": "newData.isString() && newData.val().matches(/^[bs]_[A-Za-z]{1,24}$/)" },
+          "title":  { ".validate": "newData.isString() && newData.val().matches(/^[ts]_[A-Za-z]{1,24}$/)" },
+          "streak": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9999" },
+          // Boss Badges collected (different bosses beaten)
+          "bosses": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 99" },
+
+          // Player ID snapshot: the stats on their card when the score was posted
+          "card": {
+            ".validate": "newData.hasChildren(['runs','best','avg','level'])",
+            "runs":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" },
+            "best":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
+            "avg":       { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
+            "level":     { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9999" },
+            "word":      { ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{0,15}$/)" },
+            "wordScore": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
+            "longest":   { ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{0,15}$/)" },
+            "secrets":   { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999" },
+            "$other":    { ".validate": false }
+          },
+
+          "$other": { ".validate": false }
+        }
       }
     },
 
@@ -152,6 +203,7 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         "level":   { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9999" },
         "bosses":  { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99" },
         "charms":  { ".validate": "newData.isString() && newData.val().matches(/^([A-Za-z0-9]{1,32}(,[A-Za-z0-9]{1,32}){0,5})?$/)" },
+        "daily":   { ".validate": "newData.isBoolean()" },
 
         // Charm and PowerPlay offers and uses (ids only)
         "offered": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,32}(,[A-Za-z0-9]{1,32}){0,5}$/)" },
@@ -177,7 +229,7 @@ Firebase rules allow `//` comments, so paste the block as-is.
 | `boss_end` | `boss`, `number`, `outcome`, `hits` | A boss round ends (won, close or escaped) |
 | `mission_shown` | `mission`, `tier` | The first time a device sees the day's missions (one per mission) |
 | `mission_done` | `mission`, `tier` | A mission is completed |
-| `run_end` | `score`, `words`, `level`, `bosses`, `charms` | The Game Over summary is closed (`charms`: the ids equipped at the end, comma-joined) |
+| `run_end` | `score`, `words`, `level`, `bosses`, `charms`, `daily` (true for a Daily Run) | The Game Over summary is closed (`charms`: the ids equipped at the end, comma-joined) |
 | `charm_offer` | `offered`, `picked`, `level` | A charm offer is answered (`picked` is `''` for a pass) |
 | `pp_offer` | `offered`, `picked`, `level` | A PowerPlay offer is answered (`picked` is `''` when the held one is kept) |
 | `pp_use` | `pp`, `level` | A PowerPlay is used (an instant one counts when picked) |
