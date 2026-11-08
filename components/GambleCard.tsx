@@ -247,15 +247,25 @@ const DraftDay: React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | 
   );
 };
 
-/** Card Sharks (v7.28): higher or lower, push your luck. A tie is a free pass. */
+/** Card Sharks (v7.28): higher or lower, push your luck. A tie is a free pass. After a bank the
+ * next card turns over, so the player sees whether their next call would have been right. */
 const CardSharks: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
   const steps = V.cardSharksLadder.length;
   const [card, setCard] = useState(() => drawCard());
   const [right, setRight] = useState(0);
   const [last, setLast] = useState<string | null>(null);
+  const [banked, setBanked] = useState<{ amount: number; calls: number; next: number } | null>(null);
   const pot = cardSharksPot(right);
-  const bank = (amount: number, calls: number) => onResolve({ points: amount, headline: calls >= steps ? `RAN THE BOARD! +${amount}` : `BANKED: +${amount} POINTS`, detail: `You made ${calls} right ${calls === 1 ? 'call' : 'calls'}.`, tone: 'win' });
+  const verdict = (next: number) =>
+    next === card ? `a tie: a free pass either way` : `${next > card ? 'HIGHER' : 'LOWER'} would have been right`;
+  const pay = (amount: number, calls: number, next?: number) => onResolve({
+    points: amount, tone: 'win',
+    headline: calls >= steps ? `RAN THE BOARD! +${amount}` : `BANKED: +${amount} POINTS`,
+    detail: `You made ${calls} right ${calls === 1 ? 'call' : 'calls'}.${next !== undefined ? ` The next card was ${cardFace(next)}: ${verdict(next)}.` : ''}`,
+  });
+  const bank = () => { soundService.playTileClick(); setBanked({ amount: pot, calls: right, next: drawCard() }); };
   const call = (higher: boolean) => {
+    if (banked) return;
     const next = drawCard();
     if (next === card) { soundService.playTileClick(); setLast(`${cardFace(next)}: a tie. Free pass!`); setCard(next); return; }
     if ((next > card) !== higher) {
@@ -263,21 +273,39 @@ const CardSharks: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onReso
       return;
     }
     const now = right + 1;
-    if (now >= steps) { bank(cardSharksPot(now), now); return; }
+    if (now >= steps) { pay(cardSharksPot(now), now); return; }
     soundService.playTileClick();
     setLast(`${cardFace(next)}: right!`); setRight(now); setCard(next);
   };
+  const cardClass = 'w-20 h-28 rounded-xl bg-white text-slate-900 flex items-center justify-center font-display text-5xl shadow-lg';
+  if (banked) {
+    const tie = banked.next === card;
+    return (
+      <>
+        <div className="flex items-center gap-3">
+          <div className={cardClass} aria-label={`Your card: ${cardFace(card)}`}>{cardFace(card)}</div>
+          <span className="osd-text text-xl text-slate-400" aria-hidden="true">→</span>
+          <div className={`${cardClass} ring-4 ${tie ? 'ring-neon-yellow' : 'ring-neon-cyan'} level-stage-in`} aria-label={`Next card: ${cardFace(banked.next)}`}>{cardFace(banked.next)}</div>
+        </div>
+        <p className="text-slate-200" aria-live="polite">
+          The next card was <strong className="text-white">{cardFace(banked.next)}</strong>: {tie ? <>a tie, so a free pass either way.</> : <><strong className={banked.next > card ? 'text-neon-cyan' : 'text-neon-pink'}>{banked.next > card ? 'HIGHER' : 'LOWER'}</strong> would have been right.</>}
+        </p>
+        <p className="font-display text-3xl text-neon-yellow">BANKED: {banked.amount}</p>
+        <ArcadeButton color="green" className="w-full" onClick={() => pay(banked.amount, banked.calls, banked.next)}>Take the {banked.amount}</ArcadeButton>
+      </>
+    );
+  }
   return (
     <>
       {last && <p className="text-neon-green text-sm">{last}</p>}
-      <div className="w-20 h-28 rounded-xl bg-white text-slate-900 flex items-center justify-center font-display text-5xl shadow-lg" aria-label={`Card: ${cardFace(card)}`}>{cardFace(card)}</div>
+      <div className={cardClass} aria-label={`Card: ${cardFace(card)}`}>{cardFace(card)}</div>
       <p className="font-display text-3xl text-neon-yellow" aria-live="polite">POT: {pot}</p>
       <p className="text-slate-200 text-sm">Next right call: {cardSharksPot(right + 1)}. A wrong call wipes the pot.</p>
       <div className="grid grid-cols-2 gap-2 w-full">
         <ArcadeButton color="cyan" onClick={() => call(true)}>Higher</ArcadeButton>
         <ArcadeButton color="pink" onClick={() => call(false)}>Lower</ArcadeButton>
       </div>
-      {right > 0 && <ArcadeButton color="green" className="w-full" onClick={() => bank(pot, right)}>Stop and bank {pot}</ArcadeButton>}
+      {right > 0 && <ArcadeButton color="green" className="w-full" onClick={bank}>Stop and bank {pot}</ArcadeButton>}
     </>
   );
 };
