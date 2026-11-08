@@ -48,8 +48,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack, onEditBling }) =>
       </p>
 
       <div className="mt-auto shrink-0 grid gap-3">
-        <ArcadeButton color="purple" className="w-full" onClick={click(onEditBling)}>🏷️ Change Badge &amp; Title</ArcadeButton>
-        <ArcadeButton color="yellow" size="lg" className="w-full" onClick={click(onBack)}>◀ Back</ArcadeButton>
+        <ArcadeButton color="purple" variant="outline" className="w-full" onClick={click(onEditBling)}>🏷️ Change Badge &amp; Title</ArcadeButton>
+        <ArcadeButton color="slate" variant="outline" className="w-full" onClick={click(onBack)}>◀ Back</ArcadeButton>
       </div>
     </div>
   );

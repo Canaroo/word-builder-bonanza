@@ -79,7 +79,7 @@ const BadgeCaseScreen: React.FC<BadgeCaseScreenProps> = ({ onBack }) => {
       </div>
 
       <div className="shrink-0">
-        <ArcadeButton color="yellow" size="lg" className="w-full" onClick={handleBack}>
+        <ArcadeButton color="slate" variant="outline" className="w-full" onClick={handleBack}>
           ◀ Back
         </ArcadeButton>
       </div>

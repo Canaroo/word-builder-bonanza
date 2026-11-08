@@ -105,7 +105,7 @@ export const PowerPlayOffer: React.FC<{
     </div>
 
     {held && (
-      <ArcadeButton color="yellow" className="w-full mt-3" onClick={onKeep}>
+      <ArcadeButton color="yellow" variant="outline" className="w-full mt-3" onClick={onKeep}>
         ✋ Keep {held.icon} {held.name}
       </ArcadeButton>
     )}
@@ -195,7 +195,7 @@ export const CharmOffer: React.FC<{
         ))}
       </div>
       {full && (
-        <ArcadeButton color="slate" className="w-full mt-3" onClick={onPass}>
+        <ArcadeButton color="slate" variant="outline" className="w-full mt-3" onClick={onPass}>
           Pass: keep my {CHARM_SLOTS}
         </ArcadeButton>
       )}

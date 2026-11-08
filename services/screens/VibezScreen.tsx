@@ -66,7 +66,7 @@ const VibezScreen: React.FC<VibezScreenProps> = ({
       return <ArcadeButton color="slate" size="sm" className="w-full" disabled>✓ Playing</ArcadeButton>;
     }
     if (unlockedPackIds.includes(pack.id)) {
-      return <ArcadeButton color="purple" size="sm" className="w-full" onClick={click(() => onSelectPack(pack.id))}>Select</ArcadeButton>;
+      return <ArcadeButton color="purple" variant="outline" size="sm" className="w-full" onClick={click(() => onSelectPack(pack.id))}>Select</ArcadeButton>;
     }
     if (pack.streakDay) {
       return <ArcadeButton color="slate" size="sm" className="w-full" disabled>🔥 {pack.streakDay}-day streak reward</ArcadeButton>;
@@ -86,7 +86,7 @@ const VibezScreen: React.FC<VibezScreenProps> = ({
     if (worn) {
       action = <ArcadeButton color="slate" size="sm" onClick={click(() => onEquipCosmetic(item.kind, null))}>✓ Wearing</ArcadeButton>;
     } else if (owned) {
-      action = <ArcadeButton color="purple" size="sm" onClick={click(() => onEquipCosmetic(item.kind, item.id))}>Wear</ArcadeButton>;
+      action = <ArcadeButton color="purple" variant="outline" size="sm" onClick={click(() => onEquipCosmetic(item.kind, item.id))}>Wear</ArcadeButton>;
     } else if (item.streakDay) {
       action = <span className="osd-text text-base leading-none text-neon-orange text-right">🔥 {item.streakDay}-DAY<br />STREAK</span>;
     } else {
@@ -170,7 +170,7 @@ const VibezScreen: React.FC<VibezScreenProps> = ({
       </div>
 
       <div className="shrink-0">
-        <ArcadeButton color="yellow" size="lg" className="w-full" onClick={click(onBack)}>
+        <ArcadeButton color="slate" variant="outline" className="w-full" onClick={click(onBack)}>
           ◀ Back
         </ArcadeButton>
       </div>

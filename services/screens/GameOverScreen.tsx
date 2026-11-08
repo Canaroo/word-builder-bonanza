@@ -198,7 +198,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
                     <EventLogDisplay log={gameState.log} />
                 </div>
                 <div className="mt-4 space-y-2 flex-shrink-0">
-                    <ArcadeButton color="yellow" className="w-full" onClick={handleCloseWordLog}>Close</ArcadeButton>
+                    <ArcadeButton color="slate" variant="outline" className="w-full" onClick={handleCloseWordLog}>Close</ArcadeButton>
                 </div>
             </div>
         </div>
@@ -223,7 +223,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
                 {isSaving ? <span className="blink">Saving…</span> : 'Confirm'}
               </ArcadeButton>
             </form>
-            <ArcadeButton color="red" size="sm" className="w-full mt-3" onClick={handleCancelSubmit} disabled={isActionLocked || isSaving}>
+            <ArcadeButton color="slate" variant="text" className="mx-auto mt-2" onClick={handleCancelSubmit} disabled={isActionLocked || isSaving}>
               Cancel
             </ArcadeButton>
           </div>
@@ -327,7 +327,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
         {daily?.run.practice ? (
           <p className="osd-text text-base text-slate-400 leading-tight">PRACTICE RUNS DON'T POST TO THE TOP 50</p>
         ) : (
-          <ArcadeButton color="cyan" size="lg" className="w-full" onClick={handleSubmitScoreClick} disabled={isActionLocked}>
+          <ArcadeButton color="cyan" variant="outline" className="w-full" onClick={handleSubmitScoreClick} disabled={isActionLocked}>
             🏆 Submit Score
           </ArcadeButton>
         )}
@@ -335,9 +335,9 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
           {daily ? '▶ Practice Today’s Run' : '▶ Play Again'}
         </ArcadeButton>
         <div className="grid grid-cols-3 gap-2">
-          <ArcadeButton color="purple" size="sm" onClick={handleShowWordLogClick} disabled={isActionLocked}>📼 Log</ArcadeButton>
-          <ArcadeButton color="green" size="sm" onClick={handleShare} disabled={isActionLocked || !recap}>📤 Share</ArcadeButton>
-          <ArcadeButton color="slate" size="sm" onClick={handleMenuClick} disabled={isActionLocked}>Menu</ArcadeButton>
+          <ArcadeButton color="slate" variant="outline" size="sm" onClick={handleShowWordLogClick} disabled={isActionLocked}>📼 Log</ArcadeButton>
+          <ArcadeButton color="green" variant="outline" size="sm" onClick={handleShare} disabled={isActionLocked || !recap}>📤 Share</ArcadeButton>
+          <ArcadeButton color="slate" variant="outline" size="sm" onClick={handleMenuClick} disabled={isActionLocked}>Menu</ArcadeButton>
         </div>
         <p className="osd-text text-sm text-slate-500 leading-tight">RUN SAVED · PIN IT ANYTIME FROM EVENT LOGS</p>
       </div>
