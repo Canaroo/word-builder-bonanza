@@ -81,7 +81,7 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Lucky Charms) stay single-shot. Ladders, rounds and offers in `POWER_PLAY_VALUES`.
   After a bank, each shows what would have come next, then pays on "Take the N": Minesweeper the
   mine (and the odds the next pick had), Card Sharks the next card, Let's Make a Deal the doors you
-  passed on, No Whammies! the next spin. Deal or No Deal already opens your case.
+  passed on, No Whammies! the next spin, Deal or No Deal your case (when you take the deal).
 - **Multi-word PowerPlays (v7.28)** settle in `completeSubmission` and pay outside the word, with
   a progress chip above the hand (`components/PowerPlayTrackers.tsx`): Tamagotchi (pot), Time
   Capsule (buried word), Smell Ya Later! (rival race), Winner Winner Chicken Dinner (blackjack count,
