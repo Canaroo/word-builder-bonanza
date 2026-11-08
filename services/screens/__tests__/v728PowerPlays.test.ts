@@ -149,3 +149,21 @@ describe('v7.28 reducer paths', () => {
         expect(saver.gameState.lastPowerPlayUsed).toBe('konamiCode');
     });
 });
+
+describe('timed and blind PowerPlays start the moment they are picked (v7.28.1)', () => {
+    // Held in the pocket, a player could build a word first, then activate and submit at once.
+    test.each(['popQuizHotshot', 'smellYaLater', 'birdBox'])('%s fires on pick, never reaching the pocket', id => {
+        expect(INSTANT_POWER_PLAY_IDS.has(id)).toBe(true);
+        const s = start({ powerPlayOffer: [pp(id)] }, 33);
+        const next = gameReducer(s, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp(id), allOffered: [pp(id)] } });
+        expect(next.gameState.availablePowerPlays.some(p => p.id === id)).toBe(false);
+        expect(next.gameState.activePowerPlays[id]).toBeTruthy();
+        expect(pp(id).description).toMatch(/^Starts the moment you pick it/);
+    });
+    test('the Pop Quiz and race clocks start at the clock when picked', () => {
+        const quiz = gameReducer(start({ powerPlayOffer: [pp('popQuizHotshot')] }, 33), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('popQuizHotshot'), allOffered: [pp('popQuizHotshot')] } });
+        expect(quiz.gameState.activePowerPlays.popQuizHotshot).toEqual({ startClock: 33 });
+        const race = gameReducer(start({ powerPlayOffer: [pp('smellYaLater')] }, 27), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('smellYaLater'), allOffered: [pp('smellYaLater')] } });
+        expect(race.gameState.activePowerPlays.smellYaLater).toEqual({ words: V.rivalWords, mine: 0, rival: 0, clock: 27 });
+    });
+});
