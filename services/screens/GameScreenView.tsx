@@ -151,15 +151,40 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     handleAddTileToSwap, handleRemoveTileFromSwap, handleExecuteSwap, dispatch
 }) => {
     const timerRef = useRef<HTMLDivElement>(null);
-    // Bird Box (v7.28): each new hand shows its letters for a few seconds, then flips face down.
+    // Bird Box (v7.28): new tiles show their letters for a few seconds, then flip face down.
+    // Only tiles never seen before start a peek (v7.32.4): tapping a tile into the word, or one
+    // coming back to the hand, used to change the hand and flip every tile face up again.
+    // Resuming a saved run that's already blind doesn't peek either (no quit-and-reload peek).
     const blind = !!gameState?.activePowerPlays?.birdBox;
-    const handKey = (hand ?? []).map(t => t?.id ?? '-').join(',');
-    const [peeking, setPeeking] = useState(true);
+    const handIds = (hand ?? []).filter(Boolean).map(t => t!.id);
+    const handKey = handIds.join(',');
+    const [peeking, setPeeking] = useState(!blind);
+    const seenIds = useRef<Set<string> | null>(null);
+    const blindAtMount = useRef(blind);
+    const peekTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => { if (peekTimer.current) clearTimeout(peekTimer.current); }, []);
     useEffect(() => {
-        if (!blind) { setPeeking(true); return; }
+        if (!blind) {
+            seenIds.current = null;
+            blindAtMount.current = false;
+            if (peekTimer.current) clearTimeout(peekTimer.current);
+            setPeeking(true);
+            return;
+        }
+        let fresh: boolean;
+        if (!seenIds.current) {
+            seenIds.current = new Set(handIds);
+            fresh = !blindAtMount.current;
+            blindAtMount.current = false;
+        } else {
+            fresh = handIds.some(id => !seenIds.current!.has(id));
+            handIds.forEach(id => seenIds.current!.add(id));
+        }
+        if (!fresh) return;
         setPeeking(true);
-        const t = setTimeout(() => setPeeking(false), POWER_PLAY_VALUES.birdBoxSeconds * 1000);
-        return () => clearTimeout(t);
+        if (peekTimer.current) clearTimeout(peekTimer.current);
+        peekTimer.current = setTimeout(() => setPeeking(false), POWER_PLAY_VALUES.birdBoxSeconds * 1000);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [blind, handKey]);
     // After a level-up (once every pop-up it came with is closed), the level badge under the timer
     // flashes in its tier color, so the card and the badge read as one thing.

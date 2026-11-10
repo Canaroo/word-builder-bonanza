@@ -100,6 +100,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Random-tile PowerPlays (`RANDOM_TILE_POWER_PLAYS`: One Tile to Rule Them All, Ice Ice Maybe,
   Morphin Time, Red Wedding, Rescue Drop) put the word-building row back in the hand first, so
   parking tiles there can't steer the pick. Add new random-tile ones to that set.
+  Bird Box peeks only when tiles it hasn't shown yet arrive (a tap or a returned tile never re-peeks,
+  and resuming a blind run doesn't either): `seenIds` in `GameScreenView.tsx`.
 - **Balance from usage stats (v7.29.0, 50 runs):** a PowerPlay offer shows at most one time card
   (`TIME_CARD_IDS`, `limitTimeCards`): time cards were picked 59% of the time against 10-20% for
   the rest. Vowel Lover keeps +20 a vowel but every word costs 1 s (`theValveSeconds`; it was +61 a
