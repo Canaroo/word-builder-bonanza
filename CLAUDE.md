@@ -163,6 +163,20 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   `run_end` now carries `cause`, `secs`, `tWords`/`tItems`/`tShuffles` and `upgrades`, and
   `charm_offer` carries `upgraded`. These go as `extras` in `sendStat`, which resends the plain
   event if the Firebase rules reject them; new optional stat fields should go the same way.
+- **Balance, second batch (v7.34.0):** charm points were flat, so a 4-letter word with a typical
+  charm set averaged 148 points against 138 for a 7-letter one. **Long-word boost:** charm points on
+  a word pay +25% on 5 letters, +50% on 6, +100% on 7, +150% on 8+ (`CHARM_LENGTH_BOOST`,
+  `charmLengthPoints`), as a "📏 Long word" line; one-off payouts are skipped
+  (`NO_LENGTH_BOOST_CHARM_IDS`), and 0 means 0 still holds. Simulated: 3-5 letter play +2%,
+  5-letter play +17%, longest-word play +35%. **Prize growth:** PowerPlay point prizes grow 10% a
+  level, capped at x2.5 (`PRIZE_GROWTH`, `prizeFor()`; a 300 prize is 450 at level 6): time cards
+  were still taken 63% of the time they were offered. Gamble cards scale centrally in
+  `APPLY_GAMBLE` (the outcome card says "prize boost: 300 → 450"); other prizes call `prizeFor()`
+  where they pay. Losses, costs and wagers stay fixed. Prize cards (`PRIZE_POWER_PLAY_IDS`) show
+  "⬆ LEVEL N: PRIZES xS" on the offer, and the level-up card lists the new multiplier. New point
+  prizes go in that set and pay through `prizeFor()`.
+  Known and left alone: word multipliers (x3 next word) only multiply the tile points (about 14),
+  not charm points, so multiplier PowerPlays are weak next to prizes.
 - **Power words** (10 secret words with `effect`, no points): SLOT (slot machine, +1/3/10s), SNOW
   (clock frozen 10s), HEAL (remove a strike, else +100), SLOW (half-speed clock for 3 words), TWIN
   (clone your best word's time + a Word Combo step), RINGS (Strike Shield), REWIND (clock one speed

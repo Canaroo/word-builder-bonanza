@@ -156,3 +156,64 @@ describe('run_end extras (v7.33)', () => {
         expect(s.charms.goldenTicket.upgraded).toBe(1);
     });
 });
+
+// v7.34: long words boost charm points, and PowerPlay point prizes grow with the level.
+import { CHARM_LENGTH_BOOST, PRIZE_GROWTH } from '../../config/gameplay';
+import { NO_LENGTH_BOOST_CHARM_IDS } from '../../data/charms';
+import { POWER_PLAYS_LIST, PRIZE_POWER_PLAY_IDS } from '../../data/powerPlays';
+import { charmLengthBoostFor, charmLengthPoints, levelUpInfo, prizeFor, prizeScaleFor } from '../rules';
+
+describe('long-word boost (v7.34)', () => {
+    const bonuses = [
+        { name: 'Chaos Theory', description: '+50 pts' },
+        { name: 'Vowel Lover (E)', description: '+20 pts' },
+        { name: 'Golden Snitch', description: '+500 pts' },
+        { name: 'Super Hand', description: '+100 pts' },
+        { name: '⭐ Charm upgrades', description: '+25 pts (50% more from upgraded charms)' },
+    ];
+    const charms = ['Chaos Theory', 'Vowel Lover'];
+
+    test('short words get nothing; the boost grows with length and holds past 8', () => {
+        expect([3, 4].map(charmLengthBoostFor)).toEqual([0, 0]);
+        expect([5, 6, 7, 8].map(charmLengthBoostFor)).toEqual([CHARM_LENGTH_BOOST[5], CHARM_LENGTH_BOOST[6], CHARM_LENGTH_BOOST[7], CHARM_LENGTH_BOOST[8]]);
+        expect(charmLengthBoostFor(10)).toBe(CHARM_LENGTH_BOOST[8]);
+    });
+
+    test('it pays a share of the named charms\' points only', () => {
+        expect(charmLengthPoints(bonuses, charms, 4)).toBe(0);
+        expect(charmLengthPoints(bonuses, charms, 5)).toBe(Math.round(70 * CHARM_LENGTH_BOOST[5] / 100));
+        expect(charmLengthPoints(bonuses, charms, 7)).toBe(Math.round(70 * CHARM_LENGTH_BOOST[7] / 100));
+        expect(charmLengthPoints(bonuses, [], 8)).toBe(0);
+    });
+
+    test('one-off payouts are left out, and they are real charms', () => {
+        for (const id of NO_LENGTH_BOOST_CHARM_IDS) expect(CHARMS_LIST.some(c => c.id === id), id).toBe(true);
+        expect(NO_LENGTH_BOOST_CHARM_IDS.has('goldenSnitch')).toBe(true);
+    });
+});
+
+describe('PowerPlay prize growth (v7.34)', () => {
+    test('prizes grow each level up to the cap', () => {
+        expect(prizeScaleFor(1)).toBe(1);
+        expect(prizeScaleFor(6)).toBe(1 + 5 * PRIZE_GROWTH.perLevel);
+        expect(prizeScaleFor(11)).toBe(2);
+        expect(prizeScaleFor(40)).toBe(PRIZE_GROWTH.max);
+        expect([1, 6, 11, 16, 30].map(l => prizeFor(300, l))).toEqual([300, 450, 600, 750, 750]);
+    });
+
+    test('losses and zero are never scaled, and prizes round to 5', () => {
+        expect(prizeFor(0, 12)).toBe(0);
+        expect(prizeFor(-100, 12)).toBe(-100);
+        expect(prizeFor(125, 2) % 5).toBe(0);
+    });
+
+    test('every prize PowerPlay exists', () => {
+        for (const id of PRIZE_POWER_PLAY_IDS) expect(POWER_PLAYS_LIST.some(p => p.id === id), id).toBe(true);
+    });
+
+    test('the level-up card shows the new prize multiplier', () => {
+        const row = levelUpInfo(6).changes.find(c => c.label === 'PowerPlay prizes');
+        expect(row).toMatchObject({ from: `x${prizeScaleFor(5)}`, to: `x${prizeScaleFor(6)}` });
+        expect(levelUpInfo(30).changes.some(c => c.label === 'PowerPlay prizes')).toBe(false);
+    });
+});

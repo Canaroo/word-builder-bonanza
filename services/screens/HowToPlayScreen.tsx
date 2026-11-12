@@ -1,6 +1,6 @@
 import React from 'react';
 import { soundService } from '../soundService';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, BOSS } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS } from '../../config/gameplay';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import ArcadeButton from '../../components/ArcadeButton';
 import ScreenShell from '../../components/ScreenShell';
@@ -117,7 +117,9 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             <Key>Charms</Key> are always on. They change the rules for the rest of the run ("every E is worth +
             {CHARM_BONUS.oneRing}"). Play enough words and you pick one of three. You have{' '}
             <Key>{CHARM_SLOTS} charm slots</Key>: when they're full, swap one out, pass, or <Key>⭐ upgrade</Key> one you
-            hold so its point bonuses pay {CHARM_UPGRADE.percent}% more (once per charm).
+            hold so its point bonuses pay {CHARM_UPGRADE.percent}% more (once per charm). <Key>Long words</Key> boost
+            charm points: +{CHARM_LENGTH_BOOST[5]}% on 5 letters, +{CHARM_LENGTH_BOOST[6]}% on 6, +{CHARM_LENGTH_BOOST[7]}% on 7
+            and +{CHARM_LENGTH_BOOST[8]}% on 8.
           </p>
           <p>
             <Key>PowerPlays</Key> are a button you press once, at the moment you choose. Fill the meter by playing{' '}
@@ -126,7 +128,8 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             {GAMEPLAY.powerPlayMeterGrowth.max} letters. You can <Key>hold one</Key> in your Buffs tray; tap it to use it. Earn another while holding one and
             you choose: <Key>keep</Key> yours or <Key>swap</Key>. Either way you still hold just one: <Key>Instant</Key> ones fire right away and replace
             the one in your pocket too. The biggest lifesavers (like Happy Place) are marked <Key>1× PER RUN</Key>: once you
-            take one, it won't be offered again that run.
+            take one, it won't be offered again that run. <Key>Point prizes</Key> (gambles, Pop Quiz and the like) grow{' '}
+            {Math.round(PRIZE_GROWTH.perLevel * 100)}% with each level, up to x{PRIZE_GROWTH.max}.
           </p>
         </Section>
 

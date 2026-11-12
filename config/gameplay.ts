@@ -367,5 +367,21 @@ export const CHARM_SLOTS = 5;
  */
 export const CHARM_UPGRADE = { percent: 50 } as const;
 
+/**
+ * Long-word boost (v7.34): charm points on a word pay this many percent more, by word length
+ * (longer words use the last entry). Charm bonuses are flat, so a 4-letter word with a typical
+ * charm set averaged 148 points against 138 for a 7-letter word; now long words win on score too.
+ * Simulated effect on points per word: 3-5 letter play +2%, 5-letter play +17%, longest-word play +35%.
+ */
+export const CHARM_LENGTH_BOOST: Record<number, number> = { 5: 25, 6: 50, 7: 100, 8: 150 };
+
+/**
+ * PowerPlay point prizes grow with the run level (v7.34): +perLevel per level after the first, up
+ * to max times the listed prize (a 300 prize pays 450 at level 6, 600 at level 11, 750 from level
+ * 16). Time bonuses shrink 5% a level, so fixed prizes fell behind: time cards were taken 63% of
+ * the time they were offered. Losses, costs and wagers stay as listed.
+ */
+export const PRIZE_GROWTH = { perLevel: 0.1, max: 2.5 } as const;
+
 /** Time bank maximum while the Power Glove charm is equipped. */
 export const POWER_GLOVE_BANK_MAX = 120;

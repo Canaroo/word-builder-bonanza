@@ -1138,3 +1138,7 @@ export const UPGRADABLE_CHARM_IDS: ReadonlySet<string> = new Set([
   'conjunctionJunction', 'voteForPedro', 'formVoltron', 'titansGo', 'mrGlass', 'honeyIShrunkTheKids',
   'myPrecious', 'hitTheFlagpole', 'supermarketSweep', 'sesameStreet', 'hungryHippos',
 ]);
+
+/** One-off and level-up payouts: the long-word boost (CHARM_LENGTH_BOOST) skips them, so a lucky
+ * long word can't double a +500 Snitch catch. */
+export const NO_LENGTH_BOOST_CHARM_IDS: ReadonlySet<string> = new Set(['goldenSnitch', 'gottaCatchEmAll', 'myPrecious', 'hitTheFlagpole']);

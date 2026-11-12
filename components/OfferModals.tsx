@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Charm, PowerPlay } from '../types';
-import { INSTANT_POWER_PLAY_IDS } from '../data/powerPlays';
+import { INSTANT_POWER_PLAY_IDS, PRIZE_POWER_PLAY_IDS } from '../data/powerPlays';
 import { CHARM_SLOTS, CHARM_UPGRADE } from '../config/gameplay';
 import { UPGRADABLE_CHARM_IDS } from '../data/charms';
 import DurationBadge from '../ui/DurationBadge';
@@ -75,9 +75,12 @@ export const PowerPlayOffer: React.FC<{
   reason?: React.ReactNode;
   offered: PowerPlay[];
   held: PowerPlay | null;
+  /** The run level and what point prizes are multiplied by there (PRIZE_GROWTH); shown on prize cards. */
+  level?: number;
+  prizeScale?: number;
   onChoose: (powerPlay: PowerPlay) => void;
   onKeep: () => void;
-}> = ({ title, reason, offered, held, onChoose, onKeep }) => (
+}> = ({ title, reason, offered, held, level, prizeScale = 1, onChoose, onKeep }) => (
   <Overlay tone="green">
     <h2 className="font-display text-2xl text-neon-green text-center leading-none">{title}</h2>
     {reason && <p className="osd-text text-lg text-slate-300 text-center leading-tight mt-1">{reason}</p>}
@@ -98,9 +101,13 @@ export const PowerPlayOffer: React.FC<{
       {offered.map(pp => {
         const instant = INSTANT_POWER_PLAY_IDS.has(pp.id);
         const tag = instant ? <Tag tone="cyan">INSTANT</Tag> : held ? <Tag tone="green">SWAP</Tag> : <Tag tone="green">TAKE</Tag>;
-        const note = !held ? null : instant
+        const swapNote = !held ? null : instant
           ? <span className="text-neon-cyan">⚡ FIRES NOW · REPLACES {held.icon} {held.name.toUpperCase()}</span>
           : <span className="text-neon-green">🔄 REPLACES {held.icon} {held.name.toUpperCase()}</span>;
+        const prizeNote = prizeScale > 1 && PRIZE_POWER_PLAY_IDS.has(pp.id)
+          ? <span className="text-neon-yellow">⬆ LEVEL {level}: PRIZES x{prizeScale}</span>
+          : null;
+        const note = swapNote || prizeNote ? <>{prizeNote}{prizeNote && swapNote ? <br /> : null}{swapNote}</> : null;
         return <ItemCard key={pp.id} item={pp} tag={tag} note={note} onClick={() => onChoose(pp)} />;
       })}
     </div>
