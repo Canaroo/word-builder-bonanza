@@ -11,7 +11,7 @@ import EventLogDisplay from '../../components/EventLogDisplay';
 import { MILESTONES_LIST } from '../../data/milestones';
 import DurationBadge from '../../ui/DurationBadge';
 import { RACK_SIZE, HAND_SIZE } from '../../constants';
-import { GAMEPLAY, CHARM_SLOTS, TIME_BONUS, BOSS, CHARM_BONUS } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_SLOTS, CHARM_UPGRADE, TIME_BONUS, BOSS, CHARM_BONUS } from '../../config/gameplay';
 import { bossById } from '../../data/bosses';
 import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor, bossHitsToWin } from '../rules';
 import LevelBadge from '../../components/LevelBadge';
@@ -133,6 +133,7 @@ export interface GameScreenViewProps {
   handleChoosePowerPlay: (powerPlay: PowerPlay, allOffered: PowerPlay[]) => void;
   handleChooseCharm: (charm: Charm, allOffered: Charm[], replaceId?: string) => void;
   handlePassCharm: (allOffered: Charm[]) => void;
+  handleUpgradeCharm: (charmId: string, allOffered: Charm[]) => void;
   handleKeepPowerPlay: (allOffered: PowerPlay[]) => void;
   handleAddTileToSwap: (tile: Tile, originalIndex: number) => void;
   handleRemoveTileFromSwap: (originalIndex: number) => void;
@@ -147,7 +148,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
     handleMoveToBuild, handleReturnToHand, handleShuffle, handleSubmit, handleClear,
     handleChallenge, handleSaveClick, handleConfirmSave, showBuffInfo,
-    handleActivatePowerPlay, handleActivateCharm, handleChoosePowerPlay, handleChooseCharm, handlePassCharm, handleKeepPowerPlay,
+    handleActivatePowerPlay, handleActivateCharm, handleChoosePowerPlay, handleChooseCharm, handlePassCharm, handleUpgradeCharm, handleKeepPowerPlay,
     handleAddTileToSwap, handleRemoveTileFromSwap, handleExecuteSwap, dispatch
 }) => {
     const timerRef = useRef<HTMLDivElement>(null);
@@ -318,6 +319,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         <div className={`${modalBoxBaseClass} border-purple-400`}>
                            <h2 className="text-3xl font-bold text-purple-400 mb-4 text-center flex items-center justify-center gap-3"><span className="text-4xl">{buff.icon}</span> {buff.name}</h2>
                            <p className="text-slate-200 text-center text-lg mb-2">{buff.description}</p>
+                           {(gameState?.charmUpgrades ?? []).includes(buff.id) && (gameState?.activeCharms ?? []).some(c => c.id === buff.id) && (
+                               <p className="osd-text text-lg text-neon-yellow text-center mb-2">⭐ UPGRADED: ITS POINT BONUSES PAY {CHARM_UPGRADE.percent}% MORE</p>
+                           )}
                            <p className="text-slate-400 text-center italic mb-4">"{buff.flavorText}"</p>
                            <button onClick={handleCloseModal} className="w-full mt-4 px-6 py-3 text-xl font-bold text-slate-900 bg-purple-500 rounded-lg shadow-lg hover:bg-purple-400">CLOSE</button>
                        </div>
@@ -349,6 +353,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         reason={content}
                         offered={offered}
                         equipped={gameState?.activeCharms ?? []}
+                        upgradedIds={gameState?.charmUpgrades ?? []}
+                        onUpgrade={charmId => handleUpgradeCharm(charmId, offered)}
                         onChoose={(charm, replaceId) => handleChooseCharm(charm, offered, replaceId)}
                         onPass={() => handlePassCharm(offered)}
                     />
@@ -719,10 +725,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       )}
 
       {activeBoss && gameState?.boss && gameState.roundType !== 'golden' && (
-        <div className="boss-banner flex-shrink-0 rounded-lg px-3 py-1.5 text-center" role="status" aria-label={`Boss round: ${activeBoss.name}. ${activeBoss.description} ${gameState.boss.hits} of ${bossHitsToWin(gameState)} hits, ${gameState.boss.wordsLeft} words left.`}>
+        <div className="boss-banner flex-shrink-0 rounded-lg px-3 py-1.5 text-center" role="status" aria-label={`Boss round: ${activeBoss.name}. ${activeBoss.description} ${gameState.boss.hits} of ${bossHitsToWin(gameState, activeBoss)} hits, ${gameState.boss.wordsLeft} words left.`}>
           <div className="font-display text-lg leading-none text-white">{activeBoss.icon} BOSS ROUND · {activeBoss.name.toUpperCase()}</div>
           <div className="osd-text text-base leading-tight text-white/90">
-            <span className="font-bold text-white">{activeBoss.rule}</span> · 👊 {gameState.boss.hits}/{bossHitsToWin(gameState)} · {gameState.boss.wordsLeft} {gameState.boss.wordsLeft === 1 ? 'WORD' : 'WORDS'} LEFT
+            <span className="font-bold text-white">{activeBoss.rule}</span> · 👊 {gameState.boss.hits}/{bossHitsToWin(gameState, activeBoss)} · {gameState.boss.wordsLeft} {gameState.boss.wordsLeft === 1 ? 'WORD' : 'WORDS'} LEFT
           </div>
         </div>
       )}
@@ -834,6 +840,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                               return (
                                   <button key={buff.instanceId || buff.id} onClick={() => showBuffInfo(buff)} className="flex items-center gap-0.5 bg-neon-purple/20 ring-1 ring-neon-purple/50 h-7 min-w-7 px-1.5 rounded-full text-xs text-white hover:bg-neon-purple/35 transition-colors" title={`${buff.name} (charm): tap for details`} aria-label={`Charm: ${buff.name}`}>
                                       <span className="text-sm leading-none">{buff.icon}</span>
+                                      {(gameState?.charmUpgrades ?? []).includes(buff.id) && <span className="text-[10px] leading-none" aria-label="upgraded">⭐</span>}
                                       {progress && <span className="osd-text text-sm leading-none text-neon-yellow">{progress}</span>}
                                   </button>
                               );

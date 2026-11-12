@@ -4,7 +4,7 @@ import { GameState, Tile, WordData, Milestone, Charm, PowerPlay, ScoreCalculatio
 import { RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, VOWELS, INITIAL_SHUFFLES, MAX_STRIKES_INITIAL, SUPER_HAND_BONUS, TILE_DISTRIBUTION, INITIAL_CHALLENGES, COMBO_TILES } from '../../constants';
 import * as gameUtils from '../gameUtils';
 import { MILESTONES_LIST } from '../../data/milestones';
-import { CHARMS_LIST } from '../../data/charms';
+import { CHARMS_LIST, UPGRADABLE_CHARM_IDS } from '../../data/charms';
 import { GAMBLE_CARD_IDS, type GambleResult } from '../../components/GambleCard';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, TIME_CARD_IDS } from '../../data/powerPlays';
 import { EASTER_EGGS } from '../../data/easterEggs';
@@ -19,8 +19,8 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, redrumReverse } from '../rules';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS } from '../../config/gameplay';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, redrumReverse } from '../rules';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
 import { currentStreak, powerWordBonusFor, recordBossBadge } from '../progression';
@@ -165,6 +165,8 @@ export type GameScreenState = {
   awaitingNextRound?: boolean;
   /** A resumed run counts down 3-2-1 (board hidden, clock stopped) before play continues. */
   resumeCountdown?: number;
+  /** Real milliseconds the bank clock has run this run (saved with the run; sent with run_end). */
+  playMs?: number;
 }
 
 const createScreenInitialState = (): GameScreenState => {
@@ -202,7 +204,7 @@ type GameAction =
     | { type: 'CLEAR_MESSAGE'; payload?: string }
     | { type: 'PAUSE_GAME' }
     | { type: 'RESUME_GAME' }
-    | { type: 'TICK_TIMER' }
+    | { type: 'TICK_TIMER'; ms?: number }
     | { type: 'TICK_FREEZE' }
     | { type: 'ADD_TIME', payload: number }
     | { type: 'SET_TIME', payload: number }
@@ -220,6 +222,7 @@ type GameAction =
     | { type: 'UPDATE_GAME_STATE', payload: Partial<GameState> }
     | { type: 'CHOOSE_CHARM', payload: { charm: Charm; hand: (Tile | null)[]; allOffered: Charm[]; replaceId?: string } }
     | { type: 'PASS_CHARM', payload: { allOffered: Charm[] } }
+    | { type: 'UPGRADE_CHARM', payload: { charmId: string; allOffered: Charm[] } }
     | { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: PowerPlay; allOffered: PowerPlay[] } }
     | { type: 'KEEP_POWER_PLAY', payload: { allOffered: PowerPlay[] } }
     | { type: 'ACTIVATE_POWER_PLAY', payload: PowerPlay }
@@ -358,7 +361,7 @@ const startBossRound = (gs: GameState, wordsBefore: number): ModalContent | null
     return {
         type: 'info',
         title: `${boss.icon} BOSS: ${boss.name}!`,
-        content: `“${boss.taunt}”\n\nRule: ${boss.description}\n\nLand ${bossHitsToWin(gs)} hits in your next ${BOSS.words} words to win the Boss Badge: +${reward.points} points and +${reward.seconds}s. Words that break the rule still score; they just don't count as hits.`,
+        content: `“${boss.taunt}”\n\nRule: ${boss.description}\n\nLand ${bossHitsToWin(gs, boss)} hits in your next ${BOSS.words} words to win the Boss Badge: +${reward.points} points and +${reward.seconds}s. Words that break the rule still score; they just don't count as hits.`,
     };
 };
 
@@ -547,7 +550,8 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         case 'CLEAR_MESSAGE': return action.payload === undefined || state.message === action.payload ? { ...state, message: '' } : state;
         case 'PAUSE_GAME': return { ...state, isPaused: true };
         case 'RESUME_GAME': return { ...state, isPaused: false, time: state.time }; // Prevent timer reset on resume
-        case 'TICK_TIMER': return { ...state, time: state.time - 1 };
+        // playMs: real time the clock has run this run (usage stats). Kept outside gameState so a tick doesn't touch it.
+        case 'TICK_TIMER': return { ...state, time: state.time - 1, playMs: (state.playMs ?? 0) + (action.ms ?? 1000) };
         // ❄️ A frozen clock: the freeze counts down instead of the bank.
         case 'TICK_FREEZE': return { ...state, gameState: { ...state.gameState, freezeLeft: Math.max(0, (state.gameState.freezeLeft ?? 0) - 1) } };
         case 'ADD_TIME': return {...state, time: clampTime(state.time + action.payload, bankMax(state.gameState)) };
@@ -650,7 +654,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 isPaused: true,
                 modalContent: outcome(powerPlay, `${wiped.length} ${wiped.length === 1 ? 'CHARM' : 'CHARMS'} WIPED`, `Clean slate: ${wiped.map(c => `${c.icon} ${c.name}`).join(', ')} ${wiped.length === 1 ? 'is' : 'are'} gone. New charm offers fill your slots again.`),
                 gameState: {
-                    ...gameState, activeCharms: [], activeBuffs: gameState.activeBuffs.filter(b => !ids.has(b.id)), log: [...gameState.log, entry],
+                    ...gameState, activeCharms: [], charmUpgrades: [], activeBuffs: gameState.activeBuffs.filter(b => !ids.has(b.id)), log: [...gameState.log, entry],
                     availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
                     powerPlayUses: { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 },
                 },
@@ -1272,10 +1276,31 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             return { ...state, gameState: { ...gameState, charmCooldowns } };
         }
 
+        // Charm upgrade (v7.33): with every slot full, an offer can upgrade an equipped charm instead.
+        case 'UPGRADE_CHARM': {
+            const { charmId, allOffered } = action.payload;
+            const charm = gameState.activeCharms.find(c => c.id === charmId);
+            const upgrades = gameState.charmUpgrades ?? [];
+            if (!charm || !UPGRADABLE_CHARM_IDS.has(charmId) || upgrades.includes(charmId)) return state;
+            const charmCooldowns = { ...gameState.charmCooldowns };
+            allOffered.forEach(c => { charmCooldowns[c.id] = 3; });
+            const entry: EventLogEntry = {
+                type: 'event', id: `charm-upgrade-${Date.now()}`, name: 'Charm Upgrade', icon: '⭐',
+                description: `Upgraded ${charm.icon} ${charm.name}: its point bonuses pay ${CHARM_UPGRADE.percent}% more.`,
+                scoreChange: 0, cumulativeScore: gameState.score,
+            };
+            return { ...state, gameState: {
+                ...gameState, charmCooldowns, charmUpgrades: [...upgrades, charmId], log: [...gameState.log, entry],
+                lastPowerPlayResult: { message: `⭐ ${charm.icon} ${charm.name} upgraded! Its points pay ${CHARM_UPGRADE.percent}% more.`, scoreChange: 0 },
+            } };
+        }
+
         case 'CHOOSE_CHARM': {
             const { charm, hand, allOffered, replaceId } = action.payload;
             let newHand = hand;
             let newGameState = { ...gameState };
+            // A charm that leaves (or comes back fresh) loses its upgrade.
+            newGameState.charmUpgrades = (newGameState.charmUpgrades ?? []).filter(id => id !== replaceId && id !== charm.id);
             let newTime = state.time;
 
             // Charm slots: a new charm beyond the limit must replace one.
@@ -2348,7 +2373,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             const { reason, word } = action.payload;
             let title = "GAME OVER";
             let content: React.ReactNode;
-            const finalGameState = { ...state.gameState };
+            const finalGameState = { ...state.gameState, endReason: reason, playMs: state.playMs ?? 0 };
 
             if (finalGameState.activePowerPlays.sonicSpeed) {
                 delete finalGameState.activePowerPlays.sonicSpeed;
@@ -2948,7 +2973,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       const clockLevel = levelFor(totalWords) - (gameState.rewindLevel === levelFor(totalWords) ? 1 : 0);
       const tickMs = frozen ? 1000 : gameState.roundType === 'golden' ? 1000 : tickMsFor(Math.max(1, clockLevel)) * slow;
       const interval = setInterval(() => {
-          dispatch({ type: frozen ? 'TICK_FREEZE' : 'TICK_TIMER' });
+          dispatch(frozen ? { type: 'TICK_FREEZE' } : { type: 'TICK_TIMER', ms: tickMs });
       }, tickMs);
 
       return () => clearInterval(interval);
@@ -3058,6 +3083,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // Bucks, Gift From Thanos, Fast Cash): the word ends at this many points. 0 means 0, so the
       // flat bonuses added later (chain, charms, Super Hand...) don't sneak points back on.
       let wordCeiling: number | null = scoreResult.capped ? scoreResult.totalScore : null;
+      // Upgraded charms, as equipped when the word was played (a charm can leave mid-word, like the Snitch).
+      const upgradedCharmNames = newState.activeCharms.filter(c => (newState.charmUpgrades ?? []).includes(c.id)).map(c => c.name);
 
       // Level-up charms: My Precious pays for unused shuffles, Hit the Flagpole for clock seconds.
       const payLevelUp = (result: ScoreCalculationResult) => {
@@ -3780,8 +3807,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               }
               scoreResult.bonuses.push({ name: '💥 Hadouken!', description: 'counts as a hit' });
           }
-          const need = bossHitsToWin(newState);
-          const { round, outcome } = advanceBoss(bossRound, hit, need);
+          const need = bossHitsToWin(newState, boss);
+          const { round, outcome } = advanceBoss(bossRound, hit, need, bossCloseHits(boss));
           const hits = bossRound.hits + (hit ? 1 : 0);
           scoreResult.bonuses.push(hit
               ? { name: `👊 Boss hit on ${boss.name}`, description: `${hits}/${need}` }
@@ -3871,6 +3898,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               modalQueue.push({ type: 'info', title: '💊 Dr. Mario’s Cure!', content: '3 clean words in a row! +100 bonus points.' });
               newState.drMarioCureStreak = 0;
           }
+      }
+
+      // Charm upgrades (v7.33): an upgraded charm's point bonuses on this word pay extra. A wiped
+      // or capped word stays as it is (0 means 0).
+      const upgradeBonus = wordLocked ? 0 : charmUpgradePoints(scoreResult.bonuses, upgradedCharmNames);
+      if (upgradeBonus > 0) {
+          runningScore += upgradeBonus;
+          scoreResult.bonuses.push({ name: '⭐ Charm upgrades', description: `+${upgradeBonus} pts (${CHARM_UPGRADE.percent}% more from upgraded charms)` });
       }
 
       // --- 6. Aggregate Score and Check Aggregate Bonuses ---
@@ -5098,6 +5133,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         handleCloseModal();
     };
 
+    const handleUpgradeCharm = (charmId: string, allOffered: Charm[]) => {
+        soundService.playUIClick();
+        // `upgraded` is a newer stats field: until the Firebase rules allow it, this counts as a pass.
+        sendStat({ type: 'charm_offer', offered: allOffered.map(c => c.id).join(','), picked: '', level: levelFor(totalWords) }, { upgraded: charmId });
+        dispatch({ type: 'UPGRADE_CHARM', payload: { charmId, allOffered } });
+        handleCloseModal();
+    };
+
     const handlePassCharm = (allOffered: Charm[]) => {
         soundService.playUIClick();
         sendStat({ type: 'charm_offer', offered: allOffered.map(c => c.id).join(','), picked: '', level: levelFor(totalWords) });
@@ -5198,6 +5241,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         handleChoosePowerPlay,
         handleChooseCharm,
         handlePassCharm,
+        handleUpgradeCharm,
         handleKeepPowerPlay,
         handleAddTileToSwap,
         handleRemoveTileFromSwap,

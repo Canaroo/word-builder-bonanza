@@ -31,6 +31,8 @@ export interface Boss {
   description: string;
   /** The villain's line on the intro pop-up. */
   taunt: string;
+  /** Hits this boss needs for the Badge when its rule is one of the hardest (default: BOSS.hitsToWin). */
+  hitsToWin?: number;
   /** Does this word follow the rule? `tiles` is the whole rack, including the word's tiles. */
   check: (word: string, tiles: Tile[], ctx: BossContext) => boolean;
   /** Tiles to dim (they'd break the rule) or make glow (the rule needs them). */
@@ -42,6 +44,10 @@ const noLetters = (...letters: string[]) => ({
   check: (word: string) => !letters.some(l => word.includes(l)),
   tileHint: (tile: Tile) => (letters.some(l => tile.letter.includes(l)) ? 'dim' as const : null),
 });
+/** The hardest rules (v7.33): few words in a hand follow them, so these bosses need fewer hits. */
+const HARD_RULE_HITS = 4;
+/** Easy letter bans get a length floor too (v7.33): 3-letter words don't count as hits. */
+const MIN_HIT_LETTERS = 4;
 const rarestPoints = (tiles: Tile[]) => Math.max(0, ...tiles.map(t => t.points));
 
 export const BOSSES: Boss[] = [
@@ -73,15 +79,17 @@ export const BOSSES: Boss[] = [
   // --- Mid ---
   {
     id: 'theNoid', name: 'The Noid', icon: '🍕', tier: 'mid', source: "Domino's Pizza",
-    rule: 'NO E', description: 'No E in your words.',
-    taunt: 'Avoid the E!',
+    rule: `NO E · ${MIN_HIT_LETTERS}+ LETTERS`, description: `No E in your words, and at least ${MIN_HIT_LETTERS} letters.`,
+    taunt: 'Avoid the E! And no puny words!',
     ...noLetters('E'),
+    check: word => !word.includes('E') && word.length >= MIN_HIT_LETTERS,
   },
   {
     id: 'ursula', name: 'Ursula', icon: '🐙', tier: 'mid', source: 'The Little Mermaid',
-    rule: 'NO A', description: 'No A in your words.',
-    taunt: 'Poor unfortunate A’s. They belong to me now.',
+    rule: `NO A · ${MIN_HIT_LETTERS}+ LETTERS`, description: `No A in your words, and at least ${MIN_HIT_LETTERS} letters.`,
+    taunt: 'Poor unfortunate A’s. They belong to me now. And do speak up, dear: no tiny words.',
     ...noLetters('A'),
+    check: word => !word.includes('A') && word.length >= MIN_HIT_LETTERS,
   },
   {
     id: 'motherBrain', name: 'Mother Brain', icon: '🧪', tier: 'mid', source: 'Metroid',
@@ -108,6 +116,7 @@ export const BOSSES: Boss[] = [
   },
   {
     id: 'jafar', name: 'Jafar', icon: '🧞', tier: 'late', source: 'Aladdin',
+    hitsToWin: HARD_RULE_HITS,
     rule: 'START WITH A VOWEL', description: 'Every word must start with a vowel (A, E, I, O, U).',
     taunt: 'You will bow to the vowel!',
     check: word => VOWELS.has(word[0]),
@@ -120,6 +129,7 @@ export const BOSSES: Boss[] = [
   },
   {
     id: 'bigBoss', name: 'Big Boss', icon: '🎖️', tier: 'late', source: 'Metal Gear',
+    hitsToWin: HARD_RULE_HITS,
     rule: '5+ LETTERS', description: 'Every word needs at least 5 letters.',
     taunt: 'Kept you waiting, huh? Go long or go home.',
     check: word => word.length >= 5,
@@ -145,13 +155,13 @@ export const BOSSES: Boss[] = [
     check: (word, tiles, ctx) => ctx.score >= 8,
   },
   {
-    id: 'doctorDoom', name: 'Doctor Doom', icon: '🟢', tier: 'early', source: 'Fantastic Four',
+    id: 'doctorDoom', name: 'Doctor Doom', icon: '🟢', tier: 'mid', source: 'Fantastic Four',
     rule: 'EXACTLY 4 LETTERS', description: 'Every word must be exactly 4 letters, like DOOM.',
     taunt: 'Doom speaks in four letters. So will you.',
     check: word => word.length === 4,
   },
   {
-    id: 'hades', name: 'Hades', icon: '🔥', tier: 'mid', source: 'Hercules',
+    id: 'hades', name: 'Hades', icon: '🔥', tier: 'early', source: 'Hercules',
     rule: 'USE A 3+ POINT TILE', description: 'Every word must use a tile worth 3 or more points.',
     taunt: "Name's Hades, Lord of the Dead. Bring me your heavy hitters, babe.",
     check: (word, tiles) => tiles.some(t => t.points >= 3 && word.includes(t.letter)),
@@ -159,6 +169,7 @@ export const BOSSES: Boss[] = [
   },
   {
     id: 'cruella', name: 'Cruella de Vil', icon: '🐾', tier: 'mid', source: '101 Dalmatians',
+    hitsToWin: HARD_RULE_HITS,
     rule: 'END IN A VOWEL', description: 'Every word must end with a vowel (A, E, I, O, U), like CRUELLA.',
     taunt: 'Darling, every word must end in a vowel. Ninety-nine puppies is simply not enough.',
     check: word => VOWELS.has(word[word.length - 1]),
@@ -171,13 +182,14 @@ export const BOSSES: Boss[] = [
   },
   {
     id: 'magneto', name: 'Magneto', icon: '🧲', tier: 'mid', source: 'X-Men',
-    rule: 'NO LAST-WORD LETTERS', description: 'A word can’t share any letter with your last word. Like poles repel.',
-    taunt: 'Like poles repel, my friend. Share nothing with your last word.',
-    check: (word, tiles, ctx) => ![...word].some(l => ctx.last.includes(l)),
+    rule: `NO LAST-WORD LETTERS · ${MIN_HIT_LETTERS}+`, description: `A word can’t share any letter with your last word, and needs at least ${MIN_HIT_LETTERS} letters. Like poles repel.`,
+    taunt: 'Like poles repel, my friend. Share nothing with your last word, and make it count.',
+    check: (word, tiles, ctx) => word.length >= MIN_HIT_LETTERS && ![...word].some(l => ctx.last.includes(l)),
     tileHint: (tile, tiles, ctx) => ([...tile.letter].some(l => ctx.last.includes(l)) ? 'dim' : null),
   },
   {
     id: 'ivanDrago', name: 'Ivan Drago', icon: '🏋️', tier: 'late', source: 'Rocky IV',
+    hitsToWin: HARD_RULE_HITS,
     rule: 'BEAT YOUR LAST SCORE', description: 'Every word must score more points than your last word.',
     taunt: 'I must break you. Every word must hit harder than the last.',
     check: (word, tiles, ctx) => ctx.score > ctx.lastScore,

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { Charm, PowerPlay } from '../types';
 import { INSTANT_POWER_PLAY_IDS } from '../data/powerPlays';
-import { CHARM_SLOTS } from '../config/gameplay';
+import { CHARM_SLOTS, CHARM_UPGRADE } from '../config/gameplay';
+import { UPGRADABLE_CHARM_IDS } from '../data/charms';
 import DurationBadge from '../ui/DurationBadge';
 import ArcadeButton from './ArcadeButton';
 
@@ -114,7 +115,7 @@ export const PowerPlayOffer: React.FC<{
 
 // --- Charms -----------------------------------------------------------------------
 
-const SlotRow: React.FC<{ charms: Charm[]; highlightId?: string }> = ({ charms, highlightId }) => (
+const SlotRow: React.FC<{ charms: Charm[]; highlightId?: string; upgradedIds?: string[] }> = ({ charms, highlightId, upgradedIds = [] }) => (
   <div className="flex justify-center gap-1.5" aria-label={`Charm slots: ${charms.length} of ${CHARM_SLOTS} used`}>
     {Array.from({ length: CHARM_SLOTS }, (_, i) => {
       const charm = charms[i];
@@ -122,12 +123,13 @@ const SlotRow: React.FC<{ charms: Charm[]; highlightId?: string }> = ({ charms, 
       return (
         <div
           key={i}
-          title={charm?.name ?? 'Empty slot'}
-          className={`w-10 h-10 rounded-lg grid place-items-center text-xl ring-1 ${
+          title={charm ? `${charm.name}${upgradedIds.includes(charm.id) ? ' (upgraded)' : ''}` : 'Empty slot'}
+          className={`relative w-10 h-10 rounded-lg grid place-items-center text-xl ring-1 ${
             isOut ? 'ring-2 ring-neon-red bg-neon-red/20 line-through' : charm ? 'bg-crt-800 ring-neon-purple/60' : 'bg-crt-950 ring-white/10 border border-dashed border-white/15'
           }`}
         >
           {charm ? charm.icon : ''}
+          {charm && upgradedIds.includes(charm.id) && <span className="absolute -top-1.5 -right-1.5 text-xs leading-none" aria-hidden="true">⭐</span>}
         </div>
       );
     })}
@@ -139,12 +141,56 @@ export const CharmOffer: React.FC<{
   reason?: React.ReactNode;
   offered: Charm[];
   equipped: Charm[];
+  /** Ids of equipped charms already upgraded this run. */
+  upgradedIds?: string[];
   onChoose: (charm: Charm, replaceId?: string) => void;
+  /** Slots full: upgrade an equipped charm instead of taking a new one. */
+  onUpgrade?: (charmId: string) => void;
   onPass: () => void;
-}> = ({ title, reason, offered, equipped, onChoose, onPass }) => {
+}> = ({ title, reason, offered, equipped, upgradedIds = [], onChoose, onUpgrade, onPass }) => {
   const [picked, setPicked] = useState<Charm | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
+  const [upgrading, setUpgrading] = useState(false);
+  const [upId, setUpId] = useState<string | null>(null);
   const full = equipped.length >= CHARM_SLOTS;
+  const canUpgrade = (c: Charm) => UPGRADABLE_CHARM_IDS.has(c.id) && !upgradedIds.includes(c.id);
+  const upgradeOpen = full && !!onUpgrade && equipped.some(canUpgrade);
+
+  // Upgrade step (slots full): choose which equipped charm gets the star.
+  if (upgradeOpen && upgrading) {
+    const target = equipped.find(c => c.id === upId);
+    return (
+      <Overlay tone="purple">
+        <h2 className="font-display text-xl text-neon-yellow text-center leading-tight">⭐ UPGRADE A CHARM</h2>
+        <p className="text-sm text-slate-300 text-center mt-1">
+          Its point bonuses pay <span className="text-neon-yellow">{CHARM_UPGRADE.percent}% more</span> for the rest of the run. One upgrade per charm.
+        </p>
+        <div className="mt-3 space-y-2 overflow-y-auto overscroll-contain p-1 -m-1">
+          {equipped.map(c => {
+            const done = upgradedIds.includes(c.id);
+            const ok = canUpgrade(c);
+            return (
+              <ItemCard
+                key={c.id}
+                item={c}
+                selected={c.id === upId}
+                dim={!ok}
+                tag={c.id === upId ? <Tag tone="yellow">⭐ UPGRADE</Tag> : done ? <Tag tone="cyan">⭐ DONE</Tag> : undefined}
+                note={ok ? undefined : <span className="text-slate-400">{done ? 'ALREADY UPGRADED' : 'NO POINT BONUS TO UPGRADE'}</span>}
+                onClick={ok ? () => setUpId(c.id) : undefined}
+              />
+            );
+          })}
+        </div>
+        <ArcadeButton color="yellow" className="w-full mt-3" disabled={!target} onClick={() => target && onUpgrade!(target.id)}>
+          {target ? `Upgrade ${target.icon} ${target.name}` : 'Pick one to upgrade'}
+        </ArcadeButton>
+        <button type="button" onClick={() => { setUpgrading(false); setUpId(null); }} className="osd-text text-lg text-slate-400 hover:text-white mt-2">
+          ◀ BACK TO THE OFFER
+        </button>
+      </Overlay>
+    );
+  }
 
   // Step 2 (slots full): choose which charm to drop for the new one.
   if (full && picked) {
@@ -153,7 +199,7 @@ export const CharmOffer: React.FC<{
       <Overlay tone="purple">
         <h2 className="font-display text-xl text-neon-purple text-center leading-tight">MAKE ROOM FOR {picked.icon} {picked.name.toUpperCase()}</h2>
         <p className="text-sm text-slate-300 text-center mt-1">Your {CHARM_SLOTS} slots are full. Tap the charm to drop.</p>
-        <div className="mt-2"><SlotRow charms={equipped} highlightId={dropId ?? undefined} /></div>
+        <div className="mt-2"><SlotRow charms={equipped} highlightId={dropId ?? undefined} upgradedIds={upgradedIds} /></div>
         <div className="mt-3 space-y-2 overflow-y-auto overscroll-contain p-1 -m-1">
           {equipped.map(c => (
             <ItemCard
@@ -180,9 +226,11 @@ export const CharmOffer: React.FC<{
       <h2 className="font-display text-2xl text-neon-purple text-center leading-none">{title}</h2>
       {reason && <p className="osd-text text-lg text-slate-300 text-center leading-tight mt-1">{reason}</p>}
       <p className="text-sm text-slate-300 text-center mt-1">Charms stay on for the rest of the run.</p>
-      <div className="mt-2"><SlotRow charms={equipped} /></div>
+      <div className="mt-2"><SlotRow charms={equipped} upgradedIds={upgradedIds} /></div>
       <p className={`osd-text text-lg text-center leading-tight mt-1 ${full ? 'text-neon-yellow' : 'text-slate-400'}`}>
-        {full ? `SLOTS FULL (${CHARM_SLOTS}/${CHARM_SLOTS}): PICK ONE TO SWAP IN, OR PASS` : `SLOTS ${equipped.length}/${CHARM_SLOTS}`}
+        {full
+          ? `SLOTS FULL (${CHARM_SLOTS}/${CHARM_SLOTS}): ${upgradeOpen ? 'SWAP ONE IN, UPGRADE ONE, OR PASS' : 'PICK ONE TO SWAP IN, OR PASS'}`
+          : `SLOTS ${equipped.length}/${CHARM_SLOTS}`}
       </p>
       <div className="mt-2 space-y-2 overflow-y-auto overscroll-contain p-1 -m-1">
         {offered.map(charm => (
@@ -194,8 +242,13 @@ export const CharmOffer: React.FC<{
           />
         ))}
       </div>
+      {upgradeOpen && (
+        <ArcadeButton color="yellow" variant="outline" className="w-full mt-3" onClick={() => setUpgrading(true)}>
+          ⭐ Upgrade one of mine
+        </ArcadeButton>
+      )}
       {full && (
-        <ArcadeButton color="slate" variant="outline" className="w-full mt-3" onClick={onPass}>
+        <ArcadeButton color="slate" variant="outline" className={`w-full ${upgradeOpen ? 'mt-2' : 'mt-3'}`} onClick={onPass}>
           Pass: keep my {CHARM_SLOTS}
         </ArcadeButton>
       )}

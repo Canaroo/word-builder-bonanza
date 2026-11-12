@@ -1119,3 +1119,22 @@ export const CHARMS_LIST: Charm[] = [
     activate: createPassiveBuff('hungryHippos'),
   },
 ];
+
+/**
+ * Charms that can be upgraded (CHARM_UPGRADE): the ones that pay points under their own name in a
+ * word's score breakdown ("+N pts"), which is what the upgrade raises. Time, multiplier and utility
+ * charms aren't here. A new point charm should be added (charms.test.ts checks each one pays points).
+ */
+export const UPGRADABLE_CHARM_IDS: ReadonlySet<string> = new Set([
+  'philsosophy', 'finisher', 'theValve', 'silentKiller', 'momentum', 'oneRing', 'fluxCapacitor',
+  'bulletTime', 'perfectlyBalanced', 'batSignal', 'millenniumFalcon', 'triforceOfCourage', 'powerPellet',
+  'goldenTicket', 'chaosTheory', 'starPower', 'weDidntStartTheFire', 'goldenSnitch', 'pianoManEncore',
+  'italianRestaurantEnding', 'inigosRevenge', 'trueLove', 'nicolesGrace', 'christiansHoodieMode',
+  'lenaOfTheLostLights', 'sherlocksSyntax', 'sacredHeart', 'buffyBonus', 'thrillerNight', 'duckHuntCombo',
+  'drMariosCure', 'totallyClueless', 'scoobyStack', 'powerStarResidual', 'radioactiveSpiderBite',
+  'hyruleHustle', 'luna', 'cleverGirl', 'theDudeAbides', 'pantsOnFire', 'strangeMagic', 'turtlePower',
+  'iceAgeBonus', 'mixtape', 'rubiksCube', 'sickCombo', 'gottaCatchEmAll', 'hesOnFire', 'survivor',
+  'theOpposite', 'eagle', 'doubleDragon', 'noteStreak', 'downToYourBoxers', 'crossTheRoad', 'aTeam',
+  'conjunctionJunction', 'voteForPedro', 'formVoltron', 'titansGo', 'mrGlass', 'honeyIShrunkTheKids',
+  'myPrecious', 'hitTheFlagpole', 'supermarketSweep', 'sesameStreet', 'hungryHippos',
+]);

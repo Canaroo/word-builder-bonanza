@@ -1,5 +1,5 @@
 // Pure gameplay rules. No React, no DOM: easy to test and to tune via config/gameplay.ts.
-import { BOSS, CHARM_BONUS, GAMEPLAY, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS } from '../config/gameplay';
+import { BOSS, CHARM_BONUS, CHARM_UPGRADE, GAMEPLAY, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS } from '../config/gameplay';
 import { BossRound, PowerWordEffect, ScoreCalculationResult } from '../types';
 
 const lookupByLength = (table: Record<number, number>, length: number, below: number): number => {
@@ -75,9 +75,30 @@ export const meterLettersFor = (level: number, gs?: WithCharms): number => {
     return equipped(gs, 'turboButton') ? Math.round(letters * (1 - CHARM_BONUS.turboButtonPercent / 100)) : letters;
 };
 
-/** Hits a boss round needs for the Badge (the Little Mac charm needs fewer). */
-export const bossHitsToWin = (gs: WithCharms): number =>
-    BOSS.hitsToWin - (equipped(gs, 'littleMac') ? CHARM_BONUS.littleMacHits : 0);
+/** Hits a boss round needs for the Badge: fewer for the hardest rules (boss.hitsToWin) and with the Little Mac charm. */
+export const bossHitsToWin = (gs: WithCharms, boss?: { hitsToWin?: number } | null): number =>
+    (boss?.hitsToWin ?? BOSS.hitsToWin) - (equipped(gs, 'littleMac') ? CHARM_BONUS.littleMacHits : 0);
+
+/** Hits that earn the "so close" consolation: the same gap below the Badge for every boss (6 → 4, 4 → 2). */
+export const bossCloseHits = (boss?: { hitsToWin?: number } | null): number =>
+    Math.max(1, (boss?.hitsToWin ?? BOSS.hitsToWin) - (BOSS.hitsToWin - BOSS.closeHits));
+
+const plainQuotes = (s: string) => s.replace(/[‘’]/g, "'");
+
+/**
+ * Points the named charms earned on a word: the "+N pts" lines of the score breakdown whose name
+ * starts with a charm's name ("Vowel Lover (E)", "Mixtape (link 2)", "Momentum: +75 pts").
+ */
+export const charmPointsIn = (bonuses: { name: string; description: string }[], charmNames: string[]): number => {
+    const names = charmNames.map(plainQuotes);
+    return bonuses
+        .filter(b => names.some(n => plainQuotes(b.name).startsWith(n)))
+        .reduce((sum, b) => sum + Number(/\+(\d+) pts/.exec(b.description)?.[1] ?? 0), 0);
+};
+
+/** Extra points an upgraded charm's bonuses pay on a word (CHARM_UPGRADE.percent of them, rounded). */
+export const charmUpgradePoints = (bonuses: { name: string; description: string }[], upgradedNames: string[]): number =>
+    upgradedNames.length ? Math.round(charmPointsIn(bonuses, upgradedNames) * CHARM_UPGRADE.percent / 100) : 0;
 
 /** Overflow tax: while the bank is above overflowAbove, word time is halved (rounded down). */
 export const taxWordTime = (seconds: number, bank: number): number =>
@@ -106,11 +127,11 @@ export const bossRewardFor = (bossNumber: number) =>
  * ended. It ends as soon as the badge is won, when the words run out, or when even the
  * consolation can't be reached any more.
  */
-export const advanceBoss = (round: BossRound, hit: boolean, hitsToWin: number = BOSS.hitsToWin): { round: BossRound | null; outcome: 'won' | 'close' | 'escaped' | null } => {
+export const advanceBoss = (round: BossRound, hit: boolean, hitsToWin: number = BOSS.hitsToWin, closeHits: number = BOSS.closeHits): { round: BossRound | null; outcome: 'won' | 'close' | 'escaped' | null } => {
     const next = { ...round, hits: round.hits + (hit ? 1 : 0), wordsLeft: round.wordsLeft - 1 };
     if (next.hits >= hitsToWin) return { round: null, outcome: 'won' };
-    if (next.wordsLeft <= 0) return { round: null, outcome: next.hits >= BOSS.closeHits ? 'close' : 'escaped' };
-    if (next.hits + next.wordsLeft < BOSS.closeHits) return { round: null, outcome: 'escaped' };
+    if (next.wordsLeft <= 0) return { round: null, outcome: next.hits >= closeHits ? 'close' : 'escaped' };
+    if (next.hits + next.wordsLeft < closeHits) return { round: null, outcome: 'escaped' };
     return { round: next, outcome: null };
 };
 

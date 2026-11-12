@@ -147,9 +147,22 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   it. Strikes don't end it.
 - **Boss rounds:** every 3rd level, a villain's rule covers the next 8 valid words. Land 6 hits
   (words that follow it) for the Boss Badge (points + time that skips the level shrink); 4–5 hits
-  pays points only. Breaking the rule never costs anything: the word still scores. Bosses go
+  pays points only. The four hardest rules (Ivan Drago, Big Boss, Cruella, Jafar) need 4 hits
+  (`hitsToWin` on the boss; "so close" is always 2 below, `bossCloseHits`). Breaking the rule never costs anything: the word still scores. Bosses go
   early → mid → late, random within a tier. Boss Badges are permanent (one per boss) and show
   on the Top 50 as 🏅N; Firebase needs the `bosses` rule line in `docs/LEADERBOARD.md`.
+- **Balance from usage stats (v7.33.0, 90 runs):** bosses were either free or impossible, so
+  Ursula, The Noid and Magneto also need 4+ letters (they were beaten 34 of 35 times), the four
+  hardest need 4 hits (Drago was 1 win in 8), and Doctor Doom (36% as a first boss) swapped tiers
+  with Hades. Keep 8 bosses per tier. **Charm upgrades:** with all 5 slots full, a charm offer also
+  lets the player upgrade one equipped charm (once each, lost if it's swapped out): its "+N pts"
+  lines pay `CHARM_UPGRADE.percent` (50%) more, as a "⭐ Charm upgrades" line (`charmUpgradePoints`
+  in `services/rules.ts`, state `gameState.charmUpgrades`). Only charms in `UPGRADABLE_CHARM_IDS`
+  (`data/charms.ts`: they pay points under their own name) qualify; add new point charms there.
+  Time, multiplier and utility charms can't be upgraded, on purpose (late-game time).
+  `run_end` now carries `cause`, `secs`, `tWords`/`tItems`/`tShuffles` and `upgrades`, and
+  `charm_offer` carries `upgraded`. These go as `extras` in `sendStat`, which resends the plain
+  event if the Firebase rules reject them; new optional stat fields should go the same way.
 - **Power words** (10 secret words with `effect`, no points): SLOT (slot machine, +1/3/10s), SNOW
   (clock frozen 10s), HEAL (remove a strike, else +100), SLOW (half-speed clock for 3 words), TWIN
   (clone your best word's time + a Word Combo step), RINGS (Strike Shield), REWIND (clock one speed
