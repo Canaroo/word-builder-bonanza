@@ -2,7 +2,7 @@
 import { PowerPlay, GameState, EventLogEntry } from '../types';
 import { labelize } from '../services/durationTags';
 import { TIME_BONUS, POWER_PLAY_VALUES } from '../config/gameplay';
-import { tamagotchiPot, dailyDoubleWager } from '../services/rules';
+import { tamagotchiPot, dailyDoubleWager, levelFor, prizeFor } from '../services/rules';
 
 // The 'activate' function is for declaring the state change that should happen upon activation.
 // The actual logic is handled in the GameScreen reducer based on the power play's `effectType` and ID.
@@ -62,9 +62,9 @@ export const INSTANT_POWER_PLAY_IDS = new Set([
 export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'letterUpgrade',
-    name: 'Letter Upgrade',
-    description: 'Pick a letter: its tiles are worth 3x for your next 5 words.',
-    flavorText: 'Choose wisely. Your alphabet just got an MVP.',
+    name: 'Pimp My Tile',
+    description: `Pick a letter: its tiles are worth 3x for your next 5 words.`,
+    flavorText: 'Yo dawg, I heard you like letters.',
     icon: '🔠',
     subtheme: 'score',
     effectType: 'selection',
@@ -74,15 +74,15 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   },
   {
     id: 'polish',
-    name: 'Polish',
-    description: 'Pick a letter: words containing it score x3 for your next 5 words.',
-    flavorText: 'Give your favorite letter the spotlight treatment.',
+    name: 'Extreme Makeover',
+    description: `Pick a letter: words containing it score x3 for your next ${POWER_PLAY_VALUES.boostWords} words.`,
+    flavorText: 'Move that bus!',
     icon: '💅',
     subtheme: 'score',
     effectType: 'selection',
     selectionType: 'letter',
     durationTag: 'LIMITED',
-    activate: letterBoost('polish', 5),
+    activate: letterBoost('polish', POWER_PLAY_VALUES.boostWords),
   },
   {
     id: 'wildcardWake',
@@ -97,9 +97,9 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   },
   {
     id: 'deepFreeze',
-    name: 'Deep Freeze',
+    name: 'Everybody Chill',
     description: `Arms right away: the first time your clock hits 0, time freezes and you get ${TIME_BONUS.rescue} bonus seconds.`,
-    flavorText: 'Like a classic Chicago winter, everything stops—but only for a moment.',
+    flavorText: "Alright everyone... chill!",
     icon: '🧊',
     subtheme: 'timer',
     effectType: 'passive',
@@ -128,7 +128,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'oneTileToRuleThemAll',
     name: 'One Tile to Rule Them All',
-    description: 'A random tile in your hand becomes worth 30 points for this round.',
+    description: 'A random tile in your hand becomes worth 30 points for your next word.',
     flavorText: 'It bends to your will—just once.',
     icon: '💍',
     subtheme: 'rack',
@@ -139,7 +139,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'shapeshiftersTongue',
     name: 'Shapeshifter’s Tongue',
-    description: 'Change one tile in your hand to any letter you like.',
+    description: `Change one tile in your hand to any letter you like. The new tile is worth ${POWER_PLAY_VALUES.shapeshifterPoints} points.`,
     flavorText: 'Imitation is the sincerest form of wordplay.',
     icon: '👅',
     subtheme: 'rack',
@@ -210,7 +210,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'ludicrousSpeed',
     name: 'Ludicrous Speed',
-    description: 'Your next 3 words each score x3, but each one costs 8 seconds.',
+    description: `Your next 3 words each score x${POWER_PLAY_VALUES.ludicrousSpeedMultiplier}, but each one costs ${POWER_PLAY_VALUES.ludicrousSpeedCost} seconds.`,
     flavorText: 'They’ve gone to plaid!',
     icon: '🚀',
     subtheme: 'score',
@@ -221,7 +221,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'gadgetHands',
     name: 'Go-Go-Gadget Hands',
-    description: 'Grab 2 extra tiles now; your hand refills to 10 tiles instead of 8 for the next 2 rounds.',
+    description: 'Grab 2 extra tiles now; your hand refills to 10 tiles instead of 8 for your next 2 hands.',
     flavorText: 'Wowsers! Extendable arms, extendable words.',
     icon: '🦾',
     subtheme: 'rack',
@@ -253,10 +253,10 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   },
   { 
     id: 'timeBoost', 
-    name: 'Time Boost', 
+    name: 'Most Excellent Detour',
     description: `Add ${TIME_BONUS.timeBoost} seconds to your timer.`, 
-    flavorText: 'Sometimes, all you need is a little more time on the clock.',
-    icon: '⏰',
+    flavorText: 'Be excellent to each other. And party on, dudes!',
+    icon: '📞',
     subtheme: 'timer',
     effectType: 'immediate',
     durationTag: 'ONE_TIME',
@@ -281,9 +281,9 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   },
   { 
     id: 'strikeShield', 
-    name: 'Strike Shield', 
+    name: 'Hylian Shield',
     description: 'Block the next strike.', 
-    flavorText: 'When danger comes, your shield holds.',
+    flavorText: "It's dangerous to go alone. Hold this up.",
     icon: '🛡️',
     subtheme: 'strike',
     effectType: 'passive',
@@ -295,9 +295,9 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   },
    { 
     id: 'swapOut', 
-    name: 'Swap Out', 
+    name: 'Trading Spaces',
     description: 'Replace 4 or 5 tiles of your choice with new random ones.',
-    flavorText: 'Fresh tiles, fresh hope.',
+    flavorText: 'New tiles, new room. Try not to cry at the reveal.',
     icon: '🔃',
     subtheme: 'rack',
     effectType: 'selection',
@@ -384,9 +384,9 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   },
   { 
     id: 'rewind', 
-    name: 'Rewind', 
+    name: 'Turn Back Time',
     description: `Remove your last strike and gain ${TIME_BONUS.rescue} seconds.`, 
-    flavorText: 'Backspace for real life.',
+    flavorText: 'If I could turn back time...',
     icon: '⏪',
     subtheme: 'strike',
     effectType: 'immediate',
@@ -466,9 +466,9 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   },
     {
     id: 'mutationProtocol',
-    name: 'Mutation Protocol',
-    description: 'For the next 2 rounds, you will be guaranteed 1 Super Tile worth 4× its base value.',
-    flavorText: 'Your tiles are evolving. Some faster... some stronger. Embrace the anomaly.',
+    name: 'Secret of the Ooze',
+    description: 'Your next 2 hands each come with 1 Super Tile (x4 word score).',
+    flavorText: 'Go ninja, go ninja, go!',
     icon: '🧬',
     subtheme: 'rack',
     effectType: 'passive',
@@ -513,7 +513,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'thanosGift', 
     name: 'Gift From Thanos', 
-    description: 'Instantly gain 100 points. The score of your very next word is sacrificed to zero.', 
+    description: `Gain +${POWER_PLAY_VALUES.thanosGiftPoints} points right now. Your very next word scores 0.`,
     flavorText: 'Balance restored. But not without cost.',
     icon: '🫰',
     subtheme: 'score',
@@ -521,7 +521,15 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     durationTag: 'ONE_TIME',
     activate: (gameState) => {
       const powerPlay = POWER_PLAYS_LIST.find(p => p.id === 'thanosGift')!;
+      // v7.35: the gift is paid on the spot (it grows with the level, like other prizes).
+      const level = levelFor(gameState.log.filter(e => e.type === 'word' && e.status === 'valid').length);
+      const points = prizeFor(POWER_PLAY_VALUES.thanosGiftPoints, level);
+      const score = gameState.score + points;
+      const entry: EventLogEntry = { type: 'event', id: `pp-thanosGift-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon, description: `+${points} points now. The next word scores 0.`, scoreChange: points, cumulativeScore: score };
       return { 
+          score,
+          log: [...gameState.log, entry],
+          lastPowerPlayResult: { message: `🫰 +${points} points. Your next word scores 0.`, scoreChange: points },
           activePowerPlays: { ...gameState.activePowerPlays, thanosGift: true },
           activeBuffs: [...gameState.activeBuffs, powerPlay]
       };
@@ -547,7 +555,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'skywalkerBloodline', 
     name: 'Skywalker Bloodline', 
-    description: 'All “S” tiles in your current hand jump to 15 points this round.', 
+    description: 'All “S” tiles in your current hand jump to 15 points for your next word.', 
     flavorText: 'The Force is strong with this one.',
     icon: '🌌',
     subtheme: 'score',
@@ -564,7 +572,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'hookshot', 
     name: 'Hookshot', 
-    description: 'Duplicate one chosen letter—pull a twin into your hand.', 
+    description: `Duplicate one chosen letter: pull a twin into your hand, worth ${POWER_PLAY_VALUES.hookshotMultiplier}x its points.`,
     flavorText: 'You got the Hookshot!',
     icon: '🪝',
     subtheme: 'rack',
@@ -931,9 +939,9 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   },
   { 
     id: 'rescueDrop', 
-    name: 'Rescue Drop', 
-    description: 'A random tile is removed from your hand. It will be returned at the start of your next round with a temporary value of 20 points.', 
-    flavorText: 'When there’s danger, they’re never too far — but sometimes they’re fashionably late.',
+    name: 'Rescue Rangers',
+    description: 'A random tile is removed from your hand. It comes back with your next hand, worth 20 points for that word.',
+    flavorText: "Ch-ch-ch-Chip 'n Dale! When there's danger...",
     icon: '🐿️',
     subtheme: 'rack',
     effectType: 'immediate',
@@ -960,7 +968,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'scroogeSwipe', 
     name: 'Scrooge’s Money Bin', 
-    description: `Starts the moment you pick it: dive into the Money Bin. If your next word scores ${POWER_PLAY_VALUES.moneyBinScore}+ points, earn ${POWER_PLAY_VALUES.moneyBinCredits} Credits (spend them in Vibez). No downside.`, 
+    description: `Starts the moment you pick it: dive into the Money Bin. If your next word scores ${POWER_PLAY_VALUES.moneyBinScore}+ points, earn ${POWER_PLAY_VALUES.moneyBinCredits} Credits (spend them in the Vibez Shop). No downside.`, 
     flavorText: 'Some say fortune favors the bold. Others say it favors the rich duck in a top hat.',
     icon: '🎩',
     subtheme: 'utility',
@@ -983,7 +991,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'moreThanMeets', 
     name: 'More Than Meets the Eye', 
-    description: 'Pick any tile in your hand. It will randomly transform into a combo tile (e.g., TH, SH, QU, ING).', 
+    description: `Pick any tile in your hand. It transforms into a random combo tile (TH, SH, QU, ING…), and the first word you play with it scores x${POWER_PLAY_VALUES.moreThanMeetsMultiplier}.`,
     flavorText: 'Autobots, assemble a better word.',
     icon: '🚗',
     subtheme: 'rack',
@@ -1064,7 +1072,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'shakeItLikeAPolaroid',
     name: 'Shake It Like a Polaroid',
-    description: 'Keep your vowels and redraw every consonant. Free, but adds no time.',
+    description: `Keep your vowels and redraw every consonant. One new tile comes in as a ${POWER_PLAY_VALUES.shakeTileMultiplier}x word tile.`,
     flavorText: 'Shake it, shake it, shake it…',
     icon: '📸',
     subtheme: 'rack',
@@ -1098,8 +1106,8 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'neuralyzer',
     name: 'Neuralyzer',
-    description: 'Removes all of your charms at once, for a clean start. Once per run.',
-    flavorText: 'Look right here. *flash* You never saw those charms.',
+    description: 'Your next valid word brings a charm offer: equip a new charm, swap one in, or upgrade one you hold. Once per run.',
+    flavorText: 'Look right here. *flash* You never saw that old charm.',
     icon: '🕶️',
     subtheme: 'utility',
     effectType: 'immediate',
@@ -1392,5 +1400,5 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
 export const PRIZE_POWER_PLAY_IDS: ReadonlySet<string> = new Set([
   'letsMakeADeal', 'dealOrNoDeal', 'noWhammies', 'minesweeper', 'cardSharks', 'plinko', 'chickenDinner',
   'fluncleIsProud', 'actClear', 'priceIsRight', 'tamagotchi', 'smellYaLater', 'popQuizHotshot',
-  'withGreatPower', 'gumpLuck', 'warioWarp',
+  'withGreatPower', 'gumpLuck', 'warioWarp', 'thanosGift',
 ]);

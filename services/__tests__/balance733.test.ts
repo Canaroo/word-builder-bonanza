@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // v7.33 balance pass: charm upgrades, per-boss hit targets, and the extra run_end stats.
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -215,5 +216,108 @@ describe('PowerPlay prize growth (v7.34)', () => {
         const row = levelUpInfo(6).changes.find(c => c.label === 'PowerPlay prizes');
         expect(row).toMatchObject({ from: `x${prizeScaleFor(5)}`, to: `x${prizeScaleFor(6)}` });
         expect(levelUpInfo(30).changes.some(c => c.label === 'PowerPlay prizes')).toBe(false);
+    });
+});
+
+// v7.35: reworked charms and PowerPlays nobody picked, multipliers that cover charm points, renames.
+import { CHARM_BONUS, POWER_PLAY_VALUES } from '../../config/gameplay';
+import { calculateScore } from '../gameUtils';
+import { gameReducer, screenInitialState } from '../screens/GameScreen';
+import { charmMultiplierPoints, itemMultiplierIn } from '../rules';
+import type { GameState } from '../../types';
+
+describe('v7.35 reworks', () => {
+    const charm = (id: string) => CHARMS_LIST.find(c => c.id === id)!;
+    const pp = (id: string) => POWER_PLAYS_LIST.find(p => p.id === id)!;
+    const tilesFor = (w: string) => w.split('').map((letter, i) => ({ id: `t${i}`, letter, points: 1 })) as Tile[];
+    const gs = (over: Partial<GameState> = {}): GameState => ({ ...screenInitialState.gameState, ...over });
+    const played = (word: string) => ({ type: 'word', word, status: 'valid', score: 5, baseScore: 5, bonuses: [], definition: '', cumulativeScore: 5 }) as any;
+    const line = (id: string, word: string, name: string, over: Partial<GameState> = {}) =>
+        calculateScore(word.toLowerCase(), tilesFor(word), gs({ activeCharms: [charm(id)], ...over })).bonuses.find(b => b.name.startsWith(name))?.description;
+
+    test('WALL-E pays for reusing 2+ letters from the last word', () => {
+        expect(line('recycler', 'TONE', 'WALL-E', { log: [played('NOTE')] })).toBe(`+${CHARM_BONUS.recycler} pts`);
+        expect(line('recycler', 'TONE', 'WALL-E', { log: [played('TAP')] })).toBeUndefined(); // one shared letter
+        expect(line('recycler', 'TONE', 'WALL-E')).toBeUndefined();                             // no last word
+        expect(charm('recycler').name).toBe('WALL-E');
+    });
+
+    test("Sherlock's Syntax pays for a repeated letter, more for a palindrome", () => {
+        expect(line('sherlocksSyntax', 'LETTER', "Sherlock's Syntax")).toBe(`+${CHARM_BONUS.sherlocksRepeat} pts`);
+        expect(line('sherlocksSyntax', 'LEVEL', "Sherlock's Syntax")).toBe(`+${CHARM_BONUS.sherlocksSyntax} pts (palindrome)`);
+        expect(line('sherlocksSyntax', 'PLANT', "Sherlock's Syntax")).toBeUndefined();
+    });
+
+    test('Double Dare comes with a Challenge', () => {
+        const s = { ...screenInitialState, isLoading: false, gameState: gs({ challengeCount: 1 }) };
+        const next = gameReducer(s, { type: 'CHOOSE_CHARM', payload: { charm: charm('doubleDare'), hand: s.hand, allOffered: [charm('doubleDare')] } } as any);
+        expect(next.gameState.challengeCount).toBe(1 + CHARM_BONUS.doubleDareChallenges);
+    });
+
+    test('Gift From Thanos pays on the spot (it used to promise 100 and pay nothing)', () => {
+        const out = pp('thanosGift').activate(gs({ score: 1000 }));
+        expect(out.score).toBe(1000 + POWER_PLAY_VALUES.thanosGiftPoints);
+        expect((out.activePowerPlays as any).thanosGift).toBe(true);
+        expect(PRIZE_POWER_PLAY_IDS.has('thanosGift')).toBe(true);
+        expect(calculateScore('cat', tilesFor('CAT'), gs({ activePowerPlays: { thanosGift: true } as any })).totalScore).toBe(0);
+    });
+
+    test('More Than Meets the Eye: only the word using the combo tile gets the multiplier', () => {
+        const armed = gs({ activePowerPlays: { moreThanMeets: { tileId: 't1' } } as any });
+        expect(calculateScore('cat', tilesFor('CAT'), armed).bonuses.some(b => b.name === 'More Than Meets the Eye')).toBe(true);
+        const other = tilesFor('CAT').map(t => ({ ...t, id: `x-${t.id}` }));
+        expect(calculateScore('cat', other, armed).bonuses.some(b => b.name === 'More Than Meets the Eye')).toBe(false);
+    });
+
+    test('Ludicrous Speed and Extreme Makeover read their numbers from config', () => {
+        expect(pp('ludicrousSpeed').description).toContain(`${POWER_PLAY_VALUES.ludicrousSpeedCost} seconds`);
+        expect(pp('polish').name).toBe('Extreme Makeover');
+        expect(pp('polish').description).toContain(`next ${POWER_PLAY_VALUES.boostWords} words`);
+        const boosted = pp('polish').activate(gs(), { letter: 'S' });
+        expect((boosted.activePowerPlays as any).polish).toMatchObject({ words: POWER_PLAY_VALUES.boostWords, letter: 'S' });
+    });
+});
+
+describe('multipliers cover charm points (v7.35)', () => {
+    const lines = [
+        { name: 'Chaos Theory', description: '+50 pts' },
+        { name: "Vanna's Vowels (E)", description: '+20 pts' },
+        { name: 'Length Bonus', description: 'x2 (6 letters)' },
+        { name: 'S Club Party', description: 'x2 Word Score' },
+        { name: '⚡ 5-Word Combo!', description: 'x2 Score' },
+    ];
+    const charms = ['Chaos Theory', "Vanna's Vowels"];
+
+    test('the length bonus, charm multipliers and the Word Combo do not count', () => {
+        expect(itemMultiplierIn(lines)).toBe(1);
+        expect(charmMultiplierPoints(lines, charms)).toBe(0);
+    });
+
+    test('a PowerPlay x3 triples the charm points; two multipliers add together', () => {
+        const x3 = [...lines, { name: 'Nuclear Option', description: 'x3 Word Score' }];
+        expect(itemMultiplierIn(x3)).toBe(3);
+        expect(charmMultiplierPoints(x3, charms)).toBe(70 * 2);
+        const both = [...x3, { name: 'Tile Multiplier (S)', description: 'x2 Word Score' }];
+        expect(itemMultiplierIn(both)).toBe(5);
+        expect(charmMultiplierPoints(both, charms)).toBe(70 * 4);
+        expect(charmMultiplierPoints(x3, [])).toBe(0);
+    });
+
+    test('tile-point lines (x2 Tile Pts) are not word multipliers', () => {
+        expect(itemMultiplierIn([{ name: 'Pimp My Tile (E)', description: 'x3 Tile Pts' }, { name: 'Big Head Mode', description: 'x2 Tile Pts' }])).toBe(1);
+    });
+
+    test('every listed multiplier line exists in the scoring code', () => {
+        const source = (readFileSync('services/gameUtils.ts', 'utf8') + readFileSync('services/screens/GameScreen.tsx', 'utf8')).replace(/[‘’]/g, "'");
+        for (const name of ['Tile Multiplier', 'Super Tile', 'Red Wedding', 'Konami Code', 'Ludicrous Speed', 'Combo Breaker', 'Nuclear Option', 'Extreme Makeover', 'Tetris Touch', 'Jackass', 'Bird Box', 'REDRUM', 'More Than Meets the Eye']) {
+            expect(source.includes(`name: '${name}`) || source.includes(`name: \`${name}`) || source.includes(`name: "${name}`), name).toBe(true);
+        }
+    });
+
+    test('renamed charms pay under their new names, so upgrades and boosts still find them', () => {
+        const source = (readFileSync('services/gameUtils.ts', 'utf8') + readFileSync('services/screens/GameScreen.tsx', 'utf8'));
+        for (const old of ['Vowel Lover', 'S-Tier Scorer', "name: `Finisher", 'name: "Momentum"', 'Strike Shield', 'Rescue Drop', "name: 'Polish'"]) {
+            expect(source.split('\n').filter(l => !l.trim().startsWith('//')).some(l => /name:|message:|title:|showMessage/.test(l) && l.includes(old)), old).toBe(false);
+        }
     });
 });

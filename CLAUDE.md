@@ -98,13 +98,13 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   New timed or bet ones go there too. Daily Double's wager is never more than the score (it isn't
   offered under 100 points), and a Sliders undo keeps a settled Daily Double or Price Is Right bet.
   Random-tile PowerPlays (`RANDOM_TILE_POWER_PLAYS`: One Tile to Rule Them All, Ice Ice Maybe,
-  Morphin Time, Red Wedding, Rescue Drop) put the word-building row back in the hand first, so
+  Morphin Time, Red Wedding, Rescue Rangers) put the word-building row back in the hand first, so
   parking tiles there can't steer the pick. Add new random-tile ones to that set.
   Bird Box peeks only when tiles it hasn't shown yet arrive (a tap or a returned tile never re-peeks,
   and resuming a blind run doesn't either): `seenIds` in `GameScreenView.tsx`.
 - **Balance from usage stats (v7.29.0, 50 runs):** a PowerPlay offer shows at most one time card
   (`TIME_CARD_IDS`, `limitTimeCards`): time cards were picked 59% of the time against 10-20% for
-  the rest. Vowel Lover keeps +20 a vowel but every word costs 1 s (`theValveSeconds`; it was +61 a
+  the rest. Vowel Lover (now Vanna's Vowels) keeps +20 a vowel but every word costs 1 s (`theValveSeconds`; it was +61 a
   word for free). E.T. Phone Home +30 → +15 per E. Power Star Residual turns on at 60 (was 150).
   Pull the stats with `curl .../stats.json` (the session's environment allows the Firebase host).
   v7.29.1 reworked three never-picked PowerPlays (ids kept for stats): Scrooge's Money Bin (fires
@@ -175,11 +175,36 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   where they pay. Losses, costs and wagers stay fixed. Prize cards (`PRIZE_POWER_PLAY_IDS`) show
   "⬆ LEVEL N: PRIZES xS" on the offer, and the level-up card lists the new multiplier. New point
   prizes go in that set and pay through `prizeFor()`.
-  Known and left alone: word multipliers (x3 next word) only multiply the tile points (about 14),
-  not charm points, so multiplier PowerPlays are weak next to prizes.
+- **Third batch (v7.35.0): reworks, multipliers, renames.** Ids never change (stats and saves
+  key on them); only names, text and effects did.
+  **Multipliers cover charm points:** a word multiplier from a PowerPlay, a multiplier tile or
+  SPICE also multiplies that word's charm points (`ITEM_MULTIPLIER_LINES`, `charmMultiplierPoints`
+  in `services/rules.ts`), as a "✖️ Multiplier on charms" line: charm points x (multiplier - 1).
+  Before, "x3 next word" touched only the tile points (about +30); now about +220 with a typical
+  charm set. Left out: the length bonus, charm multipliers, the Word Combo, and the coin flips that
+  already multiply the whole score. A new PowerPlay multiplier's line name goes in that list.
+  **Score lines must use the item's current name:** upgrades, the long-word boost, Over 9000 and
+  this rule find charm points by matching the line name to the charm's name, so renaming a charm
+  means renaming its `bonuses.push` names too (a test checks the old names are gone).
+  **Reworked (0 picks before):** More Than Meets the Eye (first word with the combo tile x3), Shake
+  It Like a Polaroid (one new tile is a 2x word tile), Shapeshifter's Tongue (tile worth 10),
+  Hookshot (twin worth 3x), Ludicrous Speed (4 s a word, was 8), Gift From Thanos (+400 on the
+  spot, a prize; it used to promise 100 and pay nothing), Act Clear! (15 s at 40 points),
+  Neuralyzer (keeps your charms; the next valid word brings a charm offer). Charms: WALL-E (was
+  Recycler: +40 for reusing 2+ letters of the last word), Double Dare (+250 and +1 Challenge),
+  Happy Little Accidents (first invalid word a level is free), Rubik's Cube (5+ letters, +60),
+  Sherlock's Syntax (+60 repeated letter, +400 palindrome), Silent Killer (4+ letters, one vowel
+  or none, +75), Survivor (+30 a word per strike carried). Values in `CHARM_BONUS` and
+  `POWER_PLAY_VALUES`.
+  **Renamed:** Time Boost → Most Excellent Detour, Strike Shield → Hylian Shield, Deep Freeze →
+  Everybody Chill, Letter Upgrade → Pimp My Tile, Polish → Extreme Makeover (3 words, was 5), Swap
+  Out → Trading Spaces, Rescue Drop → Rescue Rangers, Rewind → Turn Back Time, Mutation Protocol →
+  Secret of the Ooze, S-Tier Scorer → S Club Party, Finisher → Last Action Hero, Vowel Lover →
+  Vanna's Vowels, Momentum → Quarter Mile at a Time, Strike Bank → Insert Coin, Dice Roll Protocol
+  → Jumanji. Taken already (secret bonuses): Be Kind Rewind, Wax On Wax Off, 1-Up.
 - **Power words** (10 secret words with `effect`, no points): SLOT (slot machine, +1/3/10s), SNOW
   (clock frozen 10s), HEAL (remove a strike, else +100), SLOW (half-speed clock for 3 words), TWIN
-  (clone your best word's time + a Word Combo step), RINGS (Strike Shield), REWIND (clock one speed
+  (clone your best word's time + a Word Combo step), RINGS (a strike shield), REWIND (clock one speed
   step slower for the level), SWORD (fills the PowerPlay meter), SPICE (next word x3), CAKE (charm
   offer). They fire on submit and can fire again once per level; other secrets are once per run.
   New ones should be harder to spell than the existing ones (they can be abused). Values in

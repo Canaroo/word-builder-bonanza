@@ -437,7 +437,7 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         // Charm: The Valve
         if (gameState.activeCharms.some(c => c.id === 'theValve') && VOWELS.has(tile.letter)) {
             tilePoints += CHARM_BONUS.theValve;
-            bonuses.push({ name: `Vowel Lover (${tile.letter})`, description: `+${CHARM_BONUS.theValve} pts`, source: 'tile' });
+            bonuses.push({ name: `Vanna's Vowels (${tile.letter})`, description: `+${CHARM_BONUS.theValve} pts`, source: 'tile' });
         }
 
         // Charm: E.T. Phone Home (oneRing)
@@ -450,7 +450,7 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         if (gameState.activeCharms.some(c => c.id === 'sTierScorer') && tile.letter === 'S') {
             const pointChange = 15 - tile.points;
             tilePoints = 15;
-            bonuses.push({ name: `S-Tier Scorer (${tile.letter})`, description: `Value set to 15`, source: 'tile' });
+            bonuses.push({ name: `S Club Party (${tile.letter})`, description: `Value set to 15`, source: 'tile' });
         }
         
         // Charm: Pivot
@@ -482,13 +482,13 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         // PowerPlay: Letter Upgrade
         if (gameState.letterMultipliers[tile.letter]) {
             tileMultiplier *= gameState.letterMultipliers[tile.letter];
-            bonuses.push({ name: `Letter Upgrade (${tile.letter})`, description: `x${gameState.letterMultipliers[tile.letter]} Tile Pts`, source: 'tile' });
+            bonuses.push({ name: `Pimp My Tile (${tile.letter})`, description: `x${gameState.letterMultipliers[tile.letter]} Tile Pts`, source: 'tile' });
         }
         
         // Charm: Finisher
         if (gameState.activeCharms.some(c => c.id === 'finisher') && index === tiles.length - 1) {
             tilePoints += CHARM_BONUS.finisher;
-            bonuses.push({ name: `Finisher (${tile.letter})`, description: `+${CHARM_BONUS.finisher} pts`, source: 'tile' });
+            bonuses.push({ name: `Last Action Hero (${tile.letter})`, description: `+${CHARM_BONUS.finisher} pts`, source: 'tile' });
         }
         
         scoreAfterTileMods += tilePoints * tileMultiplier;
@@ -527,7 +527,7 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     // Charm: S-Tier Scorer (word multiplier)
     if (gameState.activeCharms.some(c => c.id === 'sTierScorer') && lettersInWord.includes('S')) {
         wordMultipliers.push(2);
-        bonuses.push({ name: 'S-Tier Scorer', description: 'x2 Word Score', source: 'word' });
+        bonuses.push({ name: 'S Club Party', description: 'x2 Word Score', source: 'word' });
     }
 
     // Charm: Battle of Wits
@@ -554,10 +554,17 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         bonuses.push({ name: 'Konami Code', description: 'x2 Word Score', source: 'word' });
     }
 
+    // PowerPlay: More Than Meets the Eye (v7.35): the first word that uses the new combo tile.
+    const comboTileId = (gameState.activePowerPlays.moreThanMeets as { tileId?: string } | undefined)?.tileId;
+    if (comboTileId && tiles.some(t => t.id === comboTileId)) {
+        wordMultipliers.push(POWER_PLAY_VALUES.moreThanMeetsMultiplier);
+        bonuses.push({ name: 'More Than Meets the Eye', description: `x${POWER_PLAY_VALUES.moreThanMeetsMultiplier} Word Score`, source: 'word' });
+    }
+
     // PowerPlay: Ludicrous Speed
     if (gameState.activePowerPlays.ludicrousSpeed) {
-        wordMultipliers.push(3);
-        bonuses.push({ name: 'Ludicrous Speed', description: 'x3 Word Score', source: 'word' });
+        wordMultipliers.push(POWER_PLAY_VALUES.ludicrousSpeedMultiplier);
+        bonuses.push({ name: 'Ludicrous Speed', description: `x${POWER_PLAY_VALUES.ludicrousSpeedMultiplier} Word Score`, source: 'word' });
     }
 
     // PowerPlay: Combo Breaker (a short word scores 0; handled after scoring)
@@ -589,7 +596,7 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         if (lettersInWord.includes(letter)) {
             const multiplier = gameState.wordMultipliersByLetter[letter];
             wordMultipliers.push(multiplier);
-            bonuses.push({ name: 'Polish', description: `x${multiplier} for '${letter}'`, source: 'word' });
+            bonuses.push({ name: 'Extreme Makeover', description: `x${multiplier} for '${letter}'`, source: 'word' });
         }
     });
     
@@ -727,9 +734,12 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     }
     
     // Charm: Sherlock's Syntax
-    if (gameState.activeCharms.some(c => c.id === 'sherlocksSyntax') && wordUpper === wordUpper.split('').reverse().join('')) {
-        flatBonus += CHARM_BONUS.sherlocksSyntax;
-        bonuses.push({ name: "Sherlock's Syntax", description: `+${CHARM_BONUS.sherlocksSyntax} pts`, source: 'game' });
+    // Sherlock's Syntax (v7.35): any repeated letter pays; a palindrome pays big.
+    const sherlockPalindrome = wordUpper === wordUpper.split('').reverse().join('');
+    if (gameState.activeCharms.some(c => c.id === 'sherlocksSyntax') && (sherlockPalindrome || new Set(lettersInWord).size < lettersInWord.length)) {
+        const pts = sherlockPalindrome ? CHARM_BONUS.sherlocksSyntax : CHARM_BONUS.sherlocksRepeat;
+        flatBonus += pts;
+        bonuses.push({ name: "Sherlock's Syntax", description: `+${pts} pts${sherlockPalindrome ? ' (palindrome)' : ''}`, source: 'game' });
     }
     
     // Charm: Sacred Heart
@@ -769,7 +779,7 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     }
 
     // Charm: Rubik's Cube (6+ letters, no repeated letter)
-    if (gameState.activeCharms.some(c => c.id === 'rubiksCube') && lettersInWord.length >= 6 && new Set(lettersInWord).size === lettersInWord.length) {
+    if (gameState.activeCharms.some(c => c.id === 'rubiksCube') && lettersInWord.length >= CHARM_BONUS.rubiksCubeLetters && new Set(lettersInWord).size === lettersInWord.length) {
         flatBonus += CHARM_BONUS.rubiksCube;
         bonuses.push({ name: "Rubik's Cube", description: `+${CHARM_BONUS.rubiksCube} pts`, source: 'game' });
     }
@@ -786,8 +796,14 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     // Charm: The Opposite (no letters in common with your last valid word) and Eagle! (right after a long word)
     const hasOpposite = gameState.activeCharms.some(c => c.id === 'theOpposite');
     const hasEagle = gameState.activeCharms.some(c => c.id === 'eagle');
-    if (hasOpposite || hasEagle) {
+    const hasRecycler = gameState.activeCharms.some(c => c.id === 'recycler');
+    if (hasOpposite || hasEagle || hasRecycler) {
         const last = [...(gameState.log ?? [])].reverse().find(e => e.type === 'word' && e.status === 'valid') as { word: string } | undefined;
+        // WALL-E (v7.35): reuse letters from your last word.
+        if (last && hasRecycler && new Set(lettersInWord.filter(l => last.word.toUpperCase().includes(l))).size >= CHARM_BONUS.recyclerLetters) {
+            flatBonus += CHARM_BONUS.recycler;
+            bonuses.push({ name: 'WALL-E', description: `+${CHARM_BONUS.recycler} pts`, source: 'game' });
+        }
         if (last && hasOpposite && !lettersInWord.some(l => last.word.toUpperCase().includes(l))) {
             flatBonus += CHARM_BONUS.theOpposite;
             bonuses.push({ name: 'The Opposite', description: `+${CHARM_BONUS.theOpposite} pts`, source: 'game' });
@@ -809,7 +825,7 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     if (hasCharm('conjunctionJunction') && longEnough && lettersInWord.every((l, i) => i === 0 || l >= lettersInWord[i - 1])) flat('Conjunction Junction', CHARM_BONUS.conjunctionJunction);
     if (hasCharm('voteForPedro') && longEnough && tiles.every(t => t.points === 1 && !t.isCombo)) flat('Vote for Pedro', CHARM_BONUS.voteForPedro);
     if (hasCharm('formVoltron') && tiles.some(t => t.isCombo)) flat('Form Voltron', CHARM_BONUS.formVoltron);
-    if (hasCharm('silentKiller') && !lettersInWord.some(l => VOWELS.has(l))) flat('Silent Killer', CHARM_BONUS.silentKiller);
+    if (hasCharm('silentKiller') && longEnough && lettersInWord.filter(l => VOWELS.has(l)).length <= CHARM_BONUS.silentKillerMaxVowels) flat('Silent Killer', CHARM_BONUS.silentKiller);
     if (hasCharm('starPower') && lettersInWord.includes('S') && lettersInWord.includes('T')) flat('Star Power', CHARM_BONUS.starPower);
     if (hasCharm('italianRestaurantEnding') && wordUpper.endsWith('AN')) flat('Italian Restaurant Ending', CHARM_BONUS.italianRestaurant);
     if (hasCharm('cleverGirl') && new Set(lettersInWord.filter(l => 'RAPTO'.includes(l))).size >= CHARM_BONUS.cleverGirlLetters) flat('Clever Girl', CHARM_BONUS.cleverGirl);

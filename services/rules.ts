@@ -87,7 +87,7 @@ const plainQuotes = (s: string) => s.replace(/[‘’]/g, "'");
 
 /**
  * Points the named charms earned on a word: the "+N pts" lines of the score breakdown whose name
- * starts with a charm's name ("Vowel Lover (E)", "Mixtape (link 2)", "Momentum: +75 pts").
+ * starts with a charm's name ("Vanna's Vowels (E)", "Mixtape (link 2)").
  */
 export const charmPointsIn = (bonuses: { name: string; description: string }[], charmNames: string[]): number => {
     const names = charmNames.map(plainQuotes);
@@ -107,6 +107,37 @@ export const charmLengthBoostFor = (length: number): number => lookupByLength(CH
 export const charmLengthPoints = (bonuses: { name: string; description: string }[], charmNames: string[], length: number): number => {
     const percent = charmLengthBoostFor(length);
     return percent > 0 && charmNames.length ? Math.round(charmPointsIn(bonuses, charmNames) * percent / 100) : 0;
+};
+
+/**
+ * Word multipliers that also cover charm points (v7.35): the ones from PowerPlays, multiplier tiles
+ * and the SPICE power word, by the name of their line in the score breakdown. A multiplier used to
+ * touch only the tile points (about 14 a word), so "x3 next word" was worth about +30. The length
+ * bonus (the long-word boost covers it), charm multipliers and the Word Combo are left out, and so
+ * are the coin flips that already multiply the whole score (Heisenberg, Double or Nothing, Blue Shell).
+ * A new PowerPlay multiplier should be added here.
+ */
+export const ITEM_MULTIPLIER_LINES = [
+    'Tile Multiplier', 'Super Tile', 'Red Wedding', 'Konami Code', 'Ludicrous Speed', 'Combo Breaker',
+    "Let's Get Ready to Rumble!", '🌶️ Spice It Up', 'Nuclear Option', 'Extreme Makeover', "Cassie's Clue",
+    'Tetris Touch', 'Wordionaire: Double Down', 'Pinky and the Brain', 'Jackass', 'Bird Box',
+    "Let's Get Dangerous", 'Space Invader (Win)', 'REDRUM', 'More Than Meets the Eye',
+] as const;
+
+/** The combined item multiplier on a word (x2 and x3 make x5, like word multipliers do); 1 when there is none. */
+export const itemMultiplierIn = (bonuses: { name: string; description: string }[]): number => {
+    const sum = bonuses
+        .filter(b => ITEM_MULTIPLIER_LINES.some(n => plainQuotes(b.name).startsWith(plainQuotes(n))))
+        .map(b => Number(/^x(\d+(?:\.\d+)?)/.exec(b.description)?.[1] ?? 0))
+        .filter(m => m > 1)
+        .reduce((a, b) => a + b, 0);
+    return sum > 1 ? sum : 1;
+};
+
+/** Extra points when an item multiplier covers these charms' points on a word: charm points x (multiplier - 1). */
+export const charmMultiplierPoints = (bonuses: { name: string; description: string }[], charmNames: string[]): number => {
+    const multiplier = itemMultiplierIn(bonuses);
+    return multiplier > 1 && charmNames.length ? Math.round(charmPointsIn(bonuses, charmNames) * (multiplier - 1)) : 0;
 };
 
 /** How much PowerPlay point prizes are multiplied by at this level (1 at level 1, up to PRIZE_GROWTH.max). */

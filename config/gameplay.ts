@@ -98,8 +98,8 @@ export const POWER_PLAY_VALUES = {
   continueScoreCostPercent: 20,
   continueScoreCostMax: 2000,    // ...but never more than this, so a big late score isn't punished harder
   // Act Clear!: cash in clock seconds for points, but always keep a few on the clock.
-  actClearMaxSeconds: 20,
-  actClearPointsPerSecond: 20,
+  actClearMaxSeconds: 15,        // v7.35: was 20 s at 20 points each (never picked in 23 offers)
+  actClearPointsPerSecond: 40,
   actClearKeepSeconds: 10,
   // Blue Shell Surprise: next word wins the multiplier, or the shell backfires for a loss.
   blueShellWinChance: 0.65,
@@ -183,6 +183,15 @@ export const POWER_PLAY_VALUES = {
   moneyBinScore: 40,             // Scrooge's Money Bin: a next word scoring this much...
   moneyBinCredits: 3,            // ...earns these credits (was: lose 500 points for 1 credit)
   zapperMultiplier: 3,           // Duck Hunt: the tile you shoot is replaced by one worth this many times its points
+  // v7.35 reworks of PowerPlays nobody picked (0 picks in 20-40 offers each; ids kept for stats).
+  thanosGiftPoints: 400,         // Gift From Thanos: this now (was a promised 100 that never paid), next word scores 0
+  ludicrousSpeedMultiplier: 3,   // Ludicrous Speed: next 3 words score this...
+  ludicrousSpeedCost: 4,         // ...and each costs this many seconds (was 8)
+  moreThanMeetsMultiplier: 3,    // More Than Meets the Eye: the first word using the new combo tile scores this
+  shakeTileMultiplier: 2,        // Shake It Like a Polaroid: one redrawn tile is this word multiplier
+  shapeshifterPoints: 10,        // Shapeshifter's Tongue: the chosen letter's tile is worth this
+  hookshotMultiplier: 3,         // Hookshot: the twin tile is worth this many times its points
+  boostWords: 3,                 // Extreme Makeover (Polish): words it lasts (was 5; multipliers now cover charm points)
   psychicWords: 8,               // Psychic Friends Network: see the next tiles for this many words
   psychicTiles: 6,
 };
@@ -196,7 +205,7 @@ export const TIME_BONUS = {
   executeOrder66: 3,
   glitchInTheCode: 3,
   jackass: 15,             // Jackass: a strike taken on purpose
-  rescue: 10,              // Rewind, Neo's Choice (time), Deep Freeze, Gump's Luck
+  rescue: 10,              // Turn Back Time (rewind), Neo's Choice (time), Everybody Chill (deepFreeze), Gump's Luck
   continueScreen: 25,      // Continue?: a once-per-run rescue, so it skips the bonus-time rules
   sandsOfTime: 3,          // per word of sandsOfTimeLetters+ letters
   sandsOfTimeLetters: 6,
@@ -219,7 +228,8 @@ export const CHARM_BONUS = {
   chaosTheory: 50,
   weDidntStartTheFire: 75,
   inigosRevenge: 250,      // two or more I's
-  sherlocksSyntax: 200,
+  sherlocksSyntax: 400,    // a palindrome (was 200, and the only way it paid)
+  sherlocksRepeat: 60,     // v7.35: any repeated letter (about a third of 5-letter words)
   scoobyStack: 75,
   hyruleHustle: 50,
   luna: 75,
@@ -242,7 +252,8 @@ export const CHARM_BONUS = {
   mixtapeBase: 40,         // first link in a Mixtape chain
   mixtapeStep: 20,         // each further link pays this much more
   mixtapeMax: 120,
-  rubiksCube: 150,         // 6+ letters, no repeated letter
+  rubiksCube: 60,          // rubiksCubeLetters+ letters, no repeated letter (v7.35: was 6+ letters for 150; 5+ fires on about half of 5-letter play)
+  rubiksCubeLetters: 5,
   sickCombo: 50,           // word longer than your last one
   lenaPercent: 20,
   nicolesGracePercent: 25,
@@ -258,7 +269,10 @@ export const CHARM_BONUS = {
   starPower: 125,          // both S and T
   radioactive: 40,         // two of D, E, R...
   radioactiveAll: 120,     // ...or all three
-  silentKiller: 200,       // no vowels
+  silentKiller: 75,        // chaseMinLetters+ letters with at most silentKillerMaxVowels vowels (v7.35: was no vowels at all, +200)
+  silentKillerMaxVowels: 1,
+  recycler: 40,            // WALL-E (v7.35): a word that reuses recyclerLetters+ letters from your last word
+  recyclerLetters: 2,
   goldenTicket: 250,
   goldenTicketChance: 0.1,
   finisher: 15,            // added to the last tile's points
@@ -274,8 +288,7 @@ export const CHARM_BONUS = {
   finishHimMultiplier: 2,  // ...score this much more
   hesOnFireAbove: 60,      // He's On Fire!: words played with more than this many seconds left...
   hesOnFire: 40,           // ...earn this
-  survivor: 75,            // per word, for survivorWords words after a strike
-  survivorWords: 2,
+  survivor: 30,            // v7.35: every word, per strike you're carrying (was +75 on 2 words after a strike)
   theOpposite: 40,         // word shares no letters with your last one
   weWereOnABreakMultiplier: 2, // first word after a shuffle
   imReadyMultiplier: 3,    // first word of each new level
@@ -302,11 +315,12 @@ export const CHARM_BONUS = {
   mrGlass: 75,                 // per word, with one fewer strike
   mrGlassStrikes: 1,
   honeyShrunk: 60,             // per word, with one fewer tile in hand
-  happyAccidentSeconds: 10,    // the first invalid word each level costs this instead of a strike
+  happyAccidentSeconds: 0,     // the first invalid word each level costs this instead of a strike (v7.35: was 10; now free)
   wileECoyote: 150,            // per strike (plus TIME_BONUS.wileECoyote)
   turboButtonPercent: 20,      // fewer letters to fill the PowerPlay meter
   littleMacHits: 1,            // fewer hits a boss round needs
-  doubleDare: 75,              // per Challenge used, win or lose
+  doubleDare: 250,             // per Challenge used, win or lose (v7.35: was 75)
+  doubleDareChallenges: 1,     // ...and this many Challenges when equipped
   myPrecious: 100,             // per unused shuffle, at each level-up
   flagpolePerSecond: 10,       // per second on the clock, at each level-up
   supermarketSweep: 60,        // a word within supermarketSweepSeconds of a new hand
