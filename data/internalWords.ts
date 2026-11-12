@@ -538,6 +538,7 @@ export const internalWords = new Map<string, string>([
   ['hit', 'To strike.'],
   ['hm', 'A sound of consideration or doubt.'],
   ['ho', 'A call to attract attention.'],
+  ['hoar', 'Grayish white, as with age or frost. Also short for hoarfrost.'],
   ['hog', 'A pig, especially a large one.'],
   ['hold', 'To grasp or carry.'],
   ['hole', 'An opening or hollow.'],
