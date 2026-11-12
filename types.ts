@@ -289,6 +289,11 @@ export interface GameState {
   pendingTimeBonus?: number;
   /** Where this run's time came from, for the Game Over recap. */
   timeLedger?: TimeLedger;
+  /** Ids of equipped charms that have been upgraded (CHARM_UPGRADE): their point bonuses pay more. */
+  charmUpgrades?: string[];
+  /** How the run ended, and the seconds the clock actually ran (usage stats). */
+  endReason?: 'strikes' | 'time';
+  playMs?: number;
   /** The time bank, set aside while a Golden Round runs on its own clock. */
   bankedTime?: number | null;
   powerWordUsed?: boolean;

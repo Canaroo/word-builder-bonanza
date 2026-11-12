@@ -204,11 +204,20 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         "bosses":  { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99" },
         "charms":  { ".validate": "newData.isString() && newData.val().matches(/^([A-Za-z0-9]{1,32}(,[A-Za-z0-9]{1,32}){0,5})?$/)" },
         "daily":   { ".validate": "newData.isBoolean()" },
+        // v7.33: how the run ended, seconds the clock ran, seconds earned by source, charm upgrades taken
+        "cause":     { ".validate": "newData.isString() && newData.val().matches(/^(clock|strikes)$/)" },
+        "secs":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" },
+        "tWords":    { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" },
+        "tItems":    { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" },
+        "tShuffles": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" },
+        "upgrades":  { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99" },
 
         // Charm and PowerPlay offers and uses (ids only)
         "offered": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,32}(,[A-Za-z0-9]{1,32}){0,5}$/)" },
         "picked":  { ".validate": "newData.isString() && newData.val().matches(/^([A-Za-z0-9]{1,32})?$/)" },
         "pp":      { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,32}$/)" },
+        // v7.33: the equipped charm upgraded instead of a pick (charm_offer with picked '')
+        "upgraded": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,32}$/)" },
 
         "$other": { ".validate": false }
       }
@@ -229,11 +238,14 @@ Firebase rules allow `//` comments, so paste the block as-is.
 | `boss_end` | `boss`, `number`, `outcome`, `hits` | A boss round ends (won, close or escaped) |
 | `mission_shown` | `mission`, `tier` | The first time a device sees the day's missions (one per mission) |
 | `mission_done` | `mission`, `tier` | A mission is completed |
-| `run_end` | `score`, `words`, `level`, `bosses`, `charms`, `daily` (true for a Daily Run) | The Game Over summary is closed (`charms`: the ids equipped at the end, comma-joined) |
-| `charm_offer` | `offered`, `picked`, `level` | A charm offer is answered (`picked` is `''` for a pass) |
+| `run_end` | `score`, `words`, `level`, `bosses`, `charms`, `daily` (true for a Daily Run); v7.33 extras: `cause` (`clock` or `strikes`), `secs` (seconds the clock ran), `tWords` / `tItems` / `tShuffles` (seconds earned from words, charms and PowerPlays, shuffles), `upgrades` (charm upgrades taken) | The Game Over summary is closed (`charms`: the ids equipped at the end, comma-joined) |
+| `charm_offer` | `offered`, `picked`, `level`; v7.33 extra: `upgraded` | A charm offer is answered (`picked` is `''` for a pass, or for an upgrade, where `upgraded` is the equipped charm's id) |
 | `pp_offer` | `offered`, `picked`, `level` | A PowerPlay offer is answered (`picked` is `''` when the held one is kept) |
 | `pp_use` | `pp`, `level` | A PowerPlay is used (an instant one counts when picked) |
 | `power_word` | `power`, `repeat`, `seconds`, `strike` | A power word fires (slot payout, freeze, cloned or REWIND seconds; `strike`: HEAL removed one, or RINGS found a shield already up) |
+
+The v7.33 extras are sent with the event; if the database rejects them (rules not updated yet),
+the event is sent again without them, so an upgrade then counts as a pass and a run has no cause.
 
 Sending is fire-and-forget and never interrupts play. It's off in dev, on `localhost`, and when
 `VITE_LEADERBOARD=local`. The hidden page **`/?stats`** reads the last 24 hours, 7, 30 or 90 days

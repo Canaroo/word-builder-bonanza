@@ -109,6 +109,15 @@ const StatsPage: React.FC = () => {
               ['Average score', s.runs.avgScore.toLocaleString()],
               ['Median score', s.runs.medianScore.toLocaleString()],
               ['Average words', s.runs.avgWords],
+              ...(s.endings.reported ? (() => {
+                const e = s.endings; const t = e.timeWords + e.timeItems + e.timeShuffles;
+                return [
+                  ['Ended by the clock', `${e.clock} (${pct(e.clock, e.reported)})`],
+                  ['Ended by strikes', `${e.strikes} (${pct(e.strikes, e.reported)})`],
+                  ['Median clock time', `${e.medianMinutes} min`],
+                  ['Time from words / items / shuffles', `${pct(e.timeWords, t)} / ${pct(e.timeItems, t)} / ${pct(e.timeShuffles, t)}`],
+                ] as [string, string][];
+              })() : []),
             ]} />
           </Section>
 
@@ -169,7 +178,7 @@ const StatsPage: React.FC = () => {
           Show every charm and PowerPlay, including ones with no data in this range
         </label>
         <div className="grid gap-4 xl:grid-cols-2 items-start">
-          <Section title={`Charms (${CHARMS_LIST.length})`} note={`Click a column to sort. Pick % = picked when offered. Runs = runs that ended with it equipped; Avg score = their average. ${offers(s.passes.charm)} passed.`}>
+          <Section title={`Charms (${CHARMS_LIST.length})`} note={`Click a column to sort. Pick % = picked when offered. Runs = runs that ended with it equipped; Avg score = their average. ${offers(s.passes.charm)} passed, ${offers(s.upgrades)} upgraded a charm instead.`}>
             <SortTable head={['Charm', 'Offered', 'Picked', 'Pick %', 'Runs', 'Avg score']} defaultSort={2} fmt={[, , , asPct]}
               rows={CHARMS_LIST.filter(c => showAll || s.charms[c.id]).map(c => {
                 const x = s.charms[c.id] ?? { offered: 0, picked: 0, endRuns: 0, avgEndScore: 0 };

@@ -1,6 +1,6 @@
 import React from 'react';
 import { soundService } from '../soundService';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, BOSS } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, BOSS } from '../../config/gameplay';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import ArcadeButton from '../../components/ArcadeButton';
 import ScreenShell from '../../components/ScreenShell';
@@ -116,7 +116,8 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
           <p>
             <Key>Charms</Key> are always on. They change the rules for the rest of the run ("every E is worth +
             {CHARM_BONUS.oneRing}"). Play enough words and you pick one of three. You have{' '}
-            <Key>{CHARM_SLOTS} charm slots</Key>: when they're full, swap one out or pass.
+            <Key>{CHARM_SLOTS} charm slots</Key>: when they're full, swap one out, pass, or <Key>⭐ upgrade</Key> one you
+            hold so its point bonuses pay {CHARM_UPGRADE.percent}% more (once per charm).
           </p>
           <p>
             <Key>PowerPlays</Key> are a button you press once, at the moment you choose. Fill the meter by playing{' '}
@@ -166,7 +167,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
           <p>
             Every <Key>{BOSS.everyLevels}rd level</Key> a villain shows up with a rule (like <Key>no E</Key>) for your next{' '}
             <Key>{BOSS.words} words</Key>. Land <Key>{BOSS.hitsToWin} hits</Key> (words that follow the rule) to win their{' '}
-            <Key>Boss Badge</Key>, worth points and time. Breaking the rule never costs you: the word still scores.
+            <Key>Boss Badge</Key>, worth points and time (the toughest rules need fewer hits). Breaking the rule never costs you: the word still scores.
           </p>
         </Section>
 

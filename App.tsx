@@ -304,7 +304,12 @@ const App: React.FC = () => {
     const daily = gameState.daily ?? null;
     storage.remove(daily ? STORAGE_KEYS.savedDailyGame : STORAGE_KEYS.savedGame);
     const validWords = gameState.log.filter(e => e.type === 'word' && e.status === 'valid').length;
-    sendStat({ type: 'run_end', score: gameState.score, words: validWords, level: levelFor(validWords), bosses: gameState.bossesBeaten ?? 0, charms: (gameState.activeCharms ?? []).map(c => c.id).join(','), ...(daily ? { daily: true } : {}) });
+    sendStat({ type: 'run_end', score: gameState.score, words: validWords, level: levelFor(validWords), bosses: gameState.bossesBeaten ?? 0, charms: (gameState.activeCharms ?? []).map(c => c.id).join(','), ...(daily ? { daily: true } : {}) }, {
+      cause: gameState.endReason === 'strikes' ? 'strikes' : 'clock',
+      secs: Math.round((gameState.playMs ?? 0) / 1000),
+      tWords: gameState.timeLedger?.words ?? 0, tItems: gameState.timeLedger?.powerUps ?? 0, tShuffles: gameState.timeLedger?.shuffles ?? 0,
+      upgrades: (gameState.charmUpgrades ?? []).length,
+    });
     // A scored Daily Run posts to the day's board, then pays Credits (more for a top-10 finish).
     if (daily) {
       const run: DailyRun = { key: daily.key, number: daily.number, seed: daily.seed, practice: daily.practice };

@@ -118,8 +118,8 @@ describe('charms and PowerPlays in the summary', () => {
             ev({ type: 'run_end', score: 3000, words: 10, level: 1, bosses: 0, charms: 'mrGlass' }),
             ev({ type: 'run_end', score: 500, words: 10, level: 1, bosses: 0 }), // an old event without charms
         ]);
-        expect(s.charms.mrGlass).toEqual({ offered: 2, picked: 1, endRuns: 2, avgEndScore: 2000 });
-        expect(s.charms.luna).toEqual({ offered: 2, picked: 0, endRuns: 0, avgEndScore: 0 });
+        expect(s.charms.mrGlass).toEqual({ offered: 2, picked: 1, upgraded: 0, endRuns: 2, avgEndScore: 2000 });
+        expect(s.charms.luna).toEqual({ offered: 2, picked: 0, upgraded: 0, endRuns: 0, avgEndScore: 0 });
         expect(s.charms.aTeam.endRuns).toBe(1);
         expect(s.powerPlays.timeBoost).toEqual({ offered: 2, picked: 1, used: 1 });
         expect(s.passes).toEqual({ charm: 1, powerPlay: 1 });

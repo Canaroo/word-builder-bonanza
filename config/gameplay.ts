@@ -360,5 +360,12 @@ export const POWER_WORD_EFFECTS = {
 /** Most charms a player can have at once; a new one beyond this replaces one. */
 export const CHARM_SLOTS = 5;
 
+/**
+ * Charm upgrades (v7.33): with every slot full, a charm offer can also upgrade one equipped charm
+ * (once per charm). An upgraded charm's point bonuses pay this much more. Stats: 49% of charm
+ * offers from level 6 on were passed, because a full set had nothing left to gain.
+ */
+export const CHARM_UPGRADE = { percent: 50 } as const;
+
 /** Time bank maximum while the Power Glove charm is equipped. */
 export const POWER_GLOVE_BANK_MAX = 120;

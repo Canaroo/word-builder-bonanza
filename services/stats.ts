@@ -17,7 +17,7 @@ export type StatEvent =
     | { type: 'pp_use'; pp: string; level: number }
     | { type: 'power_word'; power: PowerWordEffect; repeat: boolean; seconds: number; strike: boolean };
 
-export type StoredStat = StatEvent & { timestamp: number };
+export type StoredStat = StatEvent & StatExtras & { timestamp: number };
 
 const STATS_PATH = 'stats';
 const databaseURL = () => String(import.meta.env.VITE_FIREBASE_DATABASE_URL ?? '').replace(/\/+$/, '');
@@ -33,16 +33,37 @@ const enabled = (): boolean => {
     return host !== 'localhost' && host !== '127.0.0.1';
 };
 
+/**
+ * Newer fields (v7.33) that the Firebase rules may not allow yet. They ride along as `extras`: if
+ * the database rejects the event with them, it is sent again without them, so nothing is lost.
+ * run_end: how the run ended, seconds the clock ran, seconds earned from words / items / shuffles,
+ * and charm upgrades taken. charm_offer: the equipped charm that was upgraded instead of a pick.
+ */
+export interface StatExtras {
+    cause?: 'clock' | 'strikes';
+    secs?: number;
+    tWords?: number;
+    tItems?: number;
+    tShuffles?: number;
+    upgrades?: number;
+    upgraded?: string;
+}
+
 /** Sends one event. Never throws; a lost event is fine. */
-export const sendStat = (event: StatEvent): void => {
+export const sendStat = (event: StatEvent, extras?: StatExtras): void => {
     if (!enabled()) return;
+    const post = (body: object) => fetch(`${databaseURL()}/${STATS_PATH}.json`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, timestamp: { '.sv': 'timestamp' } }),
+        keepalive: true, // still sent if the tab is closing (the run summary)
+    });
     try {
-        fetch(`${databaseURL()}/${STATS_PATH}.json`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...event, timestamp: { '.sv': 'timestamp' } }),
-            keepalive: true, // still sent if the tab is closing (the run summary)
-        }).catch(() => {});
+        const hasExtras = !!extras && Object.keys(extras).length > 0;
+        const first = post(hasExtras ? { ...event, ...extras } : event);
+        Promise.resolve(first)
+            .then(res => { if (hasExtras && res && !res.ok) return post(event); })
+            .catch(() => {});
     } catch { /* no fetch: ignore */ }
 };
 
@@ -59,6 +80,8 @@ export const fetchStats = async (days: number, now = Date.now()): Promise<Stored
 
 export interface StatsSummary {
     runs: { count: number; avgScore: number; medianScore: number; avgWords: number; reachedLevel: Record<number, number> };
+    /** How runs ended, their length and where their time came from (runs that reported it, v7.33+). */
+    endings: { reported: number; clock: number; strikes: number; medianMinutes: number; timeWords: number; timeItems: number; timeShuffles: number };
     bosses: Record<string, { reached: number; won: number; close: number; escaped: number; avgHits: number }>;
     bossNumbers: Record<number, { reached: number; won: number }>;
     missions: Record<string, { tier: number; shown: number; done: number }>;
@@ -66,11 +89,13 @@ export interface StatsSummary {
     powerWords: Record<string, { fired: number; repeats: number; seconds: number; strikes: number; payouts: Record<number, number> }>;
     days: Record<string, { runs: number; bossesWon: number; missionsDone: number }>;
     /** Charms: times offered and picked, and runs that ended with it equipped (with their average score). */
-    charms: Record<string, { offered: number; picked: number; endRuns: number; avgEndScore: number }>;
+    charms: Record<string, { offered: number; picked: number; upgraded: number; endRuns: number; avgEndScore: number }>;
     /** PowerPlays: times offered, picked and used. */
     powerPlays: Record<string, { offered: number; picked: number; used: number }>;
     /** Offers turned down: charm passes and PowerPlay keeps. */
     passes: { charm: number; powerPlay: number };
+    /** Charm offers answered with an upgrade. */
+    upgrades: number;
 }
 
 const median = (xs: number[]) => {
@@ -83,8 +108,10 @@ const dayOf = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
 /** Turns raw events into the tables on the stats page. */
 export const summarize = (events: StoredStat[]): StatsSummary => {
-    const out: StatsSummary = { runs: { count: 0, avgScore: 0, medianScore: 0, avgWords: 0, reachedLevel: {} }, bosses: {}, bossNumbers: {}, missions: {}, powerWords: {}, days: {}, charms: {}, powerPlays: {}, passes: { charm: 0, powerPlay: 0 } };
-    const charm = (id: string) => (out.charms[id] ??= { offered: 0, picked: 0, endRuns: 0, avgEndScore: 0 });
+    const out: StatsSummary = { runs: { count: 0, avgScore: 0, medianScore: 0, avgWords: 0, reachedLevel: {} }, bosses: {}, bossNumbers: {}, missions: {}, powerWords: {}, days: {}, charms: {}, powerPlays: {}, passes: { charm: 0, powerPlay: 0 }, upgrades: 0,
+        endings: { reported: 0, clock: 0, strikes: 0, medianMinutes: 0, timeWords: 0, timeItems: 0, timeShuffles: 0 } };
+    const charm = (id: string) => (out.charms[id] ??= { offered: 0, picked: 0, upgraded: 0, endRuns: 0, avgEndScore: 0 });
+    const runSecs: number[] = [];
     const pp = (id: string) => (out.powerPlays[id] ??= { offered: 0, picked: 0, used: 0 });
     const ids = (list: string) => list.split(',').filter(Boolean);
     const endScores: Record<string, number> = {};
@@ -96,10 +123,16 @@ export const summarize = (events: StoredStat[]): StatsSummary => {
             out.runs.count++; scores.push(e.score); words += e.words; day.runs++;
             for (let l = 1; l <= e.level; l++) out.runs.reachedLevel[l] = (out.runs.reachedLevel[l] ?? 0) + 1;
             for (const id of ids(e.charms ?? '')) { charm(id).endRuns++; endScores[id] = (endScores[id] ?? 0) + e.score; }
+            if (e.cause) {
+                out.endings.reported++; out.endings[e.cause]++;
+                if (typeof e.secs === 'number') runSecs.push(e.secs);
+                out.endings.timeWords += e.tWords ?? 0; out.endings.timeItems += e.tItems ?? 0; out.endings.timeShuffles += e.tShuffles ?? 0;
+            }
         } else if (e.type === 'charm_offer' || e.type === 'pp_offer') {
             const get = e.type === 'charm_offer' ? charm : pp;
             for (const id of ids(e.offered)) get(id).offered++;
             if (e.picked) get(e.picked).picked++;
+            else if (e.type === 'charm_offer' && e.upgraded) { charm(e.upgraded).upgraded++; out.upgrades++; }
             else out.passes[e.type === 'charm_offer' ? 'charm' : 'powerPlay']++;
         } else if (e.type === 'pp_use') {
             pp(e.pp).used++;
@@ -126,6 +159,7 @@ export const summarize = (events: StoredStat[]): StatsSummary => {
     out.runs.avgScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
     out.runs.medianScore = median(scores);
     out.runs.avgWords = out.runs.count ? Math.round(words / out.runs.count) : 0;
+    out.endings.medianMinutes = Math.round(median(runSecs) / 6) / 10;
     for (const [id, c] of Object.entries(out.charms)) c.avgEndScore = c.endRuns ? Math.round((endScores[id] ?? 0) / c.endRuns) : 0;
     for (const [id, b] of Object.entries(out.bosses)) {
         const ended = b.won + b.close + b.escaped;
