@@ -1386,3 +1386,11 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     activate: arm('psychicFriends', { words: POWER_PLAY_VALUES.psychicWords }),
   },
 ];
+
+/** PowerPlays that pay a flat point prize, which grows with the run level (PRIZE_GROWTH, prizeFor).
+ * A new PowerPlay with a point prize goes here and pays through prizeFor(). */
+export const PRIZE_POWER_PLAY_IDS: ReadonlySet<string> = new Set([
+  'letsMakeADeal', 'dealOrNoDeal', 'noWhammies', 'minesweeper', 'cardSharks', 'plinko', 'chickenDinner',
+  'fluncleIsProud', 'actClear', 'priceIsRight', 'tamagotchi', 'smellYaLater', 'popQuizHotshot',
+  'withGreatPower', 'gumpLuck', 'warioWarp',
+]);

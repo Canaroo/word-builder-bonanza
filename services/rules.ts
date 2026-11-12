@@ -1,5 +1,5 @@
 // Pure gameplay rules. No React, no DOM: easy to test and to tune via config/gameplay.ts.
-import { BOSS, CHARM_BONUS, CHARM_UPGRADE, GAMEPLAY, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS } from '../config/gameplay';
+import { BOSS, CHARM_BONUS, CHARM_LENGTH_BOOST, CHARM_UPGRADE, GAMEPLAY, PRIZE_GROWTH, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS } from '../config/gameplay';
 import { BossRound, PowerWordEffect, ScoreCalculationResult } from '../types';
 
 const lookupByLength = (table: Record<number, number>, length: number, below: number): number => {
@@ -99,6 +99,23 @@ export const charmPointsIn = (bonuses: { name: string; description: string }[], 
 /** Extra points an upgraded charm's bonuses pay on a word (CHARM_UPGRADE.percent of them, rounded). */
 export const charmUpgradePoints = (bonuses: { name: string; description: string }[], upgradedNames: string[]): number =>
     upgradedNames.length ? Math.round(charmPointsIn(bonuses, upgradedNames) * CHARM_UPGRADE.percent / 100) : 0;
+
+/** Percent more that charm points pay on a word of this length (0 for short words). */
+export const charmLengthBoostFor = (length: number): number => lookupByLength(CHARM_LENGTH_BOOST, length, 0);
+
+/** Extra points the long-word boost adds to these charms' bonuses on a word of this length. */
+export const charmLengthPoints = (bonuses: { name: string; description: string }[], charmNames: string[], length: number): number => {
+    const percent = charmLengthBoostFor(length);
+    return percent > 0 && charmNames.length ? Math.round(charmPointsIn(bonuses, charmNames) * percent / 100) : 0;
+};
+
+/** How much PowerPlay point prizes are multiplied by at this level (1 at level 1, up to PRIZE_GROWTH.max). */
+export const prizeScaleFor = (level: number): number =>
+    Math.min(PRIZE_GROWTH.max, Math.round((1 + PRIZE_GROWTH.perLevel * (Math.max(1, level) - 1)) * 100) / 100);
+
+/** A PowerPlay point prize at this level, rounded to 5. Losses (0 or less) are never scaled. */
+export const prizeFor = (points: number, level: number): number =>
+    points > 0 ? Math.round(points * prizeScaleFor(level) / 5) * 5 : points;
 
 /** Overflow tax: while the bank is above overflowAbove, word time is halved (rounded down). */
 export const taxWordTime = (seconds: number, bank: number): number =>
@@ -243,6 +260,8 @@ export const levelUpInfo = (level: number, gs?: WithCharms): LevelUpInfo => {
     if (level === GAMEPLAY.timeBank.shortWordTimeStopsAtLevel) changes.push({ icon: '✂️', label: '3-letter words', from: `+${timeForWord(3)}s`, to: 'no time' });
     const meter = [meterLettersFor(prev, gs), meterLettersFor(level, gs)];
     if (meter[1] !== meter[0]) changes.push({ icon: '⚡', label: 'PowerPlay letters', from: `${meter[0]}`, to: `${meter[1]}` });
+    const prize = [prizeScaleFor(prev), prizeScaleFor(level)];
+    if (prize[1] !== prize[0]) changes.push({ icon: '🎁', label: 'PowerPlay prizes', from: `x${prize[0]}`, to: `x${prize[1]}` });
     return {
         level, tier: tier.name, tone: tier.tone,
         newTier: tier !== levelTierFor(prev),

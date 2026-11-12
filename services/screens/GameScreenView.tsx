@@ -4,6 +4,7 @@ import ShuffleButton from '../../components/ShuffleButton';
 import BonusReveal from '../../components/BonusReveal';
 import SlotMachine from '../../components/SlotMachine';
 import { PowerPlayOffer, CharmOffer } from '../../components/OfferModals';
+import { PRIZE_POWER_PLAY_IDS } from '../../data/powerPlays';
 import { GameState, Tile, WordData, Milestone, Charm, PowerPlay } from '../../types';
 import Timer from '../../components/Timer';
 import TileComponent from '../../components/Tile';
@@ -13,7 +14,7 @@ import DurationBadge from '../../ui/DurationBadge';
 import { RACK_SIZE, HAND_SIZE } from '../../constants';
 import { GAMEPLAY, CHARM_SLOTS, CHARM_UPGRADE, TIME_BONUS, BOSS, CHARM_BONUS } from '../../config/gameplay';
 import { bossById } from '../../data/bosses';
-import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor, bossHitsToWin } from '../rules';
+import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor, bossHitsToWin, prizeScaleFor } from '../rules';
 import LevelBadge from '../../components/LevelBadge';
 import LevelUpCard from '../../components/LevelUpCard';
 import OutcomeCard from '../../components/OutcomeCard';
@@ -319,6 +320,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         <div className={`${modalBoxBaseClass} border-purple-400`}>
                            <h2 className="text-3xl font-bold text-purple-400 mb-4 text-center flex items-center justify-center gap-3"><span className="text-4xl">{buff.icon}</span> {buff.name}</h2>
                            <p className="text-slate-200 text-center text-lg mb-2">{buff.description}</p>
+                           {PRIZE_POWER_PLAY_IDS.has(buff.id) && prizeScaleFor(levelFor(totalWords)) > 1 && (
+                               <p className="osd-text text-lg text-neon-yellow text-center mb-2">⬆ LEVEL {levelFor(totalWords)}: POINT PRIZES PAY x{prizeScaleFor(levelFor(totalWords))}</p>
+                           )}
                            {(gameState?.charmUpgrades ?? []).includes(buff.id) && (gameState?.activeCharms ?? []).some(c => c.id === buff.id) && (
                                <p className="osd-text text-lg text-neon-yellow text-center mb-2">⭐ UPGRADED: ITS POINT BONUSES PAY {CHARM_UPGRADE.percent}% MORE</p>
                            )}
@@ -338,6 +342,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         reason={content}
                         offered={offered}
                         held={held}
+                        level={levelFor(totalWords)}
+                        prizeScale={prizeScaleFor(levelFor(totalWords))}
                         onChoose={(pp) => handleChoosePowerPlay(pp, offered)}
                         onKeep={() => handleKeepPowerPlay(offered)}
                     />

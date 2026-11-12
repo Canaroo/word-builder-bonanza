@@ -4,7 +4,7 @@ import { GameState, Tile, WordData, Milestone, Charm, PowerPlay, ScoreCalculatio
 import { RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, VOWELS, INITIAL_SHUFFLES, MAX_STRIKES_INITIAL, SUPER_HAND_BONUS, TILE_DISTRIBUTION, INITIAL_CHALLENGES, COMBO_TILES } from '../../constants';
 import * as gameUtils from '../gameUtils';
 import { MILESTONES_LIST } from '../../data/milestones';
-import { CHARMS_LIST, UPGRADABLE_CHARM_IDS } from '../../data/charms';
+import { CHARMS_LIST, UPGRADABLE_CHARM_IDS, NO_LENGTH_BOOST_CHARM_IDS } from '../../data/charms';
 import { GAMBLE_CARD_IDS, type GambleResult } from '../../components/GambleCard';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, TIME_CARD_IDS } from '../../data/powerPlays';
 import { EASTER_EGGS } from '../../data/easterEggs';
@@ -19,7 +19,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, redrumReverse } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, charmLengthPoints, charmLengthBoostFor, prizeFor, prizeScaleFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, redrumReverse } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
@@ -576,7 +576,12 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         // A gamble PowerPlay's result (v7.25): points and/or seconds, the PowerPlay leaves the pocket,
         // and the outcome card opens. A strike result is dispatched separately (ADD_STRIKE).
         case 'APPLY_GAMBLE': {
-            const { powerPlay, points = 0, seconds = 0, headline, detail, tone } = action.payload;
+            const { powerPlay, points: listed = 0, seconds = 0, tone } = action.payload;
+            // Point prizes grow with the level (PRIZE_GROWTH); the card shows the listed prize, so say what changed.
+            const points = prizeFor(listed, runLevel(gameState));
+            const boosted = points !== listed;
+            const headline = boosted ? action.payload.headline.replace(`+${listed}`, `+${points}`) : action.payload.headline;
+            const detail = boosted ? `${action.payload.detail}\n\n⬆ Level ${runLevel(gameState)} prize boost: ${listed} → ${points} points.` : action.payload.detail;
             const score = Math.max(0, gameState.score + points);
             const gained = seconds > 0 ? bonusTime(seconds, state.time, runLevel(gameState)) : seconds;
             const time = clampTime(state.time + gained, bankMax(gameState));
@@ -622,7 +627,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             const game = gameState.activePowerPlays.chickenDinner as { total: number } | undefined;
             if (!game) return state;
             const powerPlay = ppById('chickenDinner');
-            const points = blackjackPayout(game.total);
+            const points = prizeFor(blackjackPayout(game.total), runLevel(gameState));
             const score = gameState.score + points;
             const { chickenDinner: _done, ...rest } = gameState.activePowerPlays;
             const entry: EventLogEntry = { type: 'event', id: `pp-chickenDinner-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon, description: `Stood on ${game.total}: +${points}.`, scoreChange: points, cumulativeScore: score };
@@ -1458,13 +1463,13 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
 
             if (powerPlay.id === 'fluncleIsProud') {
                 let newGameState = { ...gameState };
-                const scoreChange = 300;
+                const scoreChange = prizeFor(300, runLevel(gameState));
                 const newScore = newGameState.score + scoreChange;
                 const changes = { score: newScore };
 
                 const newLogEntry: EventLogEntry = {
                     type: 'event', id: `pp-fluncleIsProud-${Date.now()}`, name: powerPlay.name,
-                    description: 'Fluncle is proud! +300 points.', icon: '🧓',
+                    description: `Fluncle is proud! +${scoreChange} points.`, icon: '🧓',
                     scoreChange: scoreChange, cumulativeScore: newScore
                 };
                 const newLog = [...newGameState.log, newLogEntry];
@@ -1477,7 +1482,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     powerPlayProgress: resetProgress,
                     powerPlayCooldowns: newPowerPlayCooldowns,
                 };
-                const newModalContent: ModalContent = { type: 'info', title: 'Fluncle is Proud', content: `Fluncle is very proud of you. You gain 300 points!${swappedOut}`, autoClose: 2500 };
+                const newModalContent: ModalContent = { type: 'info', title: 'Fluncle is Proud', content: `Fluncle is very proud of you. You gain ${scoreChange} points!${swappedOut}`, autoClose: 2500 };
                 return {
                     ...state,
                     gameState: newGameState,
@@ -1630,7 +1635,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     const why = state.gameState.roundType === 'golden' ? 'during a Golden Round' : `with ${actClearKeepSeconds} seconds or less on the clock`;
                     return { ...state, gameState: { ...state.gameState, lastPowerPlayResult: { message: `🦔 Act Clear! can't cash in time ${why}. It's still in your pocket.`, scoreChange: 0 } } };
                 }
-                const scoreChange = seconds * actClearPointsPerSecond;
+                const scoreChange = prizeFor(seconds * actClearPointsPerSecond, runLevel(state.gameState));
                 const newScore = state.gameState.score + scoreChange;
                 const newLogEntry: EventLogEntry = {
                     type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
@@ -3085,6 +3090,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       let wordCeiling: number | null = scoreResult.capped ? scoreResult.totalScore : null;
       // Upgraded charms, as equipped when the word was played (a charm can leave mid-word, like the Snitch).
       const upgradedCharmNames = newState.activeCharms.filter(c => (newState.charmUpgrades ?? []).includes(c.id)).map(c => c.name);
+      // Charms the long-word boost covers (one-off payouts are left out), and the level PowerPlay prizes pay at.
+      const lengthBoostCharmNames = newState.activeCharms.filter(c => !NO_LENGTH_BOOST_CHARM_IDS.has(c.id)).map(c => c.name);
+      const prizeLevel = runLevel(newState);
 
       // Level-up charms: My Precious pays for unused shuffles, Hit the Flagpole for clock seconds.
       const payLevelUp = (result: ScoreCalculationResult) => {
@@ -3552,7 +3560,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // A missed bid costs points (bids armed before v7.28.3 carry no miss cost).
       const priceBid = newState.activePowerPlays.priceIsRight as { bid: number; prize: number; miss?: number } | undefined;
       const priceMade = !!priceBid && scoreResult.totalScore >= priceBid.bid;
-      const pricePaid = priceBid && priceMade ? priceBid.prize : 0;
+      const pricePaid = priceBid && priceMade ? prizeFor(priceBid.prize, prizeLevel) : 0;
       const priceMiss = priceBid && !priceMade ? (priceBid.miss ?? 0) : 0;
       if (priceBid) {
           dropPP('priceIsRight');
@@ -3610,9 +3618,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               const pot = tamagotchiPot(feeds);
               if (feeds >= V28.tamagotchiWords) {
                   dropPP('tamagotchi');
-                  runningScore += pot;
-                  eventLogQueue.push({ type: 'event', id: `pp-tamagotchi-${now}`, name: tama.name, icon: tama.icon, description: `Fed ${feeds} times and fully grown: +${pot}.`, scoreChange: pot, cumulativeScore: runningScore });
-                  modalQueue.push(outcome(tama, `FULLY GROWN! +${pot}`, `${feeds} good meals in a row. Your pet pays out its whole pot.`, 'win'));
+                  const paid = prizeFor(pot, prizeLevel);
+                  runningScore += paid;
+                  eventLogQueue.push({ type: 'event', id: `pp-tamagotchi-${now}`, name: tama.name, icon: tama.icon, description: `Fed ${feeds} times and fully grown: +${paid}.`, scoreChange: paid, cumulativeScore: runningScore });
+                  modalQueue.push(outcome(tama, `FULLY GROWN! +${paid}`, `${feeds} good meals in a row. Your pet pays out its whole pot${paid !== pot ? ` (${pot}, boosted to ${paid} at level ${prizeLevel})` : ''}.`, 'win'));
               } else {
                   setPP('tamagotchi', { feeds }, `Fed ${feeds}/${V28.tamagotchiWords}. Pot: ${pot}. Next ${V28.tamagotchiLetters}+ letter word adds +${tamagotchiFeed(feeds + 1)}.`);
                   showMessage(`🥚 Yum! Fed ${feeds}/${V28.tamagotchiWords}, pot ${pot}.`, 2000);
@@ -3636,9 +3645,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           } else {
               dropPP('smellYaLater');
               const won = mine > rival;
-              if (won) runningScore += V28.rivalPrize;
-              eventLogQueue.push({ type: 'event', id: `pp-smellYaLater-${now}`, name: rivalPP.name, icon: rivalPP.icon, description: `You ${mine}, rival ${rival}: ${won ? `won +${V28.rivalPrize}` : 'he won'}.`, scoreChange: won ? V28.rivalPrize : 0, cumulativeScore: runningScore });
-              modalQueue.push(outcome(rivalPP, won ? `YOU WIN! +${V28.rivalPrize}` : 'YOUR RIVAL WINS', `You ${mine}, rival ${rival}. ${won ? 'Smell ya later!' : 'He scores while you think. Play faster next time.'}`, won ? 'win' : 'lose'));
+              const rivalPrize = prizeFor(V28.rivalPrize, prizeLevel);
+              if (won) runningScore += rivalPrize;
+              eventLogQueue.push({ type: 'event', id: `pp-smellYaLater-${now}`, name: rivalPP.name, icon: rivalPP.icon, description: `You ${mine}, rival ${rival}: ${won ? `won +${rivalPrize}` : 'he won'}.`, scoreChange: won ? rivalPrize : 0, cumulativeScore: runningScore });
+              modalQueue.push(outcome(rivalPP, won ? `YOU WIN! +${rivalPrize}` : 'YOUR RIVAL WINS', `You ${mine}, rival ${rival}. ${won ? 'Smell ya later!' : 'He scores while you think. Play faster next time.'}`, won ? 'win' : 'lose'));
           }
       }
       // Winner Winner Chicken Dinner: each valid word deals a card to the count.
@@ -3653,13 +3663,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               modalQueue.push(outcome(dinnerPP, `BUST! ${total}`, `${word.toUpperCase()} dealt you a ${dealt.face} (${dealt.value}), over ${target}. No payout.`, 'lose'));
           } else if (total === target) {
               dropPP('chickenDinner');
-              const pts = blackjackPayout(total);
+              const pts = prizeFor(blackjackPayout(total), prizeLevel);
               runningScore += pts;
               eventLogQueue.push({ type: 'event', id: `pp-chickenDinner-${now}`, name: dinnerPP.name, icon: dinnerPP.icon, description: `Hit ${target} exactly: +${pts}.`, scoreChange: pts, cumulativeScore: runningScore });
               modalQueue.push(outcome(dinnerPP, `${target}! +${pts}`, `Dealt a ${dealt.face}. Winner winner, chicken dinner!`, 'win'));
           } else {
               setPP('chickenDinner', { total, last: dealt.face }, `Count: ${total} (last card ${dealt.face}). Tap the 🍗 chip to stand, or keep playing (over ${target} busts).`);
-              showMessage(`🍗 Dealt ${dealt.face}: count ${total}${blackjackPayout(total) ? ` (stand for +${blackjackPayout(total)})` : ''}`, 2200);
+              showMessage(`🍗 Dealt ${dealt.face}: count ${total}${blackjackPayout(total) ? ` (stand for +${prizeFor(blackjackPayout(total), prizeLevel)})` : ''}`, 2200);
           }
       }
 
@@ -3700,14 +3710,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           if (quiz) {
               const took = Math.max(0, quiz.startClock - time);
               const fast = took <= V.popQuizSeconds;
+              const quizPoints = prizeFor(V.popQuizPoints, prizeLevel);
               if (fast) {
-                  runningScore += V.popQuizPoints;
+                  runningScore += quizPoints;
                   newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + V.popQuizBonusSeconds;
               } else {
                   newState.ludicrousTimeCost = (newState.ludicrousTimeCost ?? 0) + V.popQuizPenaltySeconds;
               }
-              eventLogQueue.push({ type: 'event', id: `pp-popQuiz-${now}`, name: 'Pop Quiz, Hotshot', icon: '🚌', description: fast ? `Answered in ${took}s: +${V.popQuizPoints} points and +${V.popQuizBonusSeconds}s.` : `Took ${took}s: -${V.popQuizPenaltySeconds}s.`, scoreChange: fast ? V.popQuizPoints : 0, cumulativeScore: runningScore });
-              modalQueue.push(outcome(ppById('popQuizHotshot'), fast ? `+${V.popQuizPoints} POINTS, +${V.popQuizBonusSeconds}s` : `TOO SLOW: -${V.popQuizPenaltySeconds}s`, fast ? `You answered in ${took} ${took === 1 ? 'second' : 'seconds'}. The bus keeps rolling.` : `That took ${took} seconds (you had ${V.popQuizSeconds}). The clock loses ${V.popQuizPenaltySeconds} seconds next round.`, fast ? 'win' : 'lose'));
+              eventLogQueue.push({ type: 'event', id: `pp-popQuiz-${now}`, name: 'Pop Quiz, Hotshot', icon: '🚌', description: fast ? `Answered in ${took}s: +${quizPoints} points and +${V.popQuizBonusSeconds}s.` : `Took ${took}s: -${V.popQuizPenaltySeconds}s.`, scoreChange: fast ? quizPoints : 0, cumulativeScore: runningScore });
+              modalQueue.push(outcome(ppById('popQuizHotshot'), fast ? `+${quizPoints} POINTS, +${V.popQuizBonusSeconds}s` : `TOO SLOW: -${V.popQuizPenaltySeconds}s`, fast ? `You answered in ${took} ${took === 1 ? 'second' : 'seconds'}. The bus keeps rolling.` : `That took ${took} seconds (you had ${V.popQuizSeconds}). The clock loses ${V.popQuizPenaltySeconds} seconds next round.`, fast ? 'win' : 'lose'));
           }
       }
 
@@ -3906,6 +3917,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (upgradeBonus > 0) {
           runningScore += upgradeBonus;
           scoreResult.bonuses.push({ name: '⭐ Charm upgrades', description: `+${upgradeBonus} pts (${CHARM_UPGRADE.percent}% more from upgraded charms)` });
+      }
+
+      // Long-word boost (v7.34): charm points on a 5+ letter word pay more, so long words win on score too.
+      const lengthBonus = wordLocked ? 0 : charmLengthPoints(scoreResult.bonuses, lengthBoostCharmNames, word.length);
+      if (lengthBonus > 0) {
+          runningScore += lengthBonus;
+          scoreResult.bonuses.push({ name: '📏 Long word', description: `+${lengthBonus} pts (charm points +${charmLengthBoostFor(word.length)}% for ${word.length} letters)` });
       }
 
       // --- 6. Aggregate Score and Check Aggregate Bonuses ---
@@ -4854,12 +4872,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         if (powerPlay.id === 'withGreatPower') {
             soundService.playPowerUp();
             if (strikesRemaining > 1) {
-                const scoreChange = 500;
+                const scoreChange = prizeFor(500, runLevel(gameState));
                 const newScore = gameState.score + scoreChange;
                 const newStrikes = gameState.strikes + 1;
                 const newLogEntry: EventLogEntry = {
                     type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
-                    description: 'Sacrificed a strike for +500 points.', icon: '🕷️',
+                    description: `Sacrificed a strike for +${scoreChange} points.`, icon: '🕷️',
                     scoreChange: scoreChange, cumulativeScore: newScore
                 };
                 dispatch({
@@ -4943,7 +4961,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             let outcomeMessage = '';
             let changes: Partial<GameState> = {};
             let timeChange = 0;
-            const points = POWER_PLAY_VALUES.gumpLuckPoints;
+            const points = prizeFor(POWER_PLAY_VALUES.gumpLuckPoints, runLevel(gameState));
     
             if (rand < 0.25) { // bonus seconds
                 timeChange = bonusTime(TIME_BONUS.rescue, time, runLevel(gameState));
@@ -4999,7 +5017,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
         if (powerPlay.id === 'warioWarp') {
             soundService.playPowerUp();
-            const scoreChange = POWER_PLAY_VALUES.warioWarpPoints;
+            const scoreChange = prizeFor(POWER_PLAY_VALUES.warioWarpPoints, runLevel(gameState));
             const newScore = gameState.score + scoreChange;
     
             const newLogEntry: EventLogEntry = {
