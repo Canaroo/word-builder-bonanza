@@ -42,9 +42,9 @@ export const CHARMS_LIST: Charm[] = [
   },
   { 
     id: 'sTierScorer', 
-    name: 'S-Tier Scorer', 
+    name: 'S Club Party',
     description: "Every S tile is now worth 15 points and doubles your word score.", 
-    flavorText: 'Looks like the S finally stands for Super.',
+    flavorText: "There ain't no party like an S Club party.",
     icon: 'S✨',
     subtheme: 'score',
     effectType: 'passive',
@@ -53,9 +53,9 @@ export const CHARMS_LIST: Charm[] = [
   },
   { 
     id: 'finisher', 
-    name: 'Finisher', 
+    name: 'Last Action Hero',
     description: `The last tile of every word is worth +${CHARM_BONUS.finisher} points.`,
-    flavorText: 'Nail the ending — it’s where the drama lives.',
+    flavorText: 'Big mistake. The ending is where the drama lives.',
     icon: '🏁',
     subtheme: 'score',
     effectType: 'passive',
@@ -64,10 +64,10 @@ export const CHARMS_LIST: Charm[] = [
   },
   { 
     id: 'recycler', 
-    name: 'Recycler', 
-    description: "50% chance to get a new tile of the same letter back after using a tile that has a letter multiplier.",
-    flavorText: 'Sustainability has never been so profitable.',
-    icon: '♻️',
+    name: 'WALL-E',
+    description: `Words that reuse ${CHARM_BONUS.recyclerLetters} or more letters from your last word earn +${CHARM_BONUS.recycler} points.`,
+    flavorText: 'Waaaall-E. Nothing goes to waste.',
+    icon: '🤖',
     subtheme: 'tile',
     effectType: 'passive',
     durationTag: 'PERSISTENT',
@@ -75,9 +75,9 @@ export const CHARMS_LIST: Charm[] = [
   },
   { 
     id: 'theValve', 
-    name: 'Vowel Lover', 
+    name: "Vanna's Vowels",
     description: `All vowels gain +${CHARM_BONUS.theValve} points each, but every word costs ${CHARM_BONUS.theValveSeconds} ${CHARM_BONUS.theValveSeconds === 1 ? 'second' : 'seconds'}.`, 
-    flavorText: 'Sometimes, it is all about the little things.',
+    flavorText: "I'd like to light up a vowel.",
     icon: '📯',
     subtheme: 'tile',
     effectType: 'passive',
@@ -87,8 +87,8 @@ export const CHARMS_LIST: Charm[] = [
   { 
     id: 'silentKiller', 
     name: 'Silent Killer', 
-    description: `Words with no vowels (A, E, I, O, U), like GYM or MYTH, earn +${CHARM_BONUS.silentKiller} points.`,
-    flavorText: 'No vowels, no mercy.',
+    description: `Words of ${CHARM_BONUS.chaseMinLetters}+ letters with ${CHARM_BONUS.silentKillerMaxVowels === 1 ? 'one vowel or none' : `${CHARM_BONUS.silentKillerMaxVowels} vowels or fewer`} (HAND, MYTH) earn +${CHARM_BONUS.silentKiller} points.`,
+    flavorText: 'Barely a vowel. No mercy.',
     icon: '🤫',
     subtheme: 'score',
     effectType: 'passive',
@@ -97,9 +97,9 @@ export const CHARMS_LIST: Charm[] = [
   },
   {
     id: 'momentum',
-    name: 'Momentum',
+    name: 'Quarter Mile at a Time',
     description: `Two valid words in a row, each under 10 seconds? +${CHARM_BONUS.momentum} bonus points.`,
-    flavorText: 'Keep the rhythm going — fast fingers win runs.',
+    flavorText: 'I live my life a quarter mile at a time.',
     icon: '💨',
     subtheme: 'utility',
     effectType: 'triggered',
@@ -108,10 +108,10 @@ export const CHARMS_LIST: Charm[] = [
   },
   { 
     id: 'strikeBank', 
-    name: 'Strike Bank', 
+    name: 'Insert Coin',
     description: 'Score 500 points without a strike to earn a 4th strike, then 1,000 more for a 5th. A strike resets the count.',
-    flavorText: 'Consistency is king.',
-    icon: '🏦',
+    flavorText: 'Play well and the machine pays you back.',
+    icon: '🪙',
     subtheme: 'game',
     effectType: 'passive',
     durationTag: 'PERSISTENT',
@@ -372,8 +372,8 @@ export const CHARMS_LIST: Charm[] = [
   },
   {
     id: 'diceRollProtocol',
-    name: 'Dice Roll Protocol',
-    description: 'Every 3rd round, one random tile in your hand becomes a 2x tile.',
+    name: 'Jumanji',
+    description: 'Every 3rd word, one random tile in your hand becomes a 2x tile.',
     flavorText: 'It’s a jungle out there. Expect chaos.',
     icon: '🎲',
     subtheme: 'tile',
@@ -406,7 +406,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'sherlocksSyntax',
     name: "Sherlock's Syntax",
-    description: `Play a palindrome (reads the same both ways, like LEVEL) for +${CHARM_BONUS.sherlocksSyntax} points.`,
+    description: `Words with a repeated letter (LETTER, NOON) earn +${CHARM_BONUS.sherlocksRepeat} points. A palindrome (LEVEL) earns +${CHARM_BONUS.sherlocksSyntax} instead.`,
     flavorText: "Elementary, my dear Watson.",
     icon: '🔍',
     subtheme: 'utility',
@@ -670,7 +670,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'rubiksCube',
     name: "Rubik's Cube",
-    description: `Words of 6+ letters with no repeated letter (PLANET, FROZEN) earn +${CHARM_BONUS.rubiksCube} points.`,
+    description: `Words of ${CHARM_BONUS.rubiksCubeLetters}+ letters with no repeated letter (PLANT, FROZEN) earn +${CHARM_BONUS.rubiksCube} points.`,
     flavorText: 'Six faces. No repeats. All solved.',
     icon: '🟩',
     subtheme: 'score',
@@ -736,7 +736,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'survivor',
     name: 'Survivor',
-    description: `After a strike, your next ${CHARM_BONUS.survivorWords} valid words earn +${CHARM_BONUS.survivor} points each.`,
+    description: `Every word earns +${CHARM_BONUS.survivor} points for each strike you're carrying.`,
     flavorText: "I'm a survivor, I'm not gon' give up.",
     icon: '💃',
     subtheme: 'score',
@@ -989,7 +989,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'happyLittleAccidents',
     name: 'Happy Little Accidents',
-    description: `Your first invalid word each level isn't a strike, but it costs ${CHARM_BONUS.happyAccidentSeconds} seconds.`,
+    description: `Your first invalid word each level costs nothing: no strike${CHARM_BONUS.happyAccidentSeconds > 0 ? `, but ${CHARM_BONUS.happyAccidentSeconds} seconds` : ' and no time lost'}.`,
     flavorText: "We don't make mistakes, just happy little accidents.",
     icon: '🎨',
     subtheme: 'game',
@@ -1033,7 +1033,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'doubleDare',
     name: 'Double Dare',
-    description: `Every Challenge you use pays +${CHARM_BONUS.doubleDare} points, win or lose.`,
+    description: `Every Challenge you use pays +${CHARM_BONUS.doubleDare} points, win or lose. Comes with +${CHARM_BONUS.doubleDareChallenges} Challenge.`,
     flavorText: 'Physical challenge!',
     icon: '🥧',
     subtheme: 'game',
@@ -1136,7 +1136,7 @@ export const UPGRADABLE_CHARM_IDS: ReadonlySet<string> = new Set([
   'iceAgeBonus', 'mixtape', 'rubiksCube', 'sickCombo', 'gottaCatchEmAll', 'hesOnFire', 'survivor',
   'theOpposite', 'eagle', 'doubleDragon', 'noteStreak', 'downToYourBoxers', 'crossTheRoad', 'aTeam',
   'conjunctionJunction', 'voteForPedro', 'formVoltron', 'titansGo', 'mrGlass', 'honeyIShrunkTheKids',
-  'myPrecious', 'hitTheFlagpole', 'supermarketSweep', 'sesameStreet', 'hungryHippos',
+  'myPrecious', 'hitTheFlagpole', 'supermarketSweep', 'sesameStreet', 'hungryHippos', 'recycler',
 ]);
 
 /** One-off and level-up payouts: the long-word boost (CHARM_LENGTH_BOOST) skips them, so a lucky

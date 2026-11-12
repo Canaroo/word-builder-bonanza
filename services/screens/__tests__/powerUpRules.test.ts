@@ -301,12 +301,13 @@ describe('v6.13 additions', () => {
         expect(butts.totalScore).toBeGreaterThan(plain.totalScore);
     });
 
-    test("Rubik's Cube: 6+ letters with no repeats", () => {
+    test("Rubik's Cube: 5+ letters with no repeats (v7.35: was 6+ for 150)", () => {
         const charms = { activeCharms: [charm('rubiksCube')] };
         expect(has(calculateScore('planet', tilesFor('PLANET'), gs(charms)), "Rubik's Cube")).toBe(true);
-        expect(calculateScore('planet', tilesFor('PLANET'), gs(charms)).totalScore - calculateScore('planet', tilesFor('PLANET'), gs({})).totalScore).toBe(150);
+        expect(calculateScore('planet', tilesFor('PLANET'), gs(charms)).totalScore - calculateScore('planet', tilesFor('PLANET'), gs({})).totalScore).toBe(CHARM_BONUS.rubiksCube);
         expect(has(calculateScore('banana', tilesFor('BANANA'), gs(charms)), "Rubik's Cube")).toBe(false);
-        expect(has(calculateScore('plane', tilesFor('PLANE'), gs(charms)), "Rubik's Cube")).toBe(false);
+        expect(has(calculateScore('plane', tilesFor('PLANE'), gs(charms)), "Rubik's Cube")).toBe(true);
+        expect(has(calculateScore('plan', tilesFor('PLAN'), gs(charms)), "Rubik's Cube")).toBe(false);
     });
 
     test('Sick Combo: longer than your last valid word', () => {
@@ -378,15 +379,16 @@ describe('v7.8 additions', () => {
         expect(armed.gameState.activePowerPlays.continueScreen).toBe(true);
     });
 
-    test('Act Clear!: 20 points a second, up to 20 seconds, always leaving 10', () => {
+    test('Act Clear!: 40 points a second, up to 15 seconds, always leaving 10 (v7.35)', () => {
+        const { actClearMaxSeconds: maxS, actClearPointsPerSecond: per } = POWER_PLAY_VALUES;
         const full = gameReducer(start({ score: 100, availablePowerPlays: [pp('actClear')] }, 40), { type: 'ACTIVATE_POWER_PLAY', payload: pp('actClear') });
-        expect(full.time).toBe(20);
-        expect(full.gameState.score).toBe(500);
+        expect(full.time).toBe(40 - maxS);
+        expect(full.gameState.score).toBe(100 + maxS * per);
         expect(full.gameState.availablePowerPlays).toEqual([]);
 
         const partial = gameReducer(start({ score: 0, availablePowerPlays: [pp('actClear')] }, 25), { type: 'ACTIVATE_POWER_PLAY', payload: pp('actClear') });
         expect(partial.time).toBe(10);
-        expect(partial.gameState.score).toBe(300);
+        expect(partial.gameState.score).toBe(15 * per);
 
         const low = gameReducer(start({ score: 0, availablePowerPlays: [pp('actClear')] }, 10), { type: 'ACTIVATE_POWER_PLAY', payload: pp('actClear') });
         expect(low.time).toBe(10);
@@ -428,12 +430,10 @@ describe('v7.8 additions', () => {
         expect(calculateScore('cat', tilesFor('CAT'), { ...ready, breakReady: false }).totalScore).toBe(3);
     });
 
-    test('Survivor: a real strike arms 2 bonus words; a blocked strike does not', () => {
+    test('Survivor: no leftover bonus-word counter (v7.35 pays per strike carried, in the turn hook)', () => {
         const s = start({ activeCharms: [charm('survivor')] });
-        expect(gameReducer(s, { type: 'ADD_STRIKE' }).gameState.survivorWords).toBe(CHARM_BONUS.survivorWords);
-        const shielded = start({ activeCharms: [charm('survivor')], activePowerPlays: { strikeShield: true } });
-        expect(gameReducer(shielded, { type: 'ADD_STRIKE' }).gameState.survivorWords).toBeFalsy();
-        expect(gameReducer(start(), { type: 'ADD_STRIKE' }).gameState.survivorWords).toBeFalsy();
+        expect(gameReducer(s, { type: 'ADD_STRIKE' }).gameState.survivorWords).toBeFalsy();
+        expect(charm('survivor').description).toContain(`+${CHARM_BONUS.survivor}`);
     });
 
     test("I'm Ready!: equipping right before a new level still pays that level's first word", () => {
@@ -449,11 +449,11 @@ describe('v7.8 additions', () => {
     test('Backpack, Backpack!: +60 for each PowerPlay used, not for swaps or failed uses', () => {
         const withPack = { activeCharms: [charm('backpack')] };
         const used = gameReducer(start({ ...withPack, score: 0, availablePowerPlays: [pp('actClear')] }, 40), { type: 'ACTIVATE_POWER_PLAY', payload: pp('actClear') });
-        expect(used.gameState.score).toBe(400 + CHARM_BONUS.backpack);
+        expect(used.gameState.score).toBe(POWER_PLAY_VALUES.actClearMaxSeconds * POWER_PLAY_VALUES.actClearPointsPerSecond + CHARM_BONUS.backpack);
         expect(used.gameState.log.some(e => e.type === 'event' && e.name === 'Backpack, Backpack!')).toBe(true);
 
         const noPack = gameReducer(start({ score: 0, availablePowerPlays: [pp('actClear')] }, 40), { type: 'ACTIVATE_POWER_PLAY', payload: pp('actClear') });
-        expect(noPack.gameState.score).toBe(400);
+        expect(noPack.gameState.score).toBe(POWER_PLAY_VALUES.actClearMaxSeconds * POWER_PLAY_VALUES.actClearPointsPerSecond);
 
         const instant = gameReducer(start({ ...withPack, score: 0 }), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('fluncleIsProud'), allOffered: [pp('fluncleIsProud')] } });
         expect(instant.gameState.score).toBe(300 + CHARM_BONUS.backpack);
@@ -562,7 +562,10 @@ describe('v7.17 balance pass', () => {
         expect(bonus('trueLove', 'CAT', 'True Love')).toBeUndefined();
         expect(bonus('starPower', 'STOP', 'Star Power')).toBe(`+${CHARM_BONUS.starPower} pts`);
         expect(bonus('starPower', 'SOAP', 'Star Power')).toBeUndefined();
-        expect(bonus('silentKiller', 'GYM', 'Silent Killer')).toBe(`+${CHARM_BONUS.silentKiller} pts`);
+        expect(bonus('silentKiller', 'MYTH', 'Silent Killer')).toBe(`+${CHARM_BONUS.silentKiller} pts`);
+        expect(bonus('silentKiller', 'HAND', 'Silent Killer')).toBe(`+${CHARM_BONUS.silentKiller} pts`);
+        expect(bonus('silentKiller', 'GYM', 'Silent Killer')).toBeUndefined(); // too short since v7.35
+        expect(bonus('silentKiller', 'HEAD', 'Silent Killer')).toBeUndefined();
         expect(bonus('silentKiller', 'GEM', 'Silent Killer')).toBeUndefined();
         expect(bonus('italianRestaurantEnding', 'ITALIAN', 'Italian')).toBe(`+${CHARM_BONUS.italianRestaurant} pts`);
         expect(bonus('cleverGirl', 'TRAP', 'Clever Girl')).toBe(`+${CHARM_BONUS.cleverGirl} pts`);
@@ -751,14 +754,15 @@ describe('v7.25 gamble PowerPlays', () => {
         expect(after.gameState.availablePowerPlays).toEqual([]);
         expect(after.modalContent).toMatchObject({ type: 'outcome', data: { headline: '+300 POINTS' } });
     });
-    test('Neuralyzer wipes every charm', () => {
+    test('Neuralyzer (v7.35): keeps the charms and lines up a charm offer for the next valid word', () => {
         const base = start({ activeCharms: [charm('aTeam'), charm('luna')], activeBuffs: [charm('aTeam'), charm('luna'), pp('konamiCode')], availablePowerPlays: [pp('neuralyzer')] });
         const after = gameReducer(base, { type: 'NEURALYZE', payload: { powerPlay: pp('neuralyzer') } } as any);
-        expect(after.gameState.activeCharms).toEqual([]);
-        expect(after.gameState.activeBuffs.map(b => b.id)).toEqual(['konamiCode']);
-        expect((after.modalContent!.data as any).headline).toBe('2 CHARMS WIPED');
+        expect(after.gameState.activeCharms.map(c => c.id)).toEqual(['aTeam', 'luna']);
+        expect(after.gameState.wordMilestoneProgress.count).toBe(after.gameState.wordMilestoneProgress.nextUnlock - 1);
+        expect(after.gameState.availablePowerPlays).toEqual([]);
         expect(pp('neuralyzer').oncePerRun).toBe(true);
     });
+
 });
 
 describe('Mission: Impossible', () => {

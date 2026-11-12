@@ -823,7 +823,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                       if (buff.id === 'crossTheRoad') return `${gameState?.frogStreak ?? 0}/${CHARM_BONUS.crossTheRoadWords}`;
                       if (buff.id === 'sesameStreet') return gameState?.sesameLetter ? `"${gameState.sesameLetter.letter}"` : '';
                       if (buff.id === 'happyLittleAccidents') return gameState?.happyAccidentLevel === levelFor(totalWords) ? 'used' : 'ready';
-                      if (buff.id === 'survivor') return (gameState?.survivorWords ?? 0) > 0 ? `${gameState.survivorWords}` : '';
+                      if (buff.id === 'survivor') return (gameState?.strikes ?? 0) > 0 ? `+${CHARM_BONUS.survivor * gameState.strikes}` : '';
                       const countdown = (gameState?.activePowerPlays as any)?.[buff.id];
                       if (countdown?.words) return `${countdown.words} ${countdown.words === 1 ? 'word' : 'words'}`;
                       if (countdown?.rounds) return `${countdown.rounds} ${countdown.rounds === 1 ? 'round' : 'rounds'}`;
