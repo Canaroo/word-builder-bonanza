@@ -92,6 +92,8 @@ export interface GameScreenViewProps {
   upcomingTiles?: string[];
   /** Real seconds left on a running Pop Quiz (undefined when none). */
   quizLeft?: number;
+  /** Smell Ya Later!: the rival's live score (undefined when no race). */
+  raceRival?: number;
   timeGain?: { seconds: number; key: number; taxed?: boolean };
   /** Short game feedback (PowerPlay results, combos, hints). Empty when nothing to say. */
   message?: string;
@@ -145,7 +147,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, resumeCountdown = 0, handleResolveGamble, upcomingTiles, quizLeft, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, resumeCountdown = 0, handleResolveGamble, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
@@ -935,7 +937,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           </div>
         </div>
 
-        <PowerPlayTrackers gameState={gameState} upcomingTiles={upcomingTiles} quizLeft={quizLeft} onStand={() => dispatch({ type: 'BLACKJACK_STAND' })} />
+        <PowerPlayTrackers gameState={gameState} upcomingTiles={upcomingTiles} quizLeft={quizLeft} raceRival={raceRival} onStand={() => dispatch({ type: 'BLACKJACK_STAND' })} />
 
         {/* --- HAND: the standard hand in a 4x2 grid; widens to all rack slots when a power-up overfills it --- */}
         {(() => {

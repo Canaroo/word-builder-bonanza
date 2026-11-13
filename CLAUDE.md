@@ -102,7 +102,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   parking tiles there can't steer the pick. Add new random-tile ones to that set.
   Pop Quiz times itself in real seconds (`quizMs` on the screen state: play time plus frozen
   seconds; `startMs` on the quiz), not by the bank clock, which runs up to x2 and jumps on Shuffle.
-  A chip above the hand counts down (`quizLeft`). Multiplicity shows what it would copy on the offer
+  A chip above the hand counts down (`quizLeft`). Smell Ya Later!'s rival scores per real second the same way
+  (`startMs` on the race, reset each word), and its chip shows the rival's score climbing (`raceRival`). Multiplicity shows what it would copy on the offer
   card, the pocket button ("▶ COPY 🍫 Gump Luck", or NOTHING TO COPY) and its info pop-up.
   Bird Box peeks only when tiles it hasn't shown yet arrive (a tap or a returned tile never re-peeks,
   and resuming a blind run doesn't either): `seenIds` in `GameScreenView.tsx`.

@@ -1508,7 +1508,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 newGameState = { ...newGameState, ...changes };
                 // Timed challenges start on the clock as it stands now (it runs once the offer closes).
                 if (powerPlay.id === 'popQuizHotshot') newGameState.activePowerPlays = { ...newGameState.activePowerPlays, popQuizHotshot: { startClock: state.time, startMs: state.quizMs ?? 0 } };
-                if (powerPlay.id === 'smellYaLater') newGameState.activePowerPlays = { ...newGameState.activePowerPlays, smellYaLater: { ...newGameState.activePowerPlays.smellYaLater, clock: state.time } };
+                if (powerPlay.id === 'smellYaLater') newGameState.activePowerPlays = { ...newGameState.activePowerPlays, smellYaLater: { ...newGameState.activePowerPlays.smellYaLater, clock: state.time, startMs: state.quizMs ?? 0 } };
                 const startsNow: Record<string, string> = {
                     popQuizHotshot: `🚌 Pop quiz! Play a word within ${POWER_PLAY_VALUES.popQuizSeconds} seconds.`,
                     smellYaLater: `🏃 The race is on! Your rival scores ${POWER_PLAY_VALUES.rivalPointsPerSecond} points a second.`,
@@ -3647,15 +3647,19 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
       }
       // Smell Ya Later!: your words' points against the rival's points per second.
-      const race = newState.activePowerPlays.smellYaLater as { words: number; mine: number; rival: number; clock?: number } | undefined;
+      // The rival scores per real second of play (v7.36.2): it used the bank clock, which runs up to
+      // x2 at high levels and jumps +5 s on Shuffle (wiping the rival's points). Older saves fall back.
+      const race = newState.activePowerPlays.smellYaLater as { words: number; mine: number; rival: number; clock?: number; startMs?: number } | undefined;
       if (race) {
           const rivalPP = ppById('smellYaLater');
+          const nowMs = quizMsRef.current;
           const startClock = race.clock ?? newState.roundStartClock ?? time;
+          const seconds = race.startMs !== undefined ? Math.max(0, nowMs - race.startMs) / 1000 : startClock - time;
           const mine = race.mine + wordPoints;
-          const rival = race.rival + rivalScore(startClock - time);
+          const rival = race.rival + rivalScore(seconds);
           const left = race.words - 1;
           if (left > 0) {
-              setPP('smellYaLater', { words: left, mine, rival }, `You ${mine}, rival ${rival}. ${left} ${left === 1 ? 'word' : 'words'} to go.`);
+              setPP('smellYaLater', { words: left, mine, rival, startMs: nowMs }, `You ${mine}, rival ${rival}. ${left} ${left === 1 ? 'word' : 'words'} to go.`);
               showMessage(`🏃 You ${mine} · Rival ${rival}`, 2000);
           } else {
               dropPP('smellYaLater');
@@ -5239,6 +5243,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         resumeCountdown: state.resumeCountdown ?? 0,
         handleResolveGamble,
         upcomingTiles: gameState.activePowerPlays?.psychicFriends ? tileBag.slice(-POWER_PLAY_VALUES.psychicTiles).reverse() : [],
+        // Smell Ya Later!: the rival's score as it climbs, in real seconds.
+        raceRival: (() => {
+            const r = gameState.activePowerPlays?.smellYaLater as { rival: number; startMs?: number } | undefined;
+            return r && r.startMs !== undefined ? r.rival + rivalScore(Math.max(0, (state.quizMs ?? 0) - r.startMs) / 1000) : undefined;
+        })(),
         quizLeft: (() => {
             const q = gameState.activePowerPlays?.popQuizHotshot as { startMs?: number } | undefined;
             return q && q.startMs !== undefined ? Math.max(0, POWER_PLAY_VALUES.popQuizSeconds - ((state.quizMs ?? 0) - q.startMs) / 1000) : undefined;

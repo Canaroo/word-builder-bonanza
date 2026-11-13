@@ -12,7 +12,7 @@ const Chip: React.FC<{ icon: string; label: string; children: React.ReactNode }>
   </span>
 );
 
-const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string[]; quizLeft?: number; onStand: () => void }> = ({ gameState, upcomingTiles = [], quizLeft, onStand }) => {
+const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string[]; quizLeft?: number; raceRival?: number; onStand: () => void }> = ({ gameState, upcomingTiles = [], quizLeft, raceRival, onStand }) => {
   const a = (gameState?.activePowerPlays ?? {}) as Record<string, any>;
   const chips: React.ReactNode[] = [];
   // Pop Quiz (v7.36.1): its own countdown in real seconds, so the player can see the 5 s running.
@@ -26,7 +26,16 @@ const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string
   }
   if (a.tamagotchi) chips.push(<Chip key="tama" icon="🥚" label={`Tamagotchi: fed ${a.tamagotchi.feeds} of ${V.tamagotchiWords}`}>{a.tamagotchi.feeds}/{V.tamagotchiWords} · pot {tamagotchiPot(a.tamagotchi.feeds)}</Chip>);
   if (a.timeCapsule && a.timeCapsule !== true) chips.push(<Chip key="capsule" icon="📦" label={`Time Capsule: ${a.timeCapsule.points} points in ${a.timeCapsule.words} words`}>+{a.timeCapsule.points} in {a.timeCapsule.words}</Chip>);
-  if (a.smellYaLater) chips.push(<Chip key="race" icon="🏃" label={`Race: you ${a.smellYaLater.mine}, rival ${a.smellYaLater.rival}, ${a.smellYaLater.words} words left`}>You {a.smellYaLater.mine} · Rival {a.smellYaLater.rival} · {a.smellYaLater.words} left</Chip>);
+  if (a.smellYaLater) {
+    // The rival's score climbs live (v7.36.2), so the race reads as a race.
+    const rival = raceRival ?? a.smellYaLater.rival;
+    const ahead = a.smellYaLater.mine >= rival;
+    chips.push(
+      <span key="race" className={`flex items-center gap-1.5 rounded-full px-3 py-1 osd-text text-lg leading-none whitespace-nowrap ring-1 ${ahead ? 'bg-neon-green/15 ring-neon-green text-white' : 'bg-neon-red/25 ring-neon-red text-white'}`}
+        aria-label={`Race: you ${a.smellYaLater.mine}, rival ${rival}, ${a.smellYaLater.words} words left`}>
+        <span aria-hidden="true">🏃</span>YOU {a.smellYaLater.mine} · RIVAL {rival} · {a.smellYaLater.words} LEFT
+      </span>);
+  }
   if (a.chickenDinner) {
     const pays = blackjackPayout(a.chickenDinner.total);
     chips.push(
