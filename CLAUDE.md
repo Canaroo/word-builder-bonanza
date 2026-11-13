@@ -100,6 +100,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Random-tile PowerPlays (`RANDOM_TILE_POWER_PLAYS`: One Tile to Rule Them All, Ice Ice Maybe,
   Morphin Time, Red Wedding, Rescue Rangers) put the word-building row back in the hand first, so
   parking tiles there can't steer the pick. Add new random-tile ones to that set.
+  Pop Quiz times itself in real seconds (`quizMs` on the screen state: play time plus frozen
+  seconds; `startMs` on the quiz), not by the bank clock, which runs up to x2 and jumps on Shuffle.
+  A chip above the hand counts down (`quizLeft`). Multiplicity shows what it would copy on the offer
+  card, the pocket button ("▶ COPY 🍫 Gump Luck", or NOTHING TO COPY) and its info pop-up.
   Bird Box peeks only when tiles it hasn't shown yet arrive (a tap or a returned tile never re-peeks,
   and resuming a blind run doesn't either): `seenIds` in `GameScreenView.tsx`.
 - **Balance from usage stats (v7.29.0, 50 runs):** a PowerPlay offer shows at most one time card

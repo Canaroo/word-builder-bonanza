@@ -167,6 +167,12 @@ export type GameScreenState = {
   resumeCountdown?: number;
   /** Real milliseconds the bank clock has run this run (saved with the run; sent with run_end). */
   playMs?: number;
+  /**
+   * Real milliseconds of play for timed PowerPlays (v7.36.1): like playMs, plus seconds the clock
+   * sat frozen. Pop Quiz used to time itself by the bank clock, which runs up to x2 fast at higher
+   * levels and jumps on Shuffle (+5 s), so a 3-second answer could count as 6 or as 0.
+   */
+  quizMs?: number;
 }
 
 const createScreenInitialState = (): GameScreenState => {
@@ -551,9 +557,9 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         case 'PAUSE_GAME': return { ...state, isPaused: true };
         case 'RESUME_GAME': return { ...state, isPaused: false, time: state.time }; // Prevent timer reset on resume
         // playMs: real time the clock has run this run (usage stats). Kept outside gameState so a tick doesn't touch it.
-        case 'TICK_TIMER': return { ...state, time: state.time - 1, playMs: (state.playMs ?? 0) + (action.ms ?? 1000) };
+        case 'TICK_TIMER': return { ...state, time: state.time - 1, playMs: (state.playMs ?? 0) + (action.ms ?? 1000), quizMs: (state.quizMs ?? 0) + (action.ms ?? 1000) };
         // ❄️ A frozen clock: the freeze counts down instead of the bank.
-        case 'TICK_FREEZE': return { ...state, gameState: { ...state.gameState, freezeLeft: Math.max(0, (state.gameState.freezeLeft ?? 0) - 1) } };
+        case 'TICK_FREEZE': return { ...state, quizMs: (state.quizMs ?? 0) + 1000, gameState: { ...state.gameState, freezeLeft: Math.max(0, (state.gameState.freezeLeft ?? 0) - 1) } };
         case 'ADD_TIME': return {...state, time: clampTime(state.time + action.payload, bankMax(state.gameState)) };
         case 'SET_TIME': return { ...state, time: action.payload };
         case 'UPDATE_GAME_STATE': return { ...state, gameState: { ...state.gameState, ...action.payload } };
@@ -1501,7 +1507,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 const changes = powerPlay.activate(newGameState);
                 newGameState = { ...newGameState, ...changes };
                 // Timed challenges start on the clock as it stands now (it runs once the offer closes).
-                if (powerPlay.id === 'popQuizHotshot') newGameState.activePowerPlays = { ...newGameState.activePowerPlays, popQuizHotshot: { startClock: state.time } };
+                if (powerPlay.id === 'popQuizHotshot') newGameState.activePowerPlays = { ...newGameState.activePowerPlays, popQuizHotshot: { startClock: state.time, startMs: state.quizMs ?? 0 } };
                 if (powerPlay.id === 'smellYaLater') newGameState.activePowerPlays = { ...newGameState.activePowerPlays, smellYaLater: { ...newGameState.activePowerPlays.smellYaLater, clock: state.time } };
                 const startsNow: Record<string, string> = {
                     popQuizHotshot: `🚌 Pop quiz! Play a word within ${POWER_PLAY_VALUES.popQuizSeconds} seconds.`,
@@ -2516,6 +2522,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     return createScreenInitialState();
   });
   const { gameState, time, hand, buildRow, tileBag, message, isPaused, isLoading, modalContent, tilesToSwap, lastTurnState, longWordBonusNotified, tileToTransform } = state;
+  // Latest real play time, for Pop Quiz's timing inside the submit callback.
+  const quizMsRef = React.useRef(0);
+  quizMsRef.current = state.quizMs ?? 0;
   const isChallengeLock = gameState.challengeActive;
   // The clock stops while the app is in the background so switching apps never costs a run.
   const isVisible = useDocumentVisible();
@@ -3700,7 +3709,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
       }
       const daily = newState.activePowerPlays.dailyDouble as { wager: number } | undefined;
-      const quiz = newState.activePowerPlays.popQuizHotshot as { startClock: number } | undefined;
+      const quiz = newState.activePowerPlays.popQuizHotshot as { startClock: number; startMs?: number } | undefined;
       if (daily || quiz) {
           const V = POWER_PLAY_VALUES;
           const { dailyDouble: _d, popQuizHotshot: _q, ...rest } = newState.activePowerPlays;
@@ -3714,8 +3723,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               modalQueue.push(outcome(ppById('dailyDouble'), won ? `CORRECT! +${change} POINTS` : `WRONG! ${change} POINTS`, won ? `${word.toUpperCase()} has ${word.length} letters. Your ${daily.wager} wager pays double.` : `${word.toUpperCase()} has only ${word.length} letters (you needed ${V.dailyDoubleLetters}+). You lose your ${daily.wager} wager.`, won ? 'win' : 'lose'));
           }
           if (quiz) {
-              const took = Math.max(0, quiz.startClock - time);
-              const fast = took <= V.popQuizSeconds;
+              // Real seconds since the quiz started (older saves without startMs fall back to the clock).
+              const tookExact = quiz.startMs !== undefined ? Math.max(0, quizMsRef.current - quiz.startMs) / 1000 : Math.max(0, quiz.startClock - time);
+              const fast = tookExact <= V.popQuizSeconds;
+              const took = Math.round(tookExact * 10) / 10;
               const quizPoints = prizeFor(V.popQuizPoints, prizeLevel);
               if (fast) {
                   runningScore += quizPoints;
@@ -5228,6 +5239,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         resumeCountdown: state.resumeCountdown ?? 0,
         handleResolveGamble,
         upcomingTiles: gameState.activePowerPlays?.psychicFriends ? tileBag.slice(-POWER_PLAY_VALUES.psychicTiles).reverse() : [],
+        quizLeft: (() => {
+            const q = gameState.activePowerPlays?.popQuizHotshot as { startMs?: number } | undefined;
+            return q && q.startMs !== undefined ? Math.max(0, POWER_PLAY_VALUES.popQuizSeconds - ((state.quizMs ?? 0) - q.startMs) / 1000) : undefined;
+        })(),
         timeGain: state.timeGain,
         message,
         hand,

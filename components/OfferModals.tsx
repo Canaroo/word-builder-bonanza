@@ -81,9 +81,11 @@ export const PowerPlayOffer: React.FC<{
   /** The run level and what point prizes are multiplied by there (PRIZE_GROWTH); shown on prize cards. */
   level?: number;
   prizeScale?: number;
+  /** What Multiplicity would copy right now (the last PowerPlay used that it can copy). */
+  copyTarget?: PowerPlay | null;
   onChoose: (powerPlay: PowerPlay) => void;
   onKeep: () => void;
-}> = ({ title, reason, offered, held, level, prizeScale = 1, onChoose, onKeep }) => (
+}> = ({ title, reason, offered, held, level, prizeScale = 1, copyTarget = null, onChoose, onKeep }) => (
   <Overlay tone="green">
     <h2 className="font-display text-2xl text-neon-green text-center leading-none">{title}</h2>
     {reason && <p className="osd-text text-lg text-slate-300 text-center leading-tight mt-1">{reason}</p>}
@@ -110,7 +112,11 @@ export const PowerPlayOffer: React.FC<{
         const prizeNote = prizeScale > 1 && PRIZE_POWER_PLAY_IDS.has(pp.id)
           ? <span className="text-neon-yellow">⬆ LEVEL {level}: PRIZES x{prizeScale}</span>
           : null;
-        const note = swapNote || prizeNote ? <>{prizeNote}{prizeNote && swapNote ? <br /> : null}{swapNote}</> : null;
+        const copyNote = pp.id !== 'multiplicity' ? null : copyTarget
+          ? <span className="text-neon-pink">👯 WOULD COPY: {copyTarget.icon} {copyTarget.name.toUpperCase()}</span>
+          : <span className="text-slate-400">👯 NOTHING TO COPY YET: USE A POWERPLAY FIRST</span>;
+        const lines = [copyNote, prizeNote, swapNote].filter(Boolean);
+        const note = lines.length ? <>{lines.map((l, i) => <React.Fragment key={i}>{i > 0 && <br />}{l}</React.Fragment>)}</> : null;
         return <ItemCard key={pp.id} item={pp} tag={tag} note={note} onClick={() => onChoose(pp)} />;
       })}
     </div>

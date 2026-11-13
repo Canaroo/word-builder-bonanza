@@ -162,9 +162,21 @@ describe('timed and blind PowerPlays start the moment they are picked (v7.28.1)'
     });
     test('the Pop Quiz and race clocks start at the clock when picked', () => {
         const quiz = gameReducer(start({ powerPlayOffer: [pp('popQuizHotshot')] }, 33), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('popQuizHotshot'), allOffered: [pp('popQuizHotshot')] } });
-        expect(quiz.gameState.activePowerPlays.popQuizHotshot).toEqual({ startClock: 33 });
+        expect(quiz.gameState.activePowerPlays.popQuizHotshot).toEqual({ startClock: 33, startMs: 0 });
         const race = gameReducer(start({ powerPlayOffer: [pp('smellYaLater')] }, 27), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('smellYaLater'), allOffered: [pp('smellYaLater')] } });
         expect(race.gameState.activePowerPlays.smellYaLater).toEqual({ words: V.rivalWords, mine: 0, rival: 0, clock: 27 });
+    });
+
+    test('Pop Quiz times real seconds, not the bank clock (v7.36.1)', () => {
+        // At a x2 clock, 3 real seconds drain 6 seconds of bank; the quiz must see 3.
+        let s = gameReducer(start({ powerPlayOffer: [pp('popQuizHotshot')] }, 40), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('popQuizHotshot'), allOffered: [pp('popQuizHotshot')] } });
+        const startMs = (s.gameState.activePowerPlays.popQuizHotshot as any).startMs;
+        for (let i = 0; i < 6; i++) s = gameReducer(s, { type: 'TICK_TIMER', ms: 500 });
+        expect(s.time).toBe(34);
+        expect(((s.quizMs ?? 0) - startMs) / 1000).toBe(3);
+        // Frozen seconds still count as real time.
+        s = gameReducer(s, { type: 'TICK_FREEZE' });
+        expect(((s.quizMs ?? 0) - startMs) / 1000).toBe(4);
     });
 });
 
