@@ -271,7 +271,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 return <LevelUpCard info={data} onClose={handleCloseModal} />;
 
             case 'gamble':
-                return <GambleCard key={data.id} id={data.id} icon={data.icon} name={title} hand={hand} saved={data.saved} onSave={(key, value) => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key, value } })} onResolve={r => handleResolveGamble?.(r)} />;
+                return <GambleCard key={data.id} id={data.id} icon={data.icon} name={title} hand={hand} saved={data.saved} extra={data} onSave={(key, value) => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key, value } })} onResolve={r => handleResolveGamble?.(r)} />;
 
             case 'outcome':
                 return <OutcomeCard name={title} detail={typeof content === 'string' ? content : undefined} data={data} onClose={handleCloseModal} />;

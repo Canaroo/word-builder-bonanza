@@ -1143,3 +1143,39 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .level-stage-in, .level-takeover, .level-glitch, .level-flash { animation: none; }
 }
+
+/* --- Gamble cards (v7.36.4): Hot Tub Time Machine and Lucky Charms --- */
+@keyframes cereal-shake {
+  0%, 100% { transform: rotate(0deg) translateX(0); }
+  20% { transform: rotate(-9deg) translateX(-6px); }
+  40% { transform: rotate(8deg) translateX(6px); }
+  60% { transform: rotate(-6deg) translateX(-4px); }
+  80% { transform: rotate(5deg) translateX(3px); }
+}
+.cereal-shake { animation: cereal-shake 0.28s ease-in-out infinite; }
+@keyframes charm-tumble {
+  0% { transform: translateY(-70px) rotate(-200deg) scale(0.4); opacity: 0; }
+  60% { transform: translateY(8px) rotate(15deg) scale(1.05); opacity: 1; }
+  100% { transform: translateY(0) rotate(0) scale(1); opacity: 1; }
+}
+.charm-tumble { animation: charm-tumble 0.7s cubic-bezier(.3,1.4,.5,1) both; }
+@keyframes charm-flip {
+  0% { transform: rotateY(90deg); }
+  100% { transform: rotateY(0deg); }
+}
+.charm-flip { animation: charm-flip 0.45s ease-out both; }
+@keyframes slot-wobble {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-12deg); }
+  75% { transform: rotate(12deg); }
+}
+.slot-wobble { animation: slot-wobble 0.35s ease-in-out 3; }
+@keyframes tub-bubble {
+  0% { transform: translateY(0) scale(0.6); opacity: 0; }
+  20% { opacity: 0.9; }
+  100% { transform: translateY(-70px) scale(1.2); opacity: 0; }
+}
+.tub-bubble { animation: tub-bubble 1.4s ease-in infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .cereal-shake, .charm-tumble, .charm-flip, .slot-wobble, .tub-bubble { animation: none; }
+}
