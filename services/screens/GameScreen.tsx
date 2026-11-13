@@ -4811,6 +4811,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         } });
         // Draft Day: the picked pack joins the hand.
         if (r.draft) dispatch({ type: 'DRAFT_TILES', payload: { letters: r.draft } });
+        // Lucky Charms: the charm from the box goes on (bumping the picked one when slots are full).
+        if (r.charm) {
+            const charm = CHARMS_LIST.find(c => c.id === r.charm!.id);
+            if (charm) dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand: hand ?? [], allOffered: [charm], replaceId: r.charm.replaceId } });
+        }
     };
 
     const handleSaveClick = () => {
@@ -4927,21 +4932,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             return;
         }
 
-        // --- v7.25 gambles ---
-        if (GAMBLE_CARD_IDS.includes(powerPlay.id)) {
-            soundService.playPowerUp();
-            dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gamble', title: powerPlay.name, data: { id: powerPlay.id, icon: powerPlay.icon } } });
-            return;
-        }
-        if (powerPlay.id === 'neuralyzer') {
-            dispatch({ type: 'NEURALYZE', payload: { powerPlay } });
-            return;
-        }
-        if (powerPlay.id === 'hotTubTimeMachine') {
-            const seconds = hotTubSeconds(Math.random());
-            dispatch({ type: 'APPLY_GAMBLE', payload: { powerPlay, seconds, headline: `${seconds > 0 ? '+' : ''}${seconds} SECONDS`, detail: seconds > 0 ? 'Great Scott, it worked! Extra time.' : 'The hot tub went the wrong way. You lost time.', tone: seconds > 0 ? 'win' : 'lose' } });
-            return;
-        }
         if (powerPlay.id === 'luckyCharms') {
             const pool = CHARMS_LIST.filter(c =>
                 c.effectType !== 'selection' && !gameState.activeCharms.some(a => a.id === c.id) &&
@@ -4951,8 +4941,19 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             const charm = pool[Math.floor(Math.random() * pool.length)];
             if (!charm) { showMessage('🍀 No charms left to give!', 2500); return; }
             const replaced = gameState.activeCharms.length >= CHARM_SLOTS ? gameState.activeCharms[Math.floor(Math.random() * gameState.activeCharms.length)] : undefined;
-            dispatch({ type: 'APPLY_GAMBLE', payload: { powerPlay, headline: `${charm.icon} ${charm.name.toUpperCase()}`, detail: `${charm.description}${replaced ? `\n\nIt replaced ${replaced.icon} ${replaced.name}.` : ''}`, tone: 'neutral' } });
-            dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand: hand ?? [], allOffered: [charm], replaceId: replaced?.id } });
+            // Picked now and carried in the pop-up's data (saved with the run), so the box can't be re-shaken.
+            soundService.playPowerUp();
+            dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gamble', title: powerPlay.name, data: { id: powerPlay.id, icon: powerPlay.icon, charmId: charm.id, replaceId: replaced?.id } } });
+            return;
+        }
+        // --- v7.25 gambles ---
+        if (GAMBLE_CARD_IDS.includes(powerPlay.id)) {
+            soundService.playPowerUp();
+            dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gamble', title: powerPlay.name, data: { id: powerPlay.id, icon: powerPlay.icon } } });
+            return;
+        }
+        if (powerPlay.id === 'neuralyzer') {
+            dispatch({ type: 'NEURALYZE', payload: { powerPlay } });
             return;
         }
         // --- v7.28 ---

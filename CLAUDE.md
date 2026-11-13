@@ -82,7 +82,12 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Lucky Charms) stay single-shot. Plinko (v7.36.3) is a gamble card with a board (`Plinko` in
   `GambleCard.tsx`): slide the chip, drop it, it bounces down 9 peg rows (click + buzz per peg) into
   a slot. The prize is rolled from `POWER_PLAY_VALUES.plinko` on drop (odds unchanged) and saved;
-  `PLINKO_SLOTS`, `plinkoSlotFor` and `plinkoPath` in `services/rules.ts` draw where it lands. Ladders, rounds and offers in `POWER_PLAY_VALUES`.
+  `PLINKO_SLOTS`, `plinkoSlotFor` and `plinkoPath` in `services/rules.ts` draw where it lands.
+  Hot Tub Time Machine (v7.36.4, `HotTub`): hold to crank a year dial, let go, it spins down onto
+  +25 s (1986), +10 s (2006) or -8 s (2036); rolled on release from `POWER_PLAY_VALUES.hotTub`.
+  Lucky Charms (`LuckyCharms`): shake the cereal box, a charm tumbles out and flips, and a bumped
+  charm wobbles. The game picks the charm on use and passes it in the pop-up's data (`charmId`,
+  `replaceId`, read as `extra`); the card returns it as `charm` and `handleResolveGamble` equips it. Ladders, rounds and offers in `POWER_PLAY_VALUES`.
   After a bank, each shows what would have come next, then pays on "Take the N": Minesweeper the
   mine (and the odds the next pick had), Card Sharks the next card, Let's Make a Deal the doors you
   passed on, No Whammies! the next spin, Deal or No Deal your case (when you take the deal).

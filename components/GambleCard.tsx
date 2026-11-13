@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import ArcadeButton from './ArcadeButton';
 import { POWER_PLAY_VALUES as V } from '../config/gameplay';
-import { doorsForRound, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout } from '../services/rules';
+import { doorsForRound, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout } from '../services/rules';
 import { createTile, createTileBag, shuffleArray } from '../services/gameUtils';
 import type { Tile } from '../types';
+import { CHARMS_LIST } from '../data/charms';
 import { soundService } from '../services/soundService';
 
 // The PowerPlays where the player makes the call (v7.25): pick a door, take the Banker's deal,
@@ -15,6 +16,8 @@ export interface GambleResult {
   arm?: { value: unknown; description: string };
   /** Draft Day: letters that replace the lowest-value tiles in the hand. */
   draft?: string[];
+  /** Lucky Charms: the charm to equip (and the one it bumps out when slots are full). */
+  charm?: { id: string; replaceId?: string };
 }
 
 // A gamble card's board is saved with the run (v7.28.9). Without it, quitting and resuming brought
@@ -531,18 +534,190 @@ const Plinko: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve 
   );
 };
 
-const GAMES: Record<string, React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[] }>> = {
+const buzz = (ms: number | number[]) => { try { navigator.vibrate?.(ms); } catch { /* not supported */ } };
+const prefersReducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * Hot Tub Time Machine (v7.36.4): hold the lever to crank the year dial, let go, and it spins down
+ * onto +25 s, +10 s or -8 s. The result is rolled on release from POWER_PLAY_VALUES.hotTub (odds
+ * unchanged) and saved, so quitting mid-spin can't reroll.
+ */
+const HOT_TUB_YEARS = ['1986', '2006', '2036'];
+const HotTub: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
+  const outcomes = V.hotTub;
+  const [roll, setRoll] = useSaved<number | null>('roll', null);
+  const [done, setDone] = useSaved('done', false);
+  const [cranking, setCranking] = useState(false);
+  const [year, setYear] = useState('2026');
+  const [lit, setLit] = useState<number | null>(null);
+  const crankStart = useRef(0);
+
+  // Cranking: the year digits whir.
+  useEffect(() => {
+    if (!cranking) return;
+    const t = setInterval(() => { setYear(String(1950 + Math.floor(Math.random() * 99))); }, 55);
+    return () => clearInterval(t);
+  }, [cranking]);
+
+  // Spin-down: the light runs across the three outcomes, slowing, and stops on the roll.
+  useEffect(() => {
+    if (roll === null || done) return;
+    if (prefersReducedMotion()) { setLit(roll); setYear(HOT_TUB_YEARS[roll]); setDone(true); return; }
+    const steps = 11 + ((roll - 11 % outcomes.length + outcomes.length * 3) % outcomes.length); // ends on roll
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let at = 0;
+    for (let i = 0; i <= steps; i++) {
+      at += 60 + i * i * 2.2;
+      const idx = i % outcomes.length;
+      timers.push(setTimeout(() => {
+        setLit(idx);
+        setYear(i === steps ? HOT_TUB_YEARS[roll] : String(1950 + Math.floor(Math.random() * 99)));
+        soundService.playTileClick();
+        if (i === steps) { buzz(outcomes[roll].seconds > 0 ? [20, 40, 20] : 60); if (outcomes[roll].seconds > 0) soundService.playMilestone(); setDone(true); }
+      }, at));
+    }
+    return () => timers.forEach(clearTimeout);
+  }, [roll, done]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startCrank = () => { if (roll !== null) return; crankStart.current = performance.now(); setCranking(true); soundService.playPowerUp(); buzz(15); };
+  const endCrank = () => {
+    if (!cranking) return;
+    const wait = Math.max(0, 350 - (performance.now() - crankStart.current)); // a tap still cranks a little
+    setTimeout(() => { setCranking(false); setRoll(outcomes.findIndex(o => o.seconds === hotTubSeconds(Math.random()))); }, wait);
+  };
+  const shown = done && roll !== null ? roll : lit;
+  const result = done && roll !== null ? outcomes[roll].seconds : null;
+  const take = () => result !== null && onResolve({
+    seconds: result,
+    headline: `${result > 0 ? '+' : ''}${result} SECONDS`,
+    detail: result > 0 ? `Great Scott, it worked! You landed in ${HOT_TUB_YEARS[roll!]} with extra time.` : `Overshot to ${HOT_TUB_YEARS[roll!]}. The hot tub went the wrong way: you lost time.`,
+    tone: result > 0 ? 'win' : 'lose',
+  });
+
+  return (
+    <>
+      <p className="text-slate-200 text-sm leading-snug min-h-[2.5rem] flex items-center justify-center" aria-live="polite">
+        {result !== null ? (result > 0 ? `Welcome to ${HOT_TUB_YEARS[roll!]}! The clock gains ${result} seconds.` : `Whoa, ${HOT_TUB_YEARS[roll!]}?! You lose ${-result} seconds.`)
+          : roll !== null ? 'Traveling through time…'
+          : cranking ? 'Cranking… let go to travel!' : 'Hold the lever to crank the dial, then let go.'}
+      </p>
+      {/* The tub: a year dial over bubbling water */}
+      <div className="relative w-full rounded-2xl overflow-hidden ring-2 ring-neon-cyan/60 bg-gradient-to-b from-crt-950 to-[#0b3a5c] pt-4 pb-8">
+        <p className="osd-text text-sm tracking-[0.3em] text-neon-cyan/80">DESTINATION YEAR</p>
+        <p className={`font-osd text-6xl leading-none tabular-nums tracking-widest ${result === null ? 'text-neon-cyan' : result > 0 ? 'text-neon-green' : 'text-neon-red'}`} aria-hidden="true">{year}</p>
+        {(cranking || (roll !== null && !done)) && ['12%', '28%', '47%', '63%', '80%', '91%'].map((left, i) => (
+          <span key={i} className="tub-bubble absolute bottom-1 w-3 h-3 rounded-full bg-white/60" style={{ left, animationDelay: `${i * 0.21}s` }} aria-hidden="true" />
+        ))}
+      </div>
+      <div className="w-full grid grid-cols-3 gap-2">
+        {outcomes.map((o, i) => (
+          <div key={i} className={`rounded-xl ring-2 py-2 transition-all ${shown === i ? (o.seconds > 0 ? 'bg-neon-green/25 ring-neon-green scale-105' : 'bg-neon-red/25 ring-neon-red scale-105') : 'bg-crt-950 ring-white/10'}`}>
+            <p className={`font-display text-xl leading-none ${o.seconds > 0 ? 'text-neon-green' : 'text-neon-red'}`}>{o.seconds > 0 ? '+' : ''}{o.seconds}s</p>
+            <p className="osd-text text-sm leading-none text-slate-400 mt-1">{HOT_TUB_YEARS[i]} · {Math.round(o.chance * 100)}%</p>
+          </div>
+        ))}
+      </div>
+      {result !== null ? (
+        <ArcadeButton color={result > 0 ? 'green' : 'slate'} className="w-full" onClick={take}>{result > 0 ? `Take +${result}s` : `Take the ${result}s`}</ArcadeButton>
+      ) : roll === null ? (
+        <ArcadeButton color="cyan" className="w-full select-none touch-none"
+          onPointerDown={e => { e.preventDefault(); startCrank(); }} onPointerUp={endCrank} onPointerLeave={endCrank} onPointerCancel={endCrank}
+          onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) { e.preventDefault(); startCrank(); } }}
+          onKeyUp={e => { if (e.key === 'Enter' || e.key === ' ') endCrank(); }}>
+          {cranking ? '♨️ Cranking…' : '♨️ Hold to Crank'}
+        </ArcadeButton>
+      ) : null}
+    </>
+  );
+};
+
+/**
+ * Lucky Charms (v7.36.4): shake the cereal box until a charm tumbles out and flips over; with full
+ * slots, the charm it bumps out wobbles and pops. The game picks the charm when the PowerPlay is
+ * used (it rides in the pop-up's data, so a resume shows the same one); the box only reveals it.
+ */
+const MARSHMALLOWS = ['⭐', '🌈', '💖', '🍀', '🎈', '🌙', '🐴', '⚡'];
+const LuckyCharms: React.FC<{ onResolve: (r: GambleResult) => void; extra?: Record<string, unknown> }> = ({ onResolve, extra }) => {
+  const charm = CHARMS_LIST.find(c => c.id === extra?.charmId);
+  const replaced = CHARMS_LIST.find(c => c.id === extra?.replaceId);
+  const [phase, setPhase] = useSaved<'box' | 'shaking' | 'out'>('phase', 'box');
+  const [flipped, setFlipped] = useState(phase === 'out');
+
+  useEffect(() => {
+    if (phase !== 'shaking') return;
+    if (prefersReducedMotion()) { setPhase('out'); setFlipped(true); return; }
+    const rattle = setInterval(() => { soundService.playTileClick(); buzz(10); }, 140);
+    const out = setTimeout(() => { clearInterval(rattle); setPhase('out'); buzz(30); }, 1500);
+    return () => { clearInterval(rattle); clearTimeout(out); };
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (phase !== 'out' || flipped) return;
+    const t = setTimeout(() => { setFlipped(true); soundService.playMilestone(); }, 750);
+    return () => clearTimeout(t);
+  }, [phase, flipped]);
+
+  if (!charm) return <ArcadeButton color="slate" className="w-full" onClick={() => onResolve({ headline: 'THE BOX WAS EMPTY', detail: 'No charms left to give.', tone: 'neutral' })}>Continue</ArcadeButton>;
+  const take = () => onResolve({
+    headline: `${charm.icon} ${charm.name.toUpperCase()}`,
+    detail: `${charm.description}${replaced ? `\n\nIt replaced ${replaced.icon} ${replaced.name}.` : ''}`,
+    tone: 'neutral',
+    charm: { id: charm.id, replaceId: replaced?.id },
+  });
+
+  return (
+    <>
+      <p className="text-slate-200 text-sm leading-snug min-h-[2.5rem] flex items-center justify-center" aria-live="polite">
+        {phase === 'box' ? 'Shake the box and see what falls out. Any charm can drop, even the trade-offs.'
+          : phase === 'shaking' ? 'Shake, shake, shake…'
+          : !flipped ? 'Something fell out!' : `You got ${charm.name}!`}
+      </p>
+      {phase !== 'out' ? (
+        // The cereal box
+        <div className={`relative w-40 h-48 rounded-lg ring-4 ring-neon-yellow/80 bg-gradient-to-b from-[#ff4d6d] via-[#ff7a3d] to-[#ffd23f] shadow-[0_0_24px_rgba(255,210,63,0.45)] flex flex-col items-center justify-between py-3 ${phase === 'shaking' ? 'cereal-shake' : ''}`} aria-hidden="true">
+          <p className="font-display text-lg leading-none text-white drop-shadow">LUCKY</p>
+          <div className="grid grid-cols-4 gap-0.5 text-2xl leading-none">{MARSHMALLOWS.map(m => <span key={m}>{m}</span>)}</div>
+          <p className="font-display text-lg leading-none text-white drop-shadow">CHARMS</p>
+        </div>
+      ) : (
+        <div className="w-full flex flex-col items-center gap-2" style={{ perspective: 600 }}>
+          {!flipped ? (
+            <div className="charm-tumble w-24 h-24 rounded-2xl bg-gradient-to-br from-neon-purple to-neon-pink ring-4 ring-white/70 grid place-items-center text-5xl" aria-hidden="true">🍀</div>
+          ) : (
+            <div className="charm-flip w-full rounded-xl ring-2 ring-neon-purple bg-crt-950/80 p-3 text-left flex items-start gap-3">
+              <span className="text-4xl leading-none" aria-hidden="true">{charm.icon}</span>
+              <div className="min-w-0">
+                <p className="font-display text-base text-white leading-tight">{charm.name}</p>
+                <p className="text-sm text-slate-200 leading-snug mt-0.5">{charm.description}</p>
+              </div>
+            </div>
+          )}
+          {flipped && replaced && (
+            <div className="w-full rounded-xl ring-1 ring-neon-red/60 bg-neon-red/10 p-2 flex items-center gap-2 text-left">
+              <span className="slot-wobble text-3xl leading-none inline-block" aria-hidden="true">{replaced.icon}</span>
+              <p className="text-sm text-slate-200 leading-snug">Your slots are full, so it bumps out <strong className="text-white">{replaced.name}</strong>.</p>
+            </div>
+          )}
+        </div>
+      )}
+      {phase === 'box' && <ArcadeButton color="green" className="w-full" onClick={() => { soundService.playPowerUp(); setPhase('shaking'); }}>🍀 Shake the Box</ArcadeButton>}
+      {phase === 'out' && flipped && <ArcadeButton color="purple" className="w-full" onClick={take}>Equip {charm.icon} {charm.name}</ArcadeButton>}
+    </>
+  );
+};
+
+const GAMES: Record<string, React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[]; extra?: Record<string, unknown> }>> = {
   letsMakeADeal: Doors, dealOrNoDeal: Deal, noWhammies: Whammies, minesweeper: Mines,
   priceIsRight: PriceIsRight, draftDay: DraftDay, cardSharks: CardSharks, plinko: Plinko,
+  hotTubTimeMachine: HotTub, luckyCharms: LuckyCharms,
 };
 
 /** The interactive part of a gamble PowerPlay. */
-const GambleCard: React.FC<{ id: string; icon: string; name: string; onResolve: (r: GambleResult) => void; hand?: (Tile | null)[]; saved?: Record<string, unknown>; onSave?: (key: string, value: unknown) => void }> = ({ id, icon, name, onResolve, hand, saved, onSave }) => {
+const GambleCard: React.FC<{ id: string; icon: string; name: string; onResolve: (r: GambleResult) => void; hand?: (Tile | null)[]; saved?: Record<string, unknown>; onSave?: (key: string, value: unknown) => void; extra?: Record<string, unknown> }> = ({ id, icon, name, onResolve, hand, saved, onSave, extra }) => {
   const Game = GAMES[id];
   if (!Game) return null;
   return (
     <GambleSave.Provider value={{ saved, save: onSave }}>
-      <Frame icon={icon} name={name}><Game onResolve={onResolve} hand={hand} /></Frame>
+      <Frame icon={icon} name={name}><Game onResolve={onResolve} hand={hand} extra={extra} /></Frame>
     </GambleSave.Provider>
   );
 };
