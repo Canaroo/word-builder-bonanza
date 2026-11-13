@@ -442,7 +442,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'schruteBucks', 
     name: 'Schrute Bucks', 
-    description: 'Instant +150 points; your very next word is forced to score exactly 1 point.', 
+    description: `Start a beet farm: for your next ${POWER_PLAY_VALUES.schruteBucksWords} words, every ${POWER_PLAY_VALUES.schruteBucksLetters.split('').join(', ').replace(/, (\w)$/, ' or $1')} you play earns ${POWER_PLAY_VALUES.schruteBucksPerLetter} Schrute Bucks. After the last word, your bucks pay out as points.`,
     flavorText: 'Bears. Beets. Battlestar Galactica.',
     icon: '💵',
     subtheme: 'score',
@@ -516,7 +516,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'thanosGift', 
     name: 'Gift From Thanos', 
-    description: `Gain +${POWER_PLAY_VALUES.thanosGiftPoints} points right now. Your very next word scores 0.`,
+    description: `Gain +${POWER_PLAY_VALUES.thanosGiftPoints} points right now. Your next word of ${POWER_PLAY_VALUES.thanosGiftLetters}+ letters scores 0 (shorter words don't count).`,
     flavorText: 'Balance restored. But not without cost.',
     icon: '🫰',
     subtheme: 'score',
@@ -528,11 +528,11 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
       const level = levelFor(gameState.log.filter(e => e.type === 'word' && e.status === 'valid').length);
       const points = prizeFor(POWER_PLAY_VALUES.thanosGiftPoints, level);
       const score = gameState.score + points;
-      const entry: EventLogEntry = { type: 'event', id: `pp-thanosGift-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon, description: `+${points} points now. The next word scores 0.`, scoreChange: points, cumulativeScore: score };
+      const entry: EventLogEntry = { type: 'event', id: `pp-thanosGift-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon, description: `+${points} points now. The next ${POWER_PLAY_VALUES.thanosGiftLetters}+ letter word scores 0.`, scoreChange: points, cumulativeScore: score };
       return { 
           score,
           log: [...gameState.log, entry],
-          lastPowerPlayResult: { message: `🫰 +${points} points. Your next word scores 0.`, scoreChange: points },
+          lastPowerPlayResult: { message: `🫰 +${points} points. Your next ${POWER_PLAY_VALUES.thanosGiftLetters}+ letter word scores 0.`, scoreChange: points },
           activePowerPlays: { ...gameState.activePowerPlays, thanosGift: true },
           activeBuffs: [...gameState.activeBuffs, powerPlay]
       };
@@ -1401,6 +1401,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
 /** PowerPlays that pay a flat point prize, which grows with the run level (PRIZE_GROWTH, prizeFor).
  * A new PowerPlay with a point prize goes here and pays through prizeFor(). */
 export const PRIZE_POWER_PLAY_IDS: ReadonlySet<string> = new Set([
+  'schruteBucks',
   'letsMakeADeal', 'dealOrNoDeal', 'noWhammies', 'minesweeper', 'cardSharks', 'plinko', 'chickenDinner',
   'fluncleIsProud', 'actClear', 'priceIsRight', 'tamagotchi', 'smellYaLater', 'popQuizHotshot',
   'withGreatPower', 'gumpLuck', 'warioWarp', 'thanosGift',

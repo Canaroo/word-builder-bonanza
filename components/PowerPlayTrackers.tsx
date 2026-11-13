@@ -24,6 +24,7 @@ const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string
         <span aria-hidden="true">🚌</span>{left > 0 ? `POP QUIZ ${left}s` : `TOO SLOW · -${V.popQuizPenaltySeconds}s`}
       </span>);
   }
+  if (a.schruteBucks && typeof a.schruteBucks === 'object') chips.push(<Chip key="beets" icon="💵" label={`Schrute Bucks: ${a.schruteBucks.pot} banked, ${a.schruteBucks.words} words left`}>BUCKS {a.schruteBucks.pot} · {a.schruteBucks.words} left · B/E/T +{V.schruteBucksPerLetter}</Chip>);
   if (a.tamagotchi) chips.push(<Chip key="tama" icon="🥚" label={`Tamagotchi: fed ${a.tamagotchi.feeds} of ${V.tamagotchiWords}`}>{a.tamagotchi.feeds}/{V.tamagotchiWords} · pot {tamagotchiPot(a.tamagotchi.feeds)}</Chip>);
   if (a.timeCapsule && a.timeCapsule !== true) chips.push(<Chip key="capsule" icon="📦" label={`Time Capsule: ${a.timeCapsule.points} points in ${a.timeCapsule.words} words`}>+{a.timeCapsule.points} in {a.timeCapsule.words}</Chip>);
   if (a.smellYaLater) {
