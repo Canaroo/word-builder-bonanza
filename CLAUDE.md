@@ -46,7 +46,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | Game state, reducer, turn logic | `services/screens/GameScreen.tsx` (large) |
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
 | PowerPlays / charms (100 / 100) | `data/powerPlays.ts`, `data/charms.ts` |
-| Secret bonuses (100 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
+| Secret bonuses (107 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
 | Hidden desktop pages | `/?stats` and `/?bonuses` (tabs: `&tab=words`, `scores`, `counts`, `charms`, `powerPlays`) render full-width outside the phone frame (`showToolPage` in `App.tsx`) |
 | Bosses (24) and Boss Badges | `data/bosses.ts` (villains, rules), `BOSS` in `config/gameplay.ts` (timing, rewards); badges in the profile (`recordBossBadge`) |
 | Cosmetics, streak milestones, themes, missions | `data/cosmetics.ts`, `data/packs.ts`, `data/missions.ts` |
@@ -231,6 +231,14 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   the next 5 valid words earns 25 bucks, and the pot pays out as points (a prize) after the last
   one. Word-list stats: about 1.07 B/E/T a word (+135 casual), about 2.2 leaning in (+280).
   Values `schruteBucksWords`, `schruteBucksPerLetter`, `schruteBucksLetters` in `POWER_PLAY_VALUES`.
+- **Arcade mini-games (v7.38.0):** nine secret words open a quick side game instead of paying points:
+  GAME Pong, MOLE Whac-A-Mole, CLAW claw machine, DART darts, GOAL penalties, DICE Yahtzee-lite,
+  BOWL bowling, TEE mini golf, NET free throws (`miniGame` on the secret bonus, `data/miniGames.ts`,
+  `components/MiniGames.tsx`, scoring in `services/miniGameRules.ts`, values in `MINI_GAME_VALUES`).
+  An intro card (Play or Skip) opens after the word scores; the result pays points only, as a prize
+  (`APPLY_MINIGAME`, grows with the level). Once per run like any secret; progress is saved in the
+  pop-up's data (`SET_GAMBLE_STATE` works for `minigame` too), so quitting doesn't restart a game.
+  TEE and NET were picked as the common ones (spellable from about 9% of hands; the rest 0.2-1.5%).
 - **Power words** (10 secret words with `effect`, no points): SLOT (slot machine, +1/3/10s), SNOW
   (clock frozen 10s), HEAL (remove a strike, else +100), SLOW (half-speed clock for 3 words), TWIN
   (clone your best word's time + a Word Combo step), RINGS (a strike shield), REWIND (clock one speed

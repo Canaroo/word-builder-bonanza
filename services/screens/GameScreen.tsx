@@ -1,12 +1,13 @@
 // Game logic and state. Layout lives in GameScreenView.tsx.
 import React, { useReducer, useEffect, useCallback, useMemo, useState } from 'react';
-import { GameState, Tile, WordData, Milestone, Charm, PowerPlay, ScoreCalculationResult, ScoreBonusInfo, LogEntry, WordLogEntry, EventLogEntry, GameOverLogEntry, TimeLedger } from '../../types';
+import { GameState, Tile, WordData, Milestone, Charm, PowerPlay, ScoreCalculationResult, ScoreBonusInfo, LogEntry, WordLogEntry, EventLogEntry, GameOverLogEntry, TimeLedger, MiniGameId } from '../../types';
 import { RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, VOWELS, INITIAL_SHUFFLES, MAX_STRIKES_INITIAL, SUPER_HAND_BONUS, TILE_DISTRIBUTION, INITIAL_CHALLENGES, COMBO_TILES } from '../../constants';
 import * as gameUtils from '../gameUtils';
 import { MILESTONES_LIST } from '../../data/milestones';
 import { CHARMS_LIST, UPGRADABLE_CHARM_IDS, NO_LENGTH_BOOST_CHARM_IDS } from '../../data/charms';
 import { GAMBLE_CARD_IDS, type GambleResult } from '../../components/GambleCard';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, TIME_CARD_IDS } from '../../data/powerPlays';
+import { MINI_GAMES } from '../../data/miniGames';
 import { EASTER_EGGS } from '../../data/easterEggs';
 import { recordFound, collectionProgress } from '../collection';
 import { WORD_BONUSES } from '../../data/wordBonuses';
@@ -212,6 +213,7 @@ type GameAction =
     | { type: 'RESUME_GAME' }
     | { type: 'TICK_TIMER'; ms?: number }
     | { type: 'TICK_FREEZE' }
+    | { type: 'APPLY_MINIGAME'; payload: { name: string; icon: string; points: number; headline: string; detail: string } }
     | { type: 'ADD_TIME', payload: number }
     | { type: 'SET_TIME', payload: number }
     | { type: 'MOVE_TILE_TO_BUILD', payload: { tile: Tile, fromIndex: number } }
@@ -385,7 +387,7 @@ const levelUpModal = (wordsBefore: number, gs?: GameState): ModalContent | null 
  * stuck in the old round: v7.19.0's level-up card was, so a word whose only pop-up was a
  * level-up lost its word time, and Groundhog's Day saw a word "already played" and didn't fire.
  */
-export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome'];
+export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome'];
 
 /**
  * A chance PowerPlay's result (a roll, a coin flip, a random tile): a centered card that waits
@@ -547,7 +549,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         // A gamble card's board, kept in its pop-up so the auto-save stores it (v7.28.9).
         case 'SET_GAMBLE_STATE': {
             const m = state.modalContent;
-            if (m?.type !== 'gamble') return state;
+            if (m?.type !== 'gamble' && m?.type !== 'minigame') return state;
             return { ...state, modalContent: { ...m, data: { ...m.data, saved: { ...(m.data?.saved ?? {}), [action.payload.key]: action.payload.value } } } };
         }
         case 'SET_HAND_AND_BAG': return { ...state, hand: action.payload.hand, tileBag: action.payload.tileBag };
@@ -581,6 +583,25 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         case 'SET_LONG_WORD_BONUS_NOTIFIED': return { ...state, longWordBonusNotified: action.payload };
         // A gamble PowerPlay's result (v7.25): points and/or seconds, the PowerPlay leaves the pocket,
         // and the outcome card opens. A strike result is dispatched separately (ADD_STRIKE).
+        case 'APPLY_MINIGAME': {
+            // Arcade mini-game payout (v7.38.0): points only, a prize that grows with the level.
+            const { name, icon, points: listed, headline, detail } = action.payload;
+            const level = runLevel(gameState);
+            const points = prizeFor(listed, level);
+            const boosted = points !== listed;
+            const score = gameState.score + points;
+            const entry: EventLogEntry = { type: 'event', id: `mg-${name}-${Date.now()}`, name, icon, description: headline, scoreChange: points, cumulativeScore: score };
+            return {
+                ...state,
+                isPaused: true,
+                modalContent: {
+                    type: 'outcome', title: name,
+                    content: boosted ? `${detail}\n\n⬆ Level ${level} prize boost: ${listed} → ${points} points.` : detail,
+                    data: { icon, headline: boosted ? headline.replace(`+${listed}`, `+${points}`) : headline, tone: points > 0 ? 'win' : 'lose' },
+                },
+                gameState: { ...gameState, score, log: [...gameState.log, entry] },
+            };
+        }
         case 'APPLY_GAMBLE': {
             const { powerPlay, points: listed = 0, seconds = 0, tone } = action.payload;
             // Point prizes grow with the level (PRIZE_GROWTH); the card shows the listed prize, so say what changed.
@@ -4153,7 +4174,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               if (egg.reward.shuffle) newState.shuffleCount += egg.reward.shuffle;
               // Saved to the device's Bonus Collection straight away, so it survives an abandoned run.
               const firstFind = recordFound(egg.id);
-              modalQueue.push({ type: 'easter-egg', title: egg.name, content: egg.reward.message, data: { ...egg, triggerScore, firstFind, collection: collectionProgress() } });
+              if (egg.reward.miniGame) {
+                  // Arcade words (v7.38.0): a quick side game instead of points (Play or Skip).
+                  modalQueue.push({ type: 'minigame', title: egg.name, data: { id: egg.reward.miniGame, eggId: egg.id, word: egg.word, firstFind } });
+              } else {
+                  modalQueue.push({ type: 'easter-egg', title: egg.name, content: egg.reward.message, data: { ...egg, triggerScore, firstFind, collection: collectionProgress() } });
+              }
               trackMission({ type: 'secret', id: egg.id, firstFind, media: getBonusMedia(egg.id).media, isScore: !!egg.scorePattern });
               const eggIcon = egg.name.split(' ')[0];
               eventLogQueue.push({ type: 'event', id: `egg-${egg.id}`, name: egg.name, icon: eggIcon, description: explanation ? `${explanation} ${egg.reward.message}` : egg.reward.message, scoreChange: eggScoreChange, cumulativeScore: runningScore });
@@ -4843,6 +4869,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         : `CHALLENGE (${gameState?.challengeCount ?? 0})`, [isStrikeChallenge, strikesRemaining, gameState?.challengeCount]);
 
     /** A gamble card's decision is in: apply it (and a Minesweeper strike) and show the outcome. */
+    /** An arcade mini-game finished (or was skipped). Skipping closes the card with nothing paid. */
+    const handleResolveMiniGame = (r: { points: number; headline: string; detail: string } | null) => {
+        const data = state.modalContent?.data as { id?: MiniGameId } | undefined;
+        const info = data?.id ? MINI_GAMES[data.id] : undefined;
+        if (!r || !info) { handleCloseModal(); return; }
+        dispatch({ type: 'APPLY_MINIGAME', payload: { name: info.name, icon: info.icon, points: r.points, headline: r.headline, detail: r.detail } });
+    };
+
     const handleResolveGamble = (r: GambleResult) => {
         const powerPlay = ppById(state.modalContent?.data?.id);
         if (!powerPlay) return;
@@ -5277,6 +5311,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         time,
         resumeCountdown: state.resumeCountdown ?? 0,
         handleResolveGamble,
+        handleResolveMiniGame,
         upcomingTiles: gameState.activePowerPlays?.psychicFriends ? tileBag.slice(-POWER_PLAY_VALUES.psychicTiles).reverse() : [],
         // Smell Ya Later!: the rival's score as it climbs, in real seconds.
         raceRival: (() => {
