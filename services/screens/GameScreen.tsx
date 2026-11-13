@@ -4937,12 +4937,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             dispatch({ type: 'NEURALYZE', payload: { powerPlay } });
             return;
         }
-        if (powerPlay.id === 'plinko') {
-            const points = plinkoPayout(Math.random());
-            const jackpot = points === POWER_PLAY_VALUES.plinko[POWER_PLAY_VALUES.plinko.length - 1].points;
-            dispatch({ type: 'APPLY_GAMBLE', payload: { powerPlay, points, headline: jackpot ? `JACKPOT! +${points} POINTS` : points ? `+${points} POINTS` : 'ZERO SLOT', detail: points ? 'The chip bounced your way.' : 'So close. The chip landed in the empty slot.', tone: points ? 'win' : 'lose' } });
-            return;
-        }
         if (powerPlay.id === 'hotTubTimeMachine') {
             const seconds = hotTubSeconds(Math.random());
             dispatch({ type: 'APPLY_GAMBLE', payload: { powerPlay, seconds, headline: `${seconds > 0 ? '+' : ''}${seconds} SECONDS`, detail: seconds > 0 ? 'Great Scott, it worked! Extra time.' : 'The hot tub went the wrong way. You lost time.', tone: seconds > 0 ? 'win' : 'lose' } });

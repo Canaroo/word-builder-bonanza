@@ -341,6 +341,42 @@ const pickByChance = <T extends { chance: number }>(list: T[], roll: number): T 
     for (const item of list) { acc += item.chance; if (roll < acc) return item; }
     return list[list.length - 1];
 };
+/**
+ * The Plinko board's slots, left to right (v7.36.3): the jackpot in the middle, the zeros beside
+ * the 700s, small prizes on the edges. Every value in POWER_PLAY_VALUES.plinko appears here; the
+ * prize is still rolled from that table, and the chip's path is drawn to land on it.
+ */
+export const PLINKO_SLOTS: readonly number[] = (() => {
+    const v = POWER_PLAY_VALUES.plinko.map(p => p.points); // [0, 100, 300, 700, 2000]
+    return [v[1], v[2], v[0], v[3], v[4], v[3], v[0], v[2], v[1]];
+})();
+/** Peg rows the chip falls through. */
+export const PLINKO_ROWS = 9;
+
+/** The slot a rolled prize lands in: of the slots with that value, the one nearest where the chip
+ * was dropped (a coin flip on a tie). */
+export const plinkoSlotFor = (points: number, start: number, rand: () => number = Math.random): number => {
+    const matches = PLINKO_SLOTS.map((p, i) => (p === points ? i : -1)).filter(i => i >= 0);
+    if (!matches.length) return Math.floor(PLINKO_SLOTS.length / 2);
+    const best = Math.min(...matches.map(i => Math.abs(i - start)));
+    const nearest = matches.filter(i => Math.abs(i - start) === best);
+    return nearest[Math.floor(rand() * nearest.length) % nearest.length];
+};
+
+/** Where the chip is (in slot columns) after each peg row: it drifts from the drop point to the
+ * landing slot, knocked left or right at every peg, less as it nears the bottom. */
+export const plinkoPath = (start: number, slot: number, rand: () => number = Math.random, rows = PLINKO_ROWS): number[] => {
+    const last = PLINKO_SLOTS.length - 1;
+    const path = [start];
+    for (let r = 1; r < rows; r++) {
+        const trend = start + (slot - start) * (r / rows);
+        const knock = (rand() < 0.5 ? -0.5 : 0.5) * (1 - r / rows) * 1.6;
+        path.push(Math.min(last, Math.max(0, trend + knock)));
+    }
+    path.push(slot);
+    return path;
+};
+
 /** Plinko: the chip's points for a roll in [0, 1). */
 export const plinkoPayout = (roll: number): number => pickByChance(POWER_PLAY_VALUES.plinko, roll).points;
 /** Hot Tub Time Machine: seconds (negative = lost) for a roll in [0, 1). */

@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import ArcadeButton from './ArcadeButton';
 import { POWER_PLAY_VALUES as V } from '../config/gameplay';
-import { doorsForRound, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace } from '../services/rules';
+import { doorsForRound, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout } from '../services/rules';
 import { createTile, createTileBag, shuffleArray } from '../services/gameUtils';
 import type { Tile } from '../types';
 import { soundService } from '../services/soundService';
@@ -378,9 +378,162 @@ const CardSharks: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onReso
   );
 };
 
+/**
+ * Plinko (v7.36.3): slide the chip along the top, drop it, and watch it bounce down the pegs into a
+ * slot. The prize is rolled from the same table as before (POWER_PLAY_VALUES.plinko) the moment the
+ * chip drops, and saved, so quitting mid-fall replays the same drop; the path is drawn to land there.
+ * Each peg clicks and gives a short buzz on phones that support it.
+ */
+const PLINKO_COL = 36;                       // slot width in the drawing
+const PLINKO_TOP = 34;                       // chip's resting line
+const PLINKO_ROW_GAP = 27;
+const PLINKO_SLOT_Y = PLINKO_TOP + 14 + PLINKO_ROWS * PLINKO_ROW_GAP;
+const PLINKO_H = PLINKO_SLOT_Y + 46;
+const PLINKO_W = PLINKO_SLOTS.length * PLINKO_COL;
+const PLINKO_STEP_MS = 230;
+const plinkoX = (col: number) => (col + 0.5) * PLINKO_COL;
+const plinkoRowY = (r: number) => PLINKO_TOP + 14 + r * PLINKO_ROW_GAP;
+const JACKPOT = Math.max(...PLINKO_SLOTS);
+
+const Plinko: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
+  const last = PLINKO_SLOTS.length - 1;
+  const [pos, setPos] = useState(last / 2);
+  const [drop, setDrop] = useSaved<{ points: number; slot: number; path: number[] } | null>('drop', null);
+  const [landed, setLanded] = useSaved('landed', false);
+  const [chip, setChip] = useState<{ x: number; y: number } | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragging = useRef(false);
+  const reduceMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+  // The fall: one hop per peg row, a click and a buzz on each peg.
+  useEffect(() => {
+    if (!drop || landed) return;
+    if (reduceMotion) { setLanded(true); return; }
+    let raf = 0;
+    const t0 = performance.now();
+    let lastRow = -1;
+    const total = drop.path.length - 1;
+    const tick = (now: number) => {
+      const t = (now - t0) / PLINKO_STEP_MS;
+      const r = Math.min(total, Math.floor(t));
+      const f = Math.min(1, t - r);
+      if (r !== lastRow) {
+        lastRow = r;
+        if (r > 0 && r <= total) {
+          soundService.playTileClick();
+          try { navigator.vibrate?.(r === total ? 25 : 8); } catch { /* not supported */ }
+        }
+      }
+      if (r >= total) { setChip({ x: plinkoX(drop.path[total]), y: PLINKO_SLOT_Y + 14 }); setLanded(true); return; }
+      const from = drop.path[r], to = drop.path[r + 1];
+      const yFrom = r === 0 ? PLINKO_TOP : plinkoRowY(r - 1) - 9;
+      const yTo = r + 1 === total ? PLINKO_SLOT_Y + 14 : plinkoRowY(r) - 9;
+      // Falls with gravity (ease-in), with a little hop off the peg it just hit.
+      const ease = f * f;
+      const hop = r === 0 ? 0 : Math.sin(f * Math.PI) * 7;
+      setChip({ x: plinkoX(from + (to - from) * f), y: yFrom + (yTo - yFrom) * ease - hop });
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [drop, landed]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const aimAt = (clientX: number) => {
+    const box = svgRef.current?.getBoundingClientRect();
+    if (!box || drop) return;
+    const col = ((clientX - box.left) / box.width) * PLINKO_SLOTS.length - 0.5;
+    setPos(Math.min(last, Math.max(0, col)));
+  };
+  const nudge = (d: number) => { if (!drop) { soundService.playTileClick(); setPos(p => Math.min(last, Math.max(0, Math.round(p * 2 + d) / 2))); } };
+  const release = () => {
+    if (drop) return;
+    soundService.playPowerUp();
+    const points = plinkoPayout(Math.random());
+    const slot = plinkoSlotFor(points, pos);
+    setDrop({ points, slot, path: plinkoPath(pos, slot) });
+  };
+  const take = () => {
+    if (!drop) return;
+    const p = drop.points;
+    onResolve({
+      points: p,
+      headline: p === JACKPOT ? `JACKPOT! +${p} POINTS` : p ? `+${p} POINTS` : 'ZERO SLOT',
+      detail: p ? 'The chip bounced your way.' : 'So close. The chip landed in the empty slot.',
+      tone: p ? 'win' : 'lose',
+    });
+  };
+
+  const chipAt = chip ?? (drop && landed ? { x: plinkoX(drop.slot), y: PLINKO_SLOT_Y + 14 } : { x: plinkoX(pos), y: PLINKO_TOP });
+  const result = drop && landed ? drop.points : null;
+  return (
+    <>
+      {/* Fixed height, so the card doesn't jump as the line changes. */}
+      <p className="text-slate-200 text-sm leading-snug min-h-[2.5rem] flex items-center justify-center" aria-live="polite">
+        {!drop ? 'Slide the chip along the top, then drop it. No downside.'
+          : !landed ? 'Here it goes…'
+          : drop.points === JACKPOT ? 'Dead center. The big one!'
+          : drop.points ? `It dropped into the ${drop.points} slot.` : 'Right into a zero. Ouch.'}
+      </p>
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${PLINKO_W} ${PLINKO_H}`}
+        className={`w-full max-w-[22rem] select-none touch-none rounded-xl bg-crt-950 ring-1 ring-white/10 ${drop ? '' : 'cursor-grab'}`}
+        role="img"
+        aria-label={result !== null ? `The chip landed on ${result || 'zero'}` : 'Plinko board'}
+        onPointerDown={e => { if (drop) return; dragging.current = true; (e.target as Element).setPointerCapture?.(e.pointerId); aimAt(e.clientX); }}
+        onPointerMove={e => { if (dragging.current) aimAt(e.clientX); }}
+        onPointerUp={() => { dragging.current = false; }}
+        onPointerCancel={() => { dragging.current = false; }}
+      >
+        {/* Drop lane */}
+        {!drop && <line x1={8} x2={PLINKO_W - 8} y1={PLINKO_TOP} y2={PLINKO_TOP} stroke="rgba(255,255,255,0.12)" strokeWidth={2} strokeDasharray="4 6" />}
+        {/* Pegs, staggered */}
+        {Array.from({ length: PLINKO_ROWS }, (_, r) => {
+          const offset = r % 2 === 0 ? 0.5 : 0;
+          const count = r % 2 === 0 ? PLINKO_SLOTS.length - 1 : PLINKO_SLOTS.length;
+          return Array.from({ length: count }, (_, c) => (
+            <circle key={`${r}-${c}`} cx={(c + offset + 0.5) * PLINKO_COL} cy={plinkoRowY(r)} r={3.2} fill="#c9b8ff" opacity={0.75} />
+          ));
+        })}
+        {/* Slots */}
+        {PLINKO_SLOTS.map((p, i) => {
+          const hit = result !== null && drop!.slot === i;
+          const fill = p === JACKPOT ? '#ffe27a' : p === 0 ? '#64748b' : p >= 700 ? '#ff4dc4' : '#3dff8c';
+          return (
+            <g key={i}>
+              {i > 0 && <line x1={i * PLINKO_COL} x2={i * PLINKO_COL} y1={PLINKO_SLOT_Y - 4} y2={PLINKO_H} stroke="rgba(255,255,255,0.25)" strokeWidth={2} />}
+              <rect x={i * PLINKO_COL + 2} y={PLINKO_SLOT_Y + 26} width={PLINKO_COL - 4} height={18} rx={4} fill={hit ? fill : 'transparent'} opacity={hit ? 0.35 : 1} className={hit ? 'animate-pulse' : ''} />
+              <text x={plinkoX(i)} y={PLINKO_SLOT_Y + 40} textAnchor="middle" fontSize={p >= 1000 ? 10.5 : 12} fontWeight={700} fill={fill} fontFamily="monospace">
+                {p === 0 ? '0' : p >= 1000 ? `${p / 1000}K` : p}
+              </text>
+            </g>
+          );
+        })}
+        {/* The chip */}
+        <circle cx={chipAt.x} cy={chipAt.y} r={10} fill="#ffe27a" stroke="#ff9f1c" strokeWidth={3} style={{ filter: 'drop-shadow(0 0 6px rgba(255,226,122,0.8))' }} />
+        <circle cx={chipAt.x - 3} cy={chipAt.y - 3} r={2.5} fill="#fff" opacity={0.8} />
+      </svg>
+      {result !== null ? (
+        <>
+          <p className={`font-display text-3xl ${result === JACKPOT ? 'text-neon-yellow' : result ? 'text-neon-green' : 'text-slate-400'}`} aria-live="polite">
+            {result === JACKPOT ? `JACKPOT! +${result}` : result ? `+${result}` : 'ZERO!'}
+          </p>
+          <ArcadeButton color={result ? 'green' : 'slate'} className="w-full" onClick={take}>{result ? `Take the ${result}` : 'Continue'}</ArcadeButton>
+        </>
+      ) : !drop ? (
+        <div className="w-full flex items-center gap-2">
+          <ArcadeButton color="slate" variant="outline" onClick={() => nudge(-1)} aria-label="Move the chip left">◀</ArcadeButton>
+          <ArcadeButton color="pink" className="flex-1" onClick={release}>▼ Drop the Chip</ArcadeButton>
+          <ArcadeButton color="slate" variant="outline" onClick={() => nudge(1)} aria-label="Move the chip right">▶</ArcadeButton>
+        </div>
+      ) : null}
+    </>
+  );
+};
+
 const GAMES: Record<string, React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[] }>> = {
   letsMakeADeal: Doors, dealOrNoDeal: Deal, noWhammies: Whammies, minesweeper: Mines,
-  priceIsRight: PriceIsRight, draftDay: DraftDay, cardSharks: CardSharks,
+  priceIsRight: PriceIsRight, draftDay: DraftDay, cardSharks: CardSharks, plinko: Plinko,
 };
 
 /** The interactive part of a gamble PowerPlay. */
