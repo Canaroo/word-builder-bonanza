@@ -104,7 +104,9 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   from the offer.
   Held in the pocket, a player could wait for (or build) the right word, then activate and submit.
   New timed or bet ones go there too. Daily Double's wager is never more than the score (it isn't
-  offered under 100 points), and a Sliders undo keeps a settled Daily Double or Price Is Right bet.
+  offered under 100 points), and a Sliders undo keeps a settled Daily Double or Price Is Right bet. It also
+  doesn't re-arm a coin flip the word used (Heisenberg, Double or Nothing, Blue Shell, Space Invader)
+  or Scrooge's Money Bin (its Credits are paid outside the run): `settledFlips` in `RESTORE_LAST_TURN`.
   Random-tile PowerPlays (`RANDOM_TILE_POWER_PLAYS`: One Tile to Rule Them All, Ice Ice Maybe,
   Morphin Time, Red Wedding, Rescue Rangers) put the word-building row back in the hand first, so
   parking tiles there can't steer the pick. Add new random-tile ones to that set.

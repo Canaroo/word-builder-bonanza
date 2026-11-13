@@ -243,6 +243,20 @@ describe('Daily Double cheese fixes (v7.28.8)', () => {
         expect(undone.gameState.activePowerPlays.dailyDouble).toBeUndefined();
         expect(undone.gameState.log.some(e => e.type === 'event' && e.id === 'pp-dailyDouble-1')).toBe(true);
     });
+
+    test.each(['heisenberg', 'doubleOrNothing', 'blueShellSurprise', 'spaceInvader', 'scroogeSwipe'])('a Sliders undo does not re-arm a used gamble: %s (v7.36.6)', (id) => {
+        // The word lost its flip (scored 0); undoing it rewinds the word but must not give a free reroll.
+        const before = start({ score: 1000, activePowerPlays: { [id]: true }, activeBuffs: [pp(id)], log: [] });
+        const after: GameScreenState = {
+            ...before,
+            lastTurnState: { gameState: before.gameState, hand: before.hand, buildRow: before.buildRow, time: before.time, tileBag: before.tileBag } as any,
+            gameState: { ...before.gameState, score: 1000, activePowerPlays: {}, activeBuffs: [], log: [{ type: 'word', word: 'QUIZ', score: 0 } as any], availablePowerPlays: [pp('sliders')] },
+        };
+        const undone = gameReducer(after, { type: 'RESTORE_LAST_TURN' });
+        expect(undone.gameState.activePowerPlays[id]).toBeUndefined();
+        expect(undone.gameState.activeBuffs.some(b => b.id === id)).toBe(false);
+        expect(undone.gameState.score).toBe(1000);
+    });
 });
 
 describe('gamble cheese fixes (v7.28.9)', () => {
