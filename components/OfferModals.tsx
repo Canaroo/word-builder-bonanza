@@ -33,7 +33,11 @@ const ItemCard: React.FC<{
   dim?: boolean;
   /** Extra line under the description (e.g. what happens to the PowerPlay you're holding). */
   note?: React.ReactNode;
-}> = ({ item, tag, onClick, selected, dim, note }) => {
+  /** Leave out the flavor text, so a full list of charms fits on screen. */
+  compact?: boolean;
+  /** A gold ring for an upgraded charm. */
+  upgraded?: boolean;
+}> = ({ item, tag, onClick, selected, dim, note, compact, upgraded }) => {
   const body = (
     <>
       <div className="flex items-start gap-2">
@@ -47,15 +51,15 @@ const ItemCard: React.FC<{
             )}
           </div>
           <p className="text-sm text-slate-200 leading-snug mt-0.5">{item.description}</p>
-          <p className="text-xs text-slate-500 italic mt-0.5">“{item.flavorText}”</p>
+          {!compact && <p className="text-xs text-slate-500 italic mt-0.5">“{item.flavorText}”</p>}
           {note && <p className="osd-text text-base leading-tight mt-1">{note}</p>}
         </div>
         {tag && <span className="shrink-0 self-center">{tag}</span>}
       </div>
     </>
   );
-  const className = `w-full text-left rounded-xl p-2.5 ring-1 transition ${
-    selected ? 'bg-neon-yellow/10 ring-2 ring-neon-yellow' : 'bg-crt-950/70 ring-white/10'
+  const className = `w-full text-left rounded-xl ${compact ? 'p-2' : 'p-2.5'} ring-1 transition ${
+    selected ? 'bg-neon-yellow/10 ring-2 ring-neon-yellow' : upgraded ? 'bg-neon-yellow/5 ring-2 ring-neon-yellow/60' : 'bg-crt-950/70 ring-white/10'
   } ${dim ? 'opacity-50' : ''}`;
   return onClick ? (
     <button type="button" onClick={onClick} className={`${className} hover:ring-white/40 focus-visible:ring-2 focus-visible:ring-white outline-none`}>
@@ -113,7 +117,10 @@ export const PowerPlayOffer: React.FC<{
           ? <span className="text-neon-yellow">⬆ LEVEL {level}: PRIZES x{prizeScale}</span>
           : null;
         const copyNote = pp.id !== 'multiplicity' ? null : copyTarget
-          ? <span className="text-neon-pink">👯 WOULD COPY: {copyTarget.icon} {copyTarget.name.toUpperCase()}</span>
+          ? <span className="block rounded-lg ring-1 ring-neon-pink/50 bg-neon-pink/10 px-2 py-1.5 mt-0.5">
+              <span className="text-neon-pink">👯 WOULD COPY: {copyTarget.icon} {copyTarget.name.toUpperCase()}</span>
+              <span className="block font-sans text-sm text-slate-200 leading-snug normal-case tracking-normal mt-0.5">{copyTarget.description}</span>
+            </span>
           : <span className="text-slate-400">👯 NOTHING TO COPY YET: USE A POWERPLAY FIRST</span>;
         const lines = [copyNote, prizeNote, swapNote].filter(Boolean);
         const note = lines.length ? <>{lines.map((l, i) => <React.Fragment key={i}>{i > 0 && <br />}{l}</React.Fragment>)}</> : null;
@@ -237,21 +244,31 @@ export const CharmOffer: React.FC<{
     return (
       <Overlay tone="purple">
         <h2 className="font-display text-xl text-neon-purple text-center leading-tight">MAKE ROOM FOR {picked.icon} {picked.name.toUpperCase()}</h2>
-        <p className="text-sm text-slate-300 text-center mt-1">Your {CHARM_SLOTS} slots are full. Tap the charm to drop.</p>
+        <p className="text-sm text-slate-300 text-center mt-1">
+          Your {CHARM_SLOTS} slots are full. Tap the charm to drop.
+          {equipped.some(c => upgradedIds.includes(c.id)) && <> <span className="text-neon-yellow">⭐ Upgraded</span> ones lose their upgrade if dropped.</>}
+        </p>
         <div className="mt-2"><SlotRow charms={equipped} highlightId={dropId ?? undefined} upgradedIds={upgradedIds} /></div>
-        <div className="mt-3 space-y-2 overflow-y-auto overscroll-contain p-1 -m-1">
-          {equipped.map(c => (
-            <ItemCard
-              key={c.id}
-              item={c}
-              selected={c.id === dropId}
-              tag={c.id === dropId ? <Tag tone="red">DROP</Tag> : undefined}
-              onClick={() => setDropId(c.id)}
-            />
-          ))}
+        {/* All your charms, compact so every one fits; upgraded ones are marked (v7.36.5). */}
+        <div className="mt-3 space-y-1.5 overflow-y-auto overscroll-contain p-1 -m-1">
+          {equipped.map(c => {
+            const up = upgradedIds.includes(c.id);
+            return (
+              <ItemCard
+                key={c.id}
+                item={c}
+                compact
+                upgraded={up}
+                selected={c.id === dropId}
+                tag={c.id === dropId ? <Tag tone="red">DROP</Tag> : up ? <Tag tone="yellow">⭐ UPGRADED</Tag> : undefined}
+                note={up ? <span className="text-neon-yellow">⭐ PAYS +{CHARM_UPGRADE.percent}% · DROP IT AND THE UPGRADE IS GONE</span> : undefined}
+                onClick={() => setDropId(c.id)}
+              />
+            );
+          })}
         </div>
-        <ArcadeButton color="purple" className="w-full mt-3" disabled={!dropping} onClick={() => dropping && onChoose(picked, dropping.id)}>
-          {dropping ? `Swap ${dropping.icon} for ${picked.icon}` : 'Pick one to drop'}
+        <ArcadeButton color={dropping && upgradedIds.includes(dropping.id) ? 'red' : 'purple'} className="w-full mt-3" disabled={!dropping} onClick={() => dropping && onChoose(picked, dropping.id)}>
+          {!dropping ? 'Pick one to drop' : upgradedIds.includes(dropping.id) ? `Swap ⭐${dropping.icon} for ${picked.icon} anyway` : `Swap ${dropping.icon} for ${picked.icon}`}
         </ArcadeButton>
         <button type="button" onClick={() => { setPicked(null); setDropId(null); }} className="osd-text text-lg text-slate-400 hover:text-white mt-2">
           ◀ BACK TO THE OFFER

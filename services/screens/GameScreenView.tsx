@@ -133,7 +133,7 @@ export interface GameScreenViewProps {
   handleSaveClick: () => void;
   handleConfirmSave: () => void;
   showBuffInfo: (buff: Charm | PowerPlay) => void;
-  handleActivatePowerPlay: (powerPlay: PowerPlay) => void;
+  handleActivatePowerPlay: (powerPlay: PowerPlay, confirmed?: boolean) => void;
   handleActivateCharm: (charm: Charm) => void;
   handleChoosePowerPlay: (powerPlay: PowerPlay, allOffered: PowerPlay[]) => void;
   handleChooseCharm: (charm: Charm, allOffered: Charm[], replaceId?: string) => void;
@@ -333,7 +333,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                                <p className="osd-text text-lg text-neon-yellow text-center mb-2">⭐ UPGRADED: ITS POINT BONUSES PAY {CHARM_UPGRADE.percent}% MORE</p>
                            )}
                            {buff.id === 'multiplicity' && (
-                               <p className="osd-text text-lg text-neon-pink text-center mb-2">{copyTarget ? `👯 TAP TO TURN IT INTO ${copyTarget.icon} ${copyTarget.name.toUpperCase()}` : '👯 NOTHING TO COPY YET: USE A POWERPLAY FIRST'}</p>
+                               <div className="mb-2 text-center">
+                                   <p className="osd-text text-lg text-neon-pink">{copyTarget ? `👯 WOULD COPY: ${copyTarget.icon} ${copyTarget.name.toUpperCase()}` : '👯 NOTHING TO COPY YET: USE A POWERPLAY FIRST'}</p>
+                                   {copyTarget && <p className="text-sm text-slate-300 leading-snug mt-1">{copyTarget.description}</p>}
+                               </div>
                            )}
                            <p className="text-slate-400 text-center italic mb-4">"{buff.flavorText}"</p>
                            <button onClick={handleCloseModal} className="w-full mt-4 px-6 py-3 text-xl font-bold text-slate-900 bg-purple-500 rounded-lg shadow-lg hover:bg-purple-400">CLOSE</button>
@@ -394,6 +397,37 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
             case 'powerplay-activation': {
                 const powerPlay = data as PowerPlay;
+
+                // Multiplicity (v7.36.5): read what it copies before deciding.
+                if (powerPlay.id === 'multiplicity') {
+                    return (
+                        <div className={modalBaseClass}>
+                            <div className={`${modalBoxBaseClass} border-neon-pink max-w-md`}>
+                                <p className="osd-text text-lg tracking-[0.3em] text-slate-300 text-center">👯 MULTIPLICITY</p>
+                                <h2 className="font-display text-xl text-neon-pink text-center leading-tight mt-1">COPY THIS POWERPLAY?</h2>
+                                {copyTarget ? (
+                                    <div className="mt-3 rounded-xl ring-2 ring-neon-pink/70 bg-crt-950/80 p-3 text-left flex items-start gap-3">
+                                        <span className="text-4xl leading-none" aria-hidden="true">{copyTarget.icon}</span>
+                                        <div className="min-w-0">
+                                            <p className="font-display text-base text-white leading-tight">{copyTarget.name}</p>
+                                            <p className="text-sm text-slate-200 leading-snug mt-1">{copyTarget.description}</p>
+                                            <p className="text-xs text-slate-500 italic mt-1">“{copyTarget.flavorText}”</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="text-slate-300 text-center mt-3">Nothing to copy yet. Use a PowerPlay first.</p>
+                                )}
+                                <p className="text-sm text-slate-400 text-center mt-3">The copy replaces Multiplicity in your pocket. Use it whenever you like.</p>
+                                {copyTarget && (
+                                    <ArcadeButton color="pink" className="w-full mt-3" onClick={() => handleActivatePowerPlay(powerPlay, true)}>
+                                        👯 Copy {copyTarget.icon} {copyTarget.name}
+                                    </ArcadeButton>
+                                )}
+                                <ArcadeButton color="slate" variant="text" className="mx-auto mt-2" onClick={handleCloseModal}>Not now</ArcadeButton>
+                            </div>
+                        </div>
+                    );
+                }
                 
                 if (powerPlay.id === 'cassiesClue') {
                     const numTilesInHand = (hand ?? []).filter(Boolean).length;

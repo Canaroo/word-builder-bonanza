@@ -167,6 +167,12 @@ describe('timed and blind PowerPlays start the moment they are picked (v7.28.1)'
         expect(race.gameState.activePowerPlays.smellYaLater).toEqual({ words: V.rivalWords, mine: 0, rival: 0, clock: 27, startMs: 0 });
     });
 
+    test('The Price Is Right opens the bid on pick, before any word is built (v7.36.5)', () => {
+        const s = gameReducer(start({ powerPlayOffer: [pp('priceIsRight')] }, 40), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('priceIsRight'), allOffered: [pp('priceIsRight')] } });
+        expect(s.gameState.availablePowerPlays.some(p => p.id === 'priceIsRight')).toBe(false);
+        expect(s.modalQueue.some(m => m?.type === 'gamble' && (m.data as any)?.id === 'priceIsRight')).toBe(true);
+    });
+
     test('Pop Quiz times real seconds, not the bank clock (v7.36.1)', () => {
         // At a x2 clock, 3 real seconds drain 6 seconds of bank; the quiz must see 3.
         let s = gameReducer(start({ powerPlayOffer: [pp('popQuizHotshot')] }, 40), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('popQuizHotshot'), allOffered: [pp('popQuizHotshot')] } });
