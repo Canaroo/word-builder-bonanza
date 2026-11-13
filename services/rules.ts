@@ -100,6 +100,21 @@ export const charmPointsIn = (bonuses: { name: string; description: string }[], 
 export const charmUpgradePoints = (bonuses: { name: string; description: string }[], upgradedNames: string[]): number =>
     upgradedNames.length ? Math.round(charmPointsIn(bonuses, upgradedNames) * CHARM_UPGRADE.percent / 100) : 0;
 
+/**
+ * What an upgrade does to a charm's own numbers, for the upgrade picker (v7.36): each "+N" point
+ * value in its description, before and after (+40 → +60). Time ("+3 seconds"), percentages and
+ * multipliers are left out, since upgrades only touch points. Null when the text has no point
+ * value to show (the picker then says "+50% on its points").
+ */
+export const charmUpgradePreview = (description: string): { from: number; to: number }[] | null => {
+    const found: { from: number; to: number }[] = [];
+    for (const m of description.matchAll(/\+(\d+)(?![\d%x])(?!\s*(?:s\b|sec|second|more second|extra second|%|x\b))/gi)) {
+        const from = Number(m[1]);
+        if (from > 0 && !found.some(f => f.from === from)) found.push({ from, to: Math.round(from * (100 + CHARM_UPGRADE.percent) / 100) });
+    }
+    return found.length ? found : null;
+};
+
 /** Percent more that charm points pay on a word of this length (0 for short words). */
 export const charmLengthBoostFor = (length: number): number => lookupByLength(CHARM_LENGTH_BOOST, length, 0);
 

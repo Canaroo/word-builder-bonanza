@@ -160,6 +160,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   in `services/rules.ts`, state `gameState.charmUpgrades`). Only charms in `UPGRADABLE_CHARM_IDS`
   (`data/charms.ts`: they pay points under their own name) qualify; add new point charms there.
   Time, multiplier and utility charms can't be upgraded, on purpose (late-game time).
+  **Upgrade UI (v7.36):** the offer shows the upgrade as a gold card first in the list (not a button
+  under the cards, where it read like "no thanks"); slots that qualify carry a ▲. The first 3
+  showings per player add a NEW! callout (`charmUpgradeTips`; an upgrade ends it). The picker shows
+  each charm's own numbers, +40 → +60 (`charmUpgradePreview` in `services/rules.ts`).
   `run_end` now carries `cause`, `secs`, `tWords`/`tItems`/`tShuffles` and `upgrades`, and
   `charm_offer` carries `upgraded`. These go as `extras` in `sendStat`, which resends the plain
   event if the Firebase rules reject them; new optional stat fields should go the same way.

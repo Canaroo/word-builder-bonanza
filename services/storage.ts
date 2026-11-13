@@ -25,6 +25,7 @@ export const STORAGE_KEYS = {
     statsMissionsDay: 'wordNerdStatsMissionsDay',
     players: 'wordNerdPlayers',
     career: 'wordNerdCareer',
+    charmUpgradeTips: 'wordNerdCharmUpgradeTips',
 } as const;
 
 export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS];
