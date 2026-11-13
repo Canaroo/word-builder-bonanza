@@ -79,7 +79,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
 - **Decision gambles are push-your-luck** (`components/GambleCard.tsx`): Minesweeper, Let's Make a
   Deal, No Whammies! and Deal or No Deal keep going round after round until the player banks (or
   takes the deal) or busts; a bust wipes the pot, nothing more. One-roll gambles (Plinko, Hot Tub,
-  Lucky Charms) stay single-shot. Ladders, rounds and offers in `POWER_PLAY_VALUES`.
+  Lucky Charms) stay single-shot. Plinko (v7.36.3) is a gamble card with a board (`Plinko` in
+  `GambleCard.tsx`): slide the chip, drop it, it bounces down 9 peg rows (click + buzz per peg) into
+  a slot. The prize is rolled from `POWER_PLAY_VALUES.plinko` on drop (odds unchanged) and saved;
+  `PLINKO_SLOTS`, `plinkoSlotFor` and `plinkoPath` in `services/rules.ts` draw where it lands. Ladders, rounds and offers in `POWER_PLAY_VALUES`.
   After a bank, each shows what would have come next, then pays on "Take the N": Minesweeper the
   mine (and the odds the next pick had), Card Sharks the next card, Let's Make a Deal the doors you
   passed on, No Whammies! the next spin, Deal or No Deal your case (when you take the deal).

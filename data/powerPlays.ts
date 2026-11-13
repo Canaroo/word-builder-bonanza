@@ -1151,7 +1151,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'plinko',
     name: 'Plinko',
-    description: `Drop the chip: 0, +100, +300, +700, or the +${POWER_PLAY_VALUES.plinko[POWER_PLAY_VALUES.plinko.length - 1].points} jackpot. No downside.`,
+    description: `Slide the chip, drop it and watch it bounce down the pegs: 0, +100, +300, +700, or the +${POWER_PLAY_VALUES.plinko[POWER_PLAY_VALUES.plinko.length - 1].points} jackpot in the middle. No downside.`,
     flavorText: 'Plinko!',
     icon: '📍',
     subtheme: 'score',
