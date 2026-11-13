@@ -12,9 +12,18 @@ const Chip: React.FC<{ icon: string; label: string; children: React.ReactNode }>
   </span>
 );
 
-const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string[]; onStand: () => void }> = ({ gameState, upcomingTiles = [], onStand }) => {
+const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string[]; quizLeft?: number; onStand: () => void }> = ({ gameState, upcomingTiles = [], quizLeft, onStand }) => {
   const a = (gameState?.activePowerPlays ?? {}) as Record<string, any>;
   const chips: React.ReactNode[] = [];
+  // Pop Quiz (v7.36.1): its own countdown in real seconds, so the player can see the 5 s running.
+  if (quizLeft !== undefined) {
+    const left = Math.ceil(quizLeft);
+    chips.push(
+      <span key="quiz" className={`flex items-center gap-1.5 rounded-full px-3 py-1 osd-text text-lg leading-none whitespace-nowrap ring-1 ${left > 2 ? 'bg-neon-yellow/20 ring-neon-yellow text-white' : left > 0 ? 'bg-neon-red/30 ring-neon-red text-white animate-pulse' : 'bg-crt-950/80 ring-white/20 text-slate-400'}`}
+        role="timer" aria-label={left > 0 ? `Pop Quiz: ${left} seconds left` : 'Pop Quiz: time is up'}>
+        <span aria-hidden="true">🚌</span>{left > 0 ? `POP QUIZ ${left}s` : `TOO SLOW · -${V.popQuizPenaltySeconds}s`}
+      </span>);
+  }
   if (a.tamagotchi) chips.push(<Chip key="tama" icon="🥚" label={`Tamagotchi: fed ${a.tamagotchi.feeds} of ${V.tamagotchiWords}`}>{a.tamagotchi.feeds}/{V.tamagotchiWords} · pot {tamagotchiPot(a.tamagotchi.feeds)}</Chip>);
   if (a.timeCapsule && a.timeCapsule !== true) chips.push(<Chip key="capsule" icon="📦" label={`Time Capsule: ${a.timeCapsule.points} points in ${a.timeCapsule.words} words`}>+{a.timeCapsule.points} in {a.timeCapsule.words}</Chip>);
   if (a.smellYaLater) chips.push(<Chip key="race" icon="🏃" label={`Race: you ${a.smellYaLater.mine}, rival ${a.smellYaLater.rival}, ${a.smellYaLater.words} words left`}>You {a.smellYaLater.mine} · Rival {a.smellYaLater.rival} · {a.smellYaLater.words} left</Chip>);

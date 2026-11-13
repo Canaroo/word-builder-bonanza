@@ -4,7 +4,7 @@ import ShuffleButton from '../../components/ShuffleButton';
 import BonusReveal from '../../components/BonusReveal';
 import SlotMachine from '../../components/SlotMachine';
 import { PowerPlayOffer, CharmOffer } from '../../components/OfferModals';
-import { PRIZE_POWER_PLAY_IDS } from '../../data/powerPlays';
+import { PRIZE_POWER_PLAY_IDS, POWER_PLAYS_LIST } from '../../data/powerPlays';
 import { GameState, Tile, WordData, Milestone, Charm, PowerPlay } from '../../types';
 import Timer from '../../components/Timer';
 import TileComponent from '../../components/Tile';
@@ -90,6 +90,8 @@ export interface GameScreenViewProps {
   handleResolveGamble?: (r: GambleResult) => void;
   /** Psychic Friends Network: the next tiles in the bag, in draw order. */
   upcomingTiles?: string[];
+  /** Real seconds left on a running Pop Quiz (undefined when none). */
+  quizLeft?: number;
   timeGain?: { seconds: number; key: number; taxed?: boolean };
   /** Short game feedback (PowerPlay results, combos, hints). Empty when nothing to say. */
   message?: string;
@@ -143,7 +145,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, resumeCountdown = 0, handleResolveGamble, upcomingTiles, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, resumeCountdown = 0, handleResolveGamble, upcomingTiles, quizLeft, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
@@ -157,6 +159,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     // Only tiles never seen before start a peek (v7.32.4): tapping a tile into the word, or one
     // coming back to the hand, used to change the hand and flip every tile face up again.
     // Resuming a saved run that's already blind doesn't peek either (no quit-and-reload peek).
+    // Multiplicity copies the last PowerPlay used that it can copy (lastPowerPlayUsed only ever holds those).
+    const copyTarget = gameState?.lastPowerPlayUsed ? POWER_PLAYS_LIST.find(p => p.id === gameState.lastPowerPlayUsed) ?? null : null;
     const blind = !!gameState?.activePowerPlays?.birdBox;
     const handIds = (hand ?? []).filter(Boolean).map(t => t!.id);
     const handKey = handIds.join(',');
@@ -326,6 +330,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                            {(gameState?.charmUpgrades ?? []).includes(buff.id) && (gameState?.activeCharms ?? []).some(c => c.id === buff.id) && (
                                <p className="osd-text text-lg text-neon-yellow text-center mb-2">⭐ UPGRADED: ITS POINT BONUSES PAY {CHARM_UPGRADE.percent}% MORE</p>
                            )}
+                           {buff.id === 'multiplicity' && (
+                               <p className="osd-text text-lg text-neon-pink text-center mb-2">{copyTarget ? `👯 TAP TO TURN IT INTO ${copyTarget.icon} ${copyTarget.name.toUpperCase()}` : '👯 NOTHING TO COPY YET: USE A POWERPLAY FIRST'}</p>
+                           )}
                            <p className="text-slate-400 text-center italic mb-4">"{buff.flavorText}"</p>
                            <button onClick={handleCloseModal} className="w-full mt-4 px-6 py-3 text-xl font-bold text-slate-900 bg-purple-500 rounded-lg shadow-lg hover:bg-purple-400">CLOSE</button>
                        </div>
@@ -344,6 +351,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         held={held}
                         level={levelFor(totalWords)}
                         prizeScale={prizeScaleFor(levelFor(totalWords))}
+                        copyTarget={copyTarget}
                         onChoose={(pp) => handleChoosePowerPlay(pp, offered)}
                         onKeep={() => handleKeepPowerPlay(offered)}
                     />
@@ -876,11 +884,21 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         {/* Held PowerPlay (always in reach) + potential score */}
         <div className={`flex-shrink-0 h-8 flex items-center gap-2 ${(gameState?.availablePowerPlays?.length ?? 0) > 0 ? 'justify-between' : 'justify-center'}`}>
             {(gameState?.availablePowerPlays ?? []).slice(0, 1).map((pp) => (
-                <button key={pp.id} onClick={() => handleActivatePowerPlay(pp)} className="min-w-0 flex items-center gap-1 bg-neon-green text-crt-900 font-semibold pl-2 pr-3 h-8 rounded-full text-sm hover:brightness-110 transition ring-2 ring-neon-green/40 shadow-[0_0_12px_rgba(61,255,140,0.45)]" title={`Tap to use ${pp.name}`} aria-label={`Use PowerPlay: ${pp.name}`}>
+                pp.id === 'multiplicity' ? (
+                    // Multiplicity (v7.36.1) says what it will become, or that there's nothing to copy yet.
+                    <button key={pp.id} onClick={() => handleActivatePowerPlay(pp)} className={`min-w-0 flex items-center gap-1 font-semibold pl-2 pr-3 h-8 rounded-full text-sm transition ${copyTarget ? 'bg-neon-pink text-white ring-2 ring-neon-pink/40 shadow-[0_0_12px_rgba(255,77,196,0.45)] hover:brightness-110' : 'bg-crt-800 text-slate-300 ring-1 ring-white/20'}`}
+                        title={copyTarget ? `Turn Multiplicity into ${copyTarget.name}` : 'Use a PowerPlay first, then Multiplicity can copy it'} aria-label={copyTarget ? `Multiplicity: copy ${copyTarget.name}` : 'Multiplicity: nothing to copy yet'}>
+                        <span className="text-base leading-none">👯</span>
+                        <span className="osd-text text-lg leading-none shrink-0">{copyTarget ? '▶ COPY' : 'NOTHING TO COPY'}</span>
+                        {copyTarget && <span className="truncate">{copyTarget.icon} {copyTarget.name}</span>}
+                    </button>
+                ) : (
+                    <button key={pp.id} onClick={() => handleActivatePowerPlay(pp)} className="min-w-0 flex items-center gap-1 bg-neon-green text-crt-900 font-semibold pl-2 pr-3 h-8 rounded-full text-sm hover:brightness-110 transition ring-2 ring-neon-green/40 shadow-[0_0_12px_rgba(61,255,140,0.45)]" title={`Tap to use ${pp.name}`} aria-label={`Use PowerPlay: ${pp.name}`}>
                     <span className="text-base leading-none">{pp.icon}</span>
                     <span className="osd-text text-lg leading-none shrink-0">▶ USE</span>
                     <span className="truncate">{pp.name}</span>
                 </button>
+                )
             ))}
             {potentialScore > 0 && (
                 <div className="shrink-0 bg-crt-950/80 ring-1 ring-neon-yellow/40 px-4 py-0.5 rounded-full">
@@ -917,7 +935,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           </div>
         </div>
 
-        <PowerPlayTrackers gameState={gameState} upcomingTiles={upcomingTiles} onStand={() => dispatch({ type: 'BLACKJACK_STAND' })} />
+        <PowerPlayTrackers gameState={gameState} upcomingTiles={upcomingTiles} quizLeft={quizLeft} onStand={() => dispatch({ type: 'BLACKJACK_STAND' })} />
 
         {/* --- HAND: the standard hand in a 4x2 grid; widens to all rack slots when a power-up overfills it --- */}
         {(() => {

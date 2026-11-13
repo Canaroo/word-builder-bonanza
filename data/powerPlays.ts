@@ -1297,7 +1297,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'multiplicity',
     name: 'Multiplicity',
-    description: 'Puts a copy of the last PowerPlay you used back in your pocket. Once-per-run PowerPlays and ones that fire when you pick them can’t be copied.',
+    description: 'A copycat. Tap it and it turns into a fresh copy of the last PowerPlay you used, ready in your pocket to use again. It can’t copy once-per-run PowerPlays or ones that fire when you pick them.',
     flavorText: 'She touched my pepe, Steve.',
     icon: '👯',
     subtheme: 'utility',
