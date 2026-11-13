@@ -84,6 +84,7 @@ export interface EasterEgg {
     shuffle?: number;
     message: string;
     effect?: PowerWordEffect;
+    miniGame?: MiniGameId;
   };
 }
 
@@ -103,7 +104,12 @@ export interface SecretBonus {
   source?: string;
   /** Power words: an effect on the next round (config/gameplay.ts POWER_WORD_EFFECTS). Can fire again once per level. */
   effect?: PowerWordEffect;
+  /** Arcade words (v7.38.0): open this mini-game (data/miniGames.ts) instead of paying points. */
+  miniGame?: MiniGameId;
 }
+
+/** The arcade mini-games a secret word can open. */
+export type MiniGameId = 'pong' | 'mole' | 'claw' | 'darts' | 'goal' | 'dice' | 'bowl' | 'golf' | 'hoops';
 
 /** What a power word does when spelled. */
 export type PowerWordEffect = 'slot' | 'freeze' | 'heal' | 'slow' | 'twin' | 'shield' | 'rewind' | 'sword' | 'spice' | 'cake';

@@ -386,6 +386,22 @@ export const CHARM_SLOTS = 5;
 export const CHARM_UPGRADE = { percent: 50 } as const;
 
 /**
+ * Arcade mini-games (v7.38.0): spelling one of these words opens a quick side game (Play or Skip).
+ * Points only, paid as a prize (grows with the level, prizeFor). Once per run each, like a secret.
+ */
+export const MINI_GAME_VALUES = {
+  pong: { toWin: 3, prize: 400 },                                   // GAME: first to 3 beats the CPU
+  mole: { seconds: 10, perMole: 20, goldMole: 100, goldChance: 0.08 }, // MOLE: bop moles for 10 s (a perfect tapper gets ~17)
+  claw: { plush: 200, plushSlip: 0.25, trophy: 600, trophySlip: 0.7 }, // CLAW: aim and drop; it can slip
+  darts: { darts: 3, bull: 100, inner: 50, outer: 20 },            // DART: 3 darts at a drifting crosshair
+  goal: { kicks: 3, perGoal: 100, hatTrick: 400 },                 // GOAL: 3 penalties, the keeper dives at random
+  dice: { triple: 300, straight: 200, pair: 100, perPip: 5 },      // DICE: roll 3, hold, reroll once
+  bowl: { strike: 300, spare: 150, perPin: 15 },                   // BOWL: time the aim, one spare ball
+  golf: { strokes: 3, prizes: [300, 150, 50] },                    // TEE: hole in one, two strokes, three
+  hoops: { shots: 3, swish: 100, bank: 60, perfect: 100 },         // NET: 3 free throws, +100 for 3 swishes
+} as const;
+
+/**
  * Long-word boost (v7.34): charm points on a word pay this many percent more, by word length
  * (longer words use the last entry). Charm bonuses are flat, so a 4-letter word with a typical
  * charm set averaged 148 points against 138 for a 7-letter word; now long words win on score too.

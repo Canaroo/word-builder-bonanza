@@ -1,3 +1,4 @@
+import { MINI_GAMES } from '../data/miniGames';
 import React, { useEffect, useMemo, useState } from 'react';
 import { SECRET_BONUSES } from '../data/secretBonuses';
 import { WORD_BONUSES } from '../data/wordBonuses';
@@ -33,7 +34,7 @@ const describeScore = ({ kind, digits }: ScorePattern) =>
   kind === 'equals' ? `SCORE = ${digits}` : kind === 'endsWith' ? `SCORE ENDS IN ${digits}` : kind === 'over' ? `SCORE OVER ${digits}` : `SCORE HAS ${digits}`;
 
 const rewardText = (b: SecretBonus) =>
-  [b.effect ? `⚡ ${powerWordInfo(b.effect).label}` : '', b.points ? `+${b.points} PTS` : '', b.shuffle ? `+${b.shuffle} SHUFFLE` : ''].filter(Boolean).join(' · ');
+  [b.effect ? `⚡ ${powerWordInfo(b.effect).label}` : '', b.miniGame ? `🕹️ ${MINI_GAMES[b.miniGame].name}` : '', b.points ? `+${b.points} PTS` : '', b.shuffle ? `+${b.shuffle} SHUFFLE` : ''].filter(Boolean).join(' · ');
 
 const Badge: React.FC<{ tone: 'ok' | 'warn' | 'bad' | 'idle'; children: React.ReactNode }> = ({ tone, children }) => {
   const color = { ok: 'text-neon-green', warn: 'text-neon-yellow', bad: 'text-neon-red', idle: 'text-slate-400' }[tone];
