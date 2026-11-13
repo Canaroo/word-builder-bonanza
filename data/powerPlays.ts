@@ -57,6 +57,9 @@ export const INSTANT_POWER_PLAY_IDS = new Set([
   // Timed or blind challenges, and Daily Double's bet, start on the fresh hand, so a player can't
   // wait for (or build) the right word before they begin.
   'popQuizHotshot', 'smellYaLater', 'birdBox', 'dailyDouble', 'missionImpossible', 'scroogeSwipe',
+  // The Price Is Right (v7.36.5): the bid comes first, on the fresh hand. Held in the pocket, a
+  // player could build a word, read its score, and only then bid.
+  'priceIsRight',
 ]);
 
 export const POWER_PLAYS_LIST: PowerPlay[] = [
@@ -1253,7 +1256,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'priceIsRight',
     name: 'The Price Is Right',
-    description: `Bid on your next word: it scores at least ${POWER_PLAY_VALUES.priceIsRightBids.map(b => b.bid).join(', ')} points. Make your bid and win ${POWER_PLAY_VALUES.priceIsRightBids.map(b => `+${b.prize}`).join(', ')}. Miss and you lose ${POWER_PLAY_VALUES.priceIsRightBids.map(b => b.miss).join(', ')}.`,
+    description: `Starts the moment you pick it: bid on your next word before you build it. It scores at least ${POWER_PLAY_VALUES.priceIsRightBids.map(b => b.bid).join(', ')} points. Make your bid and win ${POWER_PLAY_VALUES.priceIsRightBids.map(b => `+${b.prize}`).join(', ')}. Miss and you lose ${POWER_PLAY_VALUES.priceIsRightBids.map(b => b.miss).join(', ')}.`,
     flavorText: 'Come on down!',
     icon: '🏷️',
     subtheme: 'score',

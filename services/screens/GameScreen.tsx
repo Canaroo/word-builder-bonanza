@@ -1534,6 +1534,16 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     };
                 }
 
+                // The Price Is Right (v7.36.5): the bid card opens as the offer closes, before any tiles move.
+                if (powerPlay.id === 'priceIsRight') {
+                    newGameState.lastPowerPlayResult = null;
+                    return {
+                        ...state,
+                        gameState: newGameState,
+                        modalQueue: [...state.modalQueue, { type: 'gamble', title: powerPlay.name, data: { id: powerPlay.id, icon: powerPlay.icon } }],
+                    };
+                }
+
                 return {
                     ...state,
                     gameState: newGameState,
@@ -4894,9 +4904,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         });
     };
 
-    const handleActivatePowerPlay = (powerPlay: PowerPlay) => {
+    const handleActivatePowerPlay = (powerPlay: PowerPlay, confirmed = false) => {
         const cantActClear = powerPlay.id === 'actClear' && (time <= POWER_PLAY_VALUES.actClearKeepSeconds || gameState.roundType === 'golden');
-        if (!(powerPlay.id === 'buyAVowel' && gameState.score < POWER_PLAY_VALUES.buyAVowelCost) && !cantActClear) {
+        // Multiplicity first opens a read-first card (v7.36.5); its mission counts when the copy is confirmed.
+        const justLooking = powerPlay.id === 'multiplicity' && !confirmed;
+        if (!(powerPlay.id === 'buyAVowel' && gameState.score < POWER_PLAY_VALUES.buyAVowelCost) && !cantActClear && !justLooking) {
             trackMission({ type: 'powerplay', id: powerPlay.id, subtheme: powerPlay.subtheme });
         }
         if (powerPlay.id === 'withGreatPower') {
@@ -4966,6 +4978,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         if (powerPlay.id === 'multiplicity') {
             const last = gameState.lastPowerPlayUsed ? ppById(gameState.lastPowerPlayUsed) : undefined;
             if (!last) { showMessage('👯 Nothing to copy yet. Use a PowerPlay first, then Multiplicity copies it.', 3000); return; }
+            // v7.36.5: show the copy target in full first, so the player can read it before deciding.
+            if (!confirmed) {
+                soundService.playUIClick();
+                dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'powerplay-activation', title: 'Multiplicity', data: powerPlay } });
+                return;
+            }
+            handleCloseModal();
             soundService.playPowerUp();
             dispatch({ type: 'UPDATE_GAME_STATE', payload: {
                 availablePowerPlays: gameState.availablePowerPlays.map(p => (p.id === 'multiplicity' ? { ...last } : p)),
