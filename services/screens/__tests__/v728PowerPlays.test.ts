@@ -164,7 +164,7 @@ describe('timed and blind PowerPlays start the moment they are picked (v7.28.1)'
         const quiz = gameReducer(start({ powerPlayOffer: [pp('popQuizHotshot')] }, 33), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('popQuizHotshot'), allOffered: [pp('popQuizHotshot')] } });
         expect(quiz.gameState.activePowerPlays.popQuizHotshot).toEqual({ startClock: 33, startMs: 0 });
         const race = gameReducer(start({ powerPlayOffer: [pp('smellYaLater')] }, 27), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('smellYaLater'), allOffered: [pp('smellYaLater')] } });
-        expect(race.gameState.activePowerPlays.smellYaLater).toEqual({ words: V.rivalWords, mine: 0, rival: 0, clock: 27 });
+        expect(race.gameState.activePowerPlays.smellYaLater).toEqual({ words: V.rivalWords, mine: 0, rival: 0, clock: 27, startMs: 0 });
     });
 
     test('Pop Quiz times real seconds, not the bank clock (v7.36.1)', () => {
