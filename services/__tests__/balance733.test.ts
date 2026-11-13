@@ -259,7 +259,18 @@ describe('v7.35 reworks', () => {
         expect(out.score).toBe(1000 + POWER_PLAY_VALUES.thanosGiftPoints);
         expect((out.activePowerPlays as any).thanosGift).toBe(true);
         expect(PRIZE_POWER_PLAY_IDS.has('thanosGift')).toBe(true);
-        expect(calculateScore('cat', tilesFor('CAT'), gs({ activePowerPlays: { thanosGift: true } as any })).totalScore).toBe(0);
+        // v7.36.7: only a word of 4+ letters pays for the gift; a 3-letter word scores as usual.
+        expect(calculateScore('cats', tilesFor('CATS'), gs({ activePowerPlays: { thanosGift: true } as any })).totalScore).toBe(0);
+        expect(calculateScore('cat', tilesFor('CAT'), gs({ activePowerPlays: { thanosGift: true } as any })).totalScore).toBeGreaterThan(0);
+        expect(POWER_PLAY_VALUES.thanosGiftPoints).toBe(500);
+    });
+
+    test('Schrute Bucks is a beet farm now, not a smaller Gift From Thanos (v7.36.7)', () => {
+        expect(pp('schruteBucks').description).toContain('beet farm');
+        expect(pp('schruteBucks').description).toContain('B, E or T');
+        expect(PRIZE_POWER_PLAY_IDS.has('schruteBucks')).toBe(true);
+        // The old 1-point cap is gone.
+        expect(calculateScore('beet', tilesFor('BEET'), gs({ activePowerPlays: { schruteBucks: { words: 5, pot: 0 } } as any })).totalScore).toBeGreaterThan(1);
     });
 
     test('More Than Meets the Eye: only the word using the combo tile gets the multiplier', () => {

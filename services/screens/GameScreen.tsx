@@ -3660,6 +3660,26 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               modalQueue.push(outcome(tama, 'IT RAN AWAY', `${word.toUpperCase()} was too small a meal (${V28.tamagotchiLetters}+ letters keeps it fed). It took its pot of ${tamagotchiPot(pet.feeds)} with it.`, 'lose'));
           }
       }
+      // Schrute Bucks (v7.36.7): a beet farm. Each B, E or T in the next words earns bucks; after the
+      // last word the pot pays out as points (a prize, so it grows with the level).
+      const farm = newState.activePowerPlays.schruteBucks as { words: number; pot: number } | undefined;
+      if (farm && typeof farm === 'object') {
+          const farmPP = ppById('schruteBucks');
+          const letters = word.toUpperCase().split('').filter(ch => V28.schruteBucksLetters.includes(ch)).length;
+          const earned = letters * V28.schruteBucksPerLetter;
+          const pot = farm.pot + earned;
+          const left = farm.words - 1;
+          if (left > 0) {
+              setPP('schruteBucks', { words: left, pot }, `Beet farm: ${pot} Schrute Bucks so far. ${left} ${left === 1 ? 'word' : 'words'} to go; every B, E or T earns ${V28.schruteBucksPerLetter}.`);
+              showMessage(earned ? `💵 +${earned} Schrute Bucks (${letters} × ${V28.schruteBucksLetters.split('').join('/')}) · ${pot} banked` : `💵 No B, E or T. ${pot} bucks banked`, 2200);
+          } else {
+              dropPP('schruteBucks');
+              const paid = prizeFor(pot, prizeLevel);
+              runningScore += paid;
+              eventLogQueue.push({ type: 'event', id: `pp-schruteBucks-${now}`, name: farmPP.name, icon: farmPP.icon, description: `Beet harvest: ${pot} Schrute Bucks paid ${paid} points.`, scoreChange: paid, cumulativeScore: runningScore });
+              modalQueue.push(outcome(farmPP, paid ? `BEET HARVEST: +${paid}` : 'A FAILED HARVEST', paid ? `Your farm banked ${pot} Schrute Bucks over ${V28.schruteBucksWords} words.${paid !== pot ? ` Level ${prizeLevel} prize boost: ${pot} → ${paid}.` : ''} Bears. Beets. Battlestar Galactica.` : `No B, E or T in ${V28.schruteBucksWords} words. Dwight is disappointed.`, paid ? 'win' : 'lose'));
+          }
+      }
       // Smell Ya Later!: your words' points against the rival's points per second.
       // The rival scores per real second of play (v7.36.2): it used the bank clock, which runs up to
       // x2 at high levels and jumps +5 s on Shuffle (wiping the rival's points). Older saves fall back.
@@ -4510,13 +4530,23 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           delete (consumedPPs as any).moreThanMeets;
           consumedBuffs = consumedBuffs.filter(b => b.id !== 'moreThanMeets');
       }
-      ['biglyScore', 'multiverseOfSadness', 'nuclearOption', 'schruteBucks', 'redWedding', 'wakandaForever', 'heisenberg', 'skywalkerBloodline', 'leafOnTheWind', 'thanosGift', 'doubleOrNothing', 'cassiesClue', 'cowabunga', 'holdOntoYourButts', 'tetrisTouch', 'blueShellSurprise', 'pinkyAndTheBrain', 'letsGetDangerous', 'slimShadyShuffle', 'spaceInvader', 'upsideDown', 'jackass', 'birdBox'].forEach(id => { 
+      ['biglyScore', 'multiverseOfSadness', 'nuclearOption', 'redWedding', 'wakandaForever', 'heisenberg', 'skywalkerBloodline', 'leafOnTheWind', 'doubleOrNothing', 'cassiesClue', 'cowabunga', 'holdOntoYourButts', 'tetrisTouch', 'blueShellSurprise', 'pinkyAndTheBrain', 'letsGetDangerous', 'slimShadyShuffle', 'spaceInvader', 'upsideDown', 'jackass', 'birdBox'].forEach(id => { 
           if ((consumedPPs as any)[id]) { 
               delete (consumedPPs as any)[id]; 
               consumedBuffs = consumedBuffs.filter(b => b.id !== id); 
           }
       });
 
+      // Gift From Thanos (v7.36.7) is spent only by a word of thanosGiftLetters+ letters.
+      if ((consumedPPs as any).thanosGift && word.length >= POWER_PLAY_VALUES.thanosGiftLetters) {
+          delete (consumedPPs as any).thanosGift;
+          consumedBuffs = consumedBuffs.filter(b => b.id !== 'thanosGift');
+      }
+      // Old Schrute Bucks (a 1-point cap, before v7.36.7) from a saved run: just clear it.
+      if ((consumedPPs as any).schruteBucks === true) {
+          delete (consumedPPs as any).schruteBucks;
+          consumedBuffs = consumedBuffs.filter(b => b.id !== 'schruteBucks');
+      }
       if (consumedPPs.wordionaireCap) { delete consumedPPs.wordionaireCap; consumedBuffs = consumedBuffs.filter(b => b.instanceId !== 'wordionaire_cash'); }
       if (consumedPPs.wordionaireDouble) { delete consumedPPs.wordionaireDouble; consumedBuffs = consumedBuffs.filter(b => b.instanceId !== 'wordionaire_double'); }
 
@@ -5079,29 +5109,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         }
         
         if (powerPlay.id === 'schruteBucks') {
+            // v7.36.7: a beet farm over the next words (it used to be a smaller Gift From Thanos).
             soundService.playPowerUp();
-            const scoreChange = 150;
-            const newScore = gameState.score + scoreChange;
-    
-            const newLogEntry: EventLogEntry = {
-                type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
-                description: 'Gained 150 points. Next word score is capped at 1.', icon: '💵',
-                scoreChange: scoreChange, cumulativeScore: newScore
-            };
-    
-            const buff = {
-                ...powerPlay,
-                description: 'Your next word will score exactly 1 point.'
-            };
-    
+            const V = POWER_PLAY_VALUES;
+            const buff = { ...powerPlay, description: `Beet farm: every B, E or T in your next ${V.schruteBucksWords} words earns ${V.schruteBucksPerLetter} Schrute Bucks.` };
             dispatch({ type: 'UPDATE_GAME_STATE', payload: {
-                score: newScore,
-                activePowerPlays: { ...gameState.activePowerPlays, schruteBucks: true },
-                activeBuffs: [...gameState.activeBuffs, buff],
-                log: [...gameState.log, newLogEntry],
+                activePowerPlays: { ...gameState.activePowerPlays, schruteBucks: { words: V.schruteBucksWords, pot: 0 } },
+                activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== powerPlay.id), buff],
                 availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
             }});
-            showMessage("Schrute Bucks! +150 points. Next word is worth 1 point.", 3000);
+            showMessage(`💵 Beet farm open! Every B, E or T in your next ${V.schruteBucksWords} words earns ${V.schruteBucksPerLetter} bucks.`, 3200);
             return;
         }
 

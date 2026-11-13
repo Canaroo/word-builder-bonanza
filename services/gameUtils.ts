@@ -923,25 +923,20 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
 
     // --- 5. Final Rounding & Caps ---
 
-    // Schrute Bucks cap
-    if (gameState.activePowerPlays.schruteBucks) {
-        totalScore = 1;
-        bonuses.push({ name: 'Schrute Bucks', description: 'Score capped at 1', source: 'game' });
-    }
-    
     // Wordionaire cap
     if (gameState.activePowerPlays.wordionaireCap) {
         totalScore = Math.min(totalScore, gameState.activePowerPlays.wordionaireCap);
         bonuses.push({ name: 'Wordionaire: Fast Cash', description: 'Score capped at 20', source: 'game' });
     }
 
-    // Thanos Gift
-    if (gameState.activePowerPlays.thanosGift) {
+    // Gift From Thanos (v7.36.7): only a word of thanosGiftLetters+ letters pays for the gift.
+    const thanosTakes = !!gameState.activePowerPlays.thanosGift && word.length >= POWER_PLAY_VALUES.thanosGiftLetters;
+    if (thanosTakes) {
         totalScore = 0;
         bonuses.push({ name: 'Gift From Thanos', description: 'Score sacrificed to 0', source: 'game' });
     }
 
-    const capped = !!(gameState.activePowerPlays.schruteBucks || gameState.activePowerPlays.wordionaireCap || gameState.activePowerPlays.thanosGift);
+    const capped = !!(gameState.activePowerPlays.wordionaireCap || thanosTakes);
 
     return {
         totalScore: Math.round(totalScore),

@@ -43,8 +43,8 @@ describe('calculateScore', () => {
     });
 
     test('score caps stay in force', () => {
-        const result = calculateScore('carton', tiles('CARTON'), state({ activePowerPlays: { schruteBucks: true } } as any));
-        expect(result).toMatchObject({ totalScore: 1, capped: true });
-        expect(addWordMultiplier(result, 2).totalScore).toBe(1);
+        const result = calculateScore('carton', tiles('CARTON'), state({ activePowerPlays: { thanosGift: true } } as any));
+        expect(result).toMatchObject({ totalScore: 0, capped: true });
+        expect(addWordMultiplier(result, 2).totalScore).toBe(0);
     });
 });

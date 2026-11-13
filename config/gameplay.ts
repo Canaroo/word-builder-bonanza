@@ -184,7 +184,11 @@ export const POWER_PLAY_VALUES = {
   moneyBinCredits: 3,            // ...earns these credits (was: lose 500 points for 1 credit)
   zapperMultiplier: 3,           // Duck Hunt: the tile you shoot is replaced by one worth this many times its points
   // v7.35 reworks of PowerPlays nobody picked (0 picks in 20-40 offers each; ids kept for stats).
-  thanosGiftPoints: 400,         // Gift From Thanos: this now (was a promised 100 that never paid), next word scores 0
+  thanosGiftPoints: 500,         // Gift From Thanos: this now; your next word of thanosGiftLetters+ letters scores 0
+  thanosGiftLetters: 4,          // (v7.36.7: was 400 and any next word, so a throwaway 3-letter word paid for it)
+  schruteBucksWords: 5,          // Schrute Bucks (v7.36.7, a beet farm): your next this many valid words...
+  schruteBucksPerLetter: 25,     // ...earn this many bucks per B, E or T, paid as points after the last one
+  schruteBucksLetters: 'BET',
   ludicrousSpeedMultiplier: 3,   // Ludicrous Speed: next 3 words score this...
   ludicrousSpeedCost: 4,         // ...and each costs this many seconds (was 8)
   moreThanMeetsMultiplier: 3,    // More Than Meets the Eye: the first word using the new combo tile scores this

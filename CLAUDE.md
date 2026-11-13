@@ -225,6 +225,12 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Secret of the Ooze, S-Tier Scorer → S Club Party, Finisher → Last Action Hero, Vowel Lover →
   Vanna's Vowels, Momentum → Quarter Mile at a Time, Strike Bank → Insert Coin, Dice Roll Protocol
   → Jumanji. Taken already (secret bonuses): Be Kind Rewind, Wax On Wax Off, 1-Up.
+- **Thanos and Schrute Bucks (v7.37.0):** Gift From Thanos is +500 now (a prize) and your next word
+  of 4+ letters scores 0; 3-letter words don't spend it (`thanosGiftLetters`). Schrute Bucks is no
+  longer a smaller Thanos: it's a beet farm, a multi-word PowerPlay with a chip. Each B, E or T in
+  the next 5 valid words earns 25 bucks, and the pot pays out as points (a prize) after the last
+  one. Word-list stats: about 1.07 B/E/T a word (+135 casual), about 2.2 leaning in (+280).
+  Values `schruteBucksWords`, `schruteBucksPerLetter`, `schruteBucksLetters` in `POWER_PLAY_VALUES`.
 - **Power words** (10 secret words with `effect`, no points): SLOT (slot machine, +1/3/10s), SNOW
   (clock frozen 10s), HEAL (remove a strike, else +100), SLOW (half-speed clock for 3 words), TWIN
   (clone your best word's time + a Word Combo step), RINGS (a strike shield), REWIND (clock one speed
@@ -237,7 +243,7 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   a 3-2-1 with the board hidden. The back gesture opens the save prompt instead of leaving, and
   New Game asks first when a saved run exists. `savableScreenState()` in `GameScreen.tsx`.
 - **0 means 0:** a word wiped or capped by a gamble (Heisenberg, Double or Nothing, Space Invader,
-  Schrute Bucks, Gift From Thanos, Fast Cash) stays at that score: later flat bonuses (chain,
+  Gift From Thanos, Fast Cash) stays at that score: later flat bonuses (chain,
   charms, Super Hand, Nice Rack, Flux, Thriller) don't count (`wordCeiling` in `completeSubmission`).
   Separate rewards (secrets, boss badges, milestones, streak charms) still pay.
 - **Run-savers** are once per run. Time from items goes through `bonusTime()`.
