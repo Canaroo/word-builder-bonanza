@@ -689,13 +689,17 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 const betEntries = state.gameState.log.slice(state.lastTurnState.gameState.log.length)
                     .filter(e => e.type === 'event' && settledBets.some(id => e.id.startsWith(`pp-${id}-`))) as EventLogEntry[];
                 const betChange = betEntries.reduce((sum, e) => sum + (e.scoreChange ?? 0), 0);
+                // Coin flips the undone word rolled (v7.36.6) stay used too: the word and its score are
+                // rewound, but the flip isn't armed again, or an undo would be a free reroll of a loss.
+                // Scrooge's Money Bin too: its Credits are paid outside the run, so re-arming it paid twice.
+                const settledFlips = ['heisenberg', 'doubleOrNothing', 'blueShellSurprise', 'spaceInvader', 'scroogeSwipe'].filter(id => state.lastTurnState!.gameState.activePowerPlays[id] && !state.gameState.activePowerPlays[id]);
                 const restoredActive = { ...state.lastTurnState.gameState.activePowerPlays };
-                settledBets.forEach(id => delete restoredActive[id]);
+                [...settledBets, ...settledFlips].forEach(id => delete restoredActive[id]);
                 const restoredScore = Math.max(0, state.lastTurnState.gameState.score + betChange);
                 const scoreChange = restoredScore - state.gameState.score;
                 const newLogEntry: EventLogEntry = {
                     type: 'event', id: `pp-sliders-${Date.now()}`, name: 'Sliders',
-                    description: `Reverted to the state of the previous turn.${betEntries.length ? ' The bet it settled stays settled.' : ''}`, icon: '📼',
+                    description: `Reverted to the state of the previous turn.${betEntries.length ? ' The bet it settled stays settled.' : ''}${settledFlips.length ? ' The gamble it used stays used.' : ''}`, icon: '📼',
                     scoreChange: scoreChange, cumulativeScore: restoredScore
                 };
 
@@ -712,7 +716,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     ...state.lastTurnState.gameState,
                     score: restoredScore,
                     activePowerPlays: restoredActive,
-                    activeBuffs: state.lastTurnState.gameState.activeBuffs.filter(b => !settledBets.includes(b.id)),
+                    activeBuffs: state.lastTurnState.gameState.activeBuffs.filter(b => !settledBets.includes(b.id) && !settledFlips.includes(b.id)),
                     log: [...state.lastTurnState.gameState.log, ...betEntries, newLogEntry],
                     availablePowerPlays: state.gameState.availablePowerPlays.filter(p => p.id !== 'sliders'),
                     powerPlayUses: { ...state.gameState.powerPlayUses, sliders: 1 }
