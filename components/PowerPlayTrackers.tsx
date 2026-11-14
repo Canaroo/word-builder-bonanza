@@ -21,7 +21,7 @@ const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string
     chips.push(
       <span key="quiz" className={`flex items-center gap-1.5 rounded-full px-3 py-1 osd-text text-lg leading-none whitespace-nowrap ring-1 ${left > 2 ? 'bg-neon-yellow/20 ring-neon-yellow text-white' : left > 0 ? 'bg-neon-red/30 ring-neon-red text-white animate-pulse' : 'bg-crt-950/80 ring-white/20 text-slate-400'}`}
         role="timer" aria-label={left > 0 ? `Pop Quiz: ${left} seconds left` : 'Pop Quiz: time is up'}>
-        <span aria-hidden="true">🚌</span>{left > 0 ? `POP QUIZ ${left}s` : `TOO SLOW · -${V.popQuizPenaltySeconds}s`}
+        <span aria-hidden="true">🚌</span>{left > 0 ? <>POP QUIZ {left}<span className="font-sans text-xs font-semibold lowercase">sec</span></> : <>TOO SLOW · -{V.popQuizPenaltySeconds}<span className="font-sans text-xs font-semibold lowercase">sec</span></>}
       </span>);
   }
   if (a.schruteBucks && typeof a.schruteBucks === 'object') chips.push(<Chip key="beets" icon="💵" label={`Schrute Bucks: ${a.schruteBucks.pot} banked, ${a.schruteBucks.words} words left`}>BUCKS {a.schruteBucks.pot} · {a.schruteBucks.words} left · B/E/T +{V.schruteBucksPerLetter}</Chip>);
