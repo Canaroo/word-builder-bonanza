@@ -19,6 +19,8 @@ import LevelBadge from '../../components/LevelBadge';
 import LevelUpCard from '../../components/LevelUpCard';
 import OutcomeCard from '../../components/OutcomeCard';
 import ContinueCard from '../../components/ContinueCard';
+import LastWordsCard from '../../components/LastWordsCard';
+import { skillShotPoints } from '../../services/rules';
 import GambleCard, { type GambleResult } from '../../components/GambleCard';
 import PowerPlayTrackers from '../../components/PowerPlayTrackers';
 import MiniGameCard from '../../components/MiniGames';
@@ -26,7 +28,7 @@ import CharmTimeNote from '../../components/CharmTimeNote';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
-  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer';
+  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -97,6 +99,10 @@ export interface GameScreenViewProps {
   handleContinueOffer?: (accept: boolean) => void;
   /** Credits the player holds. */
   lexCoins?: number;
+  /** Last Words: the parting word's result (null: skipped). */
+  handleLastWords?: (r: { word: string; points: number } | null) => void;
+  /** Skill Shot: the lit tile's id ('' when none). */
+  skillShotTileId?: string;
   /** A power word can be spelled from the tiles in play (the hint chip); tapping it explains. */
   powerHint?: { icon: string; length: number } | null;
   handlePowerHintInfo?: () => void;
@@ -159,7 +165,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, skillShotTileId = '', lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
@@ -290,6 +296,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
             case 'continue-offer':
                 return <ContinueCard reason={data?.reason === 'strikes' ? 'strikes' : 'time'} credits={lexCoins} onAnswer={accept => handleContinueOffer?.(accept)} />;
+
+            case 'last-words':
+                return <LastWordsCard reason={data?.reason === 'strikes' ? 'strikes' : 'time'} tiles={(hand ?? []).filter((t): t is Tile => !!t)} gameState={gameState} onDone={r => handleLastWords?.(r)} />;
 
             case 'outcome':
                 return <OutcomeCard name={title} detail={typeof content === 'string' ? content : undefined} data={data} onClose={handleCloseModal} />;
@@ -1000,7 +1009,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     >
                       {item && (
                         <div className="w-full h-full">
-                          <TileComponent tile={item.tile} onClick={() => handleReturnToHand(index)} packTileClass={tileClass} isGolden={item.tile.id === gameState?.goldenTileId} />
+                          <TileComponent tile={item.tile} onClick={() => handleReturnToHand(index)} packTileClass={tileClass} isGolden={item.tile.id === gameState?.goldenTileId} skillShot={item.tile.id === skillShotTileId} />
                         </div>
                       )}
                     </div>
@@ -1008,6 +1017,21 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
               })}
           </div>
         </div>
+
+        {(skillShotTileId || ((gameState?.headStart ?? 0) > 0 && totalWords === 0)) && (
+          <div className="flex flex-wrap justify-center gap-1">
+            {(gameState?.headStart ?? 0) > 0 && totalWords === 0 && (
+              <span className="flex items-center gap-1 rounded-full bg-crt-950/80 ring-1 ring-neon-green/60 px-2 py-0.5 text-xs text-white whitespace-nowrap" aria-label={`Head Start: ${gameState.headStart} extra seconds on the clock this run`}>
+                <span aria-hidden="true">🛠️</span>HEAD START +{gameState.headStart}<span className="lowercase">s</span>
+              </span>
+            )}
+            {skillShotTileId && (
+              <span className="flex items-center gap-1 rounded-full bg-crt-950/80 ring-1 ring-neon-pink/70 px-2 py-0.5 text-xs text-white whitespace-nowrap" aria-label={`Skill Shot: use the lit tile in this word for ${skillShotPoints((gameState?.skillShot?.streak ?? 0) + 1)} points`}>
+                <span aria-hidden="true">🎯</span>SKILL SHOT · USE THE LIT TILE · +{skillShotPoints((gameState?.skillShot?.streak ?? 0) + 1)}
+              </span>
+            )}
+          </div>
+        )}
 
         {powerHint && (
           <div className="flex justify-center">
@@ -1035,7 +1059,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 const hintOrder = hintIndex >= 0 ? hintIndex + 1 : undefined;
                 return (
                   <div key={item?.id || originalIndex} className="w-full h-12 min-[375px]:h-14 sm:h-16 flex items-center justify-center">
-                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} hintOrder={hintOrder} bossHint={bossTileHint(item)} faceDown={blind && !peeking} /> : <div className="w-full h-full rounded-lg bg-crt-950/60 ring-1 ring-white/5"></div>}
+                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} skillShot={item.id === skillShotTileId} hintOrder={hintOrder} bossHint={bossTileHint(item)} faceDown={blind && !peeking} /> : <div className="w-full h-full rounded-lg bg-crt-950/60 ring-1 ring-white/5"></div>}
                   </div>
                 );
               })}

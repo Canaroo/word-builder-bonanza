@@ -29,7 +29,9 @@ import { recordMissionEvent } from '../missions';
 import { currentStreak, powerWordBonusFor, recordBossBadge } from '../progression';
 import { PHOENIX_DOWN } from '../../config/progression';
 import { completedSets, setBonusFor, setPullCandidates } from '../../data/charmSets';
-import { CHARM_SET_BONUS, MYSTERY_TAPE } from '../../config/gameplay';
+import { CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS } from '../../config/gameplay';
+import { headStartSeconds } from '../headStart';
+import { gemMultiplierFor, skillShotPoints } from '../rules';
 import { findPowerWordHint, powerWordHintStands } from '../powerWordHint';
 import { BOSSES, bossById, pickBoss } from '../../data/bosses';
 import { sendStat } from '../stats';
@@ -256,6 +258,7 @@ type GameAction =
     | { type: 'RESTART_ROUND_GROUNDHOG' }
     | { type: 'GAME_OVER_INITIATED', payload: { reason: 'strikes' | 'time'; word?: string } }
     | { type: 'OFFER_CONTINUE', payload: { reason: 'strikes' | 'time' } }
+    | { type: 'END_RUN', payload: { reason: 'strikes' | 'time' } }
     | { type: 'ACCEPT_CONTINUE' }
     | { type: 'SELECT_TILE_FOR_SELECTION', payload: { tile: Tile, originalIndex: number } | null }
     | { type: 'STORE_LAST_TURN' }
@@ -1357,6 +1360,18 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 else if (newGameState.activePowerPlays.sonicSpeed.count === 1) timerDuration = Math.min(timerDuration, 7);
             }
             
+            // Gem Tiles (v7.42): the gem a long word earned lands on a plain tile of this hand.
+            if ((newGameState.pendingGem ?? 0) > 0 && newGameState.roundType !== 'golden') {
+                const plain = hand.filter((t): t is Tile => !!t && !t.isCombo && !t.isSuper && !(t.multiplier && t.multiplier > 1) && t.id !== newGameState.goldenTileId);
+                if (plain.length > 0) {
+                    const pick = [...plain].sort((a, b) => a.id.localeCompare(b.id))[Math.floor(gameUtils.dailyRank(newGameState.runSeed, newGameState.log.length, 'gem') * plain.length)];
+                    const multiplier = newGameState.pendingGem!;
+                    hand = hand.map(t => (t && t.id === pick.id ? { ...t, multiplier, isGem: true } : t));
+                    newGameState.lastPowerPlayResult = { message: `💎 Gem tile! Your ${pick.letter} is a x${multiplier} word tile.`, scoreChange: 0 };
+                    newGameState.pendingGem = 0;
+                }
+            }
+
             const diceRollCharm = newGameState.activeCharms.find(c => c.id === 'diceRollProtocol');
     
             const diceRounds = (newGameState.charmUses['diceRollProtocol'] || 0) + 1;
@@ -2561,6 +2576,21 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             }
         }
 
+        // The run is over (v7.42): Last Words first (one untimed word from the final hand, once),
+        // then the Game Over summary.
+        case 'END_RUN': {
+            const tilesLeft = [...state.hand, ...state.buildRow.map(b => b?.tile ?? null)].filter(Boolean).length;
+            if (state.gameState.lastWordsDone || tilesLeft < 3) return gameReducer(state, { type: 'GAME_OVER_INITIATED', payload: action.payload });
+            const back = withBuildRowReturned(state);
+            return {
+                ...state, ...back,
+                isPaused: true,
+                modalQueue: [],
+                gameState: { ...state.gameState, lastWordsDone: true },
+                modalContent: { type: 'last-words', title: 'Last Words', data: { reason: action.payload.reason } },
+            };
+        }
+
         // Phoenix Down: the run just ended; offer (once) to keep it going for Credits.
         case 'OFFER_CONTINUE':
             return {
@@ -3000,6 +3030,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           sendStat({ type: 'pw_hint', power: found.effect, level: hintLevel });
       }
   }, [gameState, isLoading, isPaused, tilesInPlay, hintLevel]);
+  // Skill Shot (v7.42): on the level's first word, one tile in the hand is lit. If the lit tile
+  // leaves (a shuffle), another lights. The pick is seeded, so a Daily Run lights the same tile.
+  const skillShotOpen = totalWords % GAMEPLAY.levels.wordsPerLevel === 0;
+  const skillShotTileId = skillShotOpen && gameState?.skillShot?.level === hintLevel ? gameState.skillShot.tileId : '';
+  useEffect(() => {
+      if (!gameState || isLoading || isPaused || !skillShotOpen || gameState.roundType === 'golden') return;
+      const tiles = [...(hand ?? []).filter((t): t is Tile => !!t), ...(buildRow ?? []).filter(Boolean).map(b => b!.tile)];
+      if (tiles.length === 0) return;
+      const shot = gameState.skillShot;
+      if (shot?.level === hintLevel && (shot.tileId === '' || tiles.some(t => t.id === shot.tileId))) return;
+      const sorted = [...tiles].sort((a, b) => a.id.localeCompare(b.id));
+      const pick = sorted[Math.floor(gameUtils.dailyRank(gameState.runSeed, hintLevel * 131 + (gameState.shuffleCount ?? 0), 'skill-shot') * sorted.length)];
+      dispatch({ type: 'UPDATE_GAME_STATE', payload: { skillShot: { level: hintLevel, tileId: pick.id, streak: shot?.streak ?? 0 } } });
+  }, [gameState, isLoading, isPaused, skillShotOpen, hand, buildRow, hintLevel]);
+
   const handlePowerHintInfo = useCallback(() => {
       if (!powerHint) return;
       soundService.playModalOpen();
@@ -3032,8 +3077,32 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       dispatch({ type: 'ACCEPT_CONTINUE' });
       return;
     }
-    dispatch({ type: 'GAME_OVER_INITIATED', payload: { reason } });
+    dispatch({ type: 'END_RUN', payload: { reason } });
   }, [lexCoins, onLexCoinChange, totalWords]);
+
+  /** Last Words: bank the parting word (if any), then the run ends. Answers the open card once. */
+  const lastWordsModal = state.modalContent?.type === 'last-words' ? state.modalContent : null;
+  const lastWordsRef = useRef(lastWordsModal);
+  lastWordsRef.current = lastWordsModal;
+  const lastWordsAnswered = useRef<ModalContent>(null);
+  const handleLastWords = useCallback((r: { word: string; points: number } | null) => {
+    const card = lastWordsRef.current;
+    if (!card || lastWordsAnswered.current === card) return;
+    lastWordsAnswered.current = card;
+    const reason: 'strikes' | 'time' = card.data?.reason === 'strikes' ? 'strikes' : 'time';
+    if (r && r.points > 0) {
+      const score = gameState.score + r.points;
+      dispatch({ type: 'UPDATE_GAME_STATE', payload: {
+          score,
+          log: [...gameState.log, {
+              type: 'event', id: `last-words-${Date.now()}`, name: 'Last Words', icon: '🎤',
+              description: `${r.word} as a parting shot, at x${LAST_WORDS.multiplier}: +${r.points} points.`,
+              scoreChange: r.points, cumulativeScore: score,
+          } as EventLogEntry],
+      } });
+    }
+    dispatch({ type: 'GAME_OVER_INITIATED', payload: { reason } });
+  }, [gameState]);
 
   const handleCloseModal = useCallback(() => {
     soundService.playUIClick();
@@ -3118,6 +3187,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     }
     
     dispatch({ type: 'SET_HAND_AND_BAG', payload: { hand: sanitizeHand(finalHand), tileBag: finalBag } });
+
+    // Head Start (v7.42): extra starting seconds after early endings. Not on the scored Daily Run.
+    const head = daily && !daily.practice ? 0 : headStartSeconds();
+    if (head > 0) {
+        dispatch({ type: 'ADD_TIME', payload: head });
+        dispatch({ type: 'UPDATE_GAME_STATE', payload: { headStart: head } });
+    }
   }, [showMessage, applyMutation, daily]);
 
   // Whether this game was resumed is decided once, when the screen mounts. Reacting to later
@@ -3166,7 +3242,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // First, check for game-ending strike condition.
       if ((gameState?.strikes ?? 0) >= maxStrikes) {
           soundService.playInvalidWord();
-          dispatch({ type: continueOpen ? 'OFFER_CONTINUE' : 'GAME_OVER_INITIATED', payload: { reason: 'strikes' } });
+          dispatch({ type: continueOpen ? 'OFFER_CONTINUE' : 'END_RUN', payload: { reason: 'strikes' } });
           return;
       }
 
@@ -3238,7 +3314,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
           
           soundService.playInvalidWord();
-          dispatch({ type: continueOpen ? 'OFFER_CONTINUE' : 'GAME_OVER_INITIATED', payload: { reason: 'time' } });
+          dispatch({ type: continueOpen ? 'OFFER_CONTINUE' : 'END_RUN', payload: { reason: 'time' } });
           return;
       }
       
@@ -4246,6 +4322,23 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               scoreResult.bonuses.push({ name: `🧩 ${set.name} set`, description: `+${points} pts (all ${set.members.length} charms held)` });
           }
       }
+
+      // Skill Shot (v7.42): the level's first word. Using the lit tile pays, more for each level in a row.
+      if (totalWords % GAMEPLAY.levels.wordsPerLevel === 0 && newState.skillShot?.level === levelFor(totalWords)) {
+          const shot = newState.skillShot;
+          const hit = !wordLocked && submittedTiles.some(t => t.id === shot.tileId);
+          const streak = hit ? shot.streak + 1 : 0;
+          if (hit) {
+              const points = skillShotPoints(streak);
+              runningScore += points;
+              scoreResult.bonuses.push({ name: '🎯 Skill Shot', description: `+${points} pts (lit tile in the level's first word${streak > 1 ? `, ${streak} levels in a row` : ''})` });
+          }
+          newState.skillShot = { ...shot, streak, tileId: '' };
+      }
+
+      // Gem Tiles (v7.42): a long word puts a gem (a word-multiplier tile) in the next hand.
+      const gem = gemMultiplierFor(word.length);
+      if (gem > 0) newState.pendingGem = Math.max(newState.pendingGem ?? 0, gem);
 
       // --- 6. Aggregate Score and Check Aggregate Bonuses ---
       const turnScorePreMilestone = runningScore - oldScore;
@@ -5596,9 +5689,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         handleResolveGamble,
         handleResolveMiniGame,
         handleContinueOffer,
+        handleLastWords,
         lexCoins,
         powerHint,
         handlePowerHintInfo,
+        skillShotTileId,
         upcomingTiles: gameState.activePowerPlays?.psychicFriends ? tileBag.slice(-POWER_PLAY_VALUES.psychicTiles).reverse() : [],
         // Smell Ya Later!: the rival's score as it climbs, in real seconds.
         raceRival: (() => {

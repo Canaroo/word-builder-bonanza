@@ -12,9 +12,11 @@ interface TileProps {
   bossHint?: 'dim' | 'glow' | null;
   /** Bird Box: the tile is face down (letter and points hidden) but can still be played. */
   faceDown?: boolean;
+  /** Skill Shot: this is the level's lit tile. */
+  skillShot?: boolean;
 }
 
-const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hintOrder, isGolden, bossHint, faceDown }) => {
+const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hintOrder, isGolden, bossHint, faceDown, skillShot }) => {
   if (faceDown) {
     return (
       <button
@@ -58,7 +60,7 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
     : (tile.isSuper || (hasMultiplier && tile.multiplier === 4)
         ? 'bg-red-600 text-white' 
         : (hasMultiplier
-            ? 'bg-purple-600 text-white' 
+            ? (tile.isGem ? 'bg-gradient-to-br from-cyan-300 to-teal-600 text-crt-900' : 'bg-purple-600 text-white')
             : (hasTempPoints 
                 ? 'bg-amber-400 text-slate-900 animate-pulse' 
                 : packTileClass)));
@@ -73,7 +75,7 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
       onContextMenu={e => e.preventDefault()}
       disabled={tile.isLocked}
       className={`tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none ${tileStyle} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed' : ''} ${bossHint === 'dim' ? 'boss-tile-dim' : bossHint === 'glow' ? 'boss-tile-glow' : ''}`}
-      aria-label={`Tile ${tile.letter} with ${tile.tempPoints ?? tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${tile.isLocked ? ' (locked for this turn)' : ''}${bossHint === 'dim' ? ', breaks the boss rule' : bossHint === 'glow' ? ', the boss rule needs this tile' : ''}`}
+      aria-label={`Tile ${tile.letter} with ${tile.tempPoints ?? tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${skillShot ? ', Skill Shot tile' : ''}${tile.isGem ? `, gem x${tile.multiplier}` : ''}${tile.isLocked ? ' (locked for this turn)' : ''}${bossHint === 'dim' ? ', breaks the boss rule' : bossHint === 'glow' ? ', the boss rule needs this tile' : ''}`}
     >
       {/* Rings and glows are overlays: the tile's own box-shadow is its 3D edge. */}
       {isSuperLook && <span className="tile-overlay ring-4 ring-red-400 animate-pulse" aria-hidden="true" />}
@@ -98,9 +100,16 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
         </span>
       )}
       {hasMultiplier && !tile.isSuper && tile.multiplier !== 4 && (
-        <span className="absolute top-0 right-1 text-xs font-extrabold z-10 text-white bg-purple-700 rounded-full px-1 py-0.5 leading-none">
-          x{tile.multiplier}
+        <span className={`absolute top-0 right-1 text-xs font-extrabold z-10 text-white rounded-full px-1 py-0.5 leading-none ${tile.isGem ? 'bg-teal-900' : 'bg-purple-700'}`}>
+          {tile.isGem ? '💎' : ''}x{tile.multiplier}
         </span>
+      )}
+      {tile.isGem && tile.multiplier === 4 && !tile.isSuper && <span className="absolute top-0 right-1 text-xs z-10 leading-none" aria-hidden="true">💎</span>}
+      {skillShot && (
+        <>
+          <span className="tile-overlay ring-4 ring-neon-pink animate-pulse" aria-hidden="true" />
+          <span className="absolute -top-2 -right-2 z-20 text-base leading-none" aria-hidden="true">🎯</span>
+        </>
       )}
       {tile.isDuplicate && (
         <span className="absolute top-0 left-1 text-xs font-bold text-slate-900 z-10">🪝</span>

@@ -398,6 +398,21 @@ export const CHARM_UPGRADE = { percent: 50 } as const;
 export const CHARM_SET_BONUS = { pair: 50, trio: 100, pullChance: 0.5 } as const;
 
 /**
+ * v7.42: four mechanics borrowed from other games.
+ * LAST_WORDS: when a run ends, one untimed word from the final hand scores x multiplier.
+ * HEAD_START: each run that ends before `untilLevel` adds `perRun` seconds to that player's next
+ *   starting clock, up to `max`; reaching the level clears it (services/headStart.ts).
+ * SKILL_SHOT: each level lights one tile; using it in the level's first word pays `base`, plus
+ *   `step` for each level in a row it was hit, up to `max`.
+ * GEM_TILES: a word of this many letters turns one tile of the next hand into a word-multiplier
+ *   gem (6 letters x3, 7 x4, 8+ x5). Natural x2 tiles show up on 15% of draws, so a gem has to beat that.
+ */
+export const LAST_WORDS = { multiplier: 3 } as const;
+export const HEAD_START = { perRun: 3, max: 15, untilLevel: 4 } as const;
+export const SKILL_SHOT = { base: 50, step: 25, max: 200 } as const;
+export const GEM_TILES: Record<number, number> = { 6: 3, 7: 4, 8: 5 };
+
+/**
  * Mystery Tape (v7.41): now and then the last card of a PowerPlay offer is a face-down tape. It
  * hides one PowerPlay from `pool` (the ones picked under 12% of the time in the usage stats: 146
  * runs, Nov 2026) and pays `points` on the spot for taking it blind (a prize: grows with the

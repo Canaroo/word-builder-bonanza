@@ -27,6 +27,8 @@ export const STORAGE_KEYS = {
     career: 'wordNerdCareer',
     charmUpgradeTips: 'wordNerdCharmUpgradeTips',
     gatePasswordsSeen: 'wordNerdGatePasswordsSeen',
+    /** Per player: early run endings in a row, for the Head Start (services/headStart.ts). */
+    headStart: 'wordNerdHeadStart',
 } as const;
 
 export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS];

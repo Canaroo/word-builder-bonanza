@@ -14,6 +14,8 @@ export interface Tile {
   isDuplicate?: boolean; // For Hookshot powerplay
   isSuper?: boolean; // For Mutation Protocol
   isLocked?: boolean; // For Rescue Drop powerplay
+  /** A gem tile (v7.42): a word-multiplier tile earned by a long word. */
+  isGem?: boolean;
 }
 
 export interface GameConfig {
@@ -307,6 +309,14 @@ export interface GameState {
   neuralyzerOffer?: boolean;
   /** Ids of equipped charms that have been upgraded (CHARM_UPGRADE): their point bonuses pay more. */
   charmUpgrades?: string[];
+  /** Last Words (v7.42): the parting-word card has been shown this run. */
+  lastWordsDone?: boolean;
+  /** Head Start: seconds added to this run's starting clock (shown until the first word). */
+  headStart?: number;
+  /** Skill Shot: the level it was lit for, the lit tile, and levels hit in a row. */
+  skillShot?: { level: number; tileId: string; streak: number } | null;
+  /** Gem Tiles: the word multiplier of a gem waiting to land in the next hand (0: none). */
+  pendingGem?: number;
   /** Power word hint: the level it was given on and the power word (secret bonus id); one hint a level. */
   powerHint?: { level: number; id: string } | null;
   /** Mystery Tape: the id of the PowerPlay hidden face down in the current offer (null: none). */
