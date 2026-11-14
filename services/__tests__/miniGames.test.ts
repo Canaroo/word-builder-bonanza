@@ -69,8 +69,24 @@ describe('score gates (v7.39.0)', () => {
   });
   test('passwords are 6 letters, and the Daily Run picks the same one for everyone', () => {
     for (const w of GATE_PASSWORDS) expect(w).toMatch(/^[A-Z]{6}$/);
-    expect(gatePassword('2026-11-14')).toBe(gatePassword('2026-11-14'));
-    expect(GATE_PASSWORDS).toContain(gatePassword(undefined, () => 0.5));
+    expect(gatePassword({ dailyKey: '2026-11-14' })).toBe(gatePassword({ dailyKey: '2026-11-14' }));
+    expect(GATE_PASSWORDS).toContain(gatePassword({}, () => 0.5));
+  });
+  test('a player never gets a password they had recently: the whole list comes round first (v7.39.3)', () => {
+    const recent: string[] = [];
+    for (let i = 0; i < GATE_PASSWORDS.length; i++) {
+      const pick = gatePassword({ recent });
+      expect(recent).not.toContain(pick);
+      recent.push(pick);
+    }
+    expect(new Set(recent).size).toBe(GATE_PASSWORDS.length);
+    // Once all have been seen, it still picks one (the list starts over).
+    expect(GATE_PASSWORDS).toContain(gatePassword({ recent }));
+  });
+  test('no password is a secret bonus word (solving it in the gate would hide the secret)', () => {
+    const secretWords = new Set(SECRET_BONUSES.map(b => b.word?.toUpperCase()).filter(Boolean));
+    for (const w of GATE_PASSWORDS) expect(secretWords.has(w)).toBe(false);
+    expect(new Set(GATE_PASSWORDS).size).toBe(GATE_PASSWORDS.length);
   });
   test('the scramble uses the same letters and never shows the answer', () => {
     for (const w of GATE_PASSWORDS) {

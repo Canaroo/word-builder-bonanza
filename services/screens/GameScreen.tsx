@@ -8,7 +8,7 @@ import { CHARMS_LIST, UPGRADABLE_CHARM_IDS, NO_LENGTH_BOOST_CHARM_IDS } from '..
 import { GAMBLE_CARD_IDS, type GambleResult } from '../../components/GambleCard';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, TIME_CARD_IDS } from '../../data/powerPlays';
 import { MINI_GAMES } from '../../data/miniGames';
-import { gatePassword } from '../../data/gates';
+import { gatePassword, RECENT_PASSWORDS } from '../../data/gates';
 import { EASTER_EGGS } from '../../data/easterEggs';
 import { recordFound, collectionProgress } from '../collection';
 import { WORD_BONUSES } from '../../data/wordBonuses';
@@ -17,6 +17,7 @@ import { dictionaryService } from '../dictionaryService';
 import { seededStream, type DailyRun } from '../daily';
 import { missedWordsService } from '../missedWordsService';
 import { storage, STORAGE_KEYS } from '../storage';
+import { playerKey } from '../players';
 import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
@@ -397,6 +398,19 @@ export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone
 const outcome = (pp: { icon: string; name: string }, headline: string, detail: string, tone: 'win' | 'lose' | 'neutral' = 'neutral'): ModalContent =>
     ({ type: 'outcome', title: pp.name, content: detail, data: { icon: pp.icon, headline, tone } });
 const ppById = (id: string) => POWER_PLAYS_LIST.find(p => p.id === id)!;
+/**
+ * The 10,000 Gate's password (v7.39.3): the scored Daily Run shares the day's password; any other
+ * run gets one this player hasn't had recently, and it's remembered (per player) so it won't repeat.
+ */
+const pickGatePassword = (daily: GameState['daily']): string => {
+    if (daily && !daily.practice) return gatePassword({ dailyKey: daily.key });
+    const key = playerKey(STORAGE_KEYS.gatePasswordsSeen);
+    const recent = storage.getJSON<string[]>(key, []) ?? [];
+    const pick = gatePassword({ recent });
+    storage.setJSON(key, [...recent.filter(w => w !== pick), pick].slice(-RECENT_PASSWORDS));
+    return pick;
+};
+
 /** Fire-on-pick PowerPlays that open a card in the offer's place (v7.39.2): the bid, the mission, Fluncle, Thwomped. */
 const CARD_ON_PICK = new Set(['priceIsRight', 'missionImpossible', 'fluncleIsProud', 'thwomped']);
 
@@ -4232,7 +4246,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               newState.gatesPassed = [...(newState.gatesPassed ?? []), gate.score];
               modalQueue.push({ type: 'minigame', title: `The ${gate.score.toLocaleString()} Gate`, data: {
                   id: kind, gate: gate.score,
-                  ...(kind === 'password' ? { password: gatePassword(newState.daily?.key) } : {}),
+                  ...(kind === 'password' ? { password: pickGatePassword(newState.daily) } : {}),
               } });
               eventLogQueue.push({ type: 'event', id: `gate-${gate.score}-${now}`, name: `The ${gate.score.toLocaleString()} Gate`, icon: '🚪', description: kind === 'password' ? 'Crossed the gate: the password challenge.' : 'Crossed the gate: the bonus stage.', scoreChange: 0, cumulativeScore: runningScore });
           }

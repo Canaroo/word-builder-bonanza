@@ -248,7 +248,9 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   TEE and NET were picked as the common ones (spellable from about 9% of hands; the rest 0.2-1.5%).
 - **Score gates (v7.39.0):** the first word at or past a gate opens a one-time event (`GATES` in
   `config/gameplay.ts`, `gatesPassed` on the run). 10,000: the Password Gate, unscramble a 6-letter
-  password (`data/gates.ts`; the Daily Run picks the same one for everyone) in 20 s, and any real
+  password (`data/gates.ts`, 80 words, none a secret bonus word) in 20 s; the scored Daily Run
+  shares the day's password, and every other run gets one the player hasn't had recently (per-player
+  `gatePasswordsSeen`, so the whole list cycles before a repeat; daily practice too), and any real
   word using all six letters counts: +1,000, +500 with the first-letter hint, +250 on a miss.
   30,000: the Bonus Stage, 30 s on its own clock with a balanced 10-tile hand (4 vowels); each word
   pays (its normal score + 25 a letter) x3, charms included, and doesn't touch the run's tile
