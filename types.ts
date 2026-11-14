@@ -307,6 +307,13 @@ export interface GameState {
   neuralyzerOffer?: boolean;
   /** Ids of equipped charms that have been upgraded (CHARM_UPGRADE): their point bonuses pay more. */
   charmUpgrades?: string[];
+  /** Power word hint: the level it was given on and the power word (secret bonus id); one hint a level. */
+  powerHint?: { level: number; id: string } | null;
+  /** Mystery Tape: the id of the PowerPlay hidden face down in the current offer (null: none). */
+  mysteryTapeId?: string | null;
+  /** Phoenix Down: the continue offer has been shown this run (it shows once), and whether it was bought. */
+  continueOffered?: boolean;
+  continued?: boolean;
   /** How the run ended, and the seconds the clock actually ran (usage stats). */
   endReason?: 'strikes' | 'time';
   playMs?: number;

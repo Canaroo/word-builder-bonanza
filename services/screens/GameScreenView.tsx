@@ -3,7 +3,7 @@ import ArcadeButton from '../../components/ArcadeButton';
 import ShuffleButton from '../../components/ShuffleButton';
 import BonusReveal from '../../components/BonusReveal';
 import SlotMachine from '../../components/SlotMachine';
-import { PowerPlayOffer, CharmOffer } from '../../components/OfferModals';
+import { PowerPlayOffer, CharmOffer, SetNote } from '../../components/OfferModals';
 import { PRIZE_POWER_PLAY_IDS, POWER_PLAYS_LIST } from '../../data/powerPlays';
 import { GameState, Tile, WordData, Milestone, Charm, PowerPlay } from '../../types';
 import Timer from '../../components/Timer';
@@ -18,6 +18,7 @@ import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor, bossHitsToWin
 import LevelBadge from '../../components/LevelBadge';
 import LevelUpCard from '../../components/LevelUpCard';
 import OutcomeCard from '../../components/OutcomeCard';
+import ContinueCard from '../../components/ContinueCard';
 import GambleCard, { type GambleResult } from '../../components/GambleCard';
 import PowerPlayTrackers from '../../components/PowerPlayTrackers';
 import MiniGameCard from '../../components/MiniGames';
@@ -25,7 +26,7 @@ import CharmTimeNote from '../../components/CharmTimeNote';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
-  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame';
+  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -92,6 +93,13 @@ export interface GameScreenViewProps {
   handleResolveGamble?: (r: GambleResult) => void;
   /** An arcade mini-game finished (null: skipped). */
   handleResolveMiniGame?: (r: { points: number; headline: string; detail: string } | null) => void;
+  /** Phoenix Down: buy the continue (true) or let the run end (false). */
+  handleContinueOffer?: (accept: boolean) => void;
+  /** Credits the player holds. */
+  lexCoins?: number;
+  /** A power word can be spelled from the tiles in play (the hint chip); tapping it explains. */
+  powerHint?: { icon: string; length: number } | null;
+  handlePowerHintInfo?: () => void;
   /** Psychic Friends Network: the next tiles in the bag, in draw order. */
   upcomingTiles?: string[];
   /** Real seconds left on a running Pop Quiz (undefined when none). */
@@ -151,7 +159,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
@@ -280,6 +288,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             case 'minigame':
                 return <MiniGameCard key={data.id} id={data.id} title={title} word={data.word} firstFind={data.firstFind} extra={data} gameState={gameState} saved={data.saved} onSave={(key, value) => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key, value } })} onDone={r => handleResolveMiniGame?.(r)} />;
 
+            case 'continue-offer':
+                return <ContinueCard reason={data?.reason === 'strikes' ? 'strikes' : 'time'} credits={lexCoins} onAnswer={accept => handleContinueOffer?.(accept)} />;
+
             case 'outcome':
                 return <OutcomeCard name={title} detail={typeof content === 'string' ? content : undefined} data={data} onClose={handleCloseModal} />;
 
@@ -342,6 +353,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                            {(gameState?.charmUpgrades ?? []).includes(buff.id) && (gameState?.activeCharms ?? []).some(c => c.id === buff.id) && (
                                <p className="osd-text text-lg text-neon-yellow text-center mb-2">⭐ UPGRADED: ITS POINT BONUSES PAY {CHARM_UPGRADE.percent}% MORE</p>
                            )}
+                           {(gameState?.activeCharms ?? []).some(c => c.id === buff.id) && (
+                               <p className="osd-text text-lg text-center mb-2"><SetNote charmId={buff.id} after={(gameState?.activeCharms ?? []).map(c => c.id)} /></p>
+                           )}
                            {buff.id === 'multiplicity' && (
                                <div className="mb-2 text-center">
                                    <p className="osd-text text-lg text-neon-pink">{copyTarget ? `👯 WOULD COPY: ${copyTarget.icon} ${copyTarget.name.toUpperCase()}` : '👯 NOTHING TO COPY YET: USE A POWERPLAY FIRST'}</p>
@@ -367,6 +381,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         level={levelFor(totalWords)}
                         prizeScale={prizeScaleFor(levelFor(totalWords))}
                         copyTarget={copyTarget}
+                        mysteryId={gameState?.mysteryTapeId ?? null}
                         onChoose={(pp) => handleChoosePowerPlay(pp, offered)}
                         onKeep={() => handleKeepPowerPlay(offered)}
                     />
@@ -993,6 +1008,15 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
               })}
           </div>
         </div>
+
+        {powerHint && (
+          <div className="flex justify-center">
+            <button type="button" onClick={handlePowerHintInfo} aria-label={`Hint: a ${powerHint.length}-letter power word is hiding in this hand. Tap for more.`}
+              className="flex items-center gap-1.5 rounded-full px-3 py-1 osd-text text-lg leading-none whitespace-nowrap ring-1 ring-neon-yellow bg-neon-yellow/15 text-neon-yellow shadow-[0_0_12px_rgba(255,226,122,0.45)] animate-pulse hover:bg-neon-yellow/25">
+              <span aria-hidden="true">⚡</span>POWER WORD IN THIS HAND<span aria-hidden="true">{powerHint.icon}</span>
+            </button>
+          </div>
+        )}
 
         <PowerPlayTrackers gameState={gameState} upcomingTiles={upcomingTiles} quizLeft={quizLeft} raceRival={raceRival} onStand={() => dispatch({ type: 'BLACKJACK_STAND' })} />
 

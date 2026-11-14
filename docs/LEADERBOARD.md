@@ -178,7 +178,7 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         ".write": "!data.exists()",
         ".validate": "newData.hasChildren(['type','timestamp'])",
 
-        "type": { ".validate": "newData.isString() && newData.val().matches(/^(boss_start|boss_end|mission_shown|mission_done|run_end|power_word|charm_offer|pp_offer|pp_use)$/)" },
+        "type": { ".validate": "newData.isString() && newData.val().matches(/^(boss_start|boss_end|mission_shown|mission_done|run_end|power_word|charm_offer|pp_offer|pp_use|continue_offer|pw_hint)$/)" },
         "timestamp": { ".validate": "newData.isNumber() && newData.val() > now - 5 * 60 * 1000 && newData.val() < now + 5 * 60 * 1000" },
 
         // Bosses
@@ -216,6 +216,12 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         "offered": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,32}(,[A-Za-z0-9]{1,32}){0,5}$/)" },
         "picked":  { ".validate": "newData.isString() && newData.val().matches(/^([A-Za-z0-9]{1,32})?$/)" },
         "pp":      { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,32}$/)" },
+        // v7.41: Mystery Tape (the PowerPlay hidden in a pp_offer), Phoenix Down (continue_offer:
+        // taken, reason, level), power word hints (pw_hint: power, level; power_word: hinted)
+        "mystery": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,32}$/)" },
+        "taken":   { ".validate": "newData.isBoolean()" },
+        "reason":  { ".validate": "newData.isString() && newData.val().matches(/^(strikes|time)$/)" },
+        "hinted":  { ".validate": "newData.isBoolean()" },
         // v7.33: the equipped charm upgraded instead of a pick (charm_offer with picked '')
         "upgraded": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,32}$/)" },
 
@@ -240,7 +246,9 @@ Firebase rules allow `//` comments, so paste the block as-is.
 | `mission_done` | `mission`, `tier` | A mission is completed |
 | `run_end` | `score`, `words`, `level`, `bosses`, `charms`, `daily` (true for a Daily Run); v7.33 extras: `cause` (`clock` or `strikes`), `secs` (seconds the clock ran), `tWords` / `tItems` / `tShuffles` (seconds earned from words, charms and PowerPlays, shuffles), `upgrades` (charm upgrades taken) | The Game Over summary is closed (`charms`: the ids equipped at the end, comma-joined) |
 | `charm_offer` | `offered`, `picked`, `level`; v7.33 extra: `upgraded` | A charm offer is answered (`picked` is `''` for a pass, or for an upgrade, where `upgraded` is the equipped charm's id) |
-| `pp_offer` | `offered`, `picked`, `level` | A PowerPlay offer is answered (`picked` is `''` when the held one is kept) |
+| `pp_offer` | `offered`, `picked`, `level`; v7.41 extra: `mystery` | A PowerPlay offer is answered (`picked` is `''` when the held one is kept; `mystery`: the PowerPlay hidden in the offer's Mystery Tape) |
+| `continue_offer` | `taken`, `reason`, `level` | v7.41: the Phoenix Down offer at the end of a run is answered (`reason`: `strikes` or `time`) |
+| `pw_hint` | `power`, `level` | v7.41: the power word hint chip appears (a `power_word` played while it shows carries the extra `hinted`) |
 | `pp_use` | `pp`, `level` | A PowerPlay is used (an instant one counts when picked) |
 | `power_word` | `power`, `repeat`, `seconds`, `strike` | A power word fires (slot payout, freeze, cloned or REWIND seconds; `strike`: HEAL removed one, or RINGS found a shield already up) |
 

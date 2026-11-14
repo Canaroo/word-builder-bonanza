@@ -520,6 +520,7 @@ const App: React.FC = () => {
             tileClass={selectedPack.tileClass}
             powerWord={powerWordData?.powerWord}
             daily={dailyRun}
+            lexCoins={lexCoins}
             />;
       case Screen.GameOver:
         return lastGameResult && (

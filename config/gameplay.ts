@@ -389,6 +389,33 @@ export const CHARM_SLOTS = 5;
 export const CHARM_UPGRADE = { percent: 50 } as const;
 
 /**
+ * Charm sets (v7.41, data/charmSets.ts): holding every charm of a themed set pays these points on
+ * every valid word (a 2-charm set, a 3-charm set). For scale: Honey, I Shrunk the Kids pays +60 a
+ * word for one slot and a smaller hand; a pair costs two slots of charms that were rarely picked.
+ * pullChance: with part of a set held, the chance a charm offer swaps its last card for a missing
+ * piece (when one can be offered).
+ */
+export const CHARM_SET_BONUS = { pair: 50, trio: 100, pullChance: 0.5 } as const;
+
+/**
+ * Mystery Tape (v7.41): now and then the last card of a PowerPlay offer is a face-down tape. It
+ * hides one PowerPlay from `pool` (the ones picked under 12% of the time in the usage stats: 146
+ * runs, Nov 2026) and pays `points` on the spot for taking it blind (a prize: grows with the
+ * level). Only pocket PowerPlays go in the pool: nothing that fires on pick, no bets, no time cards.
+ */
+export const MYSTERY_TAPE = {
+  chance: 0.25,
+  points: 150,
+  pool: [
+    'cassiesClue', 'carmenSandiego', 'yoshisWildRide', 'tetrisTouch', 'letterUpgrade', 'schruteBucks',
+    'neuralyzer', 'psychicFriends', 'captainPlanet', 'whoYouGonnaCall', 'buyAVowel', 'moreThanMeets',
+    'withGreatPower', 'cowabunga', 'warioWarp', 'shapeshiftersTongue', 'hookshot', 'shakeItLikeAPolaroid',
+    'ludicrousSpeed', 'duckHunt', 'actClear', 'echoesOfThePast', 'holdOntoYourButts', 'upsideDown',
+    'rescueDrop', 'luckyCharms',
+  ],
+} as const;
+
+/**
  * Arcade mini-games (v7.38.0): spelling one of these words opens a quick side game (Play or Skip).
  * Points only, paid as a prize (grows with the level, prizeFor). Once per run each, like a secret.
  */
