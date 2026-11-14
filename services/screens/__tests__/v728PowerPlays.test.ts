@@ -291,3 +291,19 @@ describe('gamble cheese fixes (v7.28.9)', () => {
         expect(gameReducer(closed, { type: 'SET_GAMBLE_STATE', payload: { key: 'card', value: 9 } })).toBe(closed);
     });
 });
+
+describe('PowerPlay time pays in full (v7.40.1)', () => {
+    // A level-9 player (144 words) with 70 s on the clock: the card says +10, it used to pay 3.
+    const level9 = (time: number) => start({
+        log: Array.from({ length: 144 }, (_, i) => ({ type: 'word', word: 'CAT', status: 'valid', score: 5, id: `w${i}` })) as any,
+        availablePowerPlays: [pp('timeBoost')],
+    }, time);
+    test('Most Excellent Detour adds its full seconds late in a run, even above 60 s', () => {
+        const s = gameReducer(level9(70), { type: 'ACTIVATE_POWER_PLAY', payload: pp('timeBoost') } as any);
+        expect(s.time).toBe(70 + TIME_BONUS.timeBoost);
+    });
+    test('the 90 s cap still applies', () => {
+        const s = gameReducer(level9(85), { type: 'ACTIVATE_POWER_PLAY', payload: pp('timeBoost') } as any);
+        expect(s.time).toBe(90);
+    });
+});

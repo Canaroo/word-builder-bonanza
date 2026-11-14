@@ -411,6 +411,13 @@ const pickGatePassword = (daily: GameState['daily']): string => {
     return pick;
 };
 
+/**
+ * Seconds a PowerPlay adds (v7.40.1): the full amount on the card, at any level and any clock
+ * (the 90 s cap still applies). Only charm time shrinks with the level and halves above 60 s
+ * (bonusTime): a level-9 player's "+10 seconds" Most Excellent Detour paid 6, or 3.
+ */
+const powerPlaySeconds = (seconds: number): number => seconds;
+
 /** Fire-on-pick PowerPlays that open a card in the offer's place (v7.39.2): the bid, the mission, Fluncle, Thwomped. */
 const CARD_ON_PICK = new Set(['priceIsRight', 'missionImpossible', 'fluncleIsProud', 'thwomped']);
 
@@ -628,7 +635,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             const headline = boosted ? action.payload.headline.replace(`+${listed}`, `+${points}`) : action.payload.headline;
             const detail = boosted ? `${action.payload.detail}\n\n⬆ Level ${runLevel(gameState)} prize boost: ${listed} → ${points} points.` : action.payload.detail;
             const score = Math.max(0, gameState.score + points);
-            const gained = seconds > 0 ? bonusTime(seconds, state.time, runLevel(gameState)) : seconds;
+            const gained = seconds > 0 ? powerPlaySeconds(seconds) : seconds;
             const time = clampTime(state.time + gained, bankMax(gameState));
             const entry: EventLogEntry = { type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon, description: `${headline}. ${detail.split('\n')[0]}`, scoreChange: score - gameState.score, cumulativeScore: score };
             return {
@@ -647,7 +654,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         case 'JACKASS': {
             const { powerPlay } = action.payload;
             if (gameState.strikes + 1 >= maxStrikesFor(gameState)) return state;
-            const gained = bonusTime(TIME_BONUS.jackass, state.time, runLevel(gameState));
+            const gained = powerPlaySeconds(TIME_BONUS.jackass);
             const time = clampTime(state.time + gained, bankMax(gameState));
             const runAway = !!gameState.activePowerPlays.tamagotchi;
             const { tamagotchi: _pet, ...stillActive } = gameState.activePowerPlays;
@@ -1572,7 +1579,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 // Mission: Impossible (fires on pick, v7.28.9): the seconds come now, the promise follows.
                 if (powerPlay.id === 'missionImpossible') {
                     const V = POWER_PLAY_VALUES;
-                    const gained = bonusTime(V.missionImpossibleSeconds, state.time, runLevel(newGameState));
+                    const gained = powerPlaySeconds(V.missionImpossibleSeconds);
                     const time = clampTime(state.time + gained, bankMax(newGameState));
                     newGameState.lastPowerPlayResult = { message: `🕵️ Mission accepted: +${gained}s. Your next ${V.missionImpossibleWords} words need ${V.missionImpossibleLetters}+ letters.${swappedOut}`, scoreChange: 0 };
                     return {
@@ -2072,8 +2079,8 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
 
             const activationChanges = powerPlay.activate(state.gameState);
             let timeChange = 0;
-            if (powerPlay.id === 'timeBoost') timeChange = bonusTime(TIME_BONUS.timeBoost, state.time, runLevel(state.gameState));
-            if (powerPlay.id === 'rewind') timeChange = bonusTime(TIME_BONUS.rescue, state.time, runLevel(state.gameState));
+            if (powerPlay.id === 'timeBoost') timeChange = powerPlaySeconds(TIME_BONUS.timeBoost);
+            if (powerPlay.id === 'rewind') timeChange = powerPlaySeconds(TIME_BONUS.rescue);
             if (powerPlay.id === 'whoYouGonnaCall') timeChange = -Math.min(15, Math.max(0, state.time - 5));
 
             if (powerPlay.id === 'sonicSpeed') {
@@ -2195,7 +2202,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             let changes = {};
             let timeChange = 0;
             if (option.choice === 'time') {
-                timeChange = bonusTime(TIME_BONUS.rescue, state.time, runLevel(gameState));
+                timeChange = powerPlaySeconds(TIME_BONUS.rescue);
             } else if (option.choice === 'strike') {
                 changes = { strikes: Math.max(0, gameState.strikes - 1) };
             }
@@ -2871,7 +2878,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     }
 
     if (lastModalTitle.includes('Everybody Chill')) {
-      dispatch({ type: 'ADD_TIME', payload: bonusTime(TIME_BONUS.rescue, state.time, runLevel(state.gameState)) });
+      dispatch({ type: 'ADD_TIME', payload: powerPlaySeconds(TIME_BONUS.rescue) });
       dispatch({ type: 'CLOSE_MODAL' });
       return;
     }
@@ -5107,7 +5114,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             const points = prizeFor(POWER_PLAY_VALUES.gumpLuckPoints, runLevel(gameState));
     
             if (rand < 0.25) { // bonus seconds
-                timeChange = bonusTime(TIME_BONUS.rescue, time, runLevel(gameState));
+                timeChange = powerPlaySeconds(TIME_BONUS.rescue);
                 outcomeMessage = `Life is like a box of chocolates... you got ${timeChange} extra seconds!`;
             } else if (rand < 0.5) { // points
                 changes.score = gameState.score + points;

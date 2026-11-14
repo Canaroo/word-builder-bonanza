@@ -18,9 +18,9 @@ export const GAMEPLAY = {
     /** Seconds a shuffle adds: shuffles are the player's limited time lifeline. */
     shuffleTimeBonus: 5,
     /**
-     * Bonus time from charms and PowerPlays follows the clock rules too: it is halved above
-     * overflowAbove (like word time) and shrinks 5% per level after the first, down to half.
-     * Shuffles and the once-per-run rescues (Happy Place, Life Finds a Way) are exempt.
+     * Bonus time from charms follows the clock rules too: it is halved above overflowAbove (like
+     * word time) and shrinks 5% per level after the first, down to half. PowerPlay time always
+     * pays the full amount on its card (v7.40.1), and so do shuffles.
      */
     bonusShrinkPerLevel: 0.05,
     bonusMinScale: 0.5,
