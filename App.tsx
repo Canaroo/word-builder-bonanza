@@ -31,6 +31,7 @@ const ScreenFallback = () => (
 import { GameState, FinalGameState, Pack, PowerWordData } from './types';
 import {leaderboardService} from './services/leaderboardService';
 import { recordRunForHeadStart } from './services/headStart';
+import { recordBossResult } from './services/grudges';
 import { sendStat } from './services/stats';
 import { levelFor } from './services/rules';
 import { switchToPlayer, currentPlayer } from './services/players';
@@ -328,6 +329,8 @@ const App: React.FC = () => {
     } else {
       setLastDaily(null);
     }
+    // Grudge Match: a boss still on the board when the run ended got away.
+    if (gameState.boss?.id) recordBossResult(gameState.boss.id, 'escaped');
     // Head Start: an early ending adds seconds to this player's next starting clock.
     const headStart = recordRunForHeadStart(levelFor(validWords));
     if (headStart > 0) showToast(`🛠️ Head Start: +${headStart}s on your next run`, 3500);

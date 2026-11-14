@@ -20,6 +20,8 @@ import LevelUpCard from '../../components/LevelUpCard';
 import OutcomeCard from '../../components/OutcomeCard';
 import ContinueCard from '../../components/ContinueCard';
 import LastWordsCard from '../../components/LastWordsCard';
+import ForkCard from '../../components/ForkCard';
+import { FORK } from '../../config/gameplay';
 import { skillShotPoints } from '../../services/rules';
 import GambleCard, { type GambleResult } from '../../components/GambleCard';
 import PowerPlayTrackers from '../../components/PowerPlayTrackers';
@@ -28,7 +30,7 @@ import CharmTimeNote from '../../components/CharmTimeNote';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
-  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words';
+  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -103,6 +105,12 @@ export interface GameScreenViewProps {
   handleLastWords?: (r: { word: string; points: number } | null) => void;
   /** Skill Shot: the lit tile's id ('' when none). */
   skillShotTileId?: string;
+  /** Hold Slot: unlocked, waiting for a tile to park, and the tap handler. */
+  holdOpen?: boolean;
+  holdArmed?: boolean;
+  handleHoldTap?: () => void;
+  /** Fork in the Road: the route picked. */
+  handleForkPick?: (route: 'easy' | 'danger') => void;
   /** A power word can be spelled from the tiles in play (the hint chip); tapping it explains. */
   powerHint?: { icon: string; length: number } | null;
   handlePowerHintInfo?: () => void;
@@ -165,7 +173,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, skillShotTileId = '', lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, skillShotTileId = '', holdOpen = false, holdArmed = false, handleHoldTap, handleForkPick, lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
@@ -296,6 +304,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
             case 'continue-offer':
                 return <ContinueCard reason={data?.reason === 'strikes' ? 'strikes' : 'time'} credits={lexCoins} onAnswer={accept => handleContinueOffer?.(accept)} />;
+
+            case 'fork':
+                return <ForkCard level={Number(data?.level) || 1} onPick={route => handleForkPick?.(route)} />;
 
             case 'last-words':
                 return <LastWordsCard reason={data?.reason === 'strikes' ? 'strikes' : 'time'} tiles={(hand ?? []).filter((t): t is Tile => !!t)} gameState={gameState} onDone={r => handleLastWords?.(r)} />;
@@ -1017,6 +1028,27 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
               })}
           </div>
         </div>
+
+        {(holdOpen || gameState?.route) && (
+          <div className="flex items-center justify-center gap-2">
+            {holdOpen && (
+              <button type="button" onPointerDown={e => { e.preventDefault(); handleHoldTap?.(); }} onClick={e => { if (e.detail === 0) handleHoldTap?.(); }}
+                aria-label={gameState?.holdTile ? `Hold slot: ${gameState.holdTile.letter}. Tap to take it back.` : holdArmed ? 'Hold slot: tap a tile to park it' : 'Hold slot, empty. Tap, then tap a tile to park it.'}
+                className={`flex items-center gap-1.5 rounded-xl pl-1 pr-2.5 py-1 ring-2 select-none touch-none ${gameState?.holdTile ? 'ring-neon-purple bg-neon-purple/15' : holdArmed ? 'ring-neon-yellow bg-neon-yellow/15 animate-pulse' : 'ring-white/20 bg-crt-950/70'}`}>
+                <span className={`w-9 h-9 rounded-lg grid place-items-center font-tile font-extrabold text-xl ${gameState?.holdTile ? 'bg-[#f6e7c1] text-crt-900 tile-3d' : 'bg-crt-950 text-slate-600 border border-dashed border-white/20'}`}>
+                  {gameState?.holdTile ? gameState.holdTile.letter : '🧲'}
+                </span>
+                <span className="osd-text text-base leading-none text-slate-200">{gameState?.holdTile ? 'HELD · TAP TO USE' : holdArmed ? 'TAP A TILE' : 'HOLD'}</span>
+              </button>
+            )}
+            {gameState?.route && (
+              <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs text-white whitespace-nowrap ring-1 ${gameState.route.choice === 'danger' ? 'ring-neon-red bg-neon-red/20' : 'ring-neon-green/70 bg-neon-green/10'}`}
+                aria-label={gameState.route.choice === 'danger' ? `Danger Zone: clock faster, every word times ${FORK.danger.points}` : 'Easy Street: clock slower'}>
+                <span aria-hidden="true">{gameState.route.choice === 'danger' ? '🔥' : '🌴'}</span>{gameState.route.choice === 'danger' ? `DANGER ZONE · x${FORK.danger.points}` : 'EASY STREET'}
+              </span>
+            )}
+          </div>
+        )}
 
         {(skillShotTileId || ((gameState?.headStart ?? 0) > 0 && totalWords === 0)) && (
           <div className="flex flex-wrap justify-center gap-1">

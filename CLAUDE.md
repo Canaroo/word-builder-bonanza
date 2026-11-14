@@ -298,6 +298,19 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   **Gem Tiles** (`pendingGem`, `Tile.isGem`): a 6 / 7 / 8+ letter word turns one plain tile of the
   next hand into a x3 / x4 / x5 word tile (`START_NEXT_ROUND`). It scores as a "Tile Multiplier"
   line, so it covers charm points like other tile multipliers.
+- **Borrowed mechanics, batch two (v7.43.0).** Values in `FORK`, `HOLD_SLOT`, `GRUDGE`.
+  **Fork in the Road** (`components/ForkCard.tsx`, `gameState.route`): at levels 4, 7 and 11 a
+  card after the level-up makes the player pick Easy Street (clock 10% slower) or the Danger Zone
+  (clock 15% faster, every word x1.5 as a "🔥 Danger Zone" line), until the next fork. `fork` is
+  in `POST_WORD_MODALS`. Simulated at the pace real runs show (2.2-3.4 s a word): Danger is +50%
+  for a player ahead of the clock and cuts survival from 79% to 10% for one on the edge at levels
+  7-10; Easy Street lifts that player to 99%.
+  **Hold Slot** (`gameState.holdTile`, `HOLD_STASH` / `HOLD_RETURN`): from level 4, tap HOLD then
+  a tile to park it; it survives new hands and shuffles and joins the final hand for Last Words.
+  **Grudge Match** (`services/grudges.ts`, per player): a boss that got away (no badge, or the run
+  ended mid-fight) opens next time as a GRUDGE MATCH with a taunt built from the player's own
+  numbers (`grudgeTaunt`; keep the jabs playful, kids play this), and beating it pays the badge
+  points x2. The double is left off the scored Daily Run.
 - **Power words** (10 secret words with `effect`, no points): SLOT (slot machine, +1/3/10s), SNOW
   (clock frozen 10s), HEAL (remove a strike, else +100), SLOW (half-speed clock for 3 words), TWIN
   (clone your best word's time + a Word Combo step), RINGS (a strike shield), REWIND (clock one speed
