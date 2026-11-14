@@ -28,6 +28,29 @@ function useSaved<T>(key: string, init: T | (() => T)): [T, (value: T) => void] 
   return [value, (next: T) => { setValue(next); save?.(key, next); }];
 }
 
+/**
+ * A countdown (v7.39.4): the number in the arcade font with a stopwatch, and "sec" small, lowercase
+ * and in a plain font. A bare "30s" in the display font read as "305" (the S looks like a 5).
+ */
+const Secs: React.FC<{ ms: number; warnBelow: number; className?: string }> = ({ ms, warnBelow, className = '' }) => {
+  const n = Math.ceil(ms / 1000);
+  const warn = ms < warnBelow;
+  return (
+    <span className={`inline-flex items-baseline gap-1 ${warn ? 'text-neon-red animate-pulse' : 'text-neon-cyan'} ${className}`} role="timer" aria-label={`${n} ${n === 1 ? 'second' : 'seconds'} left`}>
+      <span aria-hidden="true" className="text-base self-center">⏱</span>
+      <span className="font-display tabular-nums">{n}</span>
+      <span className="font-sans text-xs font-semibold lowercase tracking-wide opacity-80">sec</span>
+    </span>
+  );
+};
+
+/** A bar that drains as the clock runs down. */
+const TimeBar: React.FC<{ ms: number; total: number; warnBelow: number }> = ({ ms, total, warnBelow }) => (
+  <div className="w-full h-1.5 rounded-full bg-crt-950 ring-1 ring-white/10 overflow-hidden" aria-hidden="true">
+    <div className={`h-full transition-[width] duration-100 ease-linear ${ms < warnBelow ? 'bg-neon-red' : 'bg-neon-cyan'}`} style={{ width: `${Math.max(0, Math.min(100, (ms / total) * 100))}%` }} />
+  </div>
+);
+
 const buzz = (ms: number | number[]) => { try { navigator.vibrate?.(ms); } catch { /* not supported */ } };
 const tick = () => soundService.playTileClick();
 
@@ -175,7 +198,8 @@ const Mole: React.FC<{ finish: Finish }> = ({ finish }) => {
   const s = state.current;
   return (
     <>
-      <div className="w-full flex justify-between font-display text-xl"><span className="text-neon-yellow">+{s.score}</span><span className={s.left < 3000 ? 'text-neon-red' : 'text-neon-cyan'}>{Math.ceil(s.left / 1000)}s</span></div>
+      <div className="w-full flex justify-between items-baseline text-xl"><span className="font-display text-neon-yellow">+{s.score}</span><Secs ms={s.left} warnBelow={3000} /></div>
+      <TimeBar ms={s.left} total={M.mole.seconds * 1000} warnBelow={3000} />
       <div className="grid grid-cols-3 gap-2 w-full max-w-[19rem]">
         {holes.map((m, i) => (
           <button key={i} type="button" onPointerDown={e => { e.preventDefault(); bop(i); }} aria-label={m ? (m.gold ? 'Gold mole' : 'Mole') : 'Empty hole'}
@@ -561,10 +585,10 @@ const Password: React.FC<GameProps> = ({ finish, extra }) => {
     setProgress({ left: left.current, hint: true });
     setPicked([i, ...picked.filter(x => x !== i)].slice(0, 1));
   };
-  const secs = Math.ceil(left.current / 1000);
   return (
     <>
-      <p className={`font-display text-2xl leading-none ${secs <= 5 ? 'text-neon-red animate-pulse' : 'text-neon-cyan'}`}>⏱ {secs}s</p>
+      <Secs ms={left.current} warnBelow={5001} className="text-2xl leading-none" />
+      <TimeBar ms={left.current} total={P.seconds * 1000} warnBelow={5001} />
       {/* The answer slots: tap a letter to take it back. */}
       <div className={`flex gap-1.5 ${wrong ? 'cereal-shake' : ''}`}>
         {Array.from({ length: answer.length }, (_, slot) => {
@@ -654,7 +678,8 @@ const BonusStage: React.FC<GameProps> = ({ finish, gameState }) => {
   const s = state.current;
   return (
     <>
-      <div className="w-full flex justify-between font-display text-xl"><span className="text-neon-yellow">+{s.total.toLocaleString()}</span><span className={s.left < 8000 ? 'text-neon-red' : 'text-neon-cyan'}>{Math.ceil(s.left / 1000)}s</span></div>
+      <div className="w-full flex justify-between items-baseline text-xl"><span className="font-display text-neon-yellow">+{s.total.toLocaleString()}</span><Secs ms={s.left} warnBelow={8000} /></div>
+      <TimeBar ms={s.left} total={B.seconds * 1000} warnBelow={8000} />
       <p className="osd-text text-lg text-neon-green min-h-[1.5rem]" aria-live="polite">{flash ?? `+${B.perLetter} A LETTER · EVERY WORD x${B.multiplier}`}</p>
       <div className="w-full min-h-[3rem] rounded-lg bg-crt-950 ring-1 ring-white/15 flex items-center justify-center gap-1 px-2 font-tile font-extrabold text-2xl tracking-widest text-white">{word || <span className="text-slate-600 text-base font-sans font-normal">Tap tiles to build a word</span>}</div>
       <div className="grid grid-cols-5 gap-1.5 w-full">
