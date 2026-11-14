@@ -8,6 +8,7 @@ import { CHARMS_LIST, UPGRADABLE_CHARM_IDS, NO_LENGTH_BOOST_CHARM_IDS } from '..
 import { GAMBLE_CARD_IDS, type GambleResult } from '../../components/GambleCard';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, TIME_CARD_IDS } from '../../data/powerPlays';
 import { MINI_GAMES } from '../../data/miniGames';
+import { gatePassword } from '../../data/gates';
 import { EASTER_EGGS } from '../../data/easterEggs';
 import { recordFound, collectionProgress } from '../collection';
 import { WORD_BONUSES } from '../../data/wordBonuses';
@@ -21,7 +22,7 @@ import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
 import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, charmLengthPoints, charmLengthBoostFor, charmMultiplierPoints, itemMultiplierIn, prizeFor, prizeScaleFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, redrumReverse } from '../rules';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
 import { currentStreak, powerWordBonusFor, recordBossBadge } from '../progression';
@@ -213,7 +214,7 @@ type GameAction =
     | { type: 'RESUME_GAME' }
     | { type: 'TICK_TIMER'; ms?: number }
     | { type: 'TICK_FREEZE' }
-    | { type: 'APPLY_MINIGAME'; payload: { name: string; icon: string; points: number; headline: string; detail: string } }
+    | { type: 'APPLY_MINIGAME'; payload: { name: string; icon: string; points: number; headline: string; detail: string; flat?: boolean } }
     | { type: 'ADD_TIME', payload: number }
     | { type: 'SET_TIME', payload: number }
     | { type: 'MOVE_TILE_TO_BUILD', payload: { tile: Tile, fromIndex: number } }
@@ -585,9 +586,10 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         // and the outcome card opens. A strike result is dispatched separately (ADD_STRIKE).
         case 'APPLY_MINIGAME': {
             // Arcade mini-game payout (v7.38.0): points only, a prize that grows with the level.
-            const { name, icon, points: listed, headline, detail } = action.payload;
+            const { name, icon, points: listed, headline, detail, flat } = action.payload;
             const level = runLevel(gameState);
-            const points = prizeFor(listed, level);
+            // Gates pay exactly what their card says (flat); arcade games are prizes that grow with the level.
+            const points = flat ? listed : prizeFor(listed, level);
             const boosted = points !== listed;
             const score = gameState.score + points;
             const entry: EventLogEntry = { type: 'event', id: `mg-${name}-${Date.now()}`, name, icon, description: headline, scoreChange: points, cumulativeScore: score };
@@ -4215,6 +4217,18 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // --- 7. FINAL SCORE UPDATE ---
       newState.score = Math.round(runningScore);
 
+      // Score gates (v7.39.0): the first word at or past a gate opens its event, once per run.
+      for (const [kind, gate] of [['password', GATES.password], ['bonusStage', GATES.bonusStage]] as const) {
+          if (newState.score >= gate.score && !(newState.gatesPassed ?? []).includes(gate.score)) {
+              newState.gatesPassed = [...(newState.gatesPassed ?? []), gate.score];
+              modalQueue.push({ type: 'minigame', title: `The ${gate.score.toLocaleString()} Gate`, data: {
+                  id: kind, gate: gate.score,
+                  ...(kind === 'password' ? { password: gatePassword(newState.daily?.key) } : {}),
+              } });
+              eventLogQueue.push({ type: 'event', id: `gate-${gate.score}-${now}`, name: `The ${gate.score.toLocaleString()} Gate`, icon: '🚪', description: kind === 'password' ? 'Crossed the gate: the password challenge.' : 'Crossed the gate: the bonus stage.', scoreChange: 0, cumulativeScore: runningScore });
+          }
+      }
+
       // --- Handle Coin Award ---
       const turnScore = newState.score - oldScore;
       
@@ -4871,10 +4885,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     /** A gamble card's decision is in: apply it (and a Minesweeper strike) and show the outcome. */
     /** An arcade mini-game finished (or was skipped). Skipping closes the card with nothing paid. */
     const handleResolveMiniGame = (r: { points: number; headline: string; detail: string } | null) => {
-        const data = state.modalContent?.data as { id?: MiniGameId } | undefined;
+        const data = state.modalContent?.data as { id?: MiniGameId; gate?: number } | undefined;
         const info = data?.id ? MINI_GAMES[data.id] : undefined;
         if (!r || !info) { handleCloseModal(); return; }
-        dispatch({ type: 'APPLY_MINIGAME', payload: { name: info.name, icon: info.icon, points: r.points, headline: r.headline, detail: r.detail } });
+        dispatch({ type: 'APPLY_MINIGAME', payload: { name: info.name, icon: info.icon, points: r.points, headline: r.headline, detail: r.detail, flat: !!data?.gate } });
     };
 
     const handleResolveGamble = (r: GambleResult) => {

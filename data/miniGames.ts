@@ -1,6 +1,6 @@
 // Arcade mini-games (v7.38.0): a secret word opens a quick side game. The intro card shows the name,
 // one line of rules and the prize, with Play or Skip. Rules read their numbers from MINI_GAME_VALUES.
-import { MINI_GAME_VALUES as M } from '../config/gameplay';
+import { MINI_GAME_VALUES as M, GATES as G } from '../config/gameplay';
 import type { MiniGameId } from '../types';
 
 export interface MiniGameInfo { name: string; icon: string; rules: string; prize: string }
@@ -45,6 +45,16 @@ export const MINI_GAMES: Record<MiniGameId, MiniGameInfo> = {
     name: 'Mini Golf', icon: '⛳',
     rules: `Tap to stop the power meter. Sink it in ${M.golf.strokes} strokes or fewer.`,
     prize: `Hole in one +${M.golf.prizes[0]} · 2 strokes +${M.golf.prizes[1]} · 3 +${M.golf.prizes[2]}`,
+  },
+  password: {
+    name: 'The Password Gate', icon: '🔐',
+    rules: `The gate is locked. Unscramble the 6-letter password in ${G.password.seconds} seconds. Any real word that uses all six letters opens it.`,
+    prize: `Solve +${G.password.solve.toLocaleString()} · with the hint +${G.password.hint} · miss +${G.password.miss}`,
+  },
+  bonusStage: {
+    name: 'Bonus Stage', icon: '🌟',
+    rules: `Your clock is paused. ${G.bonusStage.seconds} seconds with a fresh ${G.bonusStage.handSize}-tile hand. Every word gets +${G.bonusStage.perLetter} a letter, then scores x${G.bonusStage.multiplier} (your charms count).`,
+    prize: 'Every point you score is yours to keep',
   },
   hoops: {
     name: 'Free Throws', icon: '🏀',

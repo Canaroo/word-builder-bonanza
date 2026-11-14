@@ -402,6 +402,16 @@ export const MINI_GAME_VALUES = {
 } as const;
 
 /**
+ * Score gates (v7.39.0): crossing a score opens a one-time event. 10,000: unscramble a password
+ * (44% of runs got there in the stats). 30,000: a bonus stage on its own clock (11% of runs).
+ * Points only and flat (no level boost): the numbers on the card are what it pays.
+ */
+export const GATES = {
+  password: { score: 10000, seconds: 20, solve: 1000, hint: 500, miss: 250 },
+  bonusStage: { score: 30000, seconds: 30, multiplier: 3, handSize: 10, perLetter: 25 }, // each word: (its score + 25 a letter) x3
+} as const;
+
+/**
  * Long-word boost (v7.34): charm points on a word pay this many percent more, by word length
  * (longer words use the last entry). Charm bonuses are flat, so a 4-letter word with a typical
  * charm set averaged 148 points against 138 for a 7-letter word; now long words win on score too.

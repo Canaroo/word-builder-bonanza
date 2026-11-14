@@ -1,8 +1,12 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import ArcadeButton from './ArcadeButton';
-import { MINI_GAME_VALUES as M } from '../config/gameplay';
+import { MINI_GAME_VALUES as M, GATES } from '../config/gameplay';
 import { MINI_GAMES } from '../data/miniGames';
-import type { MiniGameId } from '../types';
+import type { GameState, MiniGameId, Tile } from '../types';
+import { scramble } from '../data/gates';
+import { dictionaryService } from '../services/dictionaryService';
+import { calculateScore } from '../services/gameUtils';
+import { TILE_DISTRIBUTION } from '../constants';
 import { soundService } from '../services/soundService';
 import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopShot, hoopsPrize, goalPrize, golfStroke, golfPrize, GOLF_CUP } from '../services/miniGameRules';
 
@@ -13,6 +17,8 @@ import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopSh
 
 export interface MiniGameResult { points: number; headline: string; detail: string }
 type Finish = (r: MiniGameResult) => void;
+/** What each game receives: the finish callback, the pop-up's data, and the run (the bonus stage scores with it). */
+interface GameProps { finish: Finish; extra?: Record<string, any>; gameState?: GameState }
 
 const Save = createContext<{ saved?: Record<string, unknown>; save?: (key: string, value: unknown) => void }>({});
 function useSaved<T>(key: string, init: T | (() => T)): [T, (value: T) => void] {
@@ -504,35 +510,204 @@ const Hoops: React.FC<{ finish: Finish }> = ({ finish }) => {
   );
 };
 
-const GAMES: Record<MiniGameId, React.FC<{ finish: Finish }>> = { pong: Pong, mole: Mole, claw: Claw, darts: Darts, goal: Goal, dice: Dice, bowl: Bowl, golf: Golf, hoops: Hoops };
+// --- 10,000 GATE: the password ------------------------------------------------------------------
+const Password: React.FC<GameProps> = ({ finish, extra }) => {
+  const answer = String(extra?.password ?? 'ARCADE').toUpperCase();
+  const P = GATES.password;
+  const [letters] = useSaved('letters', () => scramble(answer));
+  const [progress, setProgress] = useSaved('pw', { left: P.seconds * 1000, hint: false });
+  const [picked, setPicked] = useState<number[]>(() => (progress.hint ? [letters.indexOf(answer[0])] : []));
+  const [checking, setChecking] = useState(false);
+  const [wrong, setWrong] = useState(false);
+  const left = useRef(progress.left);
+  const hinted = useRef(progress.hint); // the timer saves from refs, so a hint taken mid-game isn't lost
+  const [, setTick] = useState(0);
+  const ended = useRef(false);
+  const end = (r: MiniGameResult) => { if (ended.current) return; ended.current = true; finish(r); };
+
+  useEffect(() => {
+    let last = performance.now(), saveIn = 1000;
+    const timer = setInterval(() => {
+      const now = performance.now(); left.current = Math.max(0, left.current - (now - last)); saveIn -= now - last; last = now;
+      setTick(t => t + 1);
+      if (saveIn <= 0) { saveIn = 1000; setProgress({ left: left.current, hint: hinted.current }); }
+      if (left.current <= 0) end({ points: P.miss, headline: `TIME! +${P.miss}`, detail: `The password was ${answer}. The gate creaks open anyway.` });
+    }, 100);
+    return () => clearInterval(timer);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const guess = picked.map(i => letters[i]).join('');
+  useEffect(() => {
+    if (guess.length !== answer.length || checking || ended.current) return;
+    const solved = (prize: number) => { soundService.playMilestone(); buzz([20, 30, 20]); end({ points: prize, headline: `ACCESS GRANTED! +${prize.toLocaleString()}`, detail: `${guess} opened the gate${progress.hint ? ' (with the hint)' : ''}.` }); };
+    const prize = progress.hint ? P.hint : P.solve;
+    if (guess === answer) { solved(prize); return; }
+    setChecking(true);
+    dictionaryService.isValidWord(guess.toLowerCase()).then(ok => {
+      setChecking(false);
+      if (ok) { solved(prize); return; }
+      setWrong(true); buzz(60);
+      setTimeout(() => { setWrong(false); setPicked(progress.hint ? [picked[0]] : []); }, 500);
+    });
+  }, [guess]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const tap = (i: number) => { if (picked.includes(i) || picked.length >= answer.length || ended.current) return; tick(); setPicked([...picked, i]); };
+  const untap = (slot: number) => { if (progress.hint && slot === 0) return; tick(); setPicked(picked.filter((_, j) => j !== slot)); };
+  const hint = () => {
+    if (progress.hint || ended.current) return;
+    soundService.playUIClick();
+    const i = letters.indexOf(answer[0]);
+    hinted.current = true;
+    setProgress({ left: left.current, hint: true });
+    setPicked([i, ...picked.filter(x => x !== i)].slice(0, 1));
+  };
+  const secs = Math.ceil(left.current / 1000);
+  return (
+    <>
+      <p className={`font-display text-2xl leading-none ${secs <= 5 ? 'text-neon-red animate-pulse' : 'text-neon-cyan'}`}>⏱ {secs}s</p>
+      {/* The answer slots: tap a letter to take it back. */}
+      <div className={`flex gap-1.5 ${wrong ? 'cereal-shake' : ''}`}>
+        {Array.from({ length: answer.length }, (_, slot) => {
+          const i = picked[slot];
+          return (
+            <button key={slot} type="button" onClick={() => untap(slot)} aria-label={i !== undefined ? `Slot ${slot + 1}: ${letters[i]}` : `Slot ${slot + 1}: empty`}
+              className={`w-11 h-12 rounded-lg grid place-items-center font-tile font-extrabold text-2xl ring-2 ${i !== undefined ? (progress.hint && slot === 0 ? 'bg-neon-yellow text-crt-900 ring-neon-yellow' : 'bg-crt-800 text-white ring-neon-cyan') : 'bg-crt-950 ring-white/20 text-transparent'} ${wrong ? 'ring-neon-red' : ''}`}>
+              {i !== undefined ? letters[i] : '·'}
+            </button>
+          );
+        })}
+      </div>
+      {/* The scrambled letters */}
+      <div className="flex gap-1.5">
+        {letters.map((l, i) => (
+          <button key={i} type="button" onPointerDown={e => { e.preventDefault(); tap(i); }} disabled={picked.includes(i)} aria-label={`Letter ${l}`}
+            className="w-11 h-12 rounded-lg grid place-items-center font-tile font-extrabold text-2xl bg-[#f6e7c1] text-crt-900 tile-3d disabled:opacity-20 select-none touch-none">
+            {l}
+          </button>
+        ))}
+      </div>
+      <p className="text-slate-400 text-sm min-h-[1.25rem]">{checking ? 'Checking…' : wrong ? 'Not the password. Try again!' : 'Tap the letters in order.'}</p>
+      {!progress.hint && <ArcadeButton color="yellow" variant="outline" size="sm" className="w-full" onClick={hint}>💡 Hint · prize drops to +{P.hint}</ArcadeButton>}
+    </>
+  );
+};
+
+// --- 30,000 GATE: the bonus stage ---------------------------------------------------------------
+const BAG = Object.entries(TILE_DISTRIBUTION).flatMap(([letter, { count }]) => Array(count).fill(letter) as string[]);
+const VOWELS = BAG.filter(l => 'AEIOU'.includes(l)), CONSONANTS = BAG.filter(l => !'AEIOU'.includes(l));
+// Plain Math.random (not the tile stream), so the Daily Run's shared deal isn't disturbed. A vowel
+// is replaced by a vowel and a consonant by a consonant, so the hand stays playable.
+const stageTile = (vowel: boolean): Tile => {
+  const pool = vowel ? VOWELS : CONSONANTS;
+  const letter = pool[Math.floor(Math.random() * pool.length)];
+  return { id: `bs-${Math.random().toString(36).slice(2)}`, letter, points: TILE_DISTRIBUTION[letter].points };
+};
+const isVowel = (t: Tile) => 'AEIOU'.includes(t.letter);
+/** A fresh stage hand: 4 vowels and the rest consonants, mixed. */
+const stageHand = (size: number): Tile[] => Array.from({ length: size }, (_, i) => stageTile(i < 4)).sort(() => Math.random() - 0.5);
+const BonusStage: React.FC<GameProps> = ({ finish, gameState }) => {
+  const B = GATES.bonusStage;
+  const [progress, setProgress] = useSaved('stage', { left: B.seconds * 1000, total: 0, words: [] as { word: string; points: number }[] });
+  const [hand, setHand] = useState<Tile[]>(() => stageHand(B.handSize));
+  const [picked, setPicked] = useState<number[]>([]);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const state = useRef(progress);
+  const ended = useRef(false);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    let last = performance.now(), saveIn = 1000;
+    const timer = setInterval(() => {
+      const now = performance.now(), s = state.current;
+      s.left = Math.max(0, s.left - (now - last)); saveIn -= now - last; last = now;
+      setTick(t => t + 1);
+      if (saveIn <= 0) { saveIn = 1000; setProgress({ ...s }); }
+      if (s.left <= 0 && !ended.current) {
+        ended.current = true; setProgress({ ...s });
+        finish({ points: s.total, headline: s.total ? `BONUS STAGE: +${s.total.toLocaleString()}` : 'TIME UP', detail: s.words.length ? `${s.words.length} ${s.words.length === 1 ? 'word' : 'words'} at x${B.multiplier}: ${s.words.map(w => `${w.word} ${w.points}`).join(', ')}.` : 'No words this time.' });
+      }
+    }, 100);
+    return () => clearInterval(timer);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const word = picked.map(i => hand[i].letter).join('');
+  const submit = async () => {
+    if (busy || ended.current || word.length < 3) return;
+    const lower = word.toLowerCase();
+    if (state.current.words.some(w => w.word === word)) { setFlash('Already played'); buzz(40); setPicked([]); return; }
+    setBusy(true);
+    const ok = await dictionaryService.isValidWord(lower);
+    setBusy(false);
+    if (ended.current) return;
+    if (!ok) { setFlash(`${word}? Not a word`); buzz(60); setPicked([]); return; }
+    const tiles = picked.map(i => hand[i]);
+    const base = gameState ? calculateScore(lower, tiles, gameState).totalScore : tiles.reduce((s, t) => s + t.points, 0);
+    // The stage bonus keeps a word worth playing even with few point charms (a bare 3-letter word was worth 9).
+    const points = Math.max(0, Math.round((base + word.length * B.perLetter) * B.multiplier));
+    state.current.total += points;
+    state.current.words = [...state.current.words, { word, points }];
+    setProgress({ ...state.current });
+    setFlash(`${word} +${points}`); tick(); buzz(15);
+    setHand(h => h.map((t, i) => (picked.includes(i) ? stageTile(isVowel(t)) : t)));
+    setPicked([]);
+  };
+  const s = state.current;
+  return (
+    <>
+      <div className="w-full flex justify-between font-display text-xl"><span className="text-neon-yellow">+{s.total.toLocaleString()}</span><span className={s.left < 8000 ? 'text-neon-red' : 'text-neon-cyan'}>{Math.ceil(s.left / 1000)}s</span></div>
+      <p className="osd-text text-lg text-neon-green min-h-[1.5rem]" aria-live="polite">{flash ?? `+${B.perLetter} A LETTER · EVERY WORD x${B.multiplier}`}</p>
+      <div className="w-full min-h-[3rem] rounded-lg bg-crt-950 ring-1 ring-white/15 flex items-center justify-center gap-1 px-2 font-tile font-extrabold text-2xl tracking-widest text-white">{word || <span className="text-slate-600 text-base font-sans font-normal">Tap tiles to build a word</span>}</div>
+      <div className="grid grid-cols-5 gap-1.5 w-full">
+        {hand.map((t, i) => (
+          <button key={t.id} type="button" onPointerDown={e => { e.preventDefault(); if (!ended.current) { tick(); setFlash(null); setPicked(p => (p.includes(i) ? p.filter(x => x !== i) : [...p, i])); } }}
+            aria-label={`Tile ${t.letter} with ${t.points} points`}
+            className={`relative aspect-square rounded-lg grid place-items-center font-tile font-extrabold text-2xl tile-3d select-none touch-none ${picked.includes(i) ? 'bg-neon-yellow text-crt-900 -translate-y-1' : 'bg-[#f6e7c1] text-crt-900'}`}>
+            {t.letter}<span className="absolute bottom-0.5 right-1 font-osd text-xs">{t.points}</span>
+          </button>
+        ))}
+      </div>
+      <div className="w-full grid grid-cols-3 gap-2">
+        <ArcadeButton color="slate" variant="outline" onClick={() => { tick(); setPicked([]); setFlash(null); }}>Clear</ArcadeButton>
+        <ArcadeButton color="slate" variant="outline" onClick={() => { tick(); setPicked([]); setHand(h => [...h].sort(() => Math.random() - 0.5)); }}>Mix</ArcadeButton>
+        <ArcadeButton color="green" onClick={submit} disabled={word.length < 3 || busy}>Submit</ArcadeButton>
+      </div>
+    </>
+  );
+};
+
+const GAMES: Record<MiniGameId, React.FC<GameProps>> = { pong: Pong, mole: Mole, claw: Claw, darts: Darts, goal: Goal, dice: Dice, bowl: Bowl, golf: Golf, hoops: Hoops, password: Password, bonusStage: BonusStage };
 
 /** The arcade card: intro (Play or Skip), the game, then the result. */
 const MiniGameCard: React.FC<{
   id: MiniGameId; title: string; word?: string; firstFind?: boolean;
+  /** The pop-up's data (a gate's score, the password). */
+  extra?: Record<string, any>; gameState?: GameState;
   saved?: Record<string, unknown>; onSave?: (key: string, value: unknown) => void;
   onDone: (r: MiniGameResult | null) => void;
-}> = ({ id, title, word, firstFind, saved, onSave, onDone }) => {
+}> = ({ id, title, word, firstFind, extra, gameState, saved, onSave, onDone }) => {
   const info = MINI_GAMES[id];
   const Game = GAMES[id];
   return (
     <Save.Provider value={{ saved, save: onSave }}>
-      <MiniGameFrame info={info} title={title} word={word} firstFind={firstFind} Game={Game} onDone={onDone} />
+      <MiniGameFrame info={info} title={title} word={word} firstFind={firstFind} extra={extra} gameState={gameState} Game={Game} onDone={onDone} />
     </Save.Provider>
   );
 };
 
-const MiniGameFrame: React.FC<{ info: typeof MINI_GAMES[MiniGameId]; title: string; word?: string; firstFind?: boolean; Game?: React.FC<{ finish: Finish }>; onDone: (r: MiniGameResult | null) => void }> = ({ info, title, word, firstFind, Game, onDone }) => {
+const MiniGameFrame: React.FC<{ info: typeof MINI_GAMES[MiniGameId]; title: string; word?: string; firstFind?: boolean; extra?: Record<string, any>; gameState?: GameState; Game?: React.FC<GameProps>; onDone: (r: MiniGameResult | null) => void }> = ({ info, title, word, firstFind, extra, gameState, Game, onDone }) => {
+  const gate = typeof extra?.gate === 'number' ? extra.gate as number : null;
   const [phase, setPhase] = useSaved<'intro' | 'play' | 'done'>('phase', 'intro');
   const [result, setResult] = useSaved<MiniGameResult | null>('result', null);
   if (!info || !Game) return null;
   return (
     <div className="absolute inset-0 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center z-50 p-3 animate-fade-in" role="dialog" aria-modal="true" aria-label={info.name}>
-      <div className="bg-crt-900 border-4 border-neon-cyan rounded-2xl px-4 py-5 max-w-md w-full flex flex-col items-center text-center gap-3 level-stage-in shadow-[0_0_28px_rgba(61,245,255,0.45)]">
-        <p className="osd-text text-lg tracking-[0.3em] text-neon-cyan">🕹️ ARCADE BONUS</p>
+      <div className={`bg-crt-900 border-4 ${gate ? 'border-neon-yellow' : 'border-neon-cyan'} rounded-2xl px-4 py-5 max-w-md w-full flex flex-col items-center text-center gap-3 level-stage-in ${gate ? 'shadow-[0_0_28px_rgba(255,226,122,0.5)]' : 'shadow-[0_0_28px_rgba(61,245,255,0.45)]'}`}>
+        <p className={`osd-text text-lg tracking-[0.3em] ${gate ? 'text-neon-yellow' : 'text-neon-cyan'}`}>{gate ? `🚪 THE ${gate.toLocaleString()} GATE` : '🕹️ ARCADE BONUS'}</p>
         {phase === 'intro' && (
           <>
+            {gate && <p className="text-slate-300">You crossed <strong className="text-neon-yellow">{gate.toLocaleString()}</strong> points!</p>}
             {word && <p className="text-slate-300">You spelled <strong className="text-white tracking-widest">{word}</strong>! {firstFind && <span className="osd-text text-sm bg-neon-pink text-white px-1.5 py-0.5 rounded">NEW SECRET</span>}</p>}
-            <p className="osd-text text-base text-slate-400 leading-none">{title}</p>
+            {!gate && <p className="osd-text text-base text-slate-400 leading-none">{title}</p>}
             <div className="text-6xl leading-none" aria-hidden="true">{info.icon}</div>
             <p className="font-display text-2xl text-white leading-tight">{info.name}</p>
             <p className="text-slate-200 leading-snug">{info.rules}</p>
@@ -545,7 +720,7 @@ const MiniGameFrame: React.FC<{ info: typeof MINI_GAMES[MiniGameId]; title: stri
           <>
             <p className="font-display text-lg text-white leading-none">{info.icon} {info.name}</p>
             {/* The usual result card shows the payout, so the game hands its result straight on. */}
-            <Game finish={r => { setResult(r); setPhase('done'); onDone(r); }} />
+            <Game finish={r => { setResult(r); setPhase('done'); onDone(r); }} extra={extra} gameState={gameState} />
           </>
         )}
         {phase === 'done' && result && (
