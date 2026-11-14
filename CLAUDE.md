@@ -284,6 +284,20 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   (`gameState.powerHint`), not in Golden Rounds.
   Stats: new events `continue_offer` and `pw_hint`, extras `mystery` (pp_offer) and `hinted`
   (power_word). They need the rules in `docs/LEADERBOARD.md` pasted into the Firebase console.
+- **Mechanics borrowed from other games, batch one (v7.42.0).** Values in `LAST_WORDS`,
+  `HEAD_START`, `SKILL_SHOT`, `GEM_TILES` (`config/gameplay.ts`).
+  **Last Words** (`components/LastWordsCard.tsx`): every ending goes through `END_RUN`, which opens
+  one untimed word from the final hand at x3 (once, `lastWordsDone`), then `GAME_OVER_INITIATED`. It
+  pays as an event, not a word: no level, offers or time. Order at the end of a run: free rescues,
+  Phoenix Down, Last Words, Game Over.
+  **Head Start** (`services/headStart.ts`, per player): a run ending before level 4 adds 3 s to the
+  next starting clock (max 15), reaching level 4 clears it; a chip shows it until the first word.
+  Never applied on the scored Daily Run.
+  **Skill Shot** (`gameState.skillShot`): on a level's first word one tile is lit (seeded pick);
+  using it pays +50, +25 more per level in a row, max 200, as a "🎯 Skill Shot" line.
+  **Gem Tiles** (`pendingGem`, `Tile.isGem`): a 6 / 7 / 8+ letter word turns one plain tile of the
+  next hand into a x3 / x4 / x5 word tile (`START_NEXT_ROUND`). It scores as a "Tile Multiplier"
+  line, so it covers charm points like other tile multipliers.
 - **Power words** (10 secret words with `effect`, no points): SLOT (slot machine, +1/3/10s), SNOW
   (clock frozen 10s), HEAL (remove a strike, else +100), SLOW (half-speed clock for 3 words), TWIN
   (clone your best word's time + a Word Combo step), RINGS (a strike shield), REWIND (clock one speed

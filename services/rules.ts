@@ -1,5 +1,5 @@
 // Pure gameplay rules. No React, no DOM: easy to test and to tune via config/gameplay.ts.
-import { BOSS, CHARM_BONUS, CHARM_LENGTH_BOOST, CHARM_UPGRADE, GAMEPLAY, PRIZE_GROWTH, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS } from '../config/gameplay';
+import { BOSS, CHARM_BONUS, CHARM_LENGTH_BOOST, CHARM_UPGRADE, GAMEPLAY, PRIZE_GROWTH, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS, GEM_TILES, SKILL_SHOT } from '../config/gameplay';
 import { BossRound, PowerWordEffect, ScoreCalculationResult } from '../types';
 
 const lookupByLength = (table: Record<number, number>, length: number, below: number): number => {
@@ -217,6 +217,13 @@ export const slotPayout = (roll: number) => {
     }
     return POWER_WORD_EFFECTS.slot[POWER_WORD_EFFECTS.slot.length - 1];
 };
+
+/** Gem Tiles (v7.42): the word multiplier a word of this length earns for the next hand (0: none). */
+export const gemMultiplierFor = (length: number): number => lookupByLength(GEM_TILES, length, 0);
+
+/** Skill Shot (v7.42): what a hit pays on this streak (1 = first hit in a row). */
+export const skillShotPoints = (streak: number): number =>
+    streak > 0 ? Math.min(SKILL_SHOT.max, SKILL_SHOT.base + SKILL_SHOT.step * (streak - 1)) : 0;
 
 /** Power words fire at most once per level: has this one already fired at `level`? */
 export const powerWordReady = (levels: Record<string, number> | undefined, id: string, level: number): boolean =>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { soundService } from '../soundService';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, HEAD_START, SKILL_SHOT, GEM_TILES } from '../../config/gameplay';
 import { PHOENIX_DOWN } from '../../config/progression';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import ArcadeButton from '../../components/ArcadeButton';
@@ -55,6 +55,15 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             charm offers to keep it going for <Key>{PHOENIX_DOWN.cost} Credits</Key>: strikes wiped and{' '}
             {PHOENIX_DOWN.seconds} seconds on the clock. Once a run, and not on your scored Daily Run.
           </p>
+          <p>
+            <Key>🎤 Last Words:</Key> when the run does end, the clock stops and you get one more word from your final
+            hand, no rush, scored <Key>x{LAST_WORDS.multiplier}</Key>.
+          </p>
+          <p>
+            <Key>🛠️ Head Start:</Key> a run that ends before level {HEAD_START.untilLevel} adds{' '}
+            <Key>+{HEAD_START.perRun} seconds</Key> to your next starting clock, up to +{HEAD_START.max}. Reach level{' '}
+            {HEAD_START.untilLevel} and it resets. Not on your scored Daily Run.
+          </p>
         </Section>
 
         <Section title="The Clock Is a Bank" icon="⏱️" tone="text-neon-green">
@@ -107,6 +116,10 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             gambles like Double or Nothing multiply the final score.
           </p>
           <p>
+            <Key>🎯 Skill Shot:</Key> each level lights one tile. Use it in your first word of the level for +
+            {SKILL_SHOT.base}, growing by {SKILL_SHOT.step} for each level in a row (up to +{SKILL_SHOT.max}).{' '}
+            <Key>💎 Gem tiles:</Key> a {6}-letter word turns a tile in your next hand into a x{GEM_TILES[6]} word tile, 7
+            letters x{GEM_TILES[7]}, 8 or more x{GEM_TILES[8]}.{' '}
             <Key>Word Combo:</Key> five valid words in a row adds another x2. <Key>Perfect 4-Chain:</Key> four 4-letter
             words in a row pays +20, +40, +60, then a +444 jackpot.
           </p>
