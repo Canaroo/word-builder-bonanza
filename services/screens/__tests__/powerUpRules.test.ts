@@ -265,12 +265,25 @@ describe('tile point boosts are labeled in the score breakdown', () => {
     });
 });
 
-describe('Time PowerPlays follow the bonus-time rules', () => {
-    test('Time Turner adds +10s per round (not 30), halved above 60s', () => {
+describe('Time PowerPlays pay in full (v7.40.2)', () => {
+    test('Time Turner adds its full +10s per round, even above 60s', () => {
         const low = gameReducer(start({ activePowerPlays: { timeTurner: { rounds: 2 } } }, 30), { type: 'START_NEXT_ROUND' });
         expect(low.time).toBe(40);
         const high = gameReducer(start({ activePowerPlays: { timeTurner: { rounds: 2 } } }, 70), { type: 'START_NEXT_ROUND' });
-        expect(high.time).toBe(75);
+        expect(high.time).toBe(80);
+        expect(high.timeGain?.charm).toBeUndefined();
+    });
+
+    test('Charm time above 60s is halved and the time pop-up says so', () => {
+        const next = gameReducer(start({ multiverseTimeBonus: 10 }, 70), { type: 'START_NEXT_ROUND' });
+        expect(next.time).toBe(75);
+        expect(next.timeGain?.charm).toMatchObject({ full: 10, paid: 5, halved: true });
+    });
+
+    test('Charm time in full carries no note', () => {
+        const next = gameReducer(start({ multiverseTimeBonus: 10 }, 30), { type: 'START_NEXT_ROUND' });
+        expect(next.time).toBe(40);
+        expect(next.timeGain?.charm).toBeUndefined();
     });
 
     test('Time Boost adds 10s', () => {

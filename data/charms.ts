@@ -1142,3 +1142,19 @@ export const UPGRADABLE_CHARM_IDS: ReadonlySet<string> = new Set([
 /** One-off and level-up payouts: the long-word boost (CHARM_LENGTH_BOOST) skips them, so a lucky
  * long word can't double a +500 Snitch catch. */
 export const NO_LENGTH_BOOST_CHARM_IDS: ReadonlySet<string> = new Set(['goldenSnitch', 'gottaCatchEmAll', 'myPrecious', 'hitTheFlagpole']);
+
+/**
+ * Charms that add time, and the seconds each pays at level 1 (v7.40.2). Charm time shrinks by
+ * level (bonusTime in services/rules.ts), so charm cards show what it pays now. A new time charm
+ * goes here too.
+ */
+export const CHARM_TIME_SECONDS: Readonly<Record<string, number>> = {
+    glitchInTheCode: TIME_BONUS.glitchInTheCode,
+    executeOrder66: TIME_BONUS.executeOrder66,
+    gottaCatchEmAll: TIME_BONUS.gottaCatchEmAll,
+    sandsOfTime: TIME_BONUS.sandsOfTime,
+    brewstersMillions: TIME_BONUS.brewstersMillions,
+    goSpeedRacer: TIME_BONUS.goSpeedRacer,
+    cliffhanger: TIME_BONUS.cliffhanger,
+    wileECoyote: TIME_BONUS.wileECoyote,
+};
