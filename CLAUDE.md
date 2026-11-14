@@ -275,7 +275,9 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Gift From Thanos, Fast Cash) stays at that score: later flat bonuses (chain,
   charms, Super Hand, Nice Rack, Flux, Thriller) don't count (`wordCeiling` in `completeSubmission`).
   Separate rewards (secrets, boss badges, milestones, streak charms) still pay.
-- **Run-savers** are once per run. Time from items goes through `bonusTime()`.
+- **Run-savers** are once per run. Charm time goes through `bonusTime()` (shrinks 5% a level to half,
+  halved above 60 s). PowerPlay time pays the full amount on the card at any level (`powerPlaySeconds`,
+  v7.40.1, the owner's call after a level-9 Most Excellent Detour paid 3 of its 10); only the 90 s cap applies.
 - **Slurs:** never unblock a word without the owner's confirmation. Allowed slur-adjacent words
   (COON, DINK, FAG, POOF, NIGGARD, RETARD, CHINK, DYKE, FAGOT, SPASTIC, GYP and their forms) and
   allowed profanity (SLUT, WHORE, DILDO, SKANK, TWAT, WANK, BOLLOCKS, CUM) are on `words/no-suggest.txt`,

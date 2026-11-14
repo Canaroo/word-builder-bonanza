@@ -72,8 +72,9 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
           </p>
           <p>
             <Key>Overflow tax:</Key> above {timeBank.overflowAbove}s, words add only half their time (½ on the clock).
-            Bonus seconds from charms and PowerPlays follow the same rule, and shrink{' '}
-            {Math.round(timeBank.bonusShrinkPerLevel * 100)}% each level, down to half.
+            Bonus seconds from charms follow the same rule, and shrink{' '}
+            {Math.round(timeBank.bonusShrinkPerLevel * 100)}% each level, down to half. Time from a <Key>PowerPlay</Key> always
+            pays its full amount.
           </p>
           <div className="grid grid-cols-5 gap-1 text-center osd-text text-lg">
             {timeRows.map(([len, secs], i) => (
