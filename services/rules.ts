@@ -381,6 +381,20 @@ export const plinkoPath = (start: number, slot: number, rand: () => number = Mat
 export const plinkoPayout = (roll: number): number => pickByChance(POWER_PLAY_VALUES.plinko, roll).points;
 /** Hot Tub Time Machine: seconds (negative = lost) for a roll in [0, 1). */
 export const hotTubSeconds = (roll: number): number => pickByChance(POWER_PLAY_VALUES.hotTub, roll).seconds;
+
+/**
+ * No Whammies! board (v7.39.1): a ring of 12 squares, clockwise from the top-left. The squares are
+ * for show; the odds come from whammyChance and whammyCash, and the light stops on a matching square.
+ */
+export const WHAMMY_BOARD: readonly (number | 'whammy')[] = [100, 'whammy', 250, 50, 150, 100, 'whammy', 400, 50, 150, 'whammy', 250];
+/** One spin: a Whammy, or the cash a safe landing pays. */
+export const whammySpin = (roll: number, cashRoll: number): number | 'whammy' =>
+    roll < POWER_PLAY_VALUES.whammyChance ? 'whammy' : pickByChance(POWER_PLAY_VALUES.whammyCash, cashRoll).points;
+/** A square on the board showing this result (a random one when several match). */
+export const whammySquareFor = (result: number | 'whammy', rand: () => number = Math.random): number => {
+    const matches = WHAMMY_BOARD.map((v, i) => (v === result ? i : -1)).filter(i => i >= 0);
+    return matches.length ? matches[Math.floor(rand() * matches.length) % matches.length] : 0;
+};
 /** Daily Double: the wager, a share of the score kept between a floor and a cap, and never more
  * than the score itself (v7.28.8: at a low score the floor made it a free bet). */
 export const dailyDoubleWager = (score: number): number => {

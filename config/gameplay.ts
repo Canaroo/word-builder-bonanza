@@ -122,6 +122,9 @@ export const POWER_PLAY_VALUES = {
   whammyPot: 150,                                // No Whammies!: each spin adds this...
   whammyChance: 0.2,                             // ...unless a Whammy wipes the pot
   whammySpins: 3,
+  // v7.39.1: the board's cash squares. A safe landing pays one of these (chances among safe spins),
+  // averaging the same +150 a spin as before: 12.5 + 30 + 30 + 37.5 + 40 = 150.
+  whammyCash: [{ points: 50, chance: 0.25 }, { points: 100, chance: 0.3 }, { points: 150, chance: 0.2 }, { points: 250, chance: 0.15 }, { points: 400, chance: 0.1 }],
   plinko: [{ points: 0, chance: 0.2 }, { points: 100, chance: 0.35 }, { points: 300, chance: 0.25 }, { points: 700, chance: 0.15 }, { points: 2000, chance: 0.05 }],
   // Minesweeper: pick squares one at a time. Each safe square adds the next step of the ladder to
   // the pot; the mine wipes it. Bank any time. Best stop is around 5-6 picks (EV ~370).
