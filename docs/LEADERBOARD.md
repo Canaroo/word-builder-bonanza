@@ -56,7 +56,7 @@ when either one changes.
 - **Strict fields:** names must match the allowed characters, timestamps must be within 5 minutes
   of server time, badge and title must look like cosmetic ids (`b_`/`s_` badges, `t_`/`s_`
   titles), streak and Boss Badge counts must be in range, and any other field is rejected.
-- **`.indexOn`** lets the game download only the top 50 instead of the whole list.
+- **`.indexOn`** lets the game download only the top 50 (by `score`) and the Recent board's newest 50 (by `timestamp`) instead of the whole list.
 
 Adding a cosmetic needs no rules change as long as its id follows the existing pattern: a `b_`,
 `t_` or `s_` prefix followed by up to 24 letters.
@@ -71,7 +71,7 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
     // Public leaderboard: readable by anyone, writes only for new valid entries
     "leaderboard": {
       ".read": true,
-      ".indexOn": ["score"],
+      ".indexOn": ["score", "timestamp"],
 
       "$id": {
         // Create-only: cannot modify existing records

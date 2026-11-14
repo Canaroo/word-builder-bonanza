@@ -17,9 +17,26 @@ interface LeaderboardProps {
   /** Why the worldwide board couldn't load, shown with a Retry button. */
   offlineReason?: string;
   onRetry?: () => void;
+  /** The Recent board (v7.39.6): rows are newest first, so each shows how long ago it was played instead of a rank. */
+  recent?: boolean;
 }
 
-const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'local', offlineReason, onRetry }) => {
+/** "just now", "5m ago", "3h ago", "yesterday", "4d ago", then the date. */
+export const timeAgo = (iso: string, now = Date.now()): string => {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return '';
+  const mins = Math.floor((now - t) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days}d ago`;
+  return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
+const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'local', offlineReason, onRetry, recent = false }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [viewing, setViewing] = useState<LeaderboardEntry | null>(null);
   const [comparing, setComparing] = useState(false);
@@ -95,12 +112,12 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
       )}
       {data.length > 0 ? (
         <>
-          <p className="osd-text text-sm text-center text-slate-400 -mt-2 mb-1 shrink-0">TAP A PLAYER TO SEE THEIR ID 🪪</p>
+          <p className="osd-text text-sm text-center text-slate-400 -mt-2 mb-1 shrink-0">{recent ? 'NEWEST FIRST · TAP A PLAYER TO SEE THEIR ID 🪪' : 'TAP A PLAYER TO SEE THEIR ID 🪪'}</p>
           {/* The list scrolls inside the pop-up, so the page buttons and Close always stay on screen. */}
           <ol className="space-y-2 flex-1 min-h-[8rem] overflow-y-auto overscroll-contain p-2 -mx-2">
             {scoresForPage.map((entry, index) => {
               const rank = (currentPage * SCORES_PER_PAGE) + index + 1;
-              const isFirst = rank === 1;
+              const isFirst = rank === 1 && !recent;
               const isOwnScore = leaderboardService.isLastSubmitted(entry, lastSubmitted);
 
               return (
@@ -117,9 +134,14 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
                   >
                   {/* Left: rank, badge, name, and streak / Boss Badges / title under the name. */}
                   <div className="flex items-center min-w-0 flex-1">
-                    <span className={`font-osd w-7 min-[375px]:w-10 shrink-0 text-center mr-1 min-[375px]:mr-2 text-2xl leading-none ${rank === 1 ? 'text-neon-yellow' : rank === 2 ? 'text-slate-200' : rank === 3 ? 'text-neon-orange' : 'text-slate-500'}`}>
-                      {isFirst ? '👑' : rank}
-                    </span>
+                    {recent ? (
+                      // Recent board: when it was played, where the rank would be.
+                      <span className="osd-text w-14 shrink-0 text-center mr-1 text-base leading-none text-neon-green">{timeAgo(entry.date)}</span>
+                    ) : (
+                      <span className={`font-osd w-7 min-[375px]:w-10 shrink-0 text-center mr-1 min-[375px]:mr-2 text-2xl leading-none ${rank === 1 ? 'text-neon-yellow' : rank === 2 ? 'text-slate-200' : rank === 3 ? 'text-neon-orange' : 'text-slate-500'}`}>
+                        {isFirst ? '👑' : rank}
+                      </span>
+                    )}
                     <BadgeIcon id={entry.badge} size="sm" />
                     <div className="text-left min-w-0 ml-1.5">
                       <span className={`block font-osd text-2xl leading-none uppercase tracking-wider truncate ${isFirst ? 'text-neon-yellow' : 'text-slate-100'}`}>

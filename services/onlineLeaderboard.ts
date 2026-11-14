@@ -81,6 +81,28 @@ const list = async (path: string = LEADERBOARD_PATH): Promise<LeaderboardEntry[]
 };
 
 /**
+ * The most recently submitted scores, newest first (v7.39.6, the Recent board). It asks the
+ * database for the newest 50 by timestamp; until the rules index `timestamp` (".indexOn"), that
+ * query is refused, so it reads the whole board and sorts it here instead (small enough for now).
+ */
+const listRecent = async (path: string = LEADERBOARD_PATH): Promise<LeaderboardEntry[]> => {
+    let data: unknown;
+    try {
+        data = await request(`${path}.json?orderBy=%22timestamp%22&limitToLast=${TOP_N}`);
+    } catch (e) {
+        if (!(e instanceof LeaderboardError && e.status === 400)) throw e;
+        data = await request(`${path}.json`);
+    }
+    const time = (e: LeaderboardEntry) => Date.parse(e.date) || 0;
+    return Object.entries(data ?? {})
+        .map(([id, row]) => toEntry(id, row))
+        .filter((e): e is LeaderboardEntry => e !== null)
+        .sort((a, b) => time(b) - time(a))
+        .slice(0, TOP_N)
+        .map((e, i) => ({ ...e, rank: i + 1 }));
+};
+
+/**
  * Writes { name, score, timestamp } plus the player's badge, title, streak, Boss Badge count and
  * ID card snapshot, and returns the new entry's id. If the database rules reject the extra fields,
  * it tries again without the newest ones (the card, then Boss Badges, for rules not updated yet),
@@ -120,4 +142,4 @@ const submit = async (name: string, score: number, flair?: PlayerFlair, path: st
     return (await post(base)).name;
 };
 
-export const onlineLeaderboard = { list, submit };
+export const onlineLeaderboard = { list, listRecent, submit };
