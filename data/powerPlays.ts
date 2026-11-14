@@ -1143,7 +1143,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'noWhammies',
     name: 'No Whammies!',
-    description: `Spin up to ${POWER_PLAY_VALUES.whammySpins} times. Each spin adds +${POWER_PLAY_VALUES.whammyPot} to the pot, but a Whammy (${POWER_PLAY_VALUES.whammyChance * 100}% each spin) wipes it. Stop any time to bank the pot.`,
+    description: `Big bucks, no Whammies! Hit STOP on the board up to ${POWER_PLAY_VALUES.whammySpins} times: each square adds cash to the pot (+${POWER_PLAY_VALUES.whammyCash[0].points} to +${POWER_PLAY_VALUES.whammyCash[POWER_PLAY_VALUES.whammyCash.length - 1].points}), but a Whammy (${POWER_PLAY_VALUES.whammyChance * 100}% each spin) wipes it. Bank any time.`,
     flavorText: 'No whammies, no whammies... STOP!',
     icon: '🎰',
     subtheme: 'score',

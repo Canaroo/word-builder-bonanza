@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import ArcadeButton from './ArcadeButton';
 import { POWER_PLAY_VALUES as V } from '../config/gameplay';
-import { doorsForRound, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout } from '../services/rules';
+import { doorsForRound, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, WHAMMY_BOARD, whammySpin, whammySquareFor, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout } from '../services/rules';
 import { createTile, createTileBag, shuffleArray } from '../services/gameUtils';
 import type { Tile } from '../types';
 import { CHARMS_LIST } from '../data/charms';
@@ -158,43 +158,121 @@ const Deal: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve })
   );
 };
 
+/**
+ * No Whammies! (v7.39.1): a Press Your Luck board. A light races around 12 squares; hit STOP and it
+ * slows onto a square: cash for the pot, or a Whammy that wipes it. Bank any time. The result is
+ * rolled the moment you hit STOP (luck, not timing) and saved, so a quit mid-spin can't reroll it.
+ */
+const RING = [[0, 0], [0, 1], [0, 2], [0, 3], [1, 3], [2, 3], [3, 3], [3, 2], [3, 1], [3, 0], [2, 0], [1, 0]]; // row, col of each board square
 const Whammies: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
   const [pot, setPot] = useSaved('pot', 0);
   const [spins, setSpins] = useSaved('spins', 0);
-  // Stopping spins the board once more for show (v7.28.6): was the next spin a Whammy?
-  const [stopped, setStopped] = useSaved<{ amount: number; spun: number; whammy: boolean } | null>('stopped', null);
-  const nextSpin = (whammy: boolean) => whammy ? 'The next spin was a WHAMMY. Good call!' : `The next spin was safe: it would have added +${V.whammyPot}.`;
-  const bank = (amount: number, spun: number, whammy?: boolean) => onResolve({ points: amount, headline: `BANKED: +${amount} POINTS`, detail: `You stopped after ${spun} ${spun === 1 ? 'spin' : 'spins'} with no Whammy.${whammy !== undefined ? ` ${nextSpin(whammy)}` : ''}`, tone: 'win' });
-  const spin = () => {
-    if (stopped) return;
-    soundService.playTileClick();
-    const spun = spins + 1;
-    if (Math.random() < V.whammyChance) {
-      onResolve({ points: 0, headline: 'WHAMMY!', detail: `A Whammy on spin ${spun} wiped your pot of ${pot} points.`, tone: 'lose' });
-      return;
+  // A STOP that's been rolled but not shown yet (saved, so a resume lands it instead of rerolling).
+  const [pending, setPending] = useSaved<{ result: number | 'whammy'; square: number } | null>('pending', null);
+  // Banking spins the board once more for show: what the next spin would have been.
+  const [stopped, setStopped] = useSaved<{ amount: number; spun: number; next: number | 'whammy'; square: number } | null>('stopped', null);
+  const [light, setLight] = useState(0);
+  const [phase, setPhase] = useState<'idle' | 'racing' | 'slowing'>(pending ? 'slowing' : 'idle');
+  const lightRef = useRef(0);
+  const settled = useRef(false);
+
+  // Racing: the light jumps around the board until STOP.
+  useEffect(() => {
+    if (phase !== 'racing') return;
+    const t = setInterval(() => { lightRef.current = Math.floor(Math.random() * RING.length); setLight(lightRef.current); soundService.playTileClick(); }, 90);
+    return () => clearInterval(t);
+  }, [phase]);
+
+  const nextSpinText = (next: number | 'whammy') => (next === 'whammy' ? 'The next spin was a WHAMMY. Good call!' : `The next spin would have added +${next}.`);
+  const bank = (amount: number, spun: number, next?: number | 'whammy') =>
+    onResolve({ points: amount, headline: `BANKED: +${amount} POINTS`, detail: `You stopped after ${spun} ${spun === 1 ? 'spin' : 'spins'} with no Whammy.${next !== undefined ? ` ${nextSpinText(next)}` : ''}`, tone: 'win' });
+
+  // Slowing: hop around a couple of laps with growing gaps and land on the rolled square.
+  const land = (target: number, done: () => void) => {
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) { lightRef.current = target; setLight(target); done(); return; }
+    const hops = RING.length + ((target - lightRef.current + RING.length) % RING.length);
+    let at = 0;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 1; i <= hops; i++) {
+      at += 55 + (i / hops) ** 2 * 320;
+      timers.push(setTimeout(() => { lightRef.current = (lightRef.current + 1) % RING.length; setLight(lightRef.current); soundService.playTileClick(); if (i === hops) done(); }, at));
     }
-    const next = pot + V.whammyPot;
-    if (spun >= V.whammySpins) { bank(next, spun); return; }
-    setPot(next); setSpins(spun);
+    return () => timers.forEach(clearTimeout);
   };
-  if (stopped) {
-    return (
-      <>
-        <div className={`w-full rounded-xl ring-2 py-4 font-display text-3xl level-stage-in ${stopped.whammy ? 'bg-neon-red/20 ring-neon-red text-neon-red' : 'bg-crt-950 ring-neon-green text-neon-green'}`} aria-label={stopped.whammy ? 'Next spin: Whammy' : `Next spin: +${V.whammyPot}`}>
-          {stopped.whammy ? '👺 WHAMMY!' : `+${V.whammyPot}`}
-        </div>
-        <p className="text-slate-200" aria-live="polite">{nextSpin(stopped.whammy)}</p>
-        <p className="font-display text-3xl text-neon-yellow">BANKED: {stopped.amount}</p>
-        <ArcadeButton color="green" className="w-full" onClick={() => bank(stopped.amount, stopped.spun, stopped.whammy)}>Take the {stopped.amount}</ArcadeButton>
-      </>
-    );
-  }
+  useEffect(() => {
+    if (phase !== 'slowing' || !pending || settled.current) return;
+    return land(pending.square, () => {
+      settled.current = true;
+      const spun = spins + 1;
+      if (pending.result === 'whammy') {
+        try { navigator.vibrate?.(120); } catch { /* not supported */ }
+        setTimeout(() => onResolve({ points: 0, headline: 'WHAMMY!', detail: pot ? `A Whammy on spin ${spun} wiped your pot of ${pot} points.` : 'A Whammy on the very first spin. No pot to lose, but no prize either.', tone: 'lose' }), 900);
+        return;
+      }
+      const next = pot + pending.result;
+      try { navigator.vibrate?.([15, 25, 15]); } catch { /* not supported */ }
+      if (spun >= V.whammySpins) { setTimeout(() => bank(next, spun), 700); return; }
+      setPot(next); setSpins(spun); setPending(null); setPhase('idle'); settled.current = false;
+    });
+  }, [phase, pending]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const start = () => { if (phase === 'idle' && !stopped) { soundService.playPowerUp(); setPhase('racing'); } };
+  const stop = () => {
+    if (phase !== 'racing') return;
+    const result = whammySpin(Math.random(), Math.random());
+    setPending({ result, square: whammySquareFor(result) });
+    setPhase('slowing');
+  };
+  const bankNow = () => {
+    soundService.playTileClick();
+    const next = whammySpin(Math.random(), Math.random());
+    const square = whammySquareFor(next);
+    setStopped({ amount: pot, spun: spins, next, square });
+    land(square, () => {});
+  };
+
+  const lit = stopped ? stopped.square : light;
+  const landedWhammy = pending?.result === 'whammy' && settled.current;
   return (
     <>
-      <p className="text-slate-200">Each spin adds +{V.whammyPot}. A Whammy ({V.whammyChance * 100}% a spin) wipes the pot. {V.whammySpins - spins} {V.whammySpins - spins === 1 ? 'spin' : 'spins'} left.</p>
-      <p className="font-display text-4xl text-neon-yellow" aria-live="polite">POT: {pot}</p>
-      <ArcadeButton color="pink" className="w-full" onClick={spin}>{spins === 0 ? 'Spin!' : 'Spin again'}</ArcadeButton>
-      {spins > 0 && <ArcadeButton color="green" className="w-full" onClick={() => { soundService.playTileClick(); setStopped({ amount: pot, spun: spins, whammy: Math.random() < V.whammyChance }); }}>Stop and bank {pot}</ArcadeButton>}
+      <div className="relative grid grid-cols-4 gap-1.5 w-full max-w-[19rem]">
+        {RING.map(([r, c], i) => {
+          const v = WHAMMY_BOARD[i];
+          const on = lit === i && (phase !== 'idle' || !!stopped);
+          return (
+            <div key={i} style={{ gridRow: r + 1, gridColumn: c + 1 }}
+              className={`aspect-square rounded-lg grid place-items-center font-display leading-none transition-all duration-75 ring-2 ${
+                on ? (v === 'whammy' ? 'bg-neon-red text-white ring-white scale-110 shadow-[0_0_18px_rgba(255,45,85,0.9)]' : 'bg-neon-yellow text-crt-900 ring-white scale-110 shadow-[0_0_18px_rgba(255,226,122,0.9)]')
+                  : v === 'whammy' ? 'bg-neon-red/15 text-neon-red ring-neon-red/40' : 'bg-crt-950 text-neon-cyan ring-neon-cyan/30'}`}
+              aria-label={v === 'whammy' ? 'Whammy square' : `${v} square`}>
+              {v === 'whammy' ? <span className="text-2xl">👺</span> : <span className="text-lg">{v}</span>}
+            </div>
+          );
+        })}
+        {/* The middle of the board: the pot */}
+        <div className="col-start-2 col-span-2 row-start-2 row-span-2 rounded-xl bg-gradient-to-b from-crt-800 to-crt-950 ring-1 ring-white/15 grid place-items-center text-center px-1">
+          <div>
+            <p className="osd-text text-sm text-slate-400 leading-none">{landedWhammy ? 'WHAMMY!' : 'POT'}</p>
+            <p className={`font-display text-3xl leading-none ${landedWhammy ? 'text-neon-red' : 'text-neon-yellow'}`} aria-live="polite">{landedWhammy ? '👺' : stopped ? stopped.amount : pot}</p>
+            <p className="osd-text text-sm text-slate-400 leading-none mt-1">SPIN {Math.min(spins + 1, V.whammySpins)}/{V.whammySpins}</p>
+          </div>
+        </div>
+      </div>
+      {stopped ? (
+        <>
+          <p className="text-slate-200" aria-live="polite">{nextSpinText(stopped.next)}</p>
+          <ArcadeButton color="green" className="w-full" onClick={() => bank(stopped.amount, stopped.spun, stopped.next)}>Take the {stopped.amount}</ArcadeButton>
+        </>
+      ) : phase === 'racing' ? (
+        <ArcadeButton color="red" size="lg" className="w-full" onClick={stop}>🛑 STOP!</ArcadeButton>
+      ) : phase === 'idle' ? (
+        <>
+          <p className="text-slate-300 text-sm">Big bucks, no Whammies! {V.whammySpins - spins} {V.whammySpins - spins === 1 ? 'spin' : 'spins'} left. A Whammy wipes the pot.</p>
+          <ArcadeButton color="pink" className="w-full" onClick={start}>{spins === 0 ? '🎰 Spin the board!' : '🎰 Spin again'}</ArcadeButton>
+          {spins > 0 && <ArcadeButton color="green" variant="outline" className="w-full" onClick={bankNow}>Stop and bank {pot}</ArcadeButton>}
+        </>
+      ) : <p className="text-slate-300">No whammies, no whammies…</p>}
     </>
   );
 };

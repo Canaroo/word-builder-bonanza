@@ -83,6 +83,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   `GambleCard.tsx`): slide the chip, drop it, it bounces down 9 peg rows (click + buzz per peg) into
   a slot. The prize is rolled from `POWER_PLAY_VALUES.plinko` on drop (odds unchanged) and saved;
   `PLINKO_SLOTS`, `plinkoSlotFor` and `plinkoPath` in `services/rules.ts` draw where it lands.
+  No Whammies! (v7.39.1) is a Press Your Luck board: a light races around 12 squares
+  (`WHAMMY_BOARD`), STOP rolls the result (`whammySpin`: Whammy at `whammyChance`, else cash from
+  `whammyCash`, which averages the old +150) and the light slows onto a matching square. Luck, not
+  timing; the roll is saved before the light lands, so a quit can't reroll it.
   Hot Tub Time Machine (v7.36.4, `HotTub`): hold to crank a year dial, let go, it spins down onto
   +25 s (1986), +10 s (2006) or -8 s (2036); rolled on release from `POWER_PLAY_VALUES.hotTub`.
   Lucky Charms (`LuckyCharms`): shake the cereal box, a charm tumbles out and flips, and a bumped

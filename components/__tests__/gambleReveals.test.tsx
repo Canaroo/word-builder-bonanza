@@ -37,26 +37,39 @@ describe("Let's Make a Deal reveal", () => {
     });
 });
 
-describe('No Whammies! reveal', () => {
-    const spinThen = (...rolls: number[]) => vi.spyOn(Math, 'random').mockImplementation(() => rolls.shift() ?? 0.99);
-    test('stopping shows a Whammy on the next spin', () => {
-        spinThen(0.99, 0); // a safe spin, then the reveal rolls a Whammy
-        const { el, onResolve, button, byLabel } = render('noWhammies');
-        act(() => button('Spin!').click());
+describe('No Whammies! board (v7.39.1)', () => {
+    // Rolls in order: STOP rolls [whammy?, cash], then the square pick; banking rolls the same again.
+    const rolls = (...r: number[]) => vi.spyOn(Math, 'random').mockImplementation(() => r.shift() ?? 0.5);
+    const cash = (i: number) => V.whammyCash[i].points;
+    test('a safe landing adds that square to the pot; banking shows a Whammy you dodged', () => {
+        vi.useFakeTimers();
+        rolls(0.99, 0, 0, 0, 0, 0); // safe, cheapest cash; then the reveal is a Whammy
+        const { el, onResolve, button } = render('noWhammies');
+        act(() => button('Spin the board').click());
+        act(() => button('STOP').click());
+        act(() => { vi.advanceTimersByTime(8000); });
+        expect(el.textContent).toContain(String(cash(0)));
         act(() => button('Stop and bank').click());
-        expect(onResolve).not.toHaveBeenCalled();
-        expect(byLabel('Next spin: Whammy')).toBeTruthy();
+        act(() => { vi.advanceTimersByTime(8000); });
         expect(el.textContent).toContain('Good call!');
         act(() => button('Take the').click());
-        expect(onResolve).toHaveBeenCalledWith(expect.objectContaining({ points: V.whammyPot, tone: 'win' }));
+        expect(onResolve).toHaveBeenCalledWith(expect.objectContaining({ points: cash(0), tone: 'win' }));
+        vi.useRealTimers();
     });
-    test('or a safe spin you passed on', () => {
-        spinThen(0.99, 0.99);
-        const { el, button, byLabel } = render('noWhammies');
-        act(() => button('Spin!').click());
-        act(() => button('Stop and bank').click());
-        expect(byLabel(`Next spin: +${V.whammyPot}`)).toBeTruthy();
-        expect(el.textContent).toContain(`would have added +${V.whammyPot}`);
+    test('a Whammy wipes the pot', () => {
+        vi.useFakeTimers();
+        rolls(0, 0, 0);
+        const { onResolve, button } = render('noWhammies');
+        act(() => button('Spin the board').click());
+        act(() => button('STOP').click());
+        act(() => { vi.advanceTimersByTime(8000); });
+        expect(onResolve).toHaveBeenCalledWith(expect.objectContaining({ points: 0, headline: 'WHAMMY!', tone: 'lose' }));
+        vi.useRealTimers();
+    });
+    test('the cash squares average the same +150 a spin as before', () => {
+        const avg = V.whammyCash.reduce((s, c) => s + c.points * c.chance, 0);
+        expect(avg).toBeCloseTo(V.whammyPot, 5);
+        expect(V.whammyCash.reduce((s, c) => s + c.chance, 0)).toBeCloseTo(1, 5);
     });
 });
 
