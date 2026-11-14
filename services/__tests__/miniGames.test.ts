@@ -2,7 +2,8 @@
 import { describe, test, expect } from 'vitest';
 import { SECRET_BONUSES } from '../../data/secretBonuses';
 import { MINI_GAMES } from '../../data/miniGames';
-import { MINI_GAME_VALUES as M } from '../../config/gameplay';
+import { MINI_GAME_VALUES as M, GATES } from '../../config/gameplay';
+import { GATE_PASSWORDS, gatePassword, scramble } from '../../data/gates';
 import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopShot, hoopsPrize, goalPrize, golfStroke, golfPrize } from '../miniGameRules';
 
 describe('arcade words', () => {
@@ -10,7 +11,8 @@ describe('arcade words', () => {
     const arcade = SECRET_BONUSES.filter(b => b.miniGame);
     expect(arcade.map(b => b.word).sort()).toEqual(['BOWL', 'CLAW', 'DART', 'DICE', 'GAME', 'GOAL', 'MOLE', 'NET', 'TEE']);
     for (const b of arcade) expect(b.points ?? 0).toBe(0);
-    expect(new Set(arcade.map(b => b.miniGame)).size).toBe(Object.keys(MINI_GAMES).length);
+    // Every arcade game has a word; the two gate games open by score instead.
+    expect(new Set(arcade.map(b => b.miniGame)).size).toBe(Object.keys(MINI_GAMES).length - 2);
   });
 });
 
@@ -56,5 +58,25 @@ describe('prize math', () => {
     expect(golfStroke(long.pos, 20).sunk).toBe(true);
     expect(golfPrize(1, true)).toBe(M.golf.prizes[0]);
     expect(golfPrize(3, false)).toBe(0);
+  });
+});
+
+describe('score gates (v7.39.0)', () => {
+  test('gates sit at 10,000 and 30,000 and pay what the card says', () => {
+    expect(GATES.password.score).toBe(10000);
+    expect(GATES.bonusStage.score).toBe(30000);
+    expect(MINI_GAMES.password.prize).toContain('1,000');
+  });
+  test('passwords are 6 letters, and the Daily Run picks the same one for everyone', () => {
+    for (const w of GATE_PASSWORDS) expect(w).toMatch(/^[A-Z]{6}$/);
+    expect(gatePassword('2026-11-14')).toBe(gatePassword('2026-11-14'));
+    expect(GATE_PASSWORDS).toContain(gatePassword(undefined, () => 0.5));
+  });
+  test('the scramble uses the same letters and never shows the answer', () => {
+    for (const w of GATE_PASSWORDS) {
+      const s = scramble(w);
+      expect([...s].sort().join('')).toBe([...w].sort().join(''));
+      expect(s.join('')).not.toBe(w);
+    }
   });
 });

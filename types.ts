@@ -109,7 +109,9 @@ export interface SecretBonus {
 }
 
 /** The arcade mini-games a secret word can open. */
-export type MiniGameId = 'pong' | 'mole' | 'claw' | 'darts' | 'goal' | 'dice' | 'bowl' | 'golf' | 'hoops';
+export type MiniGameId = 'pong' | 'mole' | 'claw' | 'darts' | 'goal' | 'dice' | 'bowl' | 'golf' | 'hoops'
+  /** Score gates (v7.39.0), opened by crossing a score rather than by a word. */
+  | 'password' | 'bonusStage';
 
 /** What a power word does when spelled. */
 export type PowerWordEffect = 'slot' | 'freeze' | 'heal' | 'slow' | 'twin' | 'shield' | 'rewind' | 'sword' | 'spice' | 'cake';
@@ -273,6 +275,8 @@ export interface GameState {
   powerWordLevels?: Record<string, number>;
   /** ❄️ Seconds the clock stays frozen at the start of the next round. */
   freezeLeft?: number;
+  /** Score gates already opened this run (v7.39.0), e.g. [10000]. */
+  gatesPassed?: number[];
   /** 🦥 Words left with the clock at half speed. */
   slowWords?: number;
   /** REWIND (a power word): the level whose clock runs one speed step slower. */
