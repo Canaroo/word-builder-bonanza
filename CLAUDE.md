@@ -119,8 +119,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   A chip above the hand counts down (`quizLeft`). Smell Ya Later!'s rival scores per real second the same way
   (`startMs` on the race, reset each word), and its chip shows the rival's score climbing (`raceRival`). Multiplicity shows what it would copy on the offer
   card, the pocket button ("▶ COPY 🍫 Gump Luck", or NOTHING TO COPY) and its info pop-up.
-  The Price Is Right fires on pick too (v7.36.5): its bid card opens as the offer closes, so a
-  player can't build a word, read its score and then bid. Multiplicity opens a read-first card with
+  The Price Is Right fires on pick too (v7.36.5): its bid card opens in the offer's place, so a
+  player can't build a word, read its score and then bid. Fire-on-pick PowerPlays with a card
+  (`CARD_ON_PICK`: Price Is Right, Mission: Impossible, Fluncle, Thwomped) set `modalContent`
+  directly and skip closing the offer: a card queued behind the offer was wiped when closing the
+  offer started the next round (v7.39.2). Multiplicity opens a read-first card with
   the copy target's full description (`handleActivatePowerPlay(pp, confirmed)`). The charm swap
   screen lists every equipped charm compactly and marks upgraded ones (⭐ UPGRADED, lost if dropped).
   Bird Box peeks only when tiles it hasn't shown yet arrive (a tap or a returned tile never re-peeks,
