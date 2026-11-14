@@ -397,6 +397,8 @@ export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone
 const outcome = (pp: { icon: string; name: string }, headline: string, detail: string, tone: 'win' | 'lose' | 'neutral' = 'neutral'): ModalContent =>
     ({ type: 'outcome', title: pp.name, content: detail, data: { icon: pp.icon, headline, tone } });
 const ppById = (id: string) => POWER_PLAYS_LIST.find(p => p.id === id)!;
+/** Fire-on-pick PowerPlays that open a card in the offer's place (v7.39.2): the bid, the mission, Fluncle, Thwomped. */
+const CARD_ON_PICK = new Set(['priceIsRight', 'missionImpossible', 'fluncleIsProud', 'thwomped']);
 
 /** Seconds of 3-2-1 before a resumed run continues. */
 export const RESUME_COUNTDOWN = 3;
@@ -1487,10 +1489,12 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     powerPlayCooldowns: newPowerPlayCooldowns,
                 };
                 const newModalContent: ModalContent = { type: 'info', title: 'Thwomped!', content: `You got an extra Challenge!${swappedOut}`, autoClose: 2500 };
+                // The card takes the offer's place (see CARD_ON_PICK): queued, it was wiped by the next round.
                 return {
                     ...state,
                     gameState: newGameState,
-                    modalQueue: [...state.modalQueue, newModalContent],
+                    isPaused: true,
+                    modalContent: newModalContent,
                 };
             }
 
@@ -1516,10 +1520,12 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     powerPlayCooldowns: newPowerPlayCooldowns,
                 };
                 const newModalContent: ModalContent = { type: 'info', title: 'Fluncle is Proud', content: `Fluncle is very proud of you. You gain ${scoreChange} points!${swappedOut}`, autoClose: 2500 };
+                // The card takes the offer's place (see CARD_ON_PICK): queued, it was wiped by the next round.
                 return {
                     ...state,
                     gameState: newGameState,
-                    modalQueue: [...state.modalQueue, newModalContent],
+                    isPaused: true,
+                    modalContent: newModalContent,
                 };
             }
 
@@ -1556,18 +1562,21 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     const time = clampTime(state.time + gained, bankMax(newGameState));
                     newGameState.lastPowerPlayResult = { message: `🕵️ Mission accepted: +${gained}s. Your next ${V.missionImpossibleWords} words need ${V.missionImpossibleLetters}+ letters.${swappedOut}`, scoreChange: 0 };
                     return {
-                        ...state, time, timeGain: { seconds: gained, key: Date.now() }, gameState: newGameState,
-                        modalQueue: [...state.modalQueue, outcome(powerPlay, `MISSION ACCEPTED: +${gained}s`, `Now keep your promise: your next ${V.missionImpossibleWords} words must have ${V.missionImpossibleLetters}+ letters. A shorter word costs ${V.missionImpossiblePenalty} seconds.`, 'neutral')],
+                        ...state, time, timeGain: { seconds: gained, key: Date.now() }, gameState: newGameState, isPaused: true,
+                        modalContent: (outcome(powerPlay, `MISSION ACCEPTED: +${gained}s`, `Now keep your promise: your next ${V.missionImpossibleWords} words must have ${V.missionImpossibleLetters}+ letters. A shorter word costs ${V.missionImpossiblePenalty} seconds.`, 'neutral')),
                     };
                 }
 
                 // The Price Is Right (v7.36.5): the bid card opens as the offer closes, before any tiles move.
+                // v7.36.6: the bid card takes the offer's place directly. Queued behind the offer, it was
+                // skipped: closing the offer saw an empty queue and started the next round.
                 if (powerPlay.id === 'priceIsRight') {
                     newGameState.lastPowerPlayResult = null;
                     return {
                         ...state,
                         gameState: newGameState,
-                        modalQueue: [...state.modalQueue, { type: 'gamble', title: powerPlay.name, data: { id: powerPlay.id, icon: powerPlay.icon } }],
+                        isPaused: true,
+                        modalContent: { type: 'gamble', title: powerPlay.name, data: { id: powerPlay.id, icon: powerPlay.icon } },
                     };
                 }
 
@@ -5245,6 +5254,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         if (INSTANT_POWER_PLAY_IDS.has(powerPlay.id)) trackMission({ type: 'powerplay', id: powerPlay.id, subtheme: powerPlay.subtheme });
         sendStat({ type: 'pp_offer', offered: allOffered.map(p => p.id).join(','), picked: powerPlay.id, level: levelFor(totalWords) });
         dispatch({ type: 'CHOOSE_POWER_PLAY', payload: { powerPlay, allOffered } });
+        // These replace the offer with their own card (the reducer opens it), so the offer isn't closed
+        // here: closing it would start the next round, which clears the card (the bid was skipped).
+        if (CARD_ON_PICK.has(powerPlay.id)) return;
         handleCloseModal();
     };
 

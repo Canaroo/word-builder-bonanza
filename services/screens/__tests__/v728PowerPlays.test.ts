@@ -170,7 +170,9 @@ describe('timed and blind PowerPlays start the moment they are picked (v7.28.1)'
     test('The Price Is Right opens the bid on pick, before any word is built (v7.36.5)', () => {
         const s = gameReducer(start({ powerPlayOffer: [pp('priceIsRight')] }, 40), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('priceIsRight'), allOffered: [pp('priceIsRight')] } });
         expect(s.gameState.availablePowerPlays.some(p => p.id === 'priceIsRight')).toBe(false);
-        expect(s.modalQueue.some(m => m?.type === 'gamble' && (m.data as any)?.id === 'priceIsRight')).toBe(true);
+        // The bid card replaces the offer right away (queued behind it, it was skipped).
+        expect(s.modalContent?.type).toBe('gamble');
+        expect((s.modalContent?.data as any)?.id).toBe('priceIsRight');
     });
 
     test('Pop Quiz times real seconds, not the bank clock (v7.36.1)', () => {
@@ -276,7 +278,7 @@ describe('gamble cheese fixes (v7.28.9)', () => {
         expect(next.time).toBeGreaterThan(30);
         expect(next.gameState.activePowerPlays.missionImpossible).toEqual({ words: V.missionImpossibleWords });
         expect(next.gameState.availablePowerPlays.some(p => p.id === 'missionImpossible')).toBe(false);
-        expect(next.modalQueue.some(m => m?.type === 'outcome')).toBe(true);
+        expect(next.modalContent?.type).toBe('outcome'); // in the offer's place, so the next round can't wipe it (v7.39.2)
         expect(pp('missionImpossible').description).toMatch(/^Starts the moment you pick it/);
     });
 
