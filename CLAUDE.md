@@ -278,6 +278,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
 - **Run-savers** are once per run. Charm time goes through `bonusTime()` (shrinks 5% a level to half,
   halved above 60 s). PowerPlay time pays the full amount on the card at any level (`powerPlaySeconds`,
   v7.40.1, the owner's call after a level-9 Most Excellent Detour paid 3 of its 10); only the 90 s cap applies.
+  v7.40.2 moved the last shrinking PowerPlay time (Time Turner, Save by the Bell, In Time, Pop Quiz:
+  `ppTimeBonus`) to full pay; power word time (`powerWordTimeBonus`) still shrinks. Players see charm
+  time cuts in four places: a chip under the clock (`timeGain.charm`), a "🍀 Charm time" score line,
+  time charm cards at the current level (`CHARM_TIME_SECONDS` in `data/charms.ts`,
+  `components/CharmTimeNote.tsx`; add new time charms there) and a "Charm time" row on level-ups.
 - **Slurs:** never unblock a word without the owner's confirmation. Allowed slur-adjacent words
   (COON, DINK, FAG, POOF, NIGGARD, RETARD, CHINK, DYKE, FAGOT, SPASTIC, GYP and their forms) and
   allowed profanity (SLUT, WHORE, DILDO, SKANK, TWAT, WANK, BOLLOCKS, CUM) are on `words/no-suggest.txt`,

@@ -177,6 +177,16 @@ export const bonusTimeScale = (level: number): number => {
 export const bonusTime = (seconds: number, bank: number, level: number): number =>
     seconds <= 0 ? seconds : taxWordTime(Math.max(1, Math.round(seconds * bonusTimeScale(level))), bank);
 
+/**
+ * Charm time at this level (v7.40.2), for the notes that tell players their charm time shrank:
+ * what `seconds` pays after the level shrink (`paid`), the scale, and whether that is less.
+ * The halving above the overflow line depends on the clock, so it's noted separately.
+ */
+export const charmTimeAt = (seconds: number, level: number): { paid: number; percent: number; cut: boolean } => {
+    const paid = seconds <= 0 ? seconds : Math.max(1, Math.round(seconds * bonusTimeScale(level)));
+    return { paid, percent: Math.round(bonusTimeScale(level) * 100), cut: paid < seconds };
+};
+
 /** Is this level a boss level (3, 6, 9...)? Returns which boss level of the run it is, or 0. */
 export const bossNumberFor = (level: number): number =>
     level >= BOSS.everyLevels && level % BOSS.everyLevels === 0 ? level / BOSS.everyLevels : 0;
@@ -306,6 +316,8 @@ export const levelUpInfo = (level: number, gs?: WithCharms): LevelUpInfo => {
     if (level === GAMEPLAY.timeBank.shortWordTimeStopsAtLevel) changes.push({ icon: '✂️', label: '3-letter words', from: `+${timeForWord(3)}s`, to: 'no time' });
     const meter = [meterLettersFor(prev, gs), meterLettersFor(level, gs)];
     if (meter[1] !== meter[0]) changes.push({ icon: '⚡', label: 'PowerPlay letters', from: `${meter[0]}`, to: `${meter[1]}` });
+    const charmTime = [bonusTimeScale(prev), bonusTimeScale(level)];
+    if (charmTime[1] !== charmTime[0]) changes.push({ icon: '🍀', label: 'Charm time', from: `${Math.round(charmTime[0] * 100)}%`, to: `${Math.round(charmTime[1] * 100)}%` });
     const prize = [prizeScaleFor(prev), prizeScaleFor(level)];
     if (prize[1] !== prize[0]) changes.push({ icon: '🎁', label: 'PowerPlay prizes', from: `x${prize[0]}`, to: `x${prize[1]}` });
     return {

@@ -8,6 +8,7 @@ import { charmUpgradePreview } from '../services/rules';
 import { storage, STORAGE_KEYS } from '../services/storage';
 import { playerKey } from '../services/players';
 import ArcadeButton from './ArcadeButton';
+import CharmTimeNote from './CharmTimeNote';
 
 // The two "pick one" screens: PowerPlays (hold one, keep or swap) and Charms (5 slots).
 
@@ -188,7 +189,9 @@ export const CharmOffer: React.FC<{
   /** Slots full: upgrade an equipped charm instead of taking a new one. */
   onUpgrade?: (charmId: string) => void;
   onPass: () => void;
-}> = ({ title, reason, offered, equipped, upgradedIds = [], onChoose, onUpgrade, onPass }) => {
+  /** The run level: time charms show what their seconds pay here (v7.40.2). */
+  level?: number;
+}> = ({ title, reason, offered, equipped, upgradedIds = [], onChoose, onUpgrade, onPass, level = 1 }) => {
   const [picked, setPicked] = useState<Charm | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
   const [upgrading, setUpgrading] = useState(false);
@@ -261,7 +264,7 @@ export const CharmOffer: React.FC<{
                 upgraded={up}
                 selected={c.id === dropId}
                 tag={c.id === dropId ? <Tag tone="red">DROP</Tag> : up ? <Tag tone="yellow">⭐ UPGRADED</Tag> : undefined}
-                note={up ? <span className="text-neon-yellow">⭐ PAYS +{CHARM_UPGRADE.percent}% · DROP IT AND THE UPGRADE IS GONE</span> : undefined}
+                note={up ? <span className="text-neon-yellow">⭐ PAYS +{CHARM_UPGRADE.percent}% · DROP IT AND THE UPGRADE IS GONE</span> : <CharmTimeNote charmId={c.id} level={level} />}
                 onClick={() => setDropId(c.id)}
               />
             );
@@ -314,6 +317,7 @@ export const CharmOffer: React.FC<{
             key={charm.id}
             item={charm}
             tag={<Tag tone={full ? 'cyan' : 'green'}>{full ? 'SWAP IN' : 'EQUIP'}</Tag>}
+            note={<CharmTimeNote charmId={charm.id} level={level} />}
             onClick={() => (full ? setPicked(charm) : onChoose(charm))}
           />
         ))}

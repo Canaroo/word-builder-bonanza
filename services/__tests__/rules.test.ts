@@ -175,3 +175,24 @@ describe('continueCost', () => {
         expect(continueCost(0)).toBe(0);
     });
 });
+
+describe('Charm time notes (v7.40.2)', () => {
+    test('charmTimeAt shows the level shrink', async () => {
+        const { charmTimeAt } = await import('../rules');
+        expect(charmTimeAt(10, 1)).toEqual({ paid: 10, percent: 100, cut: false });
+        expect(charmTimeAt(10, 6)).toEqual({ paid: 8, percent: 75, cut: true });
+        expect(charmTimeAt(3, 11)).toEqual({ paid: 2, percent: 50, cut: true });
+        expect(charmTimeAt(1, 11).paid).toBe(1);
+    });
+    test('the level-up card lists charm time', async () => {
+        const { levelUpInfo } = await import('../rules');
+        expect(levelUpInfo(6).changes).toContainEqual(expect.objectContaining({ label: 'Charm time', from: '80%', to: '75%' }));
+        expect(levelUpInfo(12).changes.some(c => c.label === 'Charm time')).toBe(false);
+    });
+    test('charm cards note the cut only for time charms below full pay', async () => {
+        const { charmTimeText } = await import('../../components/CharmTimeNote');
+        expect(charmTimeText('sandsOfTime', 1)).toBeNull();
+        expect(charmTimeText('batSignal', 9)).toBeNull();
+        expect(charmTimeText('gottaCatchEmAll', 9)).toBe('🍀 LEVEL 9: CHARM TIME 60% · +10 SEC PAYS +6');
+    });
+});

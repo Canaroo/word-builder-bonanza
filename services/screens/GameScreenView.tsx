@@ -21,6 +21,7 @@ import OutcomeCard from '../../components/OutcomeCard';
 import GambleCard, { type GambleResult } from '../../components/GambleCard';
 import PowerPlayTrackers from '../../components/PowerPlayTrackers';
 import MiniGameCard from '../../components/MiniGames';
+import CharmTimeNote from '../../components/CharmTimeNote';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
@@ -97,7 +98,7 @@ export interface GameScreenViewProps {
   quizLeft?: number;
   /** Smell Ya Later!: the rival's live score (undefined when no race). */
   raceRival?: number;
-  timeGain?: { seconds: number; key: number; taxed?: boolean };
+  timeGain?: { seconds: number; key: number; taxed?: boolean; charm?: { full: number; paid: number; percent: number; halved: boolean } };
   /** Short game feedback (PowerPlay results, combos, hints). Empty when nothing to say. */
   message?: string;
   hand: (Tile | null)[];
@@ -335,6 +336,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                            {PRIZE_POWER_PLAY_IDS.has(buff.id) && prizeScaleFor(levelFor(totalWords)) > 1 && (
                                <p className="osd-text text-lg text-neon-yellow text-center mb-2">⬆ LEVEL {levelFor(totalWords)}: POINT PRIZES PAY x{prizeScaleFor(levelFor(totalWords))}</p>
                            )}
+                           {(gameState?.activeCharms ?? []).some(c => c.id === buff.id) && (
+                               <p className="osd-text text-lg text-center mb-2"><CharmTimeNote charmId={buff.id} level={levelFor(totalWords)} /></p>
+                           )}
                            {(gameState?.charmUpgrades ?? []).includes(buff.id) && (gameState?.activeCharms ?? []).some(c => c.id === buff.id) && (
                                <p className="osd-text text-lg text-neon-yellow text-center mb-2">⭐ UPGRADED: ITS POINT BONUSES PAY {CHARM_UPGRADE.percent}% MORE</p>
                            )}
@@ -382,6 +386,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         onUpgrade={charmId => handleUpgradeCharm(charmId, offered)}
                         onChoose={(charm, replaceId) => handleChooseCharm(charm, offered, replaceId)}
                         onPass={() => handlePassCharm(offered)}
+                        level={levelFor(totalWords)}
                     />
                 );
             }
@@ -743,6 +748,18 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 aria-live="polite"
               >
                 {timeGain.seconds > 0 ? '+' : '−'}{Math.abs(timeGain.seconds)}s{timeGain.taxed && <span className="text-neon-yellow text-lg"> ½</span>}
+              </span>
+            )}
+            {/* Charm time cut by the level (v7.40.2): say so under the clock, so it doesn't look like a bug. */}
+            {timeGain?.charm && (
+              <span
+                key={`charm-${timeGain.key}`}
+                className="charm-time-note absolute top-full left-1/2 z-20 mt-0.5 whitespace-nowrap rounded-md bg-crt-950/95 ring-1 ring-neon-orange px-2 py-1 osd-text text-sm leading-none text-neon-orange pointer-events-none"
+                role="status"
+              >
+                🍀 CHARM TIME {timeGain.charm.full}→{timeGain.charm.paid} SEC
+                {timeGain.charm.percent < 100 && <span className="text-slate-300"> · LVL {levelFor(totalWords ?? 0)}: {timeGain.charm.percent}%</span>}
+                {timeGain.charm.halved && <span className="text-neon-yellow"> · ½ OVER {GAMEPLAY.timeBank.overflowAbove}</span>}
               </span>
             )}
           </div>

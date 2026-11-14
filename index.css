@@ -1007,10 +1007,22 @@ body {
   100% { opacity: 0; transform: translate(0, calc(-50% - 10px)); }
 }
 
+/* Charm time cut by the level (v7.40.2): a chip under the clock, up long enough to read. */
+.charm-time-note {
+  animation: charm-time-note 3.2s ease-out forwards;
+}
+@keyframes charm-time-note {
+  0% { opacity: 0; transform: translate(-50%, -4px); }
+  10% { opacity: 1; transform: translate(-50%, 0); }
+  80% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, 0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lifeline-pulse,
   .lifeline-fly,
-  .time-gain-side {
+  .time-gain-side,
+  .charm-time-note {
     animation: none;
   }
   .lifeline-fly {

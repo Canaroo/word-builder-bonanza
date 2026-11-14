@@ -22,7 +22,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, charmLengthPoints, charmLengthBoostFor, charmMultiplierPoints, itemMultiplierIn, prizeFor, prizeScaleFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, redrumReverse } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, charmLengthPoints, charmLengthBoostFor, charmMultiplierPoints, itemMultiplierIn, prizeFor, prizeScaleFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, charmTimeAt, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, redrumReverse } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
@@ -141,7 +141,7 @@ export const createInitialGameState = (): GameState => ({
 
 export type GameScreenState = {
   /** Last change to the time bank, shown as a floating +Ns / -Ns next to the clock. */
-  timeGain?: { seconds: number; key: number; taxed?: boolean };
+  timeGain?: { seconds: number; key: number; taxed?: boolean; charm?: CharmTimeCut };
   gameState: GameState;
   time: number;
   hand: (Tile | null)[];
@@ -417,6 +417,9 @@ const pickGatePassword = (daily: GameState['daily']): string => {
  * (bonusTime): a level-9 player's "+10 seconds" Most Excellent Detour paid 6, or 3.
  */
 const powerPlaySeconds = (seconds: number): number => seconds;
+
+/** Charm time cut by the level shrink (and maybe the overflow halving), for the time pop-up (v7.40.2). */
+export type CharmTimeCut = { full: number; paid: number; percent: number; halved: boolean };
 
 /** Fire-on-pick PowerPlays that open a card in the offer's place (v7.39.2): the bid, the mission, Fluncle, Thwomped. */
 const CARD_ON_PICK = new Set(['priceIsRight', 'missionImpossible', 'fluncleIsProud', 'thwomped']);
@@ -944,16 +947,19 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
           }
           if (revivedByLifeFindsAWay) newTime = clampTime(newTime + 20, bankMax(gameState));
           // Wile E. Coyote: a strike that doesn't end the run pays points and a little time.
+          let wileCut: CharmTimeCut | undefined;
           if (actuallyGotAStrike && activeCharms.some(c => c.id === 'wileECoyote') && strikes < maxStrikesFor(tempGameState)) {
               tempGameState.score += CHARM_BONUS.wileECoyote;
-              newTime = clampTime(newTime + bonusTime(TIME_BONUS.wileECoyote, newTime, runLevel(gameState)), bankMax(gameState));
-              tempGameState.lastPowerPlayResult = { message: `🧨 Acme refund: +${CHARM_BONUS.wileECoyote} points, +${TIME_BONUS.wileECoyote}s.`, scoreChange: CHARM_BONUS.wileECoyote };
+              const acme = bonusTime(TIME_BONUS.wileECoyote, newTime, runLevel(gameState));
+              newTime = clampTime(newTime + acme, bankMax(gameState));
+              if (acme < TIME_BONUS.wileECoyote) wileCut = { full: TIME_BONUS.wileECoyote, paid: acme, percent: charmTimeAt(TIME_BONUS.wileECoyote, runLevel(gameState)).percent, halved: acme < charmTimeAt(TIME_BONUS.wileECoyote, runLevel(gameState)).paid };
+              tempGameState.lastPowerPlayResult = { message: `🧨 Acme refund: +${CHARM_BONUS.wileECoyote} points, +${acme}s${acme < TIME_BONUS.wileECoyote ? ` (charm time cut from ${TIME_BONUS.wileECoyote}s)` : ''}.`, scoreChange: CHARM_BONUS.wileECoyote };
           }
           
           return { 
             ...state,
             time: newTime,
-            timeGain: newTime !== state.time ? { seconds: newTime - state.time, key: Date.now() } : state.timeGain,
+            timeGain: newTime !== state.time ? { seconds: newTime - state.time, key: Date.now(), charm: wileCut } : state.timeGain,
             hand: newHand,
             tileBag: newTileBag,
             gameState: tempGameState,
@@ -1176,17 +1182,28 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             }
 
 
-            // Charm/PowerPlay bonus seconds are collected here and added once at the end, through
-            // the bonus-time rules (shrunk by level, halved above the overflow line).
-            let bonusSeconds = 0;
+            // Bonus seconds are collected here and added once at the end. Charm and power word time
+            // go through the bonus-time rules (shrunk by level, halved above the overflow line);
+            // PowerPlay time pays in full (v7.40.1/v7.40.2). The time pop-up says when charm time was cut.
+            let charmSeconds = 0;
+            let bonusSeconds = 0; // power words
+            let ppSeconds = 0;
             if(newGameState.glitchActive) {
-                bonusSeconds += TIME_BONUS.glitchInTheCode;
+                charmSeconds += TIME_BONUS.glitchInTheCode;
                 newGameState.glitchActive = false;
             }
             
             if(newGameState.multiverseTimeBonus > 0) {
-                bonusSeconds += newGameState.multiverseTimeBonus;
+                charmSeconds += newGameState.multiverseTimeBonus;
                 newGameState.multiverseTimeBonus = 0; // Consume the bonus
+            }
+            if ((newGameState.powerWordTimeBonus ?? 0) > 0) {
+                bonusSeconds += newGameState.powerWordTimeBonus!;
+                newGameState.powerWordTimeBonus = 0;
+            }
+            if ((newGameState.ppTimeBonus ?? 0) > 0) {
+                ppSeconds += powerPlaySeconds(newGameState.ppTimeBonus!);
+                newGameState.ppTimeBonus = 0;
             }
 
             if (newGameState.ludicrousTimeCost > 0) {
@@ -1211,7 +1228,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             }
     
             if (newGameState.activePowerPlays.timeTurner && newGameState.activePowerPlays.timeTurner.rounds > 0) {
-                bonusSeconds += TIME_BONUS.timeTurner;
+                ppSeconds += powerPlaySeconds(TIME_BONUS.timeTurner);
                 const newTimeTurnerState = { rounds: newGameState.activePowerPlays.timeTurner.rounds - 1 };
                 if (newTimeTurnerState.rounds > 0) {
                     newGameState.activePowerPlays = { ...newGameState.activePowerPlays, timeTurner: newTimeTurnerState };
@@ -1222,7 +1239,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             }
             
             if (newGameState.activePowerPlays.saveByTheBell && newGameState.activePowerPlays.saveByTheBell.rounds > 0) {
-                bonusSeconds += TIME_BONUS.saveByTheBell;
+                ppSeconds += powerPlaySeconds(TIME_BONUS.saveByTheBell);
                 const newSaveByTheBellState = { rounds: newGameState.activePowerPlays.saveByTheBell.rounds - 1 };
                 if (newSaveByTheBellState.rounds > 0) {
                     newGameState.activePowerPlays = { ...newGameState.activePowerPlays, saveByTheBell: newSaveByTheBellState };
@@ -1307,11 +1324,16 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 }
             }
     
-            const bonusApplied = bonusTime(bonusSeconds, timerDuration, runLevel(newGameState));
+            const nextLevel = runLevel(newGameState);
+            const charmApplied = bonusTime(charmSeconds, timerDuration, nextLevel);
+            const bonusApplied = bonusTime(bonusSeconds, timerDuration, nextLevel);
             // Boss Badge seconds are earned, so they skip the level shrink (still halved above 60s).
-            const badgeApplied = taxWordTime(newGameState.pendingBadgeTime ?? 0, timerDuration + bonusApplied);
+            const badgeApplied = taxWordTime(newGameState.pendingBadgeTime ?? 0, timerDuration + charmApplied + bonusApplied);
             newGameState.pendingBadgeTime = 0;
-            const finalTime = clampTime(timerDuration + bonusApplied + badgeApplied, bankMax(newGameState));
+            const finalTime = clampTime(timerDuration + charmApplied + bonusApplied + ppSeconds + badgeApplied, bankMax(newGameState));
+            const charmCut = charmSeconds > 0 && charmApplied < charmSeconds
+                ? { full: charmSeconds, paid: charmApplied, percent: charmTimeAt(charmSeconds, nextLevel).percent, halved: charmApplied < charmTimeAt(charmSeconds, nextLevel).paid }
+                : undefined;
             const gained = finalTime - settled.time;
             const fromWord = Math.max(0, Math.min(taxedWordTime, gained));
             newGameState = creditTime(creditTime(newGameState, 'words', fromWord), 'powerUps', gained - fromWord);
@@ -1324,7 +1346,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 modalContent: null,
                 isPaused: false,
                 time: finalTime,
-                timeGain: { seconds: gained, key: Date.now(), taxed: taxedWordTime < wordTime || (bonusSeconds > 0 && bonusApplied < bonusSeconds) },
+                timeGain: { seconds: gained, key: Date.now(), taxed: taxedWordTime < wordTime || (bonusSeconds > 0 && bonusApplied < bonusSeconds), charm: charmCut },
                 gameState: withSesameLetter({ ...newGameState, wordsThisRound: 0, roundStartClock: finalTime })
             };
         }
@@ -3467,7 +3489,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (newState.activePowerPlays.multiverseOfSadness) {
           const timeBonus = Math.min(TIME_BONUS.multiverseCap, Math.round(scoreResult.totalScore / 2));
           scoreResult.totalScore = Math.floor(scoreResult.totalScore / 2);
-          newState.multiverseTimeBonus = timeBonus;
+          newState.ppTimeBonus = (newState.ppTimeBonus || 0) + timeBonus;
           scoreResult.bonuses.push({ name: "In Time", description: `In Time: /2 Score, +${timeBonus}s next round`});
           showMessage(`🌀 Multiverse: +${timeBonus}s next round!`, 3000);
       }
@@ -3821,7 +3843,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               const quizPoints = prizeFor(V.popQuizPoints, prizeLevel);
               if (fast) {
                   runningScore += quizPoints;
-                  newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + V.popQuizBonusSeconds;
+                  newState.ppTimeBonus = (newState.ppTimeBonus || 0) + V.popQuizBonusSeconds;
               } else {
                   newState.ludicrousTimeCost = (newState.ludicrousTimeCost ?? 0) + V.popQuizPenaltySeconds;
               }
@@ -4105,7 +4127,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           if (effect === 'slot') {
               const pay = slotPayout(Math.random());
               track(pay.seconds);
-              newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + pay.seconds;
+              newState.powerWordTimeBonus = (newState.powerWordTimeBonus || 0) + pay.seconds;
               scoreResult.bonuses.push({ name: '🎰 Slot machine', description: `+${pay.seconds}s next round` });
               eventLogQueue.push({ type: 'event', id: `pw-${egg.id}-${now}`, name: 'Slot machine', icon: '🎰', description: `Pulled the lever: +${pay.seconds}s next round.`, scoreChange: 0, cumulativeScore: runningScore });
               return { type: 'slot-machine', title: head || '🎰 PULL THE LEVER!', data: { seconds: pay.seconds, reels: pay.reels, jackpot: pay.seconds === Math.max(...POWER_WORD_EFFECTS.slot.map(p => p.seconds)) } };
@@ -4141,7 +4163,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           if (effect === 'rewind') {
               if (thisWordLevel <= 1) {
                   const seconds = POWER_WORD_EFFECTS.rewindLevelOneSeconds;
-                  newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + seconds;
+                  newState.powerWordTimeBonus = (newState.powerWordTimeBonus || 0) + seconds;
                   track(seconds);
                   return note('Rewind!', `The clock is already at its slowest, so +${seconds}s next round instead.`);
               }
@@ -4312,6 +4334,19 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         }
       }
       
+      // Charm time this word earned, and what the level shrink leaves of it next round (v7.40.2).
+      const charmSecs = (newState.multiverseTimeBonus || 0) + (newState.glitchActive ? TIME_BONUS.glitchInTheCode : 0);
+      if (charmSecs > 0) {
+          const nextLevel = levelFor(totalWordsSubmitted);
+          const at = charmTimeAt(charmSecs, nextLevel);
+          const halves = time > GAMEPLAY.timeBank.overflowAbove;
+          if (at.cut || halves) {
+              scoreResult.bonuses.push({
+                  name: '🍀 Charm time',
+                  description: `+${charmSecs}s → +${at.paid}s (level ${nextLevel}: ${at.percent}%)${halves ? `, half again above ${GAMEPLAY.timeBank.overflowAbove}s` : ''}`,
+              });
+          }
+      }
       showMessage(`${word.toUpperCase()}: +${Math.round(turnScorePreMilestone)}`, 3000);
 
       const wordLogEntry: WordLogEntry = {

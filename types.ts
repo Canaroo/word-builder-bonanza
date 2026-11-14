@@ -289,6 +289,10 @@ export interface GameState {
   pendingBadgeTime?: number;
   longestStreak: number;
   multiverseTimeBonus: number;
+  /** PowerPlay seconds for next round (In Time, Pop Quiz): paid in full, no level shrink (v7.40.2). */
+  ppTimeBonus?: number;
+  /** Power word seconds for next round (Slot, Rewind at level 1): these still shrink by level. */
+  powerWordTimeBonus?: number;
   duckHuntComboState: { streakLetters: Set<string> | null, streakCount: number };
   drMarioCureStreak: number;
   powerStarResidualActive: boolean;
