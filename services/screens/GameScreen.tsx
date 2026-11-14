@@ -3818,8 +3818,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               } else {
                   newState.ludicrousTimeCost = (newState.ludicrousTimeCost ?? 0) + V.popQuizPenaltySeconds;
               }
-              eventLogQueue.push({ type: 'event', id: `pp-popQuiz-${now}`, name: 'Pop Quiz, Hotshot', icon: '🚌', description: fast ? `Answered in ${took}s: +${quizPoints} points and +${V.popQuizBonusSeconds}s.` : `Took ${took}s: -${V.popQuizPenaltySeconds}s.`, scoreChange: fast ? quizPoints : 0, cumulativeScore: runningScore });
-              modalQueue.push(outcome(ppById('popQuizHotshot'), fast ? `+${quizPoints} POINTS, +${V.popQuizBonusSeconds}s` : `TOO SLOW: -${V.popQuizPenaltySeconds}s`, fast ? `You answered in ${took} ${took === 1 ? 'second' : 'seconds'}. The bus keeps rolling.` : `That took ${took} seconds (you had ${V.popQuizSeconds}). The clock loses ${V.popQuizPenaltySeconds} seconds next round.`, fast ? 'win' : 'lose'));
+              eventLogQueue.push({ type: 'event', id: `pp-popQuiz-${now}`, name: 'Pop Quiz, Hotshot', icon: '🚌', description: fast ? `Answered in ${took < 1 ? 'under a second' : `${took} sec`}: +${quizPoints} points and +${V.popQuizBonusSeconds} sec.` : `Took ${took} sec: -${V.popQuizPenaltySeconds} sec.`, scoreChange: fast ? quizPoints : 0, cumulativeScore: runningScore });
+              modalQueue.push(outcome(ppById('popQuizHotshot'), fast ? `+${quizPoints} POINTS, +${V.popQuizBonusSeconds}s` : `TOO SLOW: -${V.popQuizPenaltySeconds}s`, fast ? `You answered in ${took < 1 ? 'under a second' : `${took} ${took === 1 ? 'second' : 'seconds'}`}. The bus keeps rolling.` : `That took ${took} seconds (you had ${V.popQuizSeconds}). The clock loses ${V.popQuizPenaltySeconds} seconds next round.`, fast ? 'win' : 'lose'));
           }
       }
 

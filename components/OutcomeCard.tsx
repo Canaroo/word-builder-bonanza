@@ -1,3 +1,4 @@
+import { withSec } from './Seconds';
 import React, { useEffect } from 'react';
 import ArcadeButton, { type ArcadeButtonColor } from './ArcadeButton';
 import { soundService } from '../services/soundService';
@@ -27,7 +28,7 @@ const OutcomeCard: React.FC<{ name: string; detail?: string; data: OutcomeData; 
         <p className="osd-text text-lg tracking-[0.3em] text-slate-300">{t.label}</p>
         <div className="text-6xl leading-none" aria-hidden="true">{data.icon}</div>
         <p className="font-display text-lg text-white leading-tight">{name}</p>
-        <p className={`font-display text-3xl leading-tight ${t.text}`}>{data.headline}</p>
+        <p className={`font-display text-3xl leading-tight ${t.text}`}>{withSec(data.headline)}</p>
         {detail && <p className="text-slate-200 leading-snug whitespace-pre-line">{detail}</p>}
         <ArcadeButton color={t.button} className="w-full mt-2" onClick={onClose} autoFocus>Continue</ArcadeButton>
       </div>
