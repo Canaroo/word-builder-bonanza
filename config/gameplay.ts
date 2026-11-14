@@ -424,6 +424,14 @@ export const HOLD_SLOT = { fromLevel: 4 } as const;
 export const GRUDGE = { multiplier: 2 } as const;
 
 /**
+ * Bones (v7.44, services/bones.ts): a run that ends at `minLevel` or later, holding a charm, leaves
+ * its final hand behind. A player reaching that level may find it (at most `perRun` ghosts a run):
+ * a word of `minLetters`+ from those tiles within `seconds` wins one of the charms. Bones older
+ * than `maxAgeDays` are ignored; a run loads the newest `fetch` when it starts.
+ */
+export const BONES = { minLevel: 2, minLetters: 5, seconds: 30, perRun: 1, maxAgeDays: 30, fetch: 60 } as const;
+
+/**
  * Mystery Tape (v7.41): now and then the last card of a PowerPlay offer is a face-down tape. It
  * hides one PowerPlay from `pool` (the ones picked under 12% of the time in the usage stats: 146
  * runs, Nov 2026) and pays `points` on the spot for taking it blind (a prize: grows with the

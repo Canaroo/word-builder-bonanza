@@ -169,6 +169,28 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
       }
     },
 
+    // Bones (v7.44, services/bones.ts): a fallen run's final hand and charms, for other players to find
+    "bones": {
+      ".read": true,
+      ".indexOn": ["timestamp"],
+
+      "$id": {
+        ".write": "!data.exists()",
+        ".validate": "newData.hasChildren(['name','level','hand','charms','timestamp'])",
+
+        "name":   { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9 _.'-]{1,30}$/)" },
+        "level":  { ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 9999" },
+        // Tile letters, comma-joined (a combo tile like QU is one entry): 5 to 10 tiles
+        "hand":   { ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{1,3}(,[A-Z]{1,3}){4,9}$/)" },
+        // Charm ids, comma-joined: 1 to 5
+        "charms": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,32}(,[A-Za-z0-9]{1,32}){0,4}$/)" },
+        "score":  { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
+        "timestamp": { ".validate": "newData.isNumber() && newData.val() > now - 5 * 60 * 1000 && newData.val() < now + 5 * 60 * 1000" },
+
+        "$other": { ".validate": false }
+      }
+    },
+
     // Anonymous usage stats (services/stats.ts): readable by anyone, create-only, strict fields
     "stats": {
       ".read": true,
@@ -178,7 +200,7 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         ".write": "!data.exists()",
         ".validate": "newData.hasChildren(['type','timestamp'])",
 
-        "type": { ".validate": "newData.isString() && newData.val().matches(/^(boss_start|boss_end|mission_shown|mission_done|run_end|power_word|charm_offer|pp_offer|pp_use|continue_offer|pw_hint)$/)" },
+        "type": { ".validate": "newData.isString() && newData.val().matches(/^(boss_start|boss_end|mission_shown|mission_done|run_end|power_word|charm_offer|pp_offer|pp_use|continue_offer|pw_hint|bones)$/)" },
         "timestamp": { ".validate": "newData.isNumber() && newData.val() > now - 5 * 60 * 1000 && newData.val() < now + 5 * 60 * 1000" },
 
         // Bosses
@@ -248,6 +270,7 @@ Firebase rules allow `//` comments, so paste the block as-is.
 | `charm_offer` | `offered`, `picked`, `level`; v7.33 extra: `upgraded` | A charm offer is answered (`picked` is `''` for a pass, or for an upgrade, where `upgraded` is the equipped charm's id) |
 | `pp_offer` | `offered`, `picked`, `level`; v7.41 extra: `mystery` | A PowerPlay offer is answered (`picked` is `''` when the held one is kept; `mystery`: the PowerPlay hidden in the offer's Mystery Tape) |
 | `continue_offer` | `taken`, `reason`, `level` | v7.41: the Phoenix Down offer at the end of a run is answered (`reason`: `strikes` or `time`) |
+| `bones` | `taken`, `level` | v7.44: another player's fallen run was found on a level-up (`taken`: a charm was won from it) |
 | `pw_hint` | `power`, `level` | v7.41: the power word hint chip appears (a `power_word` played while it shows carries the extra `hinted`) |
 | `pp_use` | `pp`, `level` | A PowerPlay is used (an instant one counts when picked) |
 | `power_word` | `power`, `repeat`, `seconds`, `strike` | A power word fires (slot payout, freeze, cloned or REWIND seconds; `strike`: HEAL removed one, or RINGS found a shield already up) |

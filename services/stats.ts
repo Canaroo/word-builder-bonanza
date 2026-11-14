@@ -19,6 +19,8 @@ export type StatEvent =
     | { type: 'continue_offer'; taken: boolean; level: number; reason: 'strikes' | 'time' }
     // Power word hint chip shown (v7.41); a power_word that follows one carries `hinted`.
     | { type: 'pw_hint'; power: PowerWordEffect; level: number }
+    // Bones (v7.44): a fallen player's hand was found; taken = a charm was won from it.
+    | { type: 'bones'; taken: boolean; level: number }
     | { type: 'power_word'; power: PowerWordEffect; repeat: boolean; seconds: number; strike: boolean };
 
 export type StoredStat = StatEvent & StatExtras & { timestamp: number };

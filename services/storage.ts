@@ -27,6 +27,8 @@ export const STORAGE_KEYS = {
     career: 'wordNerdCareer',
     charmUpgradeTips: 'wordNerdCharmUpgradeTips',
     gatePasswordsSeen: 'wordNerdGatePasswordsSeen',
+    /** Per player: ids of bones (other players' fallen runs) they've taken a charm from. */
+    bonesLooted: 'wordNerdBonesLooted',
     /** Per player: each boss's record against them, for Grudge Matches (services/grudges.ts). */
     grudges: 'wordNerdGrudges',
     /** Per player: early run endings in a row, for the Head Start (services/headStart.ts). */
