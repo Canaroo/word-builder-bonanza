@@ -1,6 +1,6 @@
 import React from 'react';
 import { soundService } from '../soundService';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, HEAD_START, SKILL_SHOT, GEM_TILES, FORK, HOLD_SLOT, GRUDGE } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, HEAD_START, SKILL_SHOT, GEM_TILES, FORK, HOLD_SLOT, GRUDGE, BONES } from '../../config/gameplay';
 import { PHOENIX_DOWN } from '../../config/progression';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import ArcadeButton from '../../components/ArcadeButton';
@@ -72,6 +72,11 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
           <p>
             <Key>⚔️ Grudge Match:</Key> a boss that got away from you remembers. Next time it has something to say, and
             beating it pays its badge points <Key>x{GRUDGE.multiplier}</Key>.
+          </p>
+          <p>
+            <Key>👻 Bones:</Key> when a run ends, its last hand and charms stay behind on that level. Reach a level where
+            another player fell and you may find them: spell a word of <Key>{BONES.minLetters}+ letters</Key> from their
+            tiles in {BONES.seconds} seconds to take one of their charms. Yours are out there too.
           </p>
           <p>
             <Key>🛠️ Head Start:</Key> a run that ends before level {HEAD_START.untilLevel} adds{' '}

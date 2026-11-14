@@ -32,6 +32,9 @@ import { GameState, FinalGameState, Pack, PowerWordData } from './types';
 import {leaderboardService} from './services/leaderboardService';
 import { recordRunForHeadStart } from './services/headStart';
 import { recordBossResult } from './services/grudges';
+import { postBones, worthLeaving } from './services/bones';
+import { dictionaryService } from './services/dictionaryService';
+import { BONES } from './config/gameplay';
 import { sendStat } from './services/stats';
 import { levelFor } from './services/rules';
 import { switchToPlayer, currentPlayer } from './services/players';
@@ -328,6 +331,15 @@ const App: React.FC = () => {
       }
     } else {
       setLastDaily(null);
+    }
+    // Bones: leave this run's final hand and charms for another player to find, when the hand
+    // can spell a word long enough to win them.
+    const fallen = [...gameState.log].reverse().find(e => e.type === 'game_over') as { finalHand?: string[] } | undefined;
+    const bones = { name: currentPlayer().name, level: levelFor(validWords), hand: (fallen?.finalHand ?? []).map(l => String(l).toUpperCase()), charms: (gameState.activeCharms ?? []).map(c => c.id), score: gameState.score };
+    if (worthLeaving(bones)) {
+      dictionaryService.findPlayableWord(bones.hand, { minLength: BONES.minLetters, longest: true })
+        .then(word => { if (word && word.length >= BONES.minLetters) postBones(bones); })
+        .catch(() => {});
     }
     // Grudge Match: a boss still on the board when the run ended got away.
     if (gameState.boss?.id) recordBossResult(gameState.boss.id, 'escaped');

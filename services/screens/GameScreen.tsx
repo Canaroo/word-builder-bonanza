@@ -32,6 +32,9 @@ import { completedSets, setBonusFor, setPullCandidates } from '../../data/charmS
 import { CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS } from '../../config/gameplay';
 import { headStartSeconds } from '../headStart';
 import { grudgeFor, grudgeTaunt, recordBossResult } from '../grudges';
+import { pickBone, refreshBones, markLooted, type Bone } from '../bones';
+import { currentPlayer } from '../players';
+import { BONES } from '../../config/gameplay';
 import { FORK, HOLD_SLOT, GRUDGE } from '../../config/gameplay';
 import { gemMultiplierFor, skillShotPoints } from '../rules';
 import { findPowerWordHint, powerWordHintStands } from '../powerWordHint';
@@ -372,6 +375,20 @@ const CONTINUE_TITLE = '🕹️ Continue?';
 /** Grudge payouts depend on each player's own history, so the scored Daily Run leaves them out. */
 const grudgePays = (gs: GameState): boolean => !(gs.daily && !gs.daily.practice);
 
+/**
+ * Bones (v7.44): on reaching a new level, another player's fallen run may be waiting there. Marks
+ * the ghost as met on `gs` (a copy the caller owns). Never on the scored Daily Run.
+ */
+const bonesModal = (gs: GameState, wordsBefore: number): ModalContent | null => {
+    const level = levelFor(wordsBefore + 1);
+    if (level <= levelFor(wordsBefore) || (gs.daily && !gs.daily.practice)) return null;
+    if ((gs.bonesMet ?? []).length >= BONES.perRun) return null;
+    const bone = pickBone(level, { player: currentPlayer().name, heldCharmIds: gs.activeCharms.map(c => c.id), met: gs.bonesMet });
+    if (!bone) return null;
+    gs.bonesMet = [...(gs.bonesMet ?? []), bone.id];
+    return { type: 'bones', title: `${bone.name} fell here`, data: { bone } };
+};
+
 /** Fork in the Road (v7.43): the route card, when this word levels up into a fork level. */
 const forkModal = (wordsBefore: number): ModalContent | null => {
     const level = levelFor(wordsBefore + 1);
@@ -423,7 +440,7 @@ const levelUpModal = (wordsBefore: number, gs?: GameState): ModalContent | null 
  * stuck in the old round: v7.19.0's level-up card was, so a word whose only pop-up was a
  * level-up lost its word time, and Groundhog's Day saw a word "already played" and didn't fire.
  */
-export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork'];
+export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork', 'bones'];
 
 /**
  * A chance PowerPlay's result (a roll, a coin flip, a random tile): a centered card that waits
@@ -2738,6 +2755,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     const saveSlot = daily ? STORAGE_KEYS.savedDailyGame : STORAGE_KEYS.savedGame;
     // Stop using the daily's seeded tile luck once this run leaves the screen.
     useEffect(() => () => gameUtils.setTileStream(null), []);
+    // Bones: load other players' fallen runs in the background (no ghosts if it fails).
+    useEffect(() => { void refreshBones(); }, []);
     
     /**
      * A robust safeguard to ensure the hand state is always a valid, renderable array.
@@ -3137,6 +3156,30 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         } as EventLogEntry],
     } });
     handleCloseModal();
+  };
+
+  /**
+   * Bones: the ghost's word was found (or not). A win opens a charm offer made of the fallen
+   * player's charms, in the card's place, so closing it carries on like any offer.
+   */
+  const handleBonesDone = (word: string | null) => {
+    if (state.modalContent?.type !== 'bones') return;
+    const bone = state.modalContent.data?.bone as Bone | undefined;
+    const charms = bone ? bone.charms.map(id => CHARMS_LIST.find(c => c.id === id)).filter((c): c is Charm => !!c && !gameState.activeCharms.some(a => a.id === c.id)) : [];
+    sendStat({ type: 'bones', taken: !!word && charms.length > 0, level: levelFor(totalWords) });
+    if (!bone || !word || charms.length === 0) { handleCloseModal(); return; }
+    markLooted(bone.id);
+    dispatch({ type: 'UPDATE_GAME_STATE', payload: {
+        log: [...gameState.log, {
+            type: 'event', id: `bones-${bone.id}`, name: `Bones: ${bone.name}`, icon: '👻',
+            description: `Found ${bone.name}'s last hand on level ${bone.level} and spelled ${word}.`,
+            scoreChange: 0, cumulativeScore: gameState.score,
+        } as EventLogEntry],
+    } });
+    dispatch({ type: 'SET_MODAL_CONTENT', payload: {
+        type: 'charm-selection', title: `👻 ${bone.name}'s charms`,
+        content: `${word}! Take one of the charms ${bone.name} was carrying.`, data: charms,
+    } });
   };
 
   /** Last Words: bank the parting word (if any), then the run ends. Answers the open card once. */
@@ -3574,6 +3617,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             if (levelUp) modalQueue.push(levelUp);
             const goldenFork = forkModal(totalWords);
             if (goldenFork) modalQueue.push(goldenFork);
+            const goldenBones = bonesModal(newState, totalWords);
+            if (goldenBones) modalQueue.push(goldenBones);
             const goldenBossIntro = startBossRound(newState, totalWords);
             if (goldenBossIntro) modalQueue.push(goldenBossIntro);
 
@@ -3610,6 +3655,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (levelUp) modalQueue.push(levelUp);
       const fork = forkModal(totalWords);
       if (fork) modalQueue.push(fork);
+      const bones = bonesModal(newState, totalWords);
+      if (bones) modalQueue.push(bones);
       if (levelUp) payLevelUp(scoreResult);
 
       if (word.length >= 5 && !isChallengeLock) {
@@ -5800,6 +5847,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         holdArmed,
         handleHoldTap,
         handleForkPick,
+        handleBonesDone,
         upcomingTiles: gameState.activePowerPlays?.psychicFriends ? tileBag.slice(-POWER_PLAY_VALUES.psychicTiles).reverse() : [],
         // Smell Ya Later!: the rival's score as it climbs, in real seconds.
         raceRival: (() => {

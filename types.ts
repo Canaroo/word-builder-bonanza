@@ -311,6 +311,8 @@ export interface GameState {
   neuralyzerOffer?: boolean;
   /** Ids of equipped charms that have been upgraded (CHARM_UPGRADE): their point bonuses pay more. */
   charmUpgrades?: string[];
+  /** Bones (v7.44): ids of the ghosts met this run. */
+  bonesMet?: string[];
   /** Fork in the Road (v7.43): the route picked at the last fork, and the level it was picked at. */
   route?: { choice: 'easy' | 'danger'; level: number } | null;
   /** Hold Slot (v7.43): the tile parked there (survives new hands and shuffles). */

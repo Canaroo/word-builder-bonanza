@@ -47,6 +47,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
 | PowerPlays / charms (100 / 100) | `data/powerPlays.ts`, `data/charms.ts` |
 | Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
+| Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Fork, Hold Slot, Grudge Match, Bones | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `FORK`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`; cards in `components/` (`LastWordsCard`, `ForkCard`, `BonesCard`) |
 | Secret bonuses (107 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
 | Hidden desktop pages | `/?stats` and `/?bonuses` (tabs: `&tab=words`, `scores`, `counts`, `charms`, `powerPlays`) render full-width outside the phone frame (`showToolPage` in `App.tsx`) |
 | Bosses (24) and Boss Badges | `data/bosses.ts` (villains, rules), `BOSS` in `config/gameplay.ts` (timing, rewards); badges in the profile (`recordBossBadge`) |
@@ -311,6 +312,17 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   ended mid-fight) opens next time as a GRUDGE MATCH with a taunt built from the player's own
   numbers (`grudgeTaunt`; keep the jabs playful, kids play this), and beating it pays the badge
   points x2. The double is left off the scored Daily Run.
+- **Bones (v7.44.0)** (`services/bones.ts`, `components/BonesCard.tsx`, `BONES`): a run that ends
+  on level 2+ holding a charm, with a final hand that can spell a common 5+ letter word, posts
+  that hand, its charm ids, the score and the player's name to `/bones` (`App.tsx`
+  `handleGameOver`). A run loads the newest 60 when it starts (`refreshBones`, cached in
+  sessionStorage). On a level-up, `bonesModal` may open the newest ghost for that level: never the
+  player's own (by name), one they looted before, a stale one (30 days), or one whose charms they
+  all hold; one ghost a run; never on the scored Daily Run. A 5+ letter word from the tiles in 30 s
+  opens a normal charm offer made of the fallen player's charms (swap and upgrade work as usual).
+  Bones carry names like the leaderboard does; usage stats stay anonymous (`bones` event: `taken`,
+  `level`). Needs the `bones` rules block in `docs/LEADERBOARD.md`; until it is published nothing
+  posts or loads and the game plays as before. Browser checks seed `wordNerdBonesCache`.
 - **Power words** (10 secret words with `effect`, no points): SLOT (slot machine, +1/3/10s), SNOW
   (clock frozen 10s), HEAL (remove a strike, else +100), SLOW (half-speed clock for 3 words), TWIN
   (clone your best word's time + a Word Combo step), RINGS (a strike shield), REWIND (clock one speed
