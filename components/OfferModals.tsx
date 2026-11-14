@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import type { Charm, PowerPlay } from '../types';
 import { INSTANT_POWER_PLAY_IDS, PRIZE_POWER_PLAY_IDS } from '../data/powerPlays';
-import { CHARM_SLOTS, CHARM_UPGRADE } from '../config/gameplay';
+import { CHARM_SLOTS, CHARM_UPGRADE, MYSTERY_TAPE } from '../config/gameplay';
+import { prizeFor } from '../services/rules';
 import { UPGRADABLE_CHARM_IDS } from '../data/charms';
 import DurationBadge from '../ui/DurationBadge';
 import { charmUpgradePreview } from '../services/rules';
@@ -9,6 +10,8 @@ import { storage, STORAGE_KEYS } from '../services/storage';
 import { playerKey } from '../services/players';
 import ArcadeButton from './ArcadeButton';
 import CharmTimeNote from './CharmTimeNote';
+import { CHARMS_LIST } from '../data/charms';
+import { setsWith, setProgress, setBonusFor, completedSets } from '../data/charmSets';
 
 // The two "pick one" screens: PowerPlays (hold one, keep or swap) and Charms (5 slots).
 
@@ -88,9 +91,11 @@ export const PowerPlayOffer: React.FC<{
   prizeScale?: number;
   /** What Multiplicity would copy right now (the last PowerPlay used that it can copy). */
   copyTarget?: PowerPlay | null;
+  /** Mystery Tape: the offered PowerPlay shown face down (null: none). */
+  mysteryId?: string | null;
   onChoose: (powerPlay: PowerPlay) => void;
   onKeep: () => void;
-}> = ({ title, reason, offered, held, level, prizeScale = 1, copyTarget = null, onChoose, onKeep }) => (
+}> = ({ title, reason, offered, held, level, prizeScale = 1, copyTarget = null, mysteryId = null, onChoose, onKeep }) => (
   <Overlay tone="green">
     <h2 className="font-display text-2xl text-neon-green text-center leading-none">{title}</h2>
     {reason && <p className="osd-text text-lg text-slate-300 text-center leading-tight mt-1">{reason}</p>}
@@ -109,6 +114,27 @@ export const PowerPlayOffer: React.FC<{
 
     <div className="mt-3 space-y-2 overflow-y-auto overscroll-contain p-1 -m-1">
       {offered.map(pp => {
+        if (pp.id === mysteryId) {
+          // Face down: nothing about the real PowerPlay shows until it's taken.
+          const points = prizeFor(MYSTERY_TAPE.points, level ?? 1);
+          return (
+            <button key="mystery-tape" type="button" onClick={() => onChoose(pp)} aria-label={`Mystery Tape: a face-down PowerPlay, plus ${points} points now`}
+              className="w-full text-left rounded-xl p-2.5 ring-2 ring-neon-pink bg-[repeating-linear-gradient(135deg,rgba(255,79,163,0.14)_0_10px,rgba(10,8,30,0.6)_10px_20px)] shadow-[0_0_14px_rgba(255,79,163,0.4)] hover:brightness-110 focus-visible:ring-white outline-none">
+              <div className="flex items-start gap-2">
+                <span className="text-2xl leading-none mt-0.5" aria-hidden="true">📼</span>
+                <div className="flex-1 min-w-0">
+                  <span className="font-display text-sm text-neon-pink leading-tight">MYSTERY TAPE</span>
+                  <p className="text-sm text-slate-200 leading-snug mt-0.5">
+                    A face-down PowerPlay. Take it blind and get <span className="text-neon-yellow font-semibold">+{points} points</span> right now, then see what you rented.
+                  </p>
+                  <p className="text-xs text-slate-400 italic mt-0.5">“No label. No case. No refunds.”</p>
+                  {held && <p className="osd-text text-base leading-tight mt-1 text-neon-green">🔄 REPLACES {held.icon} {held.name.toUpperCase()}</p>}
+                </div>
+                <span className="shrink-0 self-center"><Tag tone="yellow">+{points}</Tag></span>
+              </div>
+            </button>
+          );
+        }
         const instant = INSTANT_POWER_PLAY_IDS.has(pp.id);
         const tag = instant ? <Tag tone="cyan">INSTANT</Tag> : held ? <Tag tone="green">SWAP</Tag> : <Tag tone="green">TAKE</Tag>;
         const swapNote = !held ? null : instant
@@ -178,6 +204,32 @@ const UpgradePreview: React.FC<{ charm: Charm }> = ({ charm }) => {
   );
 };
 
+const charmLabel = (id: string) => { const c = CHARMS_LIST.find(x => x.id === id); return c ? `${c.icon} ${c.name}` : id; };
+
+/**
+ * Charm sets (v7.41): what taking (or dropping) this charm does to a set. `after` is the charm ids
+ * the player would hold. Nothing shows for a charm that's in no set.
+ */
+export const SetNote: React.FC<{ charmId: string; after: readonly string[]; dropping?: boolean }> = ({ charmId, after, dropping }) => {
+  const sets = setsWith(charmId);
+  if (sets.length === 0) return null;
+  return (
+    <>
+      {sets.map(set => {
+        const p = setProgress(set, dropping ? [...after, charmId] : after);
+        if (dropping) {
+          return p.complete
+            ? <span key={set.id} className="block text-neon-red">🧩 BREAKS {set.icon} {set.name.toUpperCase()}: LOSE +{setBonusFor(set)} A WORD</span>
+            : null;
+        }
+        return p.complete
+          ? <span key={set.id} className="block text-neon-green">🧩 COMPLETES {set.icon} {set.name.toUpperCase()}: +{setBonusFor(set)} EVERY WORD</span>
+          : <span key={set.id} className="block text-neon-cyan">🧩 SET {set.icon} {set.name.toUpperCase()} {p.held.length}/{set.members.length} · +{setBonusFor(set)} A WORD WITH {p.missing.map(charmLabel).join(' + ').toUpperCase()}</span>;
+      })}
+    </>
+  );
+};
+
 export const CharmOffer: React.FC<{
   title: string;
   reason?: React.ReactNode;
@@ -197,6 +249,8 @@ export const CharmOffer: React.FC<{
   const [upgrading, setUpgrading] = useState(false);
   const [upId, setUpId] = useState<string | null>(null);
   const full = equipped.length >= CHARM_SLOTS;
+  const equippedIds = equipped.map(c => c.id);
+  const setsHeld = completedSets(equippedIds);
   const canUpgrade = (c: Charm) => UPGRADABLE_CHARM_IDS.has(c.id) && !upgradedIds.includes(c.id);
   const upgradeOpen = full && !!onUpgrade && equipped.some(canUpgrade);
   const upgradable = equipped.filter(canUpgrade);
@@ -264,7 +318,10 @@ export const CharmOffer: React.FC<{
                 upgraded={up}
                 selected={c.id === dropId}
                 tag={c.id === dropId ? <Tag tone="red">DROP</Tag> : up ? <Tag tone="yellow">⭐ UPGRADED</Tag> : undefined}
-                note={up ? <span className="text-neon-yellow">⭐ PAYS +{CHARM_UPGRADE.percent}% · DROP IT AND THE UPGRADE IS GONE</span> : <CharmTimeNote charmId={c.id} level={level} />}
+                note={<>
+                  {up ? <span className="text-neon-yellow">⭐ PAYS +{CHARM_UPGRADE.percent}% · DROP IT AND THE UPGRADE IS GONE</span> : <CharmTimeNote charmId={c.id} level={level} />}
+                  <SetNote charmId={c.id} after={equippedIds.filter(id => id !== c.id)} dropping />
+                </>}
                 onClick={() => setDropId(c.id)}
               />
             );
@@ -286,6 +343,11 @@ export const CharmOffer: React.FC<{
       {reason && <p className="osd-text text-lg text-slate-300 text-center leading-tight mt-1">{reason}</p>}
       <p className="text-sm text-slate-300 text-center mt-1">Charms stay on for the rest of the run.</p>
       <div className="mt-2"><SlotRow charms={equipped} upgradedIds={upgradedIds} upgradableIds={upgradeOpen ? upgradable.map(c => c.id) : []} /></div>
+      {setsHeld.length > 0 && (
+        <p className="osd-text text-lg text-center leading-tight mt-1 text-neon-green">
+          🧩 {setsHeld.map(s => `${s.icon} ${s.name.toUpperCase()} +${setBonusFor(s)}`).join(' · ')} A WORD
+        </p>
+      )}
       <p className={`osd-text text-lg text-center leading-tight mt-1 ${full ? 'text-neon-yellow' : 'text-slate-400'}`}>
         {full
           ? `SLOTS FULL (${CHARM_SLOTS}/${CHARM_SLOTS}): ${upgradeOpen ? 'UPGRADE ONE, SWAP ONE IN, OR PASS' : 'PICK ONE TO SWAP IN, OR PASS'}`
@@ -317,7 +379,7 @@ export const CharmOffer: React.FC<{
             key={charm.id}
             item={charm}
             tag={<Tag tone={full ? 'cyan' : 'green'}>{full ? 'SWAP IN' : 'EQUIP'}</Tag>}
-            note={<CharmTimeNote charmId={charm.id} level={level} />}
+            note={<><CharmTimeNote charmId={charm.id} level={level} /><SetNote charmId={charm.id} after={[...equippedIds, charm.id]} /></>}
             onClick={() => (full ? setPicked(charm) : onChoose(charm))}
           />
         ))}

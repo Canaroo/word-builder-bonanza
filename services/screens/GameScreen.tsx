@@ -1,5 +1,5 @@
 // Game logic and state. Layout lives in GameScreenView.tsx.
-import React, { useReducer, useEffect, useCallback, useMemo, useState } from 'react';
+import React, { useReducer, useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import { GameState, Tile, WordData, Milestone, Charm, PowerPlay, ScoreCalculationResult, ScoreBonusInfo, LogEntry, WordLogEntry, EventLogEntry, GameOverLogEntry, TimeLedger, MiniGameId } from '../../types';
 import { RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, VOWELS, INITIAL_SHUFFLES, MAX_STRIKES_INITIAL, SUPER_HAND_BONUS, TILE_DISTRIBUTION, INITIAL_CHALLENGES, COMBO_TILES } from '../../constants';
 import * as gameUtils from '../gameUtils';
@@ -27,6 +27,10 @@ import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
 import { currentStreak, powerWordBonusFor, recordBossBadge } from '../progression';
+import { PHOENIX_DOWN } from '../../config/progression';
+import { completedSets, setBonusFor, setPullCandidates } from '../../data/charmSets';
+import { CHARM_SET_BONUS, MYSTERY_TAPE } from '../../config/gameplay';
+import { findPowerWordHint, powerWordHintStands } from '../powerWordHint';
 import { BOSSES, bossById, pickBoss } from '../../data/bosses';
 import { sendStat } from '../stats';
 import { getBonusMedia } from '../../data/bonusMedia';
@@ -49,6 +53,8 @@ interface GameScreenProps {
   powerWord?: string;
   /** A Daily Run (v7.30): seeded tiles, offers and bosses, and its own save slot. */
   daily?: DailyRun | null;
+  /** Credits the player holds (Phoenix Down checks it). */
+  lexCoins?: number;
 }
 
 const BUILD_ROW_SIZE = 8;
@@ -249,6 +255,8 @@ type GameAction =
     | { type: 'SHOW_SAVE_MODAL' }
     | { type: 'RESTART_ROUND_GROUNDHOG' }
     | { type: 'GAME_OVER_INITIATED', payload: { reason: 'strikes' | 'time'; word?: string } }
+    | { type: 'OFFER_CONTINUE', payload: { reason: 'strikes' | 'time' } }
+    | { type: 'ACCEPT_CONTINUE' }
     | { type: 'SELECT_TILE_FOR_SELECTION', payload: { tile: Tile, originalIndex: number } | null }
     | { type: 'STORE_LAST_TURN' }
     | { type: 'RESTORE_LAST_TURN' }
@@ -448,6 +456,55 @@ export const savableScreenState = (state: GameScreenState): GameScreenState => {
         modalQueue: state.modalQueue.filter(plain),
         tilesToSwap: [], tileToTransform: null, challengeWordData: null, tileForSelection: null, lastTurnState: null,
         highlightedTileIds: { first: null, rest: [] }, longWordBonusNotified: false, resumeCountdown: 0,
+    };
+};
+
+/**
+ * Mystery Tape: sometimes the last card of a PowerPlay offer is swapped for a face-down one from
+ * MYSTERY_TAPE.pool. Returns the offer and the hidden PowerPlay's id (null: no tape this time).
+ * Seeded like the offer itself, so a Daily Run deals the same tape to everyone.
+ */
+export const dealMysteryTape = (
+    offer: { offeredItems: PowerPlay[]; offerDetails: { id: string; score: number }[] },
+    pool: PowerPlay[],
+    gs: Pick<GameState, 'runSeed' | 'totalOffersMade'>,
+): { offeredItems: PowerPlay[]; offerDetails: { id: string; score: number }[]; mysteryId: string | null } => {
+    const none = { ...offer, mysteryId: null };
+    if (offer.offeredItems.length < 2) return none;
+    if (gameUtils.dailyRank(gs.runSeed, gs.totalOffersMade, 'mystery-tape') >= MYSTERY_TAPE.chance) return none;
+    const last = offer.offeredItems.length - 1;
+    const shown = offer.offeredItems.slice(0, last).map(p => p.id);
+    const candidates = pool.filter(p => (MYSTERY_TAPE.pool as readonly string[]).includes(p.id) && !shown.includes(p.id));
+    if (candidates.length === 0) return none;
+    const tape = [...candidates].sort((a, b) => gameUtils.dailyRank(gs.runSeed, gs.totalOffersMade, `tape-${a.id}`) - gameUtils.dailyRank(gs.runSeed, gs.totalOffersMade, `tape-${b.id}`))[0];
+    return {
+        offeredItems: offer.offeredItems.map((p, i) => (i === last ? tape : p)),
+        offerDetails: offer.offerDetails.map((d, i) => (i === last ? { id: tape.id, score: d.score } : d)),
+        mysteryId: tape.id,
+    };
+};
+
+/**
+ * Charm sets: when the player holds part of a set and none of the offered charms is a missing
+ * piece, swap the last card for one (CHARM_SET_BONUS.pullChance). The roll and the pick come from
+ * the run seed and the offer number, so a Daily Run stays the same for the same choices.
+ */
+export const pullSetPiece = (
+    offer: { offeredItems: Charm[]; offerDetails: { id: string; score: number }[] },
+    pool: Charm[],
+    gs: Pick<GameState, 'activeCharms' | 'runSeed' | 'totalOffersMade'>,
+): { offeredItems: Charm[]; offerDetails: { id: string; score: number }[] } => {
+    if (offer.offeredItems.length === 0) return offer;
+    const wanted = setPullCandidates(gs.activeCharms.map(c => c.id));
+    if (wanted.length === 0 || offer.offeredItems.some(c => wanted.includes(c.id))) return offer;
+    const candidates = pool.filter(c => wanted.includes(c.id));
+    if (candidates.length === 0) return offer;
+    if (gameUtils.dailyRank(gs.runSeed, gs.totalOffersMade, 'set-pull') >= CHARM_SET_BONUS.pullChance) return offer;
+    const piece = [...candidates].sort((a, b) => gameUtils.dailyRank(gs.runSeed, gs.totalOffersMade, a.id) - gameUtils.dailyRank(gs.runSeed, gs.totalOffersMade, b.id))[0];
+    const last = offer.offeredItems.length - 1;
+    return {
+        offeredItems: offer.offeredItems.map((c, i) => (i === last ? piece : c)),
+        offerDetails: offer.offerDetails.map((d, i) => (i === last ? { id: piece.id, score: d.score } : d)),
     };
 };
 
@@ -1449,6 +1506,19 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             const charmAlreadyActive = newGameState.activeCharms.some(c => c.id === charm.id);
             const newActiveCharms = charmAlreadyActive ? newGameState.activeCharms : [...newGameState.activeCharms, charm];
 
+            // Charm sets (v7.41): say so when this pick completes one.
+            const setsBefore = completedSets(gameState.activeCharms.map(c => c.id)).map(s => s.id);
+            const newSets = completedSets(newActiveCharms.map(c => c.id)).filter(s => !setsBefore.includes(s.id));
+            if (newSets.length > 0) {
+                const text = newSets.map(s => `${s.icon} ${s.name}: +${setBonusFor(s)} points on every word`).join(' · ');
+                newGameState.log = [...newGameState.log, ...newSets.map(s => ({
+                    type: 'event', id: `charm-set-${s.id}-${Date.now()}`, name: `Set complete: ${s.name}`, icon: s.icon,
+                    description: `All ${s.members.length} charms held: +${setBonusFor(s)} points on every word while the set stays together.`,
+                    scoreChange: 0, cumulativeScore: newGameState.score,
+                } as EventLogEntry))];
+                newGameState.lastPowerPlayResult = { message: `🧩 SET COMPLETE! ${text}`, scoreChange: 0 };
+            }
+
             return {
                 ...state,
                 hand: newHand,
@@ -1496,6 +1566,20 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 scoreChange: 0, cumulativeScore: gameState.score,
             }] : [];
             gameState = { ...gameState, oncePerRunTaken, availablePowerPlays: [], log: [...gameState.log, ...swapLog] };
+            // Mystery Tape (v7.41): taking the face-down card pays on the spot (a prize), then it's a normal PowerPlay.
+            if (gameState.mysteryTapeId === powerPlay.id) {
+                const tapePoints = prizeFor(MYSTERY_TAPE.points, runLevel(gameState));
+                gameState = {
+                    ...gameState,
+                    score: gameState.score + tapePoints,
+                    log: [...gameState.log, {
+                        type: 'event', id: `mystery-tape-${Date.now()}`, name: 'Mystery Tape', icon: '📼',
+                        description: `Taken blind: it was ${powerPlay.icon} ${powerPlay.name}. +${tapePoints} points.`,
+                        scoreChange: tapePoints, cumulativeScore: gameState.score + tapePoints,
+                    } as EventLogEntry],
+                };
+            }
+            gameState = { ...gameState, mysteryTapeId: null };
 
             const resetProgress = {
                 targetDigit: null,
@@ -2477,6 +2561,39 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             }
         }
 
+        // Phoenix Down: the run just ended; offer (once) to keep it going for Credits.
+        case 'OFFER_CONTINUE':
+            return {
+                ...state,
+                isPaused: true,
+                modalQueue: [],
+                gameState: { ...state.gameState, continueOffered: true },
+                modalContent: { type: 'continue-offer', title: PHOENIX_DOWN.name, data: { reason: action.payload.reason } },
+            };
+
+        case 'ACCEPT_CONTINUE': {
+            if (state.modalContent?.type !== 'continue-offer') return state;
+            const gs = state.gameState;
+            const reason: 'strikes' | 'time' = state.modalContent?.data?.reason === 'strikes' ? 'strikes' : 'time';
+            const time = Math.max(state.time ?? 0, PHOENIX_DOWN.seconds);
+            return {
+                ...state,
+                time,
+                modalContent: null,
+                isPaused: false,
+                gameState: {
+                    ...gs,
+                    strikes: 0,
+                    continued: true,
+                    log: [...gs.log, {
+                        type: 'event', id: `phoenix-down-${Date.now()}`, name: PHOENIX_DOWN.name, icon: PHOENIX_DOWN.icon,
+                        description: `${reason === 'strikes' ? 'Struck out' : 'Out of time'}, then rose again for ${PHOENIX_DOWN.cost} Credits: strikes wiped, ${time} seconds on the clock.`,
+                        scoreChange: 0, cumulativeScore: gs.score,
+                    } as EventLogEntry],
+                },
+            };
+        }
+
         case 'GAME_OVER_INITIATED': {
             const { reason, word } = action.payload;
             let title = "GAME OVER";
@@ -2542,7 +2659,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
     }
 }
 
-export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveGame, isResuming, onTimeLow, onGoldenRoundChange, onBossRoundChange, onScoreUpdate, onLexCoinChange, tileClass, powerWord, daily = null }) => {
+export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveGame, isResuming, onTimeLow, onGoldenRoundChange, onBossRoundChange, onScoreUpdate, onLexCoinChange, tileClass, powerWord, daily = null, lexCoins = 0 }) => {
     // A Daily Run saves to its own slot, so a regular run can't wipe an unfinished daily attempt.
     const saveSlot = daily ? STORAGE_KEYS.savedDailyGame : STORAGE_KEYS.savedGame;
     // Stop using the daily's seeded tile luck once this run leaves the screen.
@@ -2864,6 +2981,60 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   const strikesRemaining = useMemo(() => maxStrikes - (gameState?.strikes ?? 0), [maxStrikes, gameState?.strikes]);
 
 
+  // Power word hint (v7.41): the tiles in play (hand + word row) can spell a power word that's
+  // ready to fire. One hint a level; the chip stays while those tiles can still spell it.
+  const tilesInPlay = useMemo(() => [
+      ...(hand ?? []).filter((t): t is Tile => !!t).map(t => t.letter),
+      ...(buildRow ?? []).filter(Boolean).map(b => b!.tile.letter),
+  ], [hand, buildRow]);
+  const hintLevel = levelFor(totalWords);
+  const powerHint = useMemo(
+      () => (gameState?.roundType === 'golden' ? null : powerWordHintStands(gameState?.powerHint, tilesInPlay, gameState?.powerWordLevels, hintLevel)),
+      [gameState?.powerHint, gameState?.powerWordLevels, gameState?.roundType, tilesInPlay, hintLevel]);
+  useEffect(() => {
+      if (!gameState || isLoading || isPaused || gameState.roundType === 'golden') return;
+      if (gameState.powerHint?.level === hintLevel || tilesInPlay.length === 0) return;
+      const found = findPowerWordHint(tilesInPlay, gameState.powerWordLevels, hintLevel);
+      if (found) {
+          dispatch({ type: 'UPDATE_GAME_STATE', payload: { powerHint: { level: hintLevel, id: found.id } } });
+          sendStat({ type: 'pw_hint', power: found.effect, level: hintLevel });
+      }
+  }, [gameState, isLoading, isPaused, tilesInPlay, hintLevel]);
+  const handlePowerHintInfo = useCallback(() => {
+      if (!powerHint) return;
+      soundService.playModalOpen();
+      const info = powerWordInfo(powerHint.effect);
+      dispatch({ type: 'SET_MODAL_CONTENT', payload: {
+          type: 'info', title: `⚡ Power word in your hand`,
+          content: `Power words are secret words that set off an effect instead of a bonus. One of them can be spelled from your tiles right now: it has ${powerHint.length} letters.\n\n${powerHint.icon} ${info.does}\n\nFind it and play it. You get one hint like this per level.`,
+      } });
+  }, [powerHint]);
+
+  /**
+   * Phoenix Down: pay and play on, or let the run end the way it was going to. It answers only
+   * the offer that's open, and only once: a second call (a double tap, a stale handler) is ignored,
+   * so it can never charge twice or end a run that was just paid for.
+   */
+  const continueModal = state.modalContent?.type === 'continue-offer' ? state.modalContent : null;
+  const continueModalRef = useRef(continueModal);
+  continueModalRef.current = continueModal;
+  const continueAnswered = useRef<ModalContent>(null);
+  const handleContinueOffer = useCallback((accept: boolean) => {
+    const offer = continueModalRef.current;
+    if (!offer || continueAnswered.current === offer) return;
+    continueAnswered.current = offer;
+    const reason: 'strikes' | 'time' = offer.data?.reason === 'strikes' ? 'strikes' : 'time';
+    const paid = accept && lexCoins >= PHOENIX_DOWN.cost;
+    sendStat({ type: 'continue_offer', taken: paid, level: levelFor(totalWords), reason });
+    if (paid) {
+      onLexCoinChange(-PHOENIX_DOWN.cost);
+      soundService.playMilestone();
+      dispatch({ type: 'ACCEPT_CONTINUE' });
+      return;
+    }
+    dispatch({ type: 'GAME_OVER_INITIATED', payload: { reason } });
+  }, [lexCoins, onLexCoinChange, totalWords]);
+
   const handleCloseModal = useCallback(() => {
     soundService.playUIClick();
     const lastModalType = state.modalContent?.type;
@@ -2989,10 +3160,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // Apply guards for pause, load, a backgrounded app, or special rounds/power-ups that stop time.
       if (!isVisible || isPaused || isLoading || (state.resumeCountdown ?? 0) > 0 || gameState?.activePowerPlays?.leafOnTheWind) return;
 
+      // Phoenix Down: one continue offer per run, never on the scored Daily Run.
+      const continueOpen = !gameState?.continueOffered && !(gameState?.daily && !gameState.daily.practice);
+
       // First, check for game-ending strike condition.
       if ((gameState?.strikes ?? 0) >= maxStrikes) {
           soundService.playInvalidWord();
-          dispatch({ type: 'GAME_OVER_INITIATED', payload: { reason: 'strikes' } });
+          dispatch({ type: continueOpen ? 'OFFER_CONTINUE' : 'GAME_OVER_INITIATED', payload: { reason: 'strikes' } });
           return;
       }
 
@@ -3064,7 +3238,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
           
           soundService.playInvalidWord();
-          dispatch({ type: 'GAME_OVER_INITIATED', payload: { reason: 'time' } });
+          dispatch({ type: continueOpen ? 'OFFER_CONTINUE' : 'GAME_OVER_INITIATED', payload: { reason: 'time' } });
           return;
       }
       
@@ -4064,6 +4238,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           scoreResult.bonuses.push({ name: '✖️ Multiplier on charms', description: `+${multiplierBonus} pts (x${itemMultiplierIn(scoreResult.bonuses)} covers charm points too)` });
       }
 
+      // Charm sets (v7.41): every set held in full pays on each valid word (0 means 0 still holds).
+      if (!wordLocked) {
+          for (const set of completedSets(newState.activeCharms.map(c => c.id))) {
+              const points = setBonusFor(set);
+              runningScore += points;
+              scoreResult.bonuses.push({ name: `🧩 ${set.name} set`, description: `+${points} pts (all ${set.members.length} charms held)` });
+          }
+      }
+
       // --- 6. Aggregate Score and Check Aggregate Bonuses ---
       const turnScorePreMilestone = runningScore - oldScore;
 
@@ -4116,7 +4299,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           // A repeat has no reveal card, so its pop-up says what the word does and waits for Continue.
           const head = again ? `⚡ POWER WORD · ${word.toUpperCase()} AGAIN!` : '';
           const info = powerWordInfo(effect);
-          const track = (seconds = 0, strike = false) => sendStat({ type: 'power_word', power: effect, repeat: again, seconds, strike });
+          const track = (seconds = 0, strike = false) => sendStat({ type: 'power_word', power: effect, repeat: again, seconds, strike }, newState.powerHint?.id === egg.id && newState.powerHint.level === thisWordLevel ? { hinted: true } : undefined);
           const note = (title: string, content: string, change = 0): ModalContent => {
               scoreResult.bonuses.push({ name: `${icon} ${title}`, description: content });
               eventLogQueue.push({ type: 'event', id: `pw-${egg.id}-${now}`, name: title, icon, description: content, scoreChange: change, cumulativeScore: runningScore });
@@ -4415,10 +4598,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                   !(pp.id === 'dailyDouble' && newState.score < POWER_PLAY_VALUES.dailyDoubleMin) &&
                   !newState.powerPlayCooldowns[pp.id]
               );
-              const { offeredItems: offeredPowerPlays, offerDetails } = limitTimeCards(
+              const { offeredItems: offeredPowerPlays, offerDetails, mysteryId } = dealMysteryTape(limitTimeCards(
                   gameUtils.getOffer(powerPlaysToOfferFrom, 3, newState) as { offeredItems: PowerPlay[]; offerDetails: { id: string; score: number }[] },
                   powerPlaysToOfferFrom,
-                  (pool, n) => gameUtils.getOffer(pool, n, newState) as { offeredItems: PowerPlay[]; offerDetails: { id: string; score: number }[] });
+                  (pool, n) => gameUtils.getOffer(pool, n, newState) as { offeredItems: PowerPlay[]; offerDetails: { id: string; score: number }[] }),
+                  powerPlaysToOfferFrom, newState);
+              newState.mysteryTapeId = offeredPowerPlays.length > 0 ? mysteryId : null;
 
               if (offeredPowerPlays.length > 0) {
                   newState.powerPlayOffer = offeredPowerPlays;
@@ -4464,7 +4649,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               !(c.id === 'mrGlass' && newState.strikes >= maxStrikesFor({ ...newState, activeCharms: [...newState.activeCharms, c] })) &&
               !newState.charmCooldowns[c.id]
           );
-          const { offeredItems: offeredCharms, offerDetails } = gameUtils.getOffer(charmsToOfferFrom, 3, newState);
+          const charmOffer = gameUtils.getOffer(charmsToOfferFrom, 3, newState) as { offeredItems: Charm[]; offerDetails: { id: string; score: number }[] };
+          // Charm sets (v7.41): with part of a set held, the last card is sometimes a missing piece.
+          const { offeredItems: offeredCharms, offerDetails } = pullSetPiece(charmOffer, charmsToOfferFrom, newState);
 
           if(offeredCharms.length > 0) {
             // Update state for weighting logic
@@ -5308,8 +5495,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         if (held && held.id !== powerPlay.id) trackMission({ type: 'powerplaySwap' });
         // Instant PowerPlays are used the moment they're picked.
         if (INSTANT_POWER_PLAY_IDS.has(powerPlay.id)) trackMission({ type: 'powerplay', id: powerPlay.id, subtheme: powerPlay.subtheme });
-        sendStat({ type: 'pp_offer', offered: allOffered.map(p => p.id).join(','), picked: powerPlay.id, level: levelFor(totalWords) });
+        const tapeId = gameState.mysteryTapeId && allOffered.some(p => p.id === gameState.mysteryTapeId) ? gameState.mysteryTapeId : null;
+        sendStat({ type: 'pp_offer', offered: allOffered.map(p => p.id).join(','), picked: powerPlay.id, level: levelFor(totalWords) }, tapeId ? { mystery: tapeId } : undefined);
         dispatch({ type: 'CHOOSE_POWER_PLAY', payload: { powerPlay, allOffered } });
+        // Mystery Tape: the reveal card takes the offer's place (like CARD_ON_PICK), so closing it
+        // starts the next round the way closing the offer would have.
+        if (tapeId === powerPlay.id) {
+            const tapePoints = prizeFor(MYSTERY_TAPE.points, levelFor(totalWords));
+            soundService.playMilestone();
+            dispatch({ type: 'SET_MODAL_CONTENT', payload: {
+                type: 'outcome', title: 'Mystery Tape',
+                content: `+${tapePoints} points for taking it blind.\n\n${powerPlay.description}\n\nIt's in your pocket: tap it in the Buffs tray to use it.`,
+                data: { icon: powerPlay.icon, headline: powerPlay.name.toUpperCase(), tone: 'win' },
+            } });
+            return;
+        }
         // These replace the offer with their own card (the reducer opens it), so the offer isn't closed
         // here: closing it would start the next round, which clears the card (the bid was skipped).
         if (CARD_ON_PICK.has(powerPlay.id)) return;
@@ -5343,7 +5543,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
     const handleKeepPowerPlay = (allOffered: PowerPlay[]) => {
         soundService.playUIClick();
-        sendStat({ type: 'pp_offer', offered: allOffered.map(p => p.id).join(','), picked: '', level: levelFor(totalWords) });
+        const tapeId = gameState.mysteryTapeId && allOffered.some(p => p.id === gameState.mysteryTapeId) ? gameState.mysteryTapeId : null;
+        sendStat({ type: 'pp_offer', offered: allOffered.map(p => p.id).join(','), picked: '', level: levelFor(totalWords) }, tapeId ? { mystery: tapeId } : undefined);
         dispatch({ type: 'KEEP_POWER_PLAY', payload: { allOffered } });
         handleCloseModal();
     };
@@ -5394,6 +5595,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         resumeCountdown: state.resumeCountdown ?? 0,
         handleResolveGamble,
         handleResolveMiniGame,
+        handleContinueOffer,
+        lexCoins,
+        powerHint,
+        handlePowerHintInfo,
         upcomingTiles: gameState.activePowerPlays?.psychicFriends ? tileBag.slice(-POWER_PLAY_VALUES.psychicTiles).reverse() : [],
         // Smell Ya Later!: the rival's score as it climbs, in real seconds.
         raceRival: (() => {

@@ -15,6 +15,10 @@ export type StatEvent =
     | { type: 'charm_offer'; offered: string; picked: string; level: number }
     | { type: 'pp_offer'; offered: string; picked: string; level: number }
     | { type: 'pp_use'; pp: string; level: number }
+    // Phoenix Down: the continue offer at the end of a run, and whether it was bought.
+    | { type: 'continue_offer'; taken: boolean; level: number; reason: 'strikes' | 'time' }
+    // Power word hint chip shown (v7.41); a power_word that follows one carries `hinted`.
+    | { type: 'pw_hint'; power: PowerWordEffect; level: number }
     | { type: 'power_word'; power: PowerWordEffect; repeat: boolean; seconds: number; strike: boolean };
 
 export type StoredStat = StatEvent & StatExtras & { timestamp: number };
@@ -47,6 +51,10 @@ export interface StatExtras {
     tShuffles?: number;
     upgrades?: number;
     upgraded?: string;
+    /** power_word (v7.41): the hint chip was showing for this word. */
+    hinted?: boolean;
+    /** pp_offer (v7.41): the PowerPlay hidden in that offer's Mystery Tape. */
+    mystery?: string;
 }
 
 /** Sends one event. Never throws; a lost event is fine. */

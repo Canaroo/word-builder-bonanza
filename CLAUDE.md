@@ -46,6 +46,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | Game state, reducer, turn logic | `services/screens/GameScreen.tsx` (large) |
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
 | PowerPlays / charms (100 / 100) | `data/powerPlays.ts`, `data/charms.ts` |
+| Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
 | Secret bonuses (107 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
 | Hidden desktop pages | `/?stats` and `/?bonuses` (tabs: `&tab=words`, `scores`, `counts`, `charms`, `powerPlays`) render full-width outside the phone frame (`showToolPage` in `App.tsx`) |
 | Bosses (24) and Boss Badges | `data/bosses.ts` (villains, rules), `BOSS` in `config/gameplay.ts` (timing, rewards); badges in the profile (`recordBossBadge`) |
@@ -260,6 +261,29 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   pays (its normal score + 25 a letter) x3, charms included, and doesn't touch the run's tile
   stream. Both reuse the arcade card (`minigame` modal with `gate` in its data) and pay flat (no
   level boost). Stats: 44% of runs reached 10,000 and 11% reached 30,000.
+- **Four features from the 146-run stats review (v7.41.0).** The stats showed 15 names ever, three
+  regulars, 47% of runs ending by level 3 (17 of 40 on strikes), 52% of charm offers passed after
+  level 6, 25 PowerPlays picked under 12%, and power words firing 14 times in 146 runs.
+  **Phoenix Down** (`PHOENIX_DOWN` in `config/progression.ts`, `components/ContinueCard.tsx`): the
+  first time a run ends (strikes or clock), a one-time charm card offers to continue for 150
+  Credits (the owner's price and design): strikes wiped, clock back to at least 30 s. Once per run
+  (`continueOffered`), never on the scored Daily Run, shown greyed out when the player can't pay.
+  It is not in `CHARMS_LIST`. `handleContinueOffer` answers only the open offer, once. The older
+  Continue? PowerPlay and the free rescues still go first.
+  **Charm sets** (`data/charmSets.ts`, `CHARM_SET_BONUS`): 9 themed sets of 2-3 charms, mostly
+  never-picked ones. Holding a whole set pays +50 (pair) or +100 (trio) on every valid word, as a
+  "🧩 <name> set" line (0 means 0 holds; not boosted by upgrades or long words). With part of a set
+  held, a charm offer's last card becomes a missing piece half the time (`pullSetPiece`, seeded).
+  Offer cards say what a charm does for a set, and the swap screen warns when a drop breaks one
+  (`SetNote` in `OfferModals.tsx`). A charm belongs to one set at most (a test checks).
+  **Mystery Tape** (`MYSTERY_TAPE`, `dealMysteryTape`): 1 PowerPlay offer in 4 has a face-down last
+  card hiding a low-pick pocket PowerPlay; taking it pays +150 (a prize, `prizeFor`) and a reveal
+  card takes the offer's place. The pool has no instant, bet or time cards; refresh it from stats.
+  **Power word hint** (`services/powerWordHint.ts`): when the tiles in play can spell a ready power
+  word, a chip above the hand says so (icon and length on tap, never the word), once per level
+  (`gameState.powerHint`), not in Golden Rounds.
+  Stats: new events `continue_offer` and `pw_hint`, extras `mystery` (pp_offer) and `hinted`
+  (power_word). They need the rules in `docs/LEADERBOARD.md` pasted into the Firebase console.
 - **Power words** (10 secret words with `effect`, no points): SLOT (slot machine, +1/3/10s), SNOW
   (clock frozen 10s), HEAL (remove a strike, else +100), SLOW (half-speed clock for 3 words), TWIN
   (clone your best word's time + a Word Combo step), RINGS (a strike shield), REWIND (clock one speed
