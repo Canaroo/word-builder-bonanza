@@ -132,7 +132,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [leaderboardSource, setLeaderboardSource] = useState<LeaderboardSource>('local');
   const [leaderboardOfflineReason, setLeaderboardOfflineReason] = useState<string | undefined>();
   // The Top 50 has two boards: all-time, and today's Daily Run.
-  const [leaderboardTab, setLeaderboardTab] = useState<'all' | 'daily'>('all');
+  const [leaderboardTab, setLeaderboardTab] = useState<'all' | 'recent' | 'daily'>('all');
 
   const [showEventLogsModal, setShowEventLogsModal] = useState(false);
   const [eventLogs, setEventLogs] = useState<FinalGameState[]>([]);
@@ -194,7 +194,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
     setIsLoadingLeaderboard(true);
     const { entries, source, offlineReason } = leaderboardTab === 'daily'
       ? await leaderboardService.getDailyLeaderboard(today.key, { retry })
-      : await leaderboardService.getLeaderboard({ retry });
+      : leaderboardTab === 'recent'
+        ? await leaderboardService.getRecentLeaderboard({ retry })
+        : await leaderboardService.getLeaderboard({ retry });
     setLeaderboardData(entries);
     setLeaderboardSource(source);
     setLeaderboardOfflineReason(offlineReason);
@@ -375,18 +377,18 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const renderPanel = () => {
     if (panel === 'top50') return (
       <ScreenShell title="TOP 50" tone="pink" onBack={panelBack} credits={lexCoins} tab="top50" onTab={panelTab} subheader={
-        <div className="grid grid-cols-2 gap-1" role="tablist" aria-label="Leaderboards">
-          {(['all', 'daily'] as const).map(tab => (
+        <div className="grid grid-cols-3 gap-1" role="tablist" aria-label="Leaderboards">
+          {(['all', 'recent', 'daily'] as const).map(tab => (
             <button key={tab} type="button" role="tab" aria-selected={leaderboardTab === tab}
               onClick={() => { soundService.playUIClick(); setLeaderboardTab(tab); }}
-              className={`osd-text text-lg leading-none rounded-lg py-2 ring-1 ${leaderboardTab === tab ? 'bg-neon-pink/25 ring-neon-pink text-white' : 'ring-white/15 text-slate-400'}`}>
-              {tab === 'all' ? '🏆 ALL-TIME' : `📅 TODAY #${today.number}`}
+              className={`osd-text text-base min-[375px]:text-lg leading-none rounded-lg py-2 ring-1 whitespace-nowrap ${leaderboardTab === tab ? 'bg-neon-pink/25 ring-neon-pink text-white' : 'ring-white/15 text-slate-400'}`}>
+              {tab === 'all' ? '🏆 TOP 50' : tab === 'recent' ? '🕒 RECENT' : `📅 TODAY #${today.number}`}
             </button>
           ))}
         </div>
       }>
         <div className="h-full flex flex-col">
-          <Leaderboard key={leaderboardTab} data={leaderboardData} isLoading={isLoadingLeaderboard} source={leaderboardSource} offlineReason={leaderboardOfflineReason} onRetry={() => fetchLeaderboard(true)} />
+          <Leaderboard key={leaderboardTab} recent={leaderboardTab === 'recent'} data={leaderboardData} isLoading={isLoadingLeaderboard} source={leaderboardSource} offlineReason={leaderboardOfflineReason} onRetry={() => fetchLeaderboard(true)} />
         </div>
       </ScreenShell>
     );

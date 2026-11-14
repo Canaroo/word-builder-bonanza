@@ -107,6 +107,29 @@ const getLeaderboard = async ({ retry = false } = {}): Promise<LeaderboardResult
 };
 
 /**
+ * The Recent board (v7.39.6): the last 50 scores submitted, newest first, whatever they scored.
+ * Offline, it's this device's scores by date.
+ */
+const getRecentLeaderboard = async ({ retry = false } = {}): Promise<LeaderboardResult> => {
+    if (retry) onlineFailedAt = 0;
+    if (shouldTryOnline()) {
+        try {
+            const entries = await onlineLeaderboard.listRecent();
+            lastOnlineError = '';
+            return { entries, source: 'online' };
+        } catch (error) {
+            noteOnlineFailure(error, 'showing this device');
+        }
+    }
+    const offline = isOnlineLeaderboardEnabled()
+        ? { offlineReason: typeof navigator !== 'undefined' && navigator.onLine === false ? 'no connection' : lastOnlineError || 'unavailable' }
+        : {};
+    const time = (e: LeaderboardEntry) => Date.parse(e.date) || 0;
+    const entries = [...localLeaderboard.list()].sort((a, b) => time(b) - time(a)).map((e, i) => ({ ...e, rank: i + 1 }));
+    return { entries, source: 'local', ...offline };
+};
+
+/**
  * The Daily Run board for a game day (v7.30). Online only: a day's board only means something
  * when everyone shares it, so offline it's simply empty with the reason.
  */
@@ -148,6 +171,7 @@ const resetOnlineBackoff = () => { onlineFailedAt = 0; };
 export const leaderboardService = {
     submitScore,
     getLeaderboard,
+    getRecentLeaderboard,
     getDailyLeaderboard,
     submitDailyScore,
     getLastSubmitted,

@@ -22,6 +22,26 @@ describe('online leaderboard (REST)', () => {
         expect(rows.map(r => [r.name, r.rank, r.badge, r.title, r.streak])).toEqual([['Tex', 1, 'b_vhs', null, 3], ['Nicole', 2, null, null, 0]]);
     });
 
+    test('the Recent board lists the newest scores first, whatever they scored (v7.39.6)', async () => {
+        fetchMock.mockResolvedValue(json(200, {
+            a: { name: 'Old', score: 90000, timestamp: 1000 },
+            b: { name: 'New', score: 12, timestamp: 3000 },
+            c: { name: 'Mid', score: 500, timestamp: 2000 },
+        }));
+        const rows = await onlineLeaderboard.listRecent();
+        expect(fetchMock.mock.calls[0][0]).toBe('https://example-db.firebaseio.com/leaderboard.json?orderBy=%22timestamp%22&limitToLast=50');
+        expect(rows.map(r => r.name)).toEqual(['New', 'Mid', 'Old']);
+    });
+
+    test('until the rules index timestamp, the Recent board reads the whole board and sorts it', async () => {
+        fetchMock
+            .mockResolvedValueOnce(json(400, { error: 'Index not defined, add ".indexOn": "timestamp"' }))
+            .mockResolvedValueOnce(json(200, { a: { name: 'Old', score: 9, timestamp: 1000 }, b: { name: 'New', score: 1, timestamp: 2000 } }));
+        const rows = await onlineLeaderboard.listRecent();
+        expect(fetchMock.mock.calls[1][0]).toBe('https://example-db.firebaseio.com/leaderboard.json');
+        expect(rows.map(r => r.name)).toEqual(['New', 'Old']);
+    });
+
     test('an empty board is an empty list', async () => {
         fetchMock.mockResolvedValue(json(200, null));
         expect(await onlineLeaderboard.list()).toEqual([]);
