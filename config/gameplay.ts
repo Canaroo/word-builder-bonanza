@@ -413,6 +413,17 @@ export const SKILL_SHOT = { base: 50, step: 25, max: 200 } as const;
 export const GEM_TILES: Record<number, number> = { 6: 3, 7: 4, 8: 5 };
 
 /**
+ * v7.43: three more mechanics borrowed from other games.
+ * FORK: at these levels (the start of a tier) the player picks a route until the next fork. The
+ *   clock factor multiplies the level's clock speed; the points factor multiplies each word's score.
+ * HOLD_SLOT: from this level, one tile can be parked in a slot that survives new hands and shuffles.
+ * GRUDGE: beating a boss that got away from this player before pays its badge points times this.
+ */
+export const FORK = { levels: [4, 7, 11], easy: { clock: 0.9, points: 1 }, danger: { clock: 1.15, points: 1.5 } } as const;
+export const HOLD_SLOT = { fromLevel: 4 } as const;
+export const GRUDGE = { multiplier: 2 } as const;
+
+/**
  * Mystery Tape (v7.41): now and then the last card of a PowerPlay offer is a face-down tape. It
  * hides one PowerPlay from `pool` (the ones picked under 12% of the time in the usage stats: 146
  * runs, Nov 2026) and pays `points` on the spot for taking it blind (a prize: grows with the

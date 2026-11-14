@@ -178,6 +178,8 @@ export interface BossRound {
   number: number;
   wordsLeft: number;
   hits: number;
+  /** Grudge Match: rounds in a row this boss had got away from the player when the round began. */
+  grudge?: number;
 }
 
 export interface GameState {
@@ -309,6 +311,10 @@ export interface GameState {
   neuralyzerOffer?: boolean;
   /** Ids of equipped charms that have been upgraded (CHARM_UPGRADE): their point bonuses pay more. */
   charmUpgrades?: string[];
+  /** Fork in the Road (v7.43): the route picked at the last fork, and the level it was picked at. */
+  route?: { choice: 'easy' | 'danger'; level: number } | null;
+  /** Hold Slot (v7.43): the tile parked there (survives new hands and shuffles). */
+  holdTile?: Tile | null;
   /** Last Words (v7.42): the parting-word card has been shown this run. */
   lastWordsDone?: boolean;
   /** Head Start: seconds added to this run's starting clock (shown until the first word). */

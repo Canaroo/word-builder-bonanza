@@ -31,6 +31,8 @@ import { PHOENIX_DOWN } from '../../config/progression';
 import { completedSets, setBonusFor, setPullCandidates } from '../../data/charmSets';
 import { CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS } from '../../config/gameplay';
 import { headStartSeconds } from '../headStart';
+import { grudgeFor, grudgeTaunt, recordBossResult } from '../grudges';
+import { FORK, HOLD_SLOT, GRUDGE } from '../../config/gameplay';
 import { gemMultiplierFor, skillShotPoints } from '../rules';
 import { findPowerWordHint, powerWordHintStands } from '../powerWordHint';
 import { BOSSES, bossById, pickBoss } from '../../data/bosses';
@@ -259,6 +261,8 @@ type GameAction =
     | { type: 'GAME_OVER_INITIATED', payload: { reason: 'strikes' | 'time'; word?: string } }
     | { type: 'OFFER_CONTINUE', payload: { reason: 'strikes' | 'time' } }
     | { type: 'END_RUN', payload: { reason: 'strikes' | 'time' } }
+    | { type: 'HOLD_STASH', payload: { tile: Tile; fromIndex: number } }
+    | { type: 'HOLD_RETURN' }
     | { type: 'ACCEPT_CONTINUE' }
     | { type: 'SELECT_TILE_FOR_SELECTION', payload: { tile: Tile, originalIndex: number } | null }
     | { type: 'STORE_LAST_TURN' }
@@ -365,6 +369,16 @@ const TREEHOUSE_NAME = 'Treehouse of Horror';
 // Speed-up levels: every few words the clock runs a little faster. Announced when this word crosses a level.
 const CONTINUE_TITLE = '🕹️ Continue?';
 
+/** Grudge payouts depend on each player's own history, so the scored Daily Run leaves them out. */
+const grudgePays = (gs: GameState): boolean => !(gs.daily && !gs.daily.practice);
+
+/** Fork in the Road (v7.43): the route card, when this word levels up into a fork level. */
+const forkModal = (wordsBefore: number): ModalContent | null => {
+    const level = levelFor(wordsBefore + 1);
+    if (level <= levelFor(wordsBefore) || !(FORK.levels as readonly number[]).includes(level)) return null;
+    return { type: 'fork', title: 'Fork in the Road', data: { level } };
+};
+
 /**
  * Boss rounds: if this word levels up into a boss level, start the round on `gs` (a copy the
  * caller owns) and return the boss intro pop-up.
@@ -375,14 +389,23 @@ const startBossRound = (gs: GameState, wordsBefore: number): ModalContent | null
     if (!number) return null;
     // A Daily Run picks each boss level's villain from the day's seed, so everyone faces the same ones.
     const boss = pickBoss(number, gs.bossesFaced ?? [], gs.daily ? seededStream((gs.daily.seed + number * 7919) >>> 0).next : Math.random);
-    gs.boss = { id: boss.id, number, wordsLeft: BOSS.words, hits: 0 };
+    // Grudge Match (v7.43): a boss that got away from this player before remembers, and says so.
+    const grudge = grudgeFor(boss.id);
+    gs.boss = { id: boss.id, number, wordsLeft: BOSS.words, hits: 0, ...(grudge.streak > 0 ? { grudge: grudge.streak } : {}) };
     gs.bossesFaced = [...(gs.bossesFaced ?? []), boss.id];
     sendStat({ type: 'boss_start', boss: boss.id, number });
     const reward = bossRewardFor(number);
+    const rules = `Rule: ${boss.description}\n\nLand ${bossHitsToWin(gs, boss)} hits in your next ${BOSS.words} words to win the Boss Badge: +${reward.points} points and +${reward.seconds}s. Words that break the rule still score; they just don't count as hits.`;
+    if (grudge.streak > 0) {
+        const words = gs.log.filter((e): e is WordLogEntry => e.type === 'word' && e.status === 'valid').map(e => e.word);
+        const taunt = grudgeTaunt(boss, grudge, { words, strikes: gs.strikes, level });
+        const stakes = grudgePays(gs) ? `\n\n⚔️ Settle the grudge: beat ${boss.name} and the badge points pay x${GRUDGE.multiplier} (+${reward.points * GRUDGE.multiplier}).` : '';
+        return { type: 'info', title: `${boss.icon} GRUDGE MATCH: ${boss.name}!`, content: `“${taunt}”\n\n${rules}${stakes}` };
+    }
     return {
         type: 'info',
         title: `${boss.icon} BOSS: ${boss.name}!`,
-        content: `“${boss.taunt}”\n\nRule: ${boss.description}\n\nLand ${bossHitsToWin(gs, boss)} hits in your next ${BOSS.words} words to win the Boss Badge: +${reward.points} points and +${reward.seconds}s. Words that break the rule still score; they just don't count as hits.`,
+        content: `“${boss.taunt}”\n\n${rules}`,
     };
 };
 
@@ -400,7 +423,7 @@ const levelUpModal = (wordsBefore: number, gs?: GameState): ModalContent | null 
  * stuck in the old round: v7.19.0's level-up card was, so a word whose only pop-up was a
  * level-up lost its word time, and Groundhog's Day saw a word "already played" and didn't fire.
  */
-export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome'];
+export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork'];
 
 /**
  * A chance PowerPlay's result (a roll, a coin flip, a random tile): a centered card that waits
@@ -847,6 +870,23 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 };
             }
             return state;
+        }
+
+        // Hold Slot (v7.43): park one tile; it stays out of new hands and shuffles until tapped back.
+        case 'HOLD_STASH': {
+            const { tile, fromIndex } = action.payload;
+            if (state.gameState.holdTile || state.hand[fromIndex]?.id !== tile.id) return state;
+            const newHand = [...state.hand];
+            newHand[fromIndex] = null;
+            return { ...state, hand: newHand, gameState: { ...state.gameState, holdTile: tile } };
+        }
+        case 'HOLD_RETURN': {
+            const held = state.gameState.holdTile;
+            const slot = state.hand.indexOf(null);
+            if (!held || slot === -1) return state;
+            const newHand = [...state.hand];
+            newHand[slot] = held;
+            return { ...state, hand: newHand, gameState: { ...state.gameState, holdTile: null } };
         }
 
         case 'MOVE_TILE_TO_BUILD': {
@@ -2582,11 +2622,15 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             const tilesLeft = [...state.hand, ...state.buildRow.map(b => b?.tile ?? null)].filter(Boolean).length;
             if (state.gameState.lastWordsDone || tilesLeft < 3) return gameReducer(state, { type: 'GAME_OVER_INITIATED', payload: action.payload });
             const back = withBuildRowReturned(state);
+            // The held tile joins the final hand.
+            const held = state.gameState.holdTile ?? null;
+            const freeSlot = back.hand.indexOf(null);
+            const finalHand = held && freeSlot !== -1 ? back.hand.map((t, i) => (i === freeSlot ? held : t)) : back.hand;
             return {
-                ...state, ...back,
+                ...state, ...back, hand: finalHand,
                 isPaused: true,
                 modalQueue: [],
-                gameState: { ...state.gameState, lastWordsDone: true },
+                gameState: { ...state.gameState, lastWordsDone: true, holdTile: held && freeSlot !== -1 ? null : held },
                 modalContent: { type: 'last-words', title: 'Last Words', data: { reason: action.payload.reason } },
             };
         }
@@ -3080,6 +3124,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     dispatch({ type: 'END_RUN', payload: { reason } });
   }, [lexCoins, onLexCoinChange, totalWords]);
 
+  /** Fork in the Road: take a route (until the next fork), then carry on. */
+  const handleForkPick = (choice: 'easy' | 'danger') => {
+    if (state.modalContent?.type !== 'fork') return;
+    const level = Number(state.modalContent.data?.level) || levelFor(totalWords);
+    dispatch({ type: 'UPDATE_GAME_STATE', payload: {
+        route: { choice, level },
+        log: [...gameState.log, {
+            type: 'event', id: `fork-${level}-${Date.now()}`, name: choice === 'danger' ? 'Danger Zone' : 'Easy Street', icon: choice === 'danger' ? '🔥' : '🌴',
+            description: choice === 'danger' ? `Level ${level} fork: clock ${Math.round((FORK.danger.clock - 1) * 100)}% faster, every word x${FORK.danger.points}.` : `Level ${level} fork: clock ${Math.round((1 - FORK.easy.clock) * 100)}% slower, normal points.`,
+            scoreChange: 0, cumulativeScore: gameState.score,
+        } as EventLogEntry],
+    } });
+    handleCloseModal();
+  };
+
   /** Last Words: bank the parting word (if any), then the run ends. Answers the open card once. */
   const lastWordsModal = state.modalContent?.type === 'last-words' ? state.modalContent : null;
   const lastWordsRef = useRef(lastWordsModal);
@@ -3332,7 +3391,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       const slow = slowMo * hammer;
       // ⏪ REWIND (a power word) runs this level's clock at the previous level's speed.
       const clockLevel = levelFor(totalWords) - (gameState.rewindLevel === levelFor(totalWords) ? 1 : 0);
-      const tickMs = frozen ? 1000 : gameState.roundType === 'golden' ? 1000 : tickMsFor(Math.max(1, clockLevel)) * slow;
+      const tickMs = frozen ? 1000 : gameState.roundType === 'golden' ? 1000 : tickMsFor(Math.max(1, clockLevel)) * slow / (gameState.route ? FORK[gameState.route.choice].clock : 1);
       const interval = setInterval(() => {
           dispatch(frozen ? { type: 'TICK_FREEZE' } : { type: 'TICK_TIMER', ms: tickMs });
       }, tickMs);
@@ -3359,7 +3418,27 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     }
   }, [gameState?.lastPowerPlayResult, showMessage]);
 
+  // Hold Slot (v7.43): tap HOLD, then a tile, to park it; tap the held tile to take it back.
+  const [holdArmed, setHoldArmed] = useState(false);
+  const holdOpen = levelFor(totalWords) >= HOLD_SLOT.fromLevel;
+  const handleHoldTap = () => {
+    if (!holdOpen || isPaused || isChallengeLock) return;
+    soundService.playTileClick();
+    if (gameState?.holdTile) {
+        if ((hand ?? []).indexOf(null) === -1) { showMessage('No room in your hand for the held tile.', 1800); return; }
+        dispatch({ type: 'HOLD_RETURN' });
+        return;
+    }
+    setHoldArmed(a => !a);
+  };
+
    const handleMoveToBuild = (tile: Tile, fromIndex: number) => {
+    if (holdArmed && !gameState?.holdTile && !tile.isLocked && !isChallengeLock) {
+        soundService.playTileClick();
+        dispatch({ type: 'HOLD_STASH', payload: { tile, fromIndex } });
+        setHoldArmed(false);
+        return;
+    }
     if (tile.isLocked || isChallengeLock || (buildRow?.filter(t => t).length ?? 0) >= BUILD_ROW_SIZE) return;
     
     if (gameState?.activePowerPlays?.['wordLock'] && (buildRow?.filter(t => t).length ?? 0) >= 5) {
@@ -3472,6 +3551,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 scoreResult = { ...scoreResult, totalScore: scoreResult.totalScore + bonus, bonuses: [...scoreResult.bonuses, { name: 'Thank You for Being a Friend', description: `+${bonus} pts (${CHARM_BONUS.goldenGirlsPercent}%)` }] };
             }
             if (levelUpModal(totalWords, newState)) payLevelUp(scoreResult);
+            if (newState.route?.choice === 'danger' && scoreResult.totalScore > 0) {
+                const extra = Math.round(scoreResult.totalScore * (FORK.danger.points - 1));
+                scoreResult = { ...scoreResult, totalScore: scoreResult.totalScore + extra, bonuses: [...scoreResult.bonuses, { name: '🔥 Danger Zone', description: `+${extra} pts (x${FORK.danger.points})` }] };
+            }
             const turnScore = scoreResult.totalScore;
             
             newState.score += turnScore;
@@ -3489,6 +3572,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             newState.pendingTimeBonus = timeForWordAtLevel(word.length, levelFor(totalWords)); // Added back onto the time bank
             const levelUp = levelUpModal(totalWords, newState);
             if (levelUp) modalQueue.push(levelUp);
+            const goldenFork = forkModal(totalWords);
+            if (goldenFork) modalQueue.push(goldenFork);
             const goldenBossIntro = startBossRound(newState, totalWords);
             if (goldenBossIntro) modalQueue.push(goldenBossIntro);
 
@@ -3523,6 +3608,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       const levelUp = levelUpModal(totalWords, newState);
       if (levelUp) modalQueue.push(levelUp);
+      const fork = forkModal(totalWords);
+      if (fork) modalQueue.push(fork);
       if (levelUp) payLevelUp(scoreResult);
 
       if (word.length >= 5 && !isChallengeLock) {
@@ -4212,7 +4299,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           if (outcome) {
               trackMission({ type: 'boss', id: boss.id, outcome, hits });
               sendStat({ type: 'boss_end', boss: boss.id, number: bossRound.number, outcome, hits });
+              recordBossResult(boss.id, outcome);
           }
+          // Grudge Match: beating a boss that had got away before pays the badge points again.
+          const grudgeBonus = outcome === 'won' && (bossRound.grudge ?? 0) > 0 && grudgePays(newState) ? bossRewardFor(bossRound.number).points * (GRUDGE.multiplier - 1) : 0;
           if (outcome === 'won') newState.bossesBeaten = (newState.bossesBeaten ?? 0) + 1;
           if (round) showMessage(hit ? `👊 HIT! ${hits}/${need} on ${boss.name}` : `💨 Dodged! ${boss.rule} · ${round.wordsLeft} left`, 1800);
           const reward = bossRewardFor(bossRound.number);
@@ -4222,7 +4312,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               scoreResult.bonuses.push({ name: `🏅 Boss Badge: ${boss.name}`, description: `+${reward.points} pts, +${reward.seconds}s` });
               const { isNew, total } = recordBossBadge(boss.id);
               eventLogQueue.push({ type: 'event', id: `boss-${boss.id}-${now}`, name: `Beat ${boss.name}`, icon: '🏅', description: `${hits}/${need} hits: Boss Badge earned (+${reward.seconds}s).`, scoreChange: reward.points, cumulativeScore: runningScore });
-              modalQueue.push({ type: 'info', title: '🏅 BOSS DEFEATED!', content: `You beat ${boss.icon} ${boss.name}! Boss Badge earned: +${reward.points} points and +${reward.seconds}s.${isNew ? `\n\nNew badge for your Badge Case (${total}/${BOSSES.length})!` : ''}` });
+              if (grudgeBonus > 0) {
+                  runningScore += grudgeBonus;
+                  scoreResult.bonuses.push({ name: `⚔️ Grudge settled: ${boss.name}`, description: `+${grudgeBonus} pts (badge points x${GRUDGE.multiplier})` });
+              }
+              const settled = (bossRound.grudge ?? 0) > 0;
+              modalQueue.push({ type: 'info', title: settled ? '⚔️ GRUDGE SETTLED!' : '🏅 BOSS DEFEATED!', content: `You beat ${boss.icon} ${boss.name}${settled ? `, after ${bossRound.grudge === 1 ? 'one escape' : `${bossRound.grudge} escapes`}` : ''}! Boss Badge earned: +${reward.points + grudgeBonus} points and +${reward.seconds}s.${grudgeBonus > 0 ? ` That's double for the grudge.` : ''}${isNew ? `\n\nNew badge for your Badge Case (${total}/${BOSSES.length})!` : ''}` });
               soundService.playMilestone();
           } else if (outcome === 'close') {
               runningScore += reward.closePoints;
@@ -4339,6 +4434,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // Gem Tiles (v7.42): a long word puts a gem (a word-multiplier tile) in the next hand.
       const gem = gemMultiplierFor(word.length);
       if (gem > 0) newState.pendingGem = Math.max(newState.pendingGem ?? 0, gem);
+
+      // Fork in the Road (v7.43): the Danger Zone pays more on every word (0 means 0 still holds).
+      if (!wordLocked && newState.route?.choice === 'danger' && runningScore > oldScore) {
+          const extra = Math.round((runningScore - oldScore) * (FORK.danger.points - 1));
+          runningScore += extra;
+          scoreResult.bonuses.push({ name: '🔥 Danger Zone', description: `+${extra} pts (x${FORK.danger.points})` });
+      }
 
       // --- 6. Aggregate Score and Check Aggregate Bonuses ---
       const turnScorePreMilestone = runningScore - oldScore;
@@ -5694,6 +5796,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         powerHint,
         handlePowerHintInfo,
         skillShotTileId,
+        holdOpen,
+        holdArmed,
+        handleHoldTap,
+        handleForkPick,
         upcomingTiles: gameState.activePowerPlays?.psychicFriends ? tileBag.slice(-POWER_PLAY_VALUES.psychicTiles).reverse() : [],
         // Smell Ya Later!: the rival's score as it climbs, in real seconds.
         raceRival: (() => {

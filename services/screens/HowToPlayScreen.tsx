@@ -1,6 +1,6 @@
 import React from 'react';
 import { soundService } from '../soundService';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, HEAD_START, SKILL_SHOT, GEM_TILES } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, HEAD_START, SKILL_SHOT, GEM_TILES, FORK, HOLD_SLOT, GRUDGE } from '../../config/gameplay';
 import { PHOENIX_DOWN } from '../../config/progression';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import ArcadeButton from '../../components/ArcadeButton';
@@ -58,6 +58,20 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
           <p>
             <Key>🎤 Last Words:</Key> when the run does end, the clock stops and you get one more word from your final
             hand, no rush, scored <Key>x{LAST_WORDS.multiplier}</Key>.
+          </p>
+          <p>
+            <Key>🛣️ Fork in the Road:</Key> at levels {FORK.levels.join(', ')} you pick a route until the next fork.{' '}
+            <Key>Easy Street</Key> runs the clock {Math.round((1 - FORK.easy.clock) * 100)}% slower.{' '}
+            <Key>Danger Zone</Key> runs it {Math.round((FORK.danger.clock - 1) * 100)}% faster and pays{' '}
+            <Key>x{FORK.danger.points}</Key> on every word.
+          </p>
+          <p>
+            <Key>🧲 Hold slot:</Key> from level {HOLD_SLOT.fromLevel}, tap HOLD and then a tile to park it. It survives new
+            hands and shuffles until you tap it back into your hand.
+          </p>
+          <p>
+            <Key>⚔️ Grudge Match:</Key> a boss that got away from you remembers. Next time it has something to say, and
+            beating it pays its badge points <Key>x{GRUDGE.multiplier}</Key>.
           </p>
           <p>
             <Key>🛠️ Head Start:</Key> a run that ends before level {HEAD_START.untilLevel} adds{' '}
