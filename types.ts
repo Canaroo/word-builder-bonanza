@@ -112,6 +112,8 @@ export interface SecretBonus {
 
 /** The arcade mini-games a secret word can open. */
 export type MiniGameId = 'pong' | 'mole' | 'claw' | 'darts' | 'goal' | 'dice' | 'bowl' | 'golf' | 'hoops'
+  /** v7.46: more arcade words. */
+  | 'ringToss' | 'riff' | 'striker' | 'pitStop' | 'coaster' | 'seal' | 'monte'
   /** Score gates (v7.39.0), opened by crossing a score rather than by a word. */
   | 'password' | 'bonusStage';
 

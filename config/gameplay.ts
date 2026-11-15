@@ -466,6 +466,14 @@ export const MINI_GAME_VALUES = {
   bowl: { strike: 300, spare: 150, perPin: 15 },                   // BOWL: time the aim, one spare ball
   golf: { strokes: 3, prizes: [300, 150, 50] },                    // TEE: hole in one, two strokes, three
   hoops: { shots: 3, swish: 100, bank: 60, perfect: 100 },         // NET: 3 free throws, +100 for 3 swishes
+  // v7.46.0 (LANE reuses bowl):
+  ringToss: { rings: 3, ringer: 100, rim: 50, near: 20 },          // RING: toss 3 rings at a drifting bottle
+  riff: { lengths: [3, 4, 5, 6], perRiff: 60, allBonus: 100, stepMs: 520 }, // NOTE: repeat the riff; a miss ends it
+  striker: { swings: 3, bell: 120, close: 60, low: 20, allBells: 100 }, // NAIL: ring the bell on the high striker
+  pitStop: { tires: 4, taps: 4, tiers: [{ under: 3.5, points: 300 }, { under: 5, points: 200 }, { under: 7, points: 100 }], slow: 50 }, // TIRE: 16 taps, beat the clock
+  coaster: { rides: 3, clean: 120, wobbly: 60, allClean: 100 },    // RIDE: release in the green to clear the loop
+  seal: { seconds: 10, perSecond: 25, fullBonus: 100 },            // SEAL: keep the ball on the nose
+  monte: { rounds: 3, perFind: 100, allBonus: 100 },               // DEAL: find the queen, 3 rounds
 } as const;
 
 /**

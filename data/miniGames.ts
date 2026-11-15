@@ -61,4 +61,40 @@ export const MINI_GAMES: Record<MiniGameId, MiniGameInfo> = {
     rules: `${M.hoops.shots} shots. Tap when the meter hits the middle.`,
     prize: `Swish +${M.hoops.swish} · off the glass +${M.hoops.bank} · all swishes +${M.hoops.perfect}`,
   },
+  // v7.46.0
+  ringToss: {
+    name: 'Ring Toss', icon: '🎪',
+    rules: `A ring drifts over the bottle. Tap to toss. ${M.ringToss.rings} rings.`,
+    prize: `Ringer +${M.ringToss.ringer} · on the rim +${M.ringToss.rim} · close +${M.ringToss.near}`,
+  },
+  riff: {
+    name: 'Repeat the Riff', icon: '🎸',
+    rules: `Watch the pads light up, then play the riff back. Riffs grow from ${M.riff.lengths[0]} to ${M.riff.lengths[M.riff.lengths.length - 1]} notes. One wrong note ends it.`,
+    prize: `+${M.riff.perRiff} a riff · all ${M.riff.lengths.length} +${M.riff.allBonus} more`,
+  },
+  striker: {
+    name: 'High Striker', icon: '🔨',
+    rules: `The power meter swings. Tap at the top to ring the bell. ${M.striker.swings} swings.`,
+    prize: `Bell +${M.striker.bell} · close +${M.striker.close} · low +${M.striker.low} · ${M.striker.swings} bells +${M.striker.allBells} more`,
+  },
+  pitStop: {
+    name: 'Pit Stop', icon: '🏎️',
+    rules: `Change all ${M.pitStop.tires} tires: tap each one ${M.pitStop.taps} times. The clock starts on your first tap.`,
+    prize: `Under ${M.pitStop.tiers[0].under} sec +${M.pitStop.tiers[0].points} · under ${M.pitStop.tiers[1].under} +${M.pitStop.tiers[1].points} · under ${M.pitStop.tiers[2].under} +${M.pitStop.tiers[2].points} · slower +${M.pitStop.slow}`,
+  },
+  coaster: {
+    name: 'Loop the Loop', icon: '🎢',
+    rules: `Hold to build speed, let go in the green to clear the loop. Too slow stalls, too fast flies off. ${M.coaster.rides} rides.`,
+    prize: `Clean +${M.coaster.clean} · wobbly +${M.coaster.wobbly} · all clean +${M.coaster.allClean} more`,
+  },
+  seal: {
+    name: 'Balance Act', icon: '🦭',
+    rules: `Keep the ball on the seal's nose for ${M.seal.seconds} seconds. Tap ◀ and ▶ to nudge it back.`,
+    prize: `+${M.seal.perSecond} a second · all ${M.seal.seconds} +${M.seal.fullBonus} more`,
+  },
+  monte: {
+    name: 'Find the Lady', icon: '🃏',
+    rules: `Watch the queen, then pick her out after the shuffle. ${M.monte.rounds} rounds, each one faster.`,
+    prize: `+${M.monte.perFind} a find · all ${M.monte.rounds} +${M.monte.allBonus} more`,
+  },
 };
