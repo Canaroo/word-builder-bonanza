@@ -22,6 +22,7 @@ import OutcomeCard from '../../components/OutcomeCard';
 import ContinueCard from '../../components/ContinueCard';
 import LastWordsCard from '../../components/LastWordsCard';
 import ForkCard from '../../components/ForkCard';
+import CrocCard from '../../components/CrocCard';
 import BonesCard from '../../components/BonesCard';
 import { FORK, SKILL_SHOT } from '../../config/gameplay';
 import { skillShotPoints } from '../../services/rules';
@@ -32,7 +33,7 @@ import CharmTimeNote from '../../components/CharmTimeNote';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
-  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'bones' | 'skill-intro';
+  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'bones' | 'skill-intro' | 'croc';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -115,6 +116,7 @@ export interface GameScreenViewProps {
   handleBonesDone?: (word: string | null) => void;
   /** Fork in the Road: the route picked. */
   handleForkPick?: (route: 'easy' | 'danger') => void;
+  handleCrocPick?: () => void;
   /** A power word can be spelled from the tiles in play (the hint chip); tapping it explains. */
   powerHint?: { icon: string; length: number } | null;
   handlePowerHintInfo?: () => void;
@@ -177,7 +179,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, skillShotTileId = '', holdOpen = false, holdArmed = false, handleHoldTap, handleForkPick, handleBonesDone, lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, skillShotTileId = '', holdOpen = false, holdArmed = false, handleHoldTap, handleForkPick, handleCrocPick, handleBonesDone, lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
@@ -332,6 +334,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
             case 'bones':
                 return <BonesCard key={data?.bone?.id} bone={data.bone} heldCharmIds={(gameState?.activeCharms ?? []).map(c => c.id)} onDone={w => handleBonesDone?.(w)} />;
+
+            case 'croc':
+                return <CrocCard win={!!data?.win} level={Number(data?.level) || 1} saved={data?.saved} onSave={(key, value) => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key, value } })} onDone={() => handleCrocPick?.()} />;
 
             case 'fork':
                 return <ForkCard level={Number(data?.level) || 1} onPick={route => handleForkPick?.(route)} />;

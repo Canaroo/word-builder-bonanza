@@ -245,6 +245,13 @@ export const TIME_BONUS = {
   cliffhanger: 2,          // per word played at cliffhangerBelow seconds or fewer
   cliffhangerBelow: 10,
   wileECoyote: 5,          // per strike
+  // Tick-Tock Croc (v7.51.0): every crocEvery valid words while it's equipped, pick 1 of 3 clocks:
+  // crocWinChance for +tickTockCroc seconds (charm time: it shrinks with the level, so never more
+  // than 10), else lose crocLoss points. The owner's numbers.
+  tickTockCroc: 10,
+  crocEvery: 25,
+  crocWinChance: 0.6,
+  crocLoss: 300,
 };
 
 export const CHARM_BONUS = {

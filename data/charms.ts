@@ -1036,6 +1036,17 @@ export const CHARMS_LIST: Charm[] = [
     activate: createPassiveBuff('wileECoyote'),
   },
   {
+    id: 'tickTockCroc',
+    name: 'Tick-Tock Croc',
+    description: `Every ${TIME_BONUS.crocEvery} words while you hold it, the croc surfaces: pick 1 of 3 clocks. ${Math.round(TIME_BONUS.crocWinChance * 100)}% it coughs up +${TIME_BONUS.tickTockCroc} seconds, ${Math.round((1 - TIME_BONUS.crocWinChance) * 100)}% it bites ${TIME_BONUS.crocLoss} points.`,
+    flavorText: 'Tick-tock, tick-tock.',
+    icon: '🐊',
+    subtheme: 'game',
+    effectType: 'triggered',
+    durationTag: 'PERSISTENT',
+    activate: createPassiveBuff('tickTockCroc'),
+  },
+  {
     id: 'turboButton',
     name: 'Turbo Button',
     description: `Your PowerPlay meter needs ${CHARM_BONUS.turboButtonPercent}% fewer letters to fill.`,
@@ -1184,4 +1195,5 @@ export const CHARM_TIME_SECONDS: Readonly<Record<string, number>> = {
     goSpeedRacer: TIME_BONUS.goSpeedRacer,
     cliffhanger: TIME_BONUS.cliffhanger,
     wileECoyote: TIME_BONUS.wileECoyote,
+    tickTockCroc: TIME_BONUS.tickTockCroc,
 };
