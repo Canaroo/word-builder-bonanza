@@ -86,3 +86,20 @@ describe('Hold Slot', () => {
     });
     test('unlocks with the first fork', () => expect(HOLD_SLOT.fromLevel).toBe(FORK.levels[0]));
 });
+
+describe('boss fights in the event log (v7.44.7)', () => {
+    test('a run that ends mid-fight logs how the fight stood', () => {
+        const boss = BOSSES[0];
+        const s = start({ boss: { id: boss.id, number: 1, wordsLeft: 3, hits: 2 }, score: 500 });
+        const after = gameReducer(s, { type: 'GAME_OVER_INITIATED', payload: { reason: 'time' } });
+        const entry = after.gameState.log.find(e => e.type === 'event' && e.name === `${boss.name} was still standing`) as any;
+        expect(entry).toBeTruthy();
+        expect(entry.description).toContain('2/6 hits, 3 words left');
+        // It sits just before the game-over line.
+        expect(after.gameState.log[after.gameState.log.length - 1].type).toBe('game_over');
+    });
+    test('no fight, no extra line', () => {
+        const after = gameReducer(start(), { type: 'GAME_OVER_INITIATED', payload: { reason: 'time' } });
+        expect(after.gameState.log.some(e => e.type === 'event' && /still standing/.test((e as any).name))).toBe(false);
+    });
+});
