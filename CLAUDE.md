@@ -48,7 +48,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | PowerPlays / charms (100 / 102) | `data/powerPlays.ts`, `data/charms.ts` |
 | Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
 | Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Fork, Hold Slot, Grudge Match, Bones | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `FORK`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`; cards in `components/` (`LastWordsCard`, `ForkCard`, `BonesCard`) |
-| Secret bonuses (107 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
+| Secret bonuses (115 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
 | Hidden desktop pages | `/?stats` and `/?bonuses` (tabs: `&tab=words`, `scores`, `counts`, `charms`, `powerPlays`) render full-width outside the phone frame (`showToolPage` in `App.tsx`) |
 | Bosses (24) and Boss Badges | `data/bosses.ts` (villains, rules), `BOSS` in `config/gameplay.ts` (timing, rewards); badges in the profile (`recordBossBadge`) |
 | Cosmetics, streak milestones, themes, missions | `data/cosmetics.ts`, `data/packs.ts`, `data/missions.ts` |
@@ -262,6 +262,12 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   (`APPLY_MINIGAME`, grows with the level). Once per run like any secret; progress is saved in the
   pop-up's data (`SET_GAMBLE_STATE` works for `minigame` too), so quitting doesn't restart a game.
   TEE and NET were picked as the common ones (spellable from about 9% of hands; the rest 0.2-1.5%).
+  v7.46.0 added eight more, chosen as common 4-letter words a hand can spell 1.4-3.7% of the time:
+  LANE Bowling (reused), RING Ring Toss (darts re-skin), NOTE Repeat the Riff (memory), NAIL High
+  Striker, TIRE Pit Stop (16 taps against the clock), RIDE Loop the Loop (hold, release in the
+  green), SEAL Balance Act (10 s), DEAL Find the Lady (3 rounds). Top prizes 300-460; values in
+  `MINI_GAME_VALUES`, scoring in `services/miniGameRules.ts`. DEAL isn't high-or-low on purpose:
+  the Card Sharks PowerPlay already is.
 - **Score gates (v7.39.0):** the first word at or past a gate opens a one-time event (`GATES` in
   `config/gameplay.ts`, `gatesPassed` on the run). 10,000: the Password Gate, unscramble a 6-letter
   password (`data/gates.ts`, 80 words, none a secret bonus word) in 20 s; the scored Daily Run

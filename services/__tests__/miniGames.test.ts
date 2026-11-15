@@ -6,15 +6,41 @@ import { MINI_GAME_VALUES as M, GATES } from '../../config/gameplay';
 import { GATE_PASSWORDS, GATE_ANAGRAMS, gatePassword, scramble, giveaway } from '../../data/gates';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopShot, hoopsPrize, goalPrize, golfStroke, golfPrize } from '../miniGameRules';
+import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopShot, hoopsPrize, goalPrize, golfStroke, golfPrize, ringTossPoints, riffPrize, strikerSwing, strikerPrize, pitStopPrize, coasterRide, coasterPrize, sealPrize, montePrize } from '../miniGameRules';
 
 describe('arcade words', () => {
-  test('nine words open a mini-game, pay no flat points, and every game has a word', () => {
+  test('seventeen words open a mini-game, pay no flat points, and every game has a word', () => {
     const arcade = SECRET_BONUSES.filter(b => b.miniGame);
-    expect(arcade.map(b => b.word).sort()).toEqual(['BOWL', 'CLAW', 'DART', 'DICE', 'GAME', 'GOAL', 'MOLE', 'NET', 'TEE']);
+    expect(arcade.map(b => b.word).sort()).toEqual(['BOWL', 'CLAW', 'DART', 'DEAL', 'DICE', 'GAME', 'GOAL', 'LANE', 'MOLE', 'NAIL', 'NET', 'NOTE', 'RIDE', 'RING', 'SEAL', 'TEE', 'TIRE']);
     for (const b of arcade) expect(b.points ?? 0).toBe(0);
-    // Every arcade game has a word; the two gate games open by score instead.
-    expect(new Set(arcade.map(b => b.miniGame)).size).toBe(Object.keys(MINI_GAMES).length - 2);
+    // Every arcade game has a word (LANE shares Bowling with BOWL); the two gate games open by score instead.
+    const games = new Set(arcade.map(b => b.miniGame));
+    for (const id of Object.keys(MINI_GAMES)) if (id !== 'password' && id !== 'bonusStage') expect(games.has(id as any), id).toBe(true);
+    expect(arcade.filter(b => b.miniGame === 'bowl').map(b => b.word).sort()).toEqual(['BOWL', 'LANE']);
+  });
+
+  test('v7.46 games pay what their cards say', () => {
+    const V = M;
+    expect(ringTossPoints(0, 100)).toBe(V.ringToss.ringer);
+    expect(ringTossPoints(30, 100)).toBe(V.ringToss.rim);
+    expect(ringTossPoints(60, 100)).toBe(V.ringToss.near);
+    expect(ringTossPoints(90, 100)).toBe(0);
+    expect(riffPrize(0)).toBe(0);
+    expect(riffPrize(2)).toBe(2 * V.riff.perRiff);
+    expect(riffPrize(V.riff.lengths.length)).toBe(V.riff.lengths.length * V.riff.perRiff + V.riff.allBonus);
+    expect([strikerSwing(0.95), strikerSwing(0.7), strikerSwing(0.2)]).toEqual(['bell', 'close', 'low']);
+    expect(strikerPrize(['bell', 'bell', 'bell'])).toBe(3 * V.striker.bell + V.striker.allBells);
+    expect(strikerPrize(['bell', 'close', 'low'])).toBe(V.striker.bell + V.striker.close + V.striker.low);
+    expect([pitStopPrize(3), pitStopPrize(4), pitStopPrize(6), pitStopPrize(9)]).toEqual([300, 200, 100, V.pitStop.slow]);
+    expect([coasterRide(0.75), coasterRide(0.6), coasterRide(0.86), coasterRide(0.3), coasterRide(0.97)]).toEqual(['clean', 'wobbly', 'wobbly', 'stall', 'flyoff']);
+    expect(coasterPrize(['clean', 'clean', 'clean'])).toBe(3 * V.coaster.clean + V.coaster.allClean);
+    expect(coasterPrize(['clean', 'stall', 'flyoff'])).toBe(V.coaster.clean);
+    expect([sealPrize(0), sealPrize(4), sealPrize(V.seal.seconds)]).toEqual([0, 4 * V.seal.perSecond, V.seal.seconds * V.seal.perSecond + V.seal.fullBonus]);
+    expect([montePrize(0), montePrize(2), montePrize(3)]).toEqual([0, 200, 400]);
+    // The new games top out around the old ones (300-600).
+    for (const max of [3 * V.ringToss.ringer, riffPrize(4), strikerPrize(['bell', 'bell', 'bell']), 300, coasterPrize(['clean', 'clean', 'clean']), sealPrize(10), montePrize(3)]) {
+      expect(max).toBeGreaterThanOrEqual(300); expect(max).toBeLessThanOrEqual(600);
+    }
   });
 });
 

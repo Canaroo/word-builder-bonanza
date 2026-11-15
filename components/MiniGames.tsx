@@ -8,7 +8,7 @@ import { dictionaryService } from '../services/dictionaryService';
 import { calculateScore } from '../services/gameUtils';
 import { TILE_DISTRIBUTION } from '../constants';
 import { soundService } from '../services/soundService';
-import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopShot, hoopsPrize, goalPrize, golfStroke, golfPrize, GOLF_CUP } from '../services/miniGameRules';
+import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopShot, hoopsPrize, goalPrize, golfStroke, golfPrize, GOLF_CUP, ringTossPoints, riffPrize, strikerSwing, strikerPrize, pitStopPrize, coasterRide, coasterPrize, sealPrize, montePrize } from '../services/miniGameRules';
 
 // Arcade mini-games (v7.38.0). Spelling an arcade word (GAME, MOLE, CLAW, DART, GOAL, DICE, BOWL,
 // TEE, NET) opens this card: an intro with Play or Skip, the game, then the result, which pays
@@ -25,6 +25,8 @@ function useSaved<T>(key: string, init: T | (() => T)): [T, (value: T) => void] 
   const { saved, save } = useContext(Save);
   const restored = !!saved && key in saved;
   const [value, setValue] = useState<T>(() => (restored ? (saved![key] as T) : typeof init === 'function' ? (init as () => T)() : init));
+  // The opening deal (the riff, v7.46) is saved right away, so quitting and resuming can't redraw it.
+  useEffect(() => { if (!restored) save?.(key, value); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return [value, (next: T) => { setValue(next); save?.(key, next); }];
 }
 
@@ -534,6 +536,363 @@ const Hoops: React.FC<{ finish: Finish }> = ({ finish }) => {
   );
 };
 
+
+// --- v7.46.0 arcade games ---------------------------------------------------------------------
+
+// RING: ring toss (the darts board as a carnival bottle).
+const RingToss: React.FC<{ finish: Finish }> = ({ finish }) => {
+  const R = M.ringToss;
+  const [tosses, setTosses] = useSaved<{ x: number; y: number; pts: number }[]>('rings', []);
+  const t = useClock(tosses.length < R.rings);
+  const cx = Math.sin(t * 1.5 + 0.4) * BOARD_R * 0.8, cy = Math.sin(t * 2.1) * BOARD_R * 0.7;
+  const toss = () => {
+    if (tosses.length >= R.rings) return;
+    const x = cx + (Math.random() - 0.5) * 12, y = cy + (Math.random() - 0.5) * 12;
+    const pts = ringTossPoints(Math.hypot(x, y), BOARD_R);
+    const next = [...tosses, { x, y, pts }];
+    setTosses(next); tick(); buzz(pts >= R.ringer ? [20, 30, 20] : 12);
+    if (pts >= R.ringer) soundService.playMilestone();
+    if (next.length >= R.rings) {
+      const sum = next.reduce((a, d) => a + d.pts, 0);
+      const label = (p: number) => (p >= R.ringer ? 'ringer' : p >= R.rim ? 'rim' : p > 0 ? 'close' : 'miss');
+      setTimeout(() => finish({ points: sum, headline: sum ? `${sum} POINTS!` : 'NO PRIZE', detail: `Your rings: ${next.map(d => label(d.pts)).join(', ')}.` }), 700);
+    }
+  };
+  return (
+    <>
+      <p className="font-display text-xl text-neon-yellow">{tosses.reduce((a, d) => a + d.pts, 0)} · {R.rings - tosses.length} {R.rings - tosses.length === 1 ? 'ring' : 'rings'} left</p>
+      <svg viewBox="-140 -140 280 280" className="w-full max-w-[17rem] select-none" role="img" aria-label="Ring toss: a bottle in the middle">
+        <rect x={-BOARD_R} y={-BOARD_R} width={BOARD_R * 2} height={BOARD_R * 2} rx={18} fill="#2a1630" stroke="#ff4dc4" strokeWidth={3} />
+        <circle r={BOARD_R * 0.75} fill="none" stroke="#ffe27a" strokeWidth={1.5} strokeDasharray="4 6" />
+        <circle r={BOARD_R * 0.4} fill="none" stroke="#3dff8c" strokeWidth={1.5} strokeDasharray="4 6" />
+        <text y={10} textAnchor="middle" fontSize={34}>🍾</text>
+        {tosses.map((d, i) => <circle key={i} cx={d.x} cy={d.y} r={13} fill="none" stroke={d.pts >= M.ringToss.ringer ? '#3dff8c' : '#ffe27a'} strokeWidth={4} />)}
+        {tosses.length < R.rings && <circle cx={cx} cy={cy} r={13} fill="none" stroke="#ff4dc4" strokeWidth={4} strokeDasharray="6 3" />}
+      </svg>
+      {tosses.length < R.rings && <ArcadeButton color="pink" className="w-full" onClick={toss}>🎪 Toss!</ArcadeButton>}
+    </>
+  );
+};
+
+// NOTE: repeat the riff.
+const RIFF_PADS = [
+  { label: 'Green', on: 'bg-neon-green', off: 'bg-neon-green/25' },
+  { label: 'Red', on: 'bg-neon-red', off: 'bg-neon-red/25' },
+  { label: 'Yellow', on: 'bg-neon-yellow', off: 'bg-neon-yellow/25' },
+  { label: 'Blue', on: 'bg-neon-cyan', off: 'bg-neon-cyan/25' },
+];
+const Riff: React.FC<{ finish: Finish }> = ({ finish }) => {
+  const R = M.riff;
+  const maxLen = R.lengths[R.lengths.length - 1];
+  const [seq] = useSaved<number[]>('riffSeq', () => Array.from({ length: maxLen }, () => Math.floor(Math.random() * 4)));
+  const [state, setState] = useSaved('riff', { round: 0, cleared: 0 });
+  const [phase, setPhase] = useState<'watch' | 'play' | 'done'>('watch');
+  const [lit, setLit] = useState<number | null>(null);
+  const [pos, setPos] = useState(0);
+  const ended = useRef(false);
+  const len = R.lengths[Math.min(state.round, R.lengths.length - 1)];
+  const end = (cleared: number) => {
+    if (ended.current) return; ended.current = true; setPhase('done');
+    const pts = riffPrize(cleared);
+    setTimeout(() => finish({ points: pts, headline: cleared >= R.lengths.length ? `ROCK GOD! +${pts}` : pts ? `${cleared} ${cleared === 1 ? 'RIFF' : 'RIFFS'}: +${pts}` : 'OFF KEY', detail: `You played back ${cleared} of ${R.lengths.length} riffs.` }), 700);
+  };
+  // Show the riff, one pad at a time.
+  useEffect(() => {
+    if (phase !== 'watch' || ended.current) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 0; i < len; i++) {
+      timers.push(setTimeout(() => { setLit(seq[i]); tick(); }, 500 + i * R.stepMs));
+      timers.push(setTimeout(() => setLit(null), 500 + i * R.stepMs + R.stepMs * 0.6));
+    }
+    timers.push(setTimeout(() => { setPos(0); setPhase('play'); }, 500 + len * R.stepMs));
+    return () => timers.forEach(clearTimeout);
+  }, [phase, state.round]); // eslint-disable-line react-hooks/exhaustive-deps
+  const press = (pad: number) => {
+    if (phase !== 'play' || ended.current) return;
+    setLit(pad); setTimeout(() => setLit(l => (l === pad ? null : l)), 180);
+    if (pad !== seq[pos]) { buzz(80); soundService.playInvalidWord(); end(state.cleared); return; }
+    tick(); buzz(8);
+    if (pos + 1 < len) { setPos(pos + 1); return; }
+    const cleared = state.cleared + 1;
+    soundService.playMilestone();
+    if (cleared >= R.lengths.length) { setState({ round: cleared, cleared }); end(cleared); return; }
+    setState({ round: cleared, cleared });
+    setPhase('watch');
+  };
+  return (
+    <>
+      <p className="font-display text-xl text-neon-yellow">Riff {Math.min(state.round + 1, R.lengths.length)} of {R.lengths.length} · {len} notes</p>
+      <p className="osd-text text-lg text-slate-300 min-h-[1.5rem]" aria-live="polite">{phase === 'watch' ? 'WATCH…' : phase === 'play' ? `YOUR TURN · ${pos}/${len}` : ''}</p>
+      <div className="grid grid-cols-2 gap-3 w-full max-w-[16rem]">
+        {RIFF_PADS.map((p, i) => (
+          <button key={i} type="button" aria-label={`${p.label} pad`} onPointerDown={e => { e.preventDefault(); press(i); }}
+            className={`h-24 rounded-2xl ring-2 ring-white/20 transition-colors duration-75 select-none touch-none ${lit === i ? `${p.on} shadow-[0_0_24px_currentColor]` : p.off}`} />
+        ))}
+      </div>
+    </>
+  );
+};
+
+// NAIL: high striker.
+const Striker: React.FC<{ finish: Finish }> = ({ finish }) => {
+  const S = M.striker;
+  const [swings, setSwings] = useSaved<('bell' | 'close' | 'low')[]>('striker', []);
+  const [flying, setFlying] = useState<number | null>(null);
+  const over = swings.length >= S.swings;
+  const t = useClock(!over && flying === null);
+  const power = (Math.sin(t * 3.4 - Math.PI / 2) + 1) / 2; // 0..1
+  const swing = () => {
+    if (over || flying !== null) return;
+    const p = power, r = strikerSwing(p);
+    setFlying(p); soundService.playPowerUp();
+    setTimeout(() => {
+      const next = [...swings, r];
+      setSwings(next); setFlying(null); buzz(r === 'bell' ? [20, 40, 20] : 15);
+      if (r === 'bell') soundService.playMilestone(); else tick();
+      if (next.length >= S.swings) {
+        const pts = strikerPrize(next);
+        setTimeout(() => finish({ points: pts, headline: next.every(x => x === 'bell') ? `DING DING DING! +${pts}` : `${pts} POINTS!`, detail: `Your swings: ${next.map(x => (x === 'bell' ? 'bell' : x === 'close' ? 'so close' : 'low')).join(', ')}.` }), 600);
+      }
+    }, 800);
+  };
+  const height = flying ?? 0;
+  return (
+    <>
+      <p className="font-display text-xl text-neon-yellow">{strikerPrize(swings)} · swing {Math.min(swings.length + 1, S.swings)} of {S.swings}</p>
+      <div className="flex items-end gap-4">
+        <div className="relative w-10 h-56 rounded-full bg-crt-950 ring-2 ring-white/20 overflow-hidden" aria-hidden="true">
+          <span className="absolute left-1/2 -translate-x-1/2 top-1 text-2xl leading-none">🔔</span>
+          <div className="absolute inset-x-0 top-[10%] h-[15%] bg-neon-green/30" />
+          <span className="absolute left-1/2 -translate-x-1/2 w-6 h-4 rounded bg-neon-pink transition-all ease-out" style={{ bottom: `${4 + height * 84}%`, transitionDuration: flying !== null ? '650ms' : '0ms' }} />
+        </div>
+        {!over && (
+          <div className="relative w-5 h-56 rounded-full bg-crt-950 ring-1 ring-white/20 overflow-hidden" aria-hidden="true">
+            <div className="absolute inset-x-0 top-0 h-[10%] bg-neon-green/50" />
+            <div className="absolute inset-x-0 top-[10%] h-[25%] bg-neon-yellow/25" />
+            <div className="absolute inset-x-0 h-1 bg-white" style={{ bottom: `${power * 100}%` }} />
+          </div>
+        )}
+      </div>
+      {!over && <ArcadeButton color="pink" className="w-full" onClick={swing} disabled={flying !== null}>🔨 Swing!</ArcadeButton>}
+    </>
+  );
+};
+
+// TIRE: pit stop.
+const PitStop: React.FC<{ finish: Finish }> = ({ finish }) => {
+  const P = M.pitStop;
+  const [left, setLeft] = useState<number[]>(() => Array(P.tires).fill(P.taps));
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [doneIn, setDoneIn] = useState<number | null>(null);
+  const now = useClock(startedAt !== null && doneIn === null);
+  const tap = (i: number) => {
+    if (doneIn !== null || left[i] <= 0) return;
+    const start = startedAt ?? performance.now();
+    if (startedAt === null) setStartedAt(start);
+    const next = left.map((n, j) => (j === i ? n - 1 : n));
+    setLeft(next); tick(); buzz(6);
+    if (next.every(n => n === 0)) {
+      const secs = Math.round((performance.now() - start) / 100) / 10;
+      setDoneIn(secs);
+      const pts = pitStopPrize(secs);
+      if (secs < P.tiers[0].under) soundService.playMilestone();
+      setTimeout(() => finish({ points: pts, headline: `${secs.toFixed(1)} SECONDS: +${pts}`, detail: secs < P.tiers[0].under ? 'Ka-chow! Back on track before the field went by.' : 'All four on. Back out there!' }), 700);
+    }
+  };
+  const shown = doneIn ?? (startedAt === null ? 0 : now);
+  return (
+    <>
+      <p className="font-display text-3xl text-neon-yellow tabular-nums" role="timer" aria-label={`${shown.toFixed(1)} seconds`}>{shown.toFixed(1)}<span className="font-sans text-sm font-semibold lowercase ml-1">sec</span></p>
+      <p className="osd-text text-lg text-slate-300">{startedAt === null ? 'TAP A TIRE TO START' : doneIn !== null ? 'GO GO GO!' : `${left.reduce((a, b) => a + b, 0)} TAPS TO GO`}</p>
+      <div className="relative w-56 h-64 rounded-[2.5rem] bg-gradient-to-b from-neon-red/40 to-neon-red/10 ring-2 ring-neon-red/60" aria-hidden={false}>
+        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl" aria-hidden="true">🏎️</span>
+        {left.map((n, i) => (
+          <button key={i} type="button" aria-label={`Tire ${i + 1}: ${n} taps left`} onPointerDown={e => { e.preventDefault(); tap(i); }}
+            className={`absolute w-16 h-20 rounded-xl grid place-items-center font-display text-2xl select-none touch-none ring-4 ${n === 0 ? 'bg-neon-green text-crt-900 ring-neon-green' : 'bg-crt-950 text-white ring-slate-500 active:scale-95'}`}
+            style={{ left: i % 2 ? 'auto' : '-1.25rem', right: i % 2 ? '-1.25rem' : 'auto', top: i < 2 ? '0.75rem' : 'auto', bottom: i < 2 ? 'auto' : '0.75rem' }}>
+            {n === 0 ? '✓' : n}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+};
+
+// RIDE: loop the loop.
+const Coaster: React.FC<{ finish: Finish }> = ({ finish }) => {
+  const C = M.coaster;
+  const [rides, setRides] = useSaved<('clean' | 'wobbly' | 'stall' | 'flyoff')[]>('coaster', []);
+  const [holding, setHolding] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const over = rides.length >= C.rides;
+  useClock(holding); // redraws while held
+  const holdStart = useRef(0);
+  // Each ride starts from zero (the shared clock would carry on from the last ride).
+  const speed = holding ? Math.min(1, (performance.now() - holdStart.current) / 1700) : 0;
+  const lastSpeed = useRef(0);
+  if (holding) lastSpeed.current = speed;
+  const start = () => { if (over || result) return; holdStart.current = performance.now(); setHolding(true); soundService.playPowerUp(); };
+  const release = () => {
+    if (!holding) return;
+    setHolding(false);
+    const r = coasterRide(lastSpeed.current);
+    setResult(r === 'clean' ? 'CLEAN LOOP!' : r === 'wobbly' ? 'MADE IT (WOBBLY)' : r === 'stall' ? 'STALLED' : 'FLEW OFF!');
+    buzz(r === 'clean' ? [20, 40, 20] : r === 'wobbly' ? 20 : 70);
+    if (r === 'clean') soundService.playMilestone(); else tick();
+    setTimeout(() => {
+      const next = [...rides, r];
+      setRides(next); setResult(null);
+      if (next.length >= C.rides) {
+        const pts = coasterPrize(next);
+        setTimeout(() => finish({ points: pts, headline: next.every(x => x === 'clean') ? `PERFECT RIDES! +${pts}` : pts ? `${pts} POINTS!` : 'RIDE CLOSED', detail: `Your rides: ${next.map(x => (x === 'clean' ? 'clean' : x === 'wobbly' ? 'wobbly' : x === 'stall' ? 'stalled' : 'flew off')).join(', ')}.` }), 400);
+      }
+    }, 1100);
+  };
+  return (
+    <>
+      <p className="font-display text-xl text-neon-yellow">{coasterPrize(rides)} · ride {Math.min(rides.length + 1, C.rides)} of {C.rides}</p>
+      <div className="relative w-full max-w-[19rem] h-36 rounded-xl bg-gradient-to-b from-crt-800 to-crt-950 ring-1 ring-white/15 grid place-items-center" aria-live="polite">
+        <span className="text-6xl" aria-hidden="true">🎢</span>
+        {result && <span className="absolute bottom-2 font-display text-xl text-white">{result}</span>}
+      </div>
+      {!over && (
+        <>
+          <div className="relative w-full max-w-[19rem] h-5 rounded-full bg-crt-950 ring-1 ring-white/20 overflow-hidden" aria-label="Speed">
+            <div className="absolute inset-y-0 left-[58%] w-[10%] bg-neon-yellow/30" />
+            <div className="absolute inset-y-0 left-[68%] w-[14%] bg-neon-green/50" />
+            <div className="absolute inset-y-0 left-[82%] w-[10%] bg-neon-yellow/30" />
+            <div className="absolute inset-y-0 left-[92%] right-0 bg-neon-red/40" />
+            <div className="absolute inset-y-0 left-0 bg-white/20" style={{ width: `${(holding ? speed : 0) * 100}%` }} />
+            <div className="absolute inset-y-0 w-1 bg-white" style={{ left: `${(holding ? speed : 0) * 100}%` }} />
+          </div>
+          <button type="button" aria-label="Hold to build speed, let go to launch"
+            onPointerDown={e => { e.preventDefault(); start(); }} onPointerUp={release} onPointerLeave={release} onPointerCancel={release}
+            className={`w-full rounded-xl py-4 font-display text-xl select-none touch-none ${holding ? 'bg-neon-yellow text-crt-900' : 'bg-neon-pink text-white'}`}>
+            {holding ? 'LET GO IN THE GREEN!' : '🎢 HOLD TO GO'}
+          </button>
+        </>
+      )}
+    </>
+  );
+};
+
+// SEAL: balance act.
+const Seal: React.FC<{ finish: Finish }> = ({ finish }) => {
+  const S = M.seal;
+  const ball = useRef({ x: 0, v: 0 });
+  const [, setFrame] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [started, setStarted] = useState(false);
+  const done = useRef(false);
+  useEffect(() => {
+    if (!started) return;
+    let raf = 0, last = performance.now(), total = 0, wobble = 0;
+    const loop = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      if (done.current) return;
+      total += dt; wobble += dt;
+      const b = ball.current;
+      // The ball keeps rolling the way it leans, plus a random push now and then.
+      b.v += b.x * 1.3 * dt + (Math.random() - 0.5) * 1.8 * dt;
+      if (wobble > 0.9) { wobble = 0; b.v += (Math.random() - 0.5) * 0.5; }
+      b.x += b.v * dt;
+      setFrame(f => f + 1); setElapsed(total);
+      if (Math.abs(b.x) > 1 || total >= S.seconds) {
+        done.current = true;
+        const secs = Math.floor(Math.min(total, S.seconds));
+        const pts = sealPrize(total >= S.seconds ? S.seconds : secs);
+        if (total >= S.seconds) soundService.playMilestone(); else { soundService.playInvalidWord(); buzz(70); }
+        setTimeout(() => finish({ points: pts, headline: total >= S.seconds ? `TAKE A BOW! +${pts}` : `${secs} ${secs === 1 ? 'SECOND' : 'SECONDS'}: +${pts}`, detail: total >= S.seconds ? 'The ball never touched the water. Arf arf!' : 'The ball rolled off into the pool.' }), 600);
+        return;
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [started]); // eslint-disable-line react-hooks/exhaustive-deps
+  const nudge = (dir: number) => { if (!started) setStarted(true); ball.current.v += dir * 0.55; tick(); buzz(5); };
+  const x = ball.current.x;
+  return (
+    <>
+      <p className="font-display text-2xl text-neon-yellow tabular-nums">{Math.min(S.seconds, elapsed).toFixed(1)}<span className="font-sans text-sm font-semibold lowercase ml-1">sec</span> / {S.seconds}</p>
+      <div className="relative w-full max-w-[19rem] h-44 rounded-xl bg-gradient-to-b from-[#0b2a44] to-[#05182b] ring-1 ring-white/15 overflow-hidden" aria-label={`Ball ${Math.abs(x) < 0.3 ? 'steady' : x < 0 ? 'leaning left' : 'leaning right'}`}>
+        <span className="absolute text-3xl leading-none -translate-x-1/2 transition-none" style={{ left: `${50 + x * 40}%`, top: '18%' }} aria-hidden="true">⚽</span>
+        <span className="absolute left-1/2 -translate-x-1/2 bottom-2 text-6xl leading-none" aria-hidden="true">🦭</span>
+        <div className="absolute inset-x-0 bottom-0 h-2 bg-neon-cyan/30" />
+      </div>
+      <p className="osd-text text-lg text-slate-300">{started ? 'KEEP IT UP!' : 'TAP ◀ OR ▶ TO START'}</p>
+      <div className="w-full grid grid-cols-2 gap-2">
+        <button type="button" aria-label="Nudge left" onPointerDown={e => { e.preventDefault(); nudge(-1); }} className="rounded-xl py-4 bg-crt-800 ring-2 ring-neon-cyan text-neon-cyan font-display text-2xl select-none touch-none active:scale-95">◀</button>
+        <button type="button" aria-label="Nudge right" onPointerDown={e => { e.preventDefault(); nudge(1); }} className="rounded-xl py-4 bg-crt-800 ring-2 ring-neon-cyan text-neon-cyan font-display text-2xl select-none touch-none active:scale-95">▶</button>
+      </div>
+    </>
+  );
+};
+
+// DEAL: find the lady.
+const Monte: React.FC<{ finish: Finish }> = ({ finish }) => {
+  const D = M.monte;
+  const [state, setState] = useSaved('monte', { round: 0, finds: 0 });
+  // slots[i] = which card (0 is the queen) sits in position i.
+  const [slots, setSlots] = useState([0, 1, 2]);
+  const [phase, setPhase] = useState<'show' | 'shuffle' | 'pick' | 'reveal'>('show');
+  const [picked, setPicked] = useState<number | null>(null);
+  const ended = useRef(false);
+  const swapMs = [420, 300, 210][Math.min(state.round, 2)];
+  const swaps = [5, 7, 9][Math.min(state.round, 2)];
+  useEffect(() => {
+    if (ended.current) return;
+    setPicked(null); setPhase('show');
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(() => setPhase('shuffle'), 1300));
+    let order = [0, 1, 2];
+    for (let k = 0; k < swaps; k++) {
+      timers.push(setTimeout(() => {
+        const a = Math.floor(Math.random() * 3); let b = Math.floor(Math.random() * 2); if (b >= a) b++;
+        order = [...order]; [order[a], order[b]] = [order[b], order[a]];
+        setSlots(order); tick();
+      }, 1500 + k * swapMs));
+    }
+    timers.push(setTimeout(() => setPhase('pick'), 1500 + swaps * swapMs + 150));
+    return () => timers.forEach(clearTimeout);
+  }, [state.round]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pick = (card: number) => {
+    if (phase !== 'pick' || ended.current) return;
+    setPicked(card); setPhase('reveal');
+    const found = card === 0;
+    if (found) { soundService.playMilestone(); buzz([20, 40, 20]); } else { soundService.playInvalidWord(); buzz(70); }
+    const finds = state.finds + (found ? 1 : 0), round = state.round + 1;
+    setTimeout(() => {
+      if (round >= D.rounds) {
+        ended.current = true; setState({ round, finds });
+        const pts = montePrize(finds);
+        finish({ points: pts, headline: finds >= D.rounds ? `SHARP EYES! +${pts}` : pts ? `${finds} OF ${D.rounds}: +${pts}` : 'THE HOUSE WINS', detail: `You found the queen ${finds} ${finds === 1 ? 'time' : 'times'} in ${D.rounds} rounds.` });
+        return;
+      }
+      setState({ round, finds });
+    }, 1200);
+  };
+  const faceUp = (card: number) => phase === 'show' || (phase === 'reveal' && (card === 0 || card === picked));
+  return (
+    <>
+      <p className="font-display text-xl text-neon-yellow">Round {Math.min(state.round + 1, D.rounds)} of {D.rounds} · {state.finds} found</p>
+      <p className="osd-text text-lg text-slate-300 min-h-[1.5rem]" aria-live="polite">{phase === 'show' ? 'WATCH THE QUEEN…' : phase === 'shuffle' ? 'SHUFFLING…' : phase === 'pick' ? 'WHERE IS SHE?' : picked === 0 ? 'FOUND HER!' : 'NOT THIS TIME'}</p>
+      <div className="relative w-full max-w-[18rem] h-36">
+        {[0, 1, 2].map(card => {
+          const at = slots.indexOf(card);
+          return (
+            <button key={card} type="button" disabled={phase !== 'pick'} onClick={() => pick(card)} aria-label={phase === 'pick' ? `Card ${at + 1}` : faceUp(card) ? (card === 0 ? 'The queen' : 'A plain card') : 'A face-down card'}
+              className={`absolute top-0 w-[30%] h-full rounded-xl ring-2 grid place-items-center text-4xl font-display transition-[left] ease-in-out ${faceUp(card) ? 'bg-white text-crt-900 ring-white' : 'bg-gradient-to-br from-neon-purple to-neon-pink ring-white/40'} ${phase === 'pick' ? 'hover:-translate-y-1' : ''}`}
+              style={{ left: `${at * 35}%`, transitionDuration: `${swapMs * 0.8}ms` }}>
+              {faceUp(card) ? (card === 0 ? '👸' : '🂠') : ''}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+};
+
 // --- 10,000 GATE: the password ------------------------------------------------------------------
 const Password: React.FC<GameProps> = ({ finish, extra }) => {
   const answer = String(extra?.password ?? 'ARCADE').toUpperCase();
@@ -700,7 +1059,8 @@ const BonusStage: React.FC<GameProps> = ({ finish, gameState }) => {
   );
 };
 
-const GAMES: Record<MiniGameId, React.FC<GameProps>> = { pong: Pong, mole: Mole, claw: Claw, darts: Darts, goal: Goal, dice: Dice, bowl: Bowl, golf: Golf, hoops: Hoops, password: Password, bonusStage: BonusStage };
+const GAMES: Record<MiniGameId, React.FC<GameProps>> = { pong: Pong, mole: Mole, claw: Claw, darts: Darts, goal: Goal, dice: Dice, bowl: Bowl, golf: Golf, hoops: Hoops, password: Password, bonusStage: BonusStage,
+  ringToss: RingToss, riff: Riff, striker: Striker, pitStop: PitStop, coaster: Coaster, seal: Seal, monte: Monte };
 
 /** The arcade card: intro (Play or Skip), the game, then the result. */
 const MiniGameCard: React.FC<{
