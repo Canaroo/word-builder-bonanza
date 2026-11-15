@@ -34,8 +34,14 @@ const rampSteps = (level: number, fromLevel: number) => {
 export const clockSpeedFor = (level: number): number => {
     const { speedUpPerLevel, lateSpeedUpPerLevel, maxSpeed } = GAMEPLAY.levels;
     const { early, late } = rampSteps(level, 2);
-    return Math.min(maxSpeed, Math.round((1 + speedUpPerLevel * early + lateSpeedUpPerLevel * late) * 100) / 100);
+    const normal = Math.min(maxSpeed, 1 + speedUpPerLevel * early + lateSpeedUpPerLevel * late);
+    const O = GAMEPLAY.overtime;
+    const overtime = overtimeLevels(level) * O.clockPerLevel;
+    return Math.round(Math.min(Math.max(maxSpeed, O.clockCap), normal + overtime) * 100) / 100;
 };
+
+/** Levels of Overtime so far (v7.47): 1 at OVERTIME.fromLevel, 2 the level after, 0 before it. */
+export const overtimeLevels = (level: number): number => Math.max(0, level - GAMEPLAY.overtime.fromLevel + 1);
 
 /** The tier (name and color) a level belongs to. */
 export const levelTierFor = (level: number) =>
@@ -54,7 +60,9 @@ export const tickMsFor = (level: number): number => Math.round(1000 / clockSpeed
 export const wordTimeScaleFor = (level: number): number => {
     const { perLateLevel, min } = GAMEPLAY.wordTimeShrink;
     const { late } = rampSteps(level, GAMEPLAY.levels.lateFromLevel + 1);
-    return Math.max(min, Math.round((1 - perLateLevel * late) * 100) / 100);
+    const O = GAMEPLAY.overtime;
+    const normal = Math.max(min, 1 - perLateLevel * late);
+    return Math.round(Math.max(Math.min(min, O.wordTimeFloor), normal - overtimeLevels(level) * O.wordTimePerLevel) * 100) / 100;
 };
 
 /** Seconds a valid word earns at this level, before the overflow tax: 3-letter words stop paying, and the rest shrink. */
@@ -310,6 +318,8 @@ export interface LevelUpInfo {
     changes: LevelChange[];
     /** A boss round starts on this level, or on the next one. */
     boss: 'now' | 'next' | null;
+    /** Overtime starts on this level (v7.47). */
+    overtime?: boolean;
 }
 
 export const levelUpInfo = (level: number, gs?: WithCharms): LevelUpInfo => {
@@ -332,6 +342,7 @@ export const levelUpInfo = (level: number, gs?: WithCharms): LevelUpInfo => {
         newTier: tier !== levelTierFor(prev),
         changes,
         boss: bossNumberFor(level) ? 'now' : bossNumberFor(level + 1) ? 'next' : null,
+        overtime: level === GAMEPLAY.overtime.fromLevel,
     };
 };
 

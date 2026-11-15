@@ -73,7 +73,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
 - **Minimum word length is 3.** 2-letter words are in the dictionary but can't be submitted.
 - **Levels** every 18 words. Tiers: WARM-UP 1–3, HEATING UP 4–6, OVERDRIVE 7–10, MELTDOWN 11+. After
   level 6 the clock speeds up faster (to x2.0), words earn less time (to 65%), and the PowerPlay
-  meter grows (25 → 60 letters).
+  meter grows (25 → 60 letters). **Overtime** (v7.47.0, `GAMEPLAY.overtime`): those ramps leveled
+  off at 15-17, so top players coasted to level 18-24 and 60-80k (the 80k run got 43% of its time
+  from charms and PowerPlays). From level 12 the clock adds 4% a level (to x2.4) and word time
+  loses 2% a level (to 55%); the level-12 card shows an OVERTIME banner. Simulated: top player's
+  median level 21 → 17 (best 10%: 24 → 18), strong 15 → 14, typical runs untouched.
 - **Pop-ups:** big notices (level-up, milestones, secret bonuses, Golden Round, Power Word, big
   combos) wait for Continue. Chance PowerPlays (rolls, coin flips, random tiles) show their
   result on a centered outcome card (`outcome()` in `GameScreen.tsx`, `components/OutcomeCard.tsx`)

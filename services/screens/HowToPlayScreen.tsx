@@ -104,7 +104,10 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             words add no time. After level {GAMEPLAY.levels.lateFromLevel} it gets serious: the clock speeds up{' '}
             {Math.round(GAMEPLAY.levels.lateSpeedUpPerLevel * 100)}% a level (up to x{GAMEPLAY.levels.maxSpeed}), and words earn{' '}
             {Math.round(GAMEPLAY.wordTimeShrink.perLateLevel * 100)}% less time each level (down to{' '}
-            {Math.round(GAMEPLAY.wordTimeShrink.min * 100)}%).
+            {Math.round(GAMEPLAY.wordTimeShrink.min * 100)}%). <Key>⏰ Overtime</Key> starts at level{' '}
+            {GAMEPLAY.overtime.fromLevel}: every level after that, the clock speeds up{' '}
+            {Math.round(GAMEPLAY.overtime.clockPerLevel * 100)}% more (up to x{GAMEPLAY.overtime.clockCap}) and words earn{' '}
+            {Math.round(GAMEPLAY.overtime.wordTimePerLevel * 100)}% less time (down to {Math.round(GAMEPLAY.overtime.wordTimeFloor * 100)}%).
           </p>
           <p>
             <Key>Overflow tax:</Key> above {timeBank.overflowAbove}s, words add only half their time (½ on the clock).

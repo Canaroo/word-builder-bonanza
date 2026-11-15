@@ -63,17 +63,28 @@ describe('time pressure', () => {
         expect([0, 17, 18, 35, 36, 108].map(levelFor)).toEqual([1, 1, 2, 2, 3, 7]);
     });
 
-    test('the clock speeds up 5% per level, then 7% after level 6, capped at 2x (level 17, word 288)', () => {
-        expect([1, 2, 6, 7, 10, 16, 17, 20].map(clockSpeedFor)).toEqual([1, 1.05, 1.25, 1.32, 1.53, 1.95, 2, 2]);
+    test('the clock speeds up 5% per level, then 7% after level 6; Overtime adds 4% a level from level 12, up to x2.4', () => {
+        // Levels 1-11 are as before v7.47.
+        expect([1, 2, 6, 7, 10, 11].map(clockSpeedFor)).toEqual([1, 1.05, 1.25, 1.32, 1.53, 1.6]);
+        // Overtime: the normal ramp (capped at x2) plus 4% for each level from 12.
+        expect([12, 13, 15, 17, 20, 21, 30].map(clockSpeedFor)).toEqual([1.71, 1.82, 2.04, 2.24, 2.36, 2.4, 2.4]);
         expect(levelFor(288)).toBe(17);
         expect(tickMsFor(1)).toBe(1000);
-        expect(tickMsFor(17)).toBe(500);
+        expect(tickMsFor(21)).toBe(417);
     });
 
-    test('words earn full time up to level 6, then 4% less per level, down to 65%', () => {
-        expect([1, 6, 7, 8, 10, 15, 30].map(wordTimeScaleFor)).toEqual([1, 1, 0.96, 0.92, 0.84, 0.65, 0.65]);
-        expect([1, 6, 8, 10, 15].map(l => timeForWordAtLevel(7, l))).toEqual([10, 10, 9, 8, 7]);
+    test('words earn full time up to level 6, then 4% less per level; Overtime takes 2% more a level from 12, down to 55%', () => {
+        expect([1, 6, 7, 8, 10, 11].map(wordTimeScaleFor)).toEqual([1, 1, 0.96, 0.92, 0.84, 0.8]);
+        expect([12, 13, 15, 16, 30].map(wordTimeScaleFor)).toEqual([0.74, 0.68, 0.57, 0.55, 0.55]);
+        expect([1, 6, 8, 10, 15].map(l => timeForWordAtLevel(7, l))).toEqual([10, 10, 9, 8, 6]);
         expect(timeForWordAtLevel(4, 15)).toBe(2);
+    });
+    test('the level-up card announces Overtime once, at its first level', async () => {
+        const { levelUpInfo } = await import('../rules');
+        const { GAMEPLAY } = await import('../../config/gameplay');
+        expect(levelUpInfo(GAMEPLAY.overtime.fromLevel).overtime).toBe(true);
+        expect(levelUpInfo(GAMEPLAY.overtime.fromLevel - 1).overtime).toBe(false);
+        expect(levelUpInfo(GAMEPLAY.overtime.fromLevel + 1).overtime).toBe(false);
     });
 
     test('the PowerPlay meter grows from level 4, faster after level 6, up to 60 letters', () => {
