@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Charm slots, PowerPlay keep-or-swap, and the PowerPlays/charms added or moved in v6.8.
 import { describe, test, expect, vi, afterEach } from 'vitest';
-import { gameReducer, screenInitialState, maxStrikesFor, savableScreenState, RESUME_COUNTDOWN, POST_WORD_MODALS, type GameScreenState } from '../GameScreen';
+import { gameReducer, crocModal, screenInitialState, maxStrikesFor, savableScreenState, RESUME_COUNTDOWN, POST_WORD_MODALS, type GameScreenState } from '../GameScreen';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, PRIZE_POWER_PLAY_IDS } from '../../../data/powerPlays';
@@ -837,5 +837,45 @@ describe('WILDCARD (v7.50.0)', () => {
         expect(after.gameState!.strikes).toBe(s.gameState!.strikes);
         const bare = start({ activePowerPlays: {} });
         expect(gameReducer(bare, { type: 'ADD_STRIKE' }).gameState!.strikes).toBe(bare.gameState!.strikes + 1);
+    });
+});
+
+describe('Tick-Tock Croc (v7.51.0)', () => {
+    const croc = charm('tickTockCroc');
+    test('the card reads its numbers from config', () => {
+        expect(croc.description).toContain(`Every ${TIME_BONUS.crocEvery} words`);
+        expect(croc.description).toContain('60% it coughs up +10 seconds, 40% it bites 300 points');
+    });
+    test('surfaces on every 25th valid word while equipped, then counts again', () => {
+        const gs = { ...screenInitialState.gameState!, activeCharms: [croc], crocWords: 0 } as GameState;
+        let opened = 0;
+        for (let i = 1; i <= 75; i++) { const m = crocModal(gs); if (m) { opened++; expect(i % 25).toBe(0); expect(m.type).toBe('croc'); } }
+        expect(opened).toBe(3);
+        const bare = { ...screenInitialState.gameState!, activeCharms: [] } as GameState;
+        for (let i = 0; i < 30; i++) expect(crocModal(bare)).toBeNull();
+    });
+    test('the roll comes in at about 60%', () => {
+        const gs = { ...screenInitialState.gameState!, activeCharms: [croc], crocWords: 0 } as GameState;
+        let wins = 0, n = 0;
+        for (let i = 0; i < 25 * 2000; i++) { const m = crocModal(gs); if (m) { n++; if (m.data?.win) wins++; } }
+        expect(wins / n).toBeGreaterThan(0.55); expect(wins / n).toBeLessThan(0.65);
+    });
+    test('a win adds charm time (at most 10, less at higher levels); a loss bites 300, never below 0', () => {
+        const s = { ...start({ score: 1000 }, 30), modalContent: { type: 'croc', title: 'Tick-Tock Croc', data: { win: true } } } as GameScreenState;
+        const won = gameReducer(s, { type: 'CROC_RESULT' });
+        expect(won.time - s.time).toBe(10);
+        expect(won.gameState!.score).toBe(1000);
+        expect(won.modalContent?.type).toBe('outcome');
+        const lost = gameReducer({ ...s, modalContent: { type: 'croc', title: 'x', data: { win: false } } } as GameScreenState, { type: 'CROC_RESULT' });
+        expect(lost.time).toBe(s.time);
+        expect(lost.gameState!.score).toBe(700);
+        const broke = gameReducer({ ...s, gameState: { ...s.gameState!, score: 120 }, modalContent: { type: 'croc', title: 'x', data: { win: false } } } as GameScreenState, { type: 'CROC_RESULT' });
+        expect(broke.gameState!.score).toBe(0);
+        expect(gameReducer({ ...s, modalContent: null }, { type: 'CROC_RESULT' })).toEqual({ ...s, modalContent: null });
+    });
+    test('equipping it starts the count over', () => {
+        const s = start({ activeCharms: [], crocWords: 17 });
+        const after = gameReducer(s, { type: 'CHOOSE_CHARM', payload: { charm: croc, hand: s.hand, allOffered: [croc] } });
+        expect(after.gameState!.crocWords).toBe(0);
     });
 });

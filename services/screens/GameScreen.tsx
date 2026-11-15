@@ -282,7 +282,8 @@ type GameAction =
     | { type: 'RETURN_BUILD_ROW' }
     | { type: 'SET_GAMBLE_STATE', payload: { key: string; value: unknown } }
     | { type: 'DRAFT_TILES', payload: { letters: string[] } }
-    | { type: 'ADD_FREE_TILE', payload: { letter: string } };
+    | { type: 'ADD_FREE_TILE', payload: { letter: string } }
+    | { type: 'CROC_RESULT' };
 
 
 /**
@@ -399,6 +400,19 @@ const forkModal = (wordsBefore: number): ModalContent | null => {
 };
 
 /**
+ * Tick-Tock Croc (v7.51.0): counts valid words while equipped; every crocEvery it surfaces. The
+ * result is rolled now and carried in the pop-up's data (saved with the run), so a quit can't
+ * reroll it; the three clocks only reveal it.
+ */
+export const crocModal = (gs: GameState): ModalContent | null => {
+    if (!gs.activeCharms.some(c => c.id === 'tickTockCroc')) return null;
+    const count = (gs.crocWords ?? 0) + 1;
+    if (count < TIME_BONUS.crocEvery) { gs.crocWords = count; return null; }
+    gs.crocWords = 0;
+    return { type: 'croc', title: 'Tick-Tock Croc', data: { win: Math.random() < TIME_BONUS.crocWinChance, level: runLevel(gs) } };
+};
+
+/**
  * Boss rounds: if this word levels up into a boss level, start the round on `gs` (a copy the
  * caller owns) and return the boss intro pop-up.
  */
@@ -450,7 +464,7 @@ const levelUpModal = (wordsBefore: number, gs?: GameState): ModalContent | null 
  * stuck in the old round: v7.19.0's level-up card was, so a word whose only pop-up was a
  * level-up lost its word time, and Groundhog's Day saw a word "already played" and didn't fire.
  */
-export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork', 'bones'];
+export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork', 'bones', 'croc'];
 
 /**
  * A chance PowerPlay's result (a roll, a coin flip, a random tile): a centered card that waits
@@ -686,7 +700,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         // A gamble card's board, kept in its pop-up so the auto-save stores it (v7.28.9).
         case 'SET_GAMBLE_STATE': {
             const m = state.modalContent;
-            if (m?.type !== 'gamble' && m?.type !== 'minigame') return state;
+            if (m?.type !== 'gamble' && m?.type !== 'minigame' && m?.type !== 'croc') return state;
             return { ...state, modalContent: { ...m, data: { ...m.data, saved: { ...(m.data?.saved ?? {}), [action.payload.key]: action.payload.value } } } };
         }
         case 'SET_HAND_AND_BAG': return { ...state, hand: action.payload.hand, tileBag: action.payload.tileBag };
@@ -815,6 +829,32 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             if (slot === -1) return { ...state, hand: [...state.hand, tile] };
             const hand = [...state.hand]; hand[slot] = tile;
             return { ...state, hand };
+        }
+        // Tick-Tock Croc (v7.51.0): pay the result rolled when the croc surfaced, then the outcome card.
+        case 'CROC_RESULT': {
+            if (state.modalContent?.type !== 'croc') return state;
+            const win = !!state.modalContent.data?.win;
+            const charm = { icon: '🐊', name: 'Tick-Tock Croc' };
+            const level = runLevel(gameState);
+            if (win) {
+                const gained = bonusTime(TIME_BONUS.tickTockCroc, state.time, level);
+                const time = clampTime(state.time + gained, bankMax(gameState));
+                const cut = gained < TIME_BONUS.tickTockCroc;
+                const entry: EventLogEntry = { type: 'event', id: `croc-${Date.now()}`, name: charm.name, icon: charm.icon, description: `The croc coughed up +${time - state.time}s.`, scoreChange: 0, cumulativeScore: gameState.score };
+                return {
+                    ...state, time, isPaused: true,
+                    timeGain: { seconds: time - state.time, key: Date.now() },
+                    modalContent: outcome(charm, `+${time - state.time} SECONDS`, `Tick-tock! The croc coughed up a clock.${cut ? `\n\nCharm time at level ${level}: ${TIME_BONUS.tickTockCroc} → ${gained} seconds.` : ''}`, 'win'),
+                    gameState: { ...gameState, log: [...gameState.log, entry] },
+                };
+            }
+            const score = Math.max(0, gameState.score - TIME_BONUS.crocLoss);
+            const entry: EventLogEntry = { type: 'event', id: `croc-${Date.now()}`, name: charm.name, icon: charm.icon, description: `The croc bit ${gameState.score - score} points.`, scoreChange: score - gameState.score, cumulativeScore: score };
+            return {
+                ...state, isPaused: true,
+                modalContent: outcome(charm, `-${gameState.score - score} POINTS`, 'Chomp! That clock was the croc. It bit off some points.', 'lose'),
+                gameState: { ...gameState, score, log: [...gameState.log, entry] },
+            };
         }
         case 'DRAFT_TILES': {
             const letters: string[] = action.payload.letters;
@@ -1536,6 +1576,8 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             let newGameState = { ...gameState };
             // A charm that leaves (or comes back fresh) loses its upgrade.
             newGameState.charmUpgrades = (newGameState.charmUpgrades ?? []).filter(id => id !== replaceId && id !== charm.id);
+            // Tick-Tock Croc counts from the moment it's equipped.
+            if (charm.id === 'tickTockCroc') newGameState.crocWords = 0;
             let newTime = state.time;
 
             // Charm slots: a new charm beyond the limit must replace one.
@@ -3201,6 +3243,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     dispatch({ type: 'END_RUN', payload: { reason } });
   }, [lexCoins, onLexCoinChange, totalWords]);
 
+  /** Tick-Tock Croc: a clock was picked; pay what the croc rolled. */
+  const handleCrocPick = () => { if (state.modalContent?.type === 'croc') dispatch({ type: 'CROC_RESULT' }); };
+
   /** Fork in the Road: take a route (until the next fork), then carry on. */
   const handleForkPick = (choice: 'easy' | 'danger') => {
     if (state.modalContent?.type !== 'fork') return;
@@ -3679,6 +3724,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             if (goldenFork) modalQueue.push(goldenFork);
             const goldenBones = bonesModal(newState, totalWords);
             if (goldenBones) modalQueue.push(goldenBones);
+            const goldenCroc = crocModal(newState);
+            if (goldenCroc) modalQueue.push(goldenCroc);
             const goldenBossIntro = startBossRound(newState, totalWords);
             if (goldenBossIntro) modalQueue.push(goldenBossIntro);
 
@@ -3717,6 +3764,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (fork) modalQueue.push(fork);
       const bones = bonesModal(newState, totalWords);
       if (bones) modalQueue.push(bones);
+      const croc = crocModal(newState);
+      if (croc) modalQueue.push(croc);
       if (levelUp) payLevelUp(scoreResult);
 
       if (word.length >= 5 && !isChallengeLock) {
@@ -5926,6 +5975,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         holdArmed,
         handleHoldTap,
         handleForkPick,
+        handleCrocPick,
         handleBonesDone,
         upcomingTiles: gameState.activePowerPlays?.psychicFriends ? tileBag.slice(-POWER_PLAY_VALUES.psychicTiles).reverse() : [],
         // Smell Ya Later!: the rival's score as it climbs, in real seconds.

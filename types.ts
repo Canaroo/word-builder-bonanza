@@ -321,6 +321,8 @@ export interface GameState {
   route?: { choice: 'easy' | 'danger'; level: number } | null;
   /** Hold Slot (v7.43): the tile parked there (survives new hands and shuffles). */
   holdTile?: Tile | null;
+  /** Tick-Tock Croc (v7.51.0): valid words since it was equipped or last surfaced. */
+  crocWords?: number;
   /** Last Words (v7.42): the parting-word card has been shown this run. */
   lastWordsDone?: boolean;
   /** Head Start: seconds added to this run's starting clock (shown until the first word). */

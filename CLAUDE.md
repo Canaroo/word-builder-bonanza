@@ -45,7 +45,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | Scoring | `services/gameUtils.ts` `calculateScore` |
 | Game state, reducer, turn logic | `services/screens/GameScreen.tsx` (large) |
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
-| PowerPlays / charms (101 / 102) | `data/powerPlays.ts`, `data/charms.ts` |
+| PowerPlays / charms (101 / 103) | `data/powerPlays.ts`, `data/charms.ts` |
 | Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
 | Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Fork, Hold Slot, Grudge Match, Bones | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `FORK`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`; cards in `components/` (`LastWordsCard`, `ForkCard`, `BonesCard`) |
 | Secret bonuses (115 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
@@ -117,6 +117,14 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   blocks it and it can end the run; the card says when a shield is up). Keep animated images small:
   convert GIFs to animated WebP with ffmpeg (`-c:v libwebp -loop 0 -q:v 60`, about 360 px wide)
   before committing (`gif` and `webp` are in the PWA precache list).
+- **Tick-Tock Croc (v7.51.0)** (`tickTockCroc` charm, `components/CrocCard.tsx`, values
+  `tickTockCroc`, `crocEvery`, `crocWinChance`, `crocLoss` in `TIME_BONUS`): a chance-for-time
+  charm, the owner's design. Every 25 valid words while it's equipped (`gameState.crocWords`, reset
+  when it's equipped; `crocModal` queues the `croc` pop-up after the word), the croc surfaces and
+  the player picks 1 of 3 clocks: 60% +10 s (charm time through `bonusTime()`, so never more than
+  10, and the card shows this level's amount), 40% -300 points (fixed, never below 0). The result is
+  rolled when the croc surfaces and saved in the pop-up, so a quit can't reroll it. Expected per 100
+  words held: about +24 s and -480 points. The longer it's held, the more rolls.
 - **Multi-word PowerPlays (v7.28)** settle in `completeSubmission` and pay outside the word, with
   a progress chip above the hand (`components/PowerPlayTrackers.tsx`): Tamagotchi (pot), Time
   Capsule (buried word), Smell Ya Later! (rival race), Winner Winner Chicken Dinner (each valid word
