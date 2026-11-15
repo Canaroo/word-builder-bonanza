@@ -1,3 +1,4 @@
+import { Sec } from '../../components/Seconds';
 import React from 'react';
 import { soundService } from '../soundService';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, HEAD_START, SKILL_SHOT, GEM_TILES, FORK, HOLD_SLOT, GRUDGE, BONES } from '../../config/gameplay';
@@ -115,7 +116,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             {timeRows.map(([len, secs], i) => (
               <div key={len} className="bg-crt-800/80 rounded-md py-1">
                 <div className="text-slate-400 leading-none">{len}{i === timeRows.length - 1 ? '+' : ''} LTR</div>
-                <div className="text-neon-green leading-none">+{secs}s</div>
+                <div className="text-neon-green leading-none">+{secs}<Sec /></div>
               </div>
             ))}
           </div>

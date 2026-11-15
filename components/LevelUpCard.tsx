@@ -1,3 +1,4 @@
+import { withSec } from './Seconds';
 import React from 'react';
 import ArcadeButton, { type ArcadeButtonColor } from './ArcadeButton';
 import type { LevelUpInfo } from '../services/rules';
@@ -19,9 +20,9 @@ const Changes: React.FC<{ info: LevelUpInfo; text: string; hideBossNow?: boolean
       <li key={c.label} className="flex items-center gap-2 rounded-lg bg-crt-950/70 ring-1 ring-white/10 px-3 py-2">
         <span aria-hidden="true">{c.icon}</span>
         <span className="flex-1 text-slate-200">{c.label}</span>
-        <span className="osd-text text-lg leading-none text-slate-500 tabular-nums">{c.from}</span>
+        <span className="osd-text text-lg leading-none text-slate-500 tabular-nums">{withSec(c.from)}</span>
         <span className="text-slate-500" aria-label="becomes">→</span>
-        <span className={`osd-text text-lg leading-none font-bold tabular-nums ${text}`}>{c.to}</span>
+        <span className={`osd-text text-lg leading-none font-bold tabular-nums ${text}`}>{withSec(c.to)}</span>
       </li>
     ))}
     {info.boss && !(hideBossNow && info.boss === 'now') && (

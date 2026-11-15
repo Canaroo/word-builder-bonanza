@@ -196,3 +196,20 @@ describe('Charm time notes (v7.40.2)', () => {
         expect(charmTimeText('gottaCatchEmAll', 9)).toBe('🍀 LEVEL 9: CHARM TIME 60% · +10 SEC PAYS +6');
     });
 });
+
+describe('Hot Tub roll (v7.44.4)', () => {
+    test('every roll lands on a real outcome, at the odds on the card', async () => {
+        const { hotTubIndex, hotTubSeconds } = await import('../rules');
+        const { POWER_PLAY_VALUES } = await import('../../config/gameplay');
+        const counts = [0, 0, 0];
+        const N = 30000;
+        for (let i = 0; i < N; i++) {
+            const roll = (i + 0.5) / N;
+            const idx = hotTubIndex(roll);
+            expect(idx).toBeGreaterThanOrEqual(0);
+            expect(POWER_PLAY_VALUES.hotTub[idx].seconds).toBe(hotTubSeconds(roll));
+            counts[idx]++;
+        }
+        POWER_PLAY_VALUES.hotTub.forEach((o, i) => expect(counts[i] / N).toBeCloseTo(o.chance, 2));
+    });
+});

@@ -1,3 +1,4 @@
+import { Sec, withSec } from '../../components/Seconds';
 import React, { useEffect, useRef, useState } from 'react';
 import ArcadeButton from '../../components/ArcadeButton';
 import ShuffleButton from '../../components/ShuffleButton';
@@ -258,7 +259,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             return (
                 <div className={modalBaseClass}>
                     <div className={`${modalBoxBaseClass} border-neon-yellow shadow-glow-yellow bonus-insert`}>
-                        <h2 className="font-display text-2xl text-neon-yellow drop-shadow-glow-yellow mb-2 text-center">{cardTitle}</h2>
+                        <h2 className="font-display text-2xl text-neon-yellow drop-shadow-glow-yellow mb-2 text-center">{withSec(cardTitle ?? '')}</h2>
                         <div className="text-slate-200 text-center my-4 whitespace-pre-line">{cardContent}</div>
                         {cardData?.reward?.points ? (
                             <div className="font-display text-neon-green text-3xl my-4 text-center">+{cardData.reward.points}</div>
@@ -760,7 +761,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         <div className="absolute inset-0 z-[70] bg-crt-950 flex flex-col items-center justify-center gap-3 text-center" role="status" aria-live="assertive" aria-label={`Run restored. Resuming in ${resumeCountdown}`}>
           <p className="osd-text text-2xl tracking-[0.3em] text-neon-green">RUN RESTORED</p>
           <p key={resumeCountdown} className="font-osd text-9xl leading-none neon-text-cyan level-stage-in">{resumeCountdown}</p>
-          <p className="osd-text text-lg text-slate-400">{time}s on the clock · get ready</p>
+          <p className="osd-text text-lg text-slate-400">{time}<Sec /> on the clock · get ready</p>
         </div>
       )}
       
@@ -788,7 +789,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 className={`time-gain-side absolute left-full top-1/2 ml-1 whitespace-nowrap font-osd text-2xl leading-none pointer-events-none ${timeGain.seconds > 0 ? 'text-neon-green' : 'text-neon-red'}`}
                 aria-live="polite"
               >
-                {timeGain.seconds > 0 ? '+' : '−'}{Math.abs(timeGain.seconds)}s{timeGain.taxed && <span className="text-neon-yellow text-lg"> ½</span>}
+                {timeGain.seconds > 0 ? '+' : '−'}{Math.abs(timeGain.seconds)}<Sec />{timeGain.taxed && <span className="text-neon-yellow text-lg"> ½</span>}
               </span>
             )}
             {/* Charm time cut by the level (v7.40.2): say so under the clock, so it doesn't look like a bug. */}
@@ -833,7 +834,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       {gameState && gameState.roundType !== 'golden' && ((gameState.freezeLeft ?? 0) > 0 || (gameState.slowWords ?? 0) > 0) && (
         <div className="flex-shrink-0 rounded-lg px-3 py-1 text-center bg-cyan-500/20 ring-1 ring-cyan-300/60" role="status">
           <span className="osd-text text-lg leading-none text-cyan-100">
-            {(gameState.freezeLeft ?? 0) > 0 ? `❄️ CLOCK FROZEN · ${gameState.freezeLeft}s` : `🦥 SLOW MOTION · ${gameState.slowWords} ${gameState.slowWords === 1 ? 'WORD' : 'WORDS'} LEFT`}
+            {(gameState.freezeLeft ?? 0) > 0 ? withSec(`❄️ CLOCK FROZEN · ${gameState.freezeLeft}s`) : `🦥 SLOW MOTION · ${gameState.slowWords} ${gameState.slowWords === 1 ? 'WORD' : 'WORDS'} LEFT`}
           </span>
         </div>
       )}
@@ -977,7 +978,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         {message && (
           <div className="absolute bottom-full inset-x-0 mb-2 flex justify-center pointer-events-none z-20" role="status" aria-live="polite">
             <div key={message} className="message-pop max-w-full px-3 py-1.5 rounded-lg bg-crt-950/95 ring-1 ring-neon-cyan/60 shadow-glow-cyan osd-text text-xl leading-tight text-neon-cyan text-center whitespace-pre-line">
-              {message}
+              {withSec(message ?? '')}
             </div>
           </div>
         )}
@@ -1060,7 +1061,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           <div className="flex flex-wrap justify-center gap-1">
             {(gameState?.headStart ?? 0) > 0 && totalWords === 0 && (
               <span className="flex items-center gap-1 rounded-full bg-crt-950/80 ring-1 ring-neon-green/60 px-2 py-0.5 text-xs text-white whitespace-nowrap" aria-label={`Head Start: ${gameState.headStart} extra seconds on the clock this run`}>
-                <span aria-hidden="true">🛠️</span>HEAD START +{gameState.headStart}<span className="lowercase">s</span>
+                <span aria-hidden="true">🛠️</span>HEAD START +{gameState.headStart}<Sec />
               </span>
             )}
             {skillShotTileId && (

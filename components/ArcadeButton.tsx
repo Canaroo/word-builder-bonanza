@@ -1,3 +1,4 @@
+import { withSecChildren } from './Seconds';
 import React from 'react';
 
 export type ArcadeButtonColor = 'yellow' | 'cyan' | 'pink' | 'green' | 'red' | 'purple' | 'slate';
@@ -61,7 +62,7 @@ const ArcadeButton = React.forwardRef<HTMLButtonElement, ArcadeButtonProps>(({ c
         style={style}
         className={`font-display uppercase tracking-wide flex items-center justify-center gap-2 select-none whitespace-nowrap transition-colors active:translate-y-px disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-white ${look} ${className}`}
       >
-        {children}
+        {withSecChildren(children)}
       </button>
     );
   }
@@ -73,7 +74,7 @@ const ArcadeButton = React.forwardRef<HTMLButtonElement, ArcadeButtonProps>(({ c
       style={{ ['--btn-edge' as string]: edge, ...style }}
       className={`arcade-btn font-display uppercase tracking-wide rounded-xl flex items-center justify-center gap-2 select-none whitespace-nowrap disabled:cursor-not-allowed disabled:from-crt-700 disabled:to-crt-700 disabled:text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-crt-900 ${face} ${SIZES[size]} ${className}`}
     >
-      {children}
+      {withSecChildren(children)}
     </button>
   );
 });
