@@ -36,7 +36,8 @@ const ID = /^[A-Za-z0-9]{1,32}$/;
 export const toBone = (id: string, row: any): Bone | null => {
   if (!row || typeof row !== 'object') return null;
   const hand = String(row.hand ?? '').split(',').filter(Boolean);
-  const charms = String(row.charms ?? '').split(',').filter(Boolean);
+  // Phoenix Down can't be looted: it only ever comes from a charm offer.
+  const charms = String(row.charms ?? '').split(',').filter(c => c && c !== 'phoenixDown');
   if (typeof row.name !== 'string' || !NAME.test(row.name)) return null;
   if (!Number.isInteger(row.level) || row.level < BONES.minLevel) return null;
   if (hand.length < BONES.minLetters || hand.length > 10 || !hand.every(t => TILE.test(t))) return null;

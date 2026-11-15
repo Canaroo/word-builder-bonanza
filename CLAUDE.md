@@ -45,7 +45,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | Scoring | `services/gameUtils.ts` `calculateScore` |
 | Game state, reducer, turn logic | `services/screens/GameScreen.tsx` (large) |
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
-| PowerPlays / charms (100 / 100) | `data/powerPlays.ts`, `data/charms.ts` |
+| PowerPlays / charms (100 / 101) | `data/powerPlays.ts`, `data/charms.ts` |
 | Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
 | Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Fork, Hold Slot, Grudge Match, Bones | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `FORK`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`; cards in `components/` (`LastWordsCard`, `ForkCard`, `BonesCard`) |
 | Secret bonuses (107 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
@@ -265,12 +265,15 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
 - **Four features from the 146-run stats review (v7.41.0).** The stats showed 15 names ever, three
   regulars, 47% of runs ending by level 3 (17 of 40 on strikes), 52% of charm offers passed after
   level 6, 25 PowerPlays picked under 12%, and power words firing 14 times in 146 runs.
-  **Phoenix Down** (`PHOENIX_DOWN` in `config/progression.ts`, `components/ContinueCard.tsx`): the
-  first time a run ends (strikes or clock), a one-time charm card offers to continue for 150
-  Credits (the owner's price and design): strikes wiped, clock back to at least 30 s. Once per run
-  (`continueOffered`), never on the scored Daily Run, shown greyed out when the player can't pay.
-  It is not in `CHARMS_LIST`. `handleContinueOffer` answers only the open offer, once. The older
-  Continue? PowerPlay and the free rescues still go first.
+  **Phoenix Down** (`phoenixDown` in `data/charms.ts`, values in `PHOENIX_DOWN` in
+  `config/progression.ts`, card in `components/ContinueCard.tsx`): a real charm (v7.44.1; v7.41
+  wrongly showed the card to everyone at every run end, and the owner corrected it). It appears
+  in at most one charm offer a run (`phoenixOffered`) and never on the scored Daily Run; the
+  player has to take it and keep it in a slot. If the run then ends (strikes or clock) while they
+  hold it, the card offers to continue for 150 Credits (the owner's price): strikes wiped, clock
+  back to at least 30 s, and the charm burns up. Greyed out when the player can't pay.
+  `handleContinueOffer` answers only the open card, once. The older Continue? PowerPlay and the
+  free rescues still go first. Lucky Charms never deals it.
   **Charm sets** (`data/charmSets.ts`, `CHARM_SET_BONUS`): 9 themed sets of 2-3 charms, mostly
   never-picked ones. Holding a whole set pays +50 (pair) or +100 (trio) on every valid word, as a
   "🧩 <name> set" line (0 means 0 holds; not boosted by upgrades or long words). With part of a set

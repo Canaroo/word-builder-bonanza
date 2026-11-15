@@ -1,3 +1,4 @@
+import { PHOENIX_DOWN } from '../config/progression';
 import { Charm, GameState, EventLogEntry } from '../types';
 import { labelize } from '../services/durationTags';
 import { BOSS, CHARM_BONUS, CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS } from '../config/gameplay';
@@ -842,6 +843,20 @@ export const CHARMS_LIST: Charm[] = [
     effectType: 'triggered',
     durationTag: 'PERSISTENT',
     activate: createPassiveBuff('noteStreak'),
+  },
+  {
+    // v7.44.1: a real charm. Hold it and, when the run ends (strikes or clock), a card offers to
+    // continue for Credits. It burns up when used. Shown in at most one offer per run, never on
+    // the scored Daily Run (config/progression.ts PHOENIX_DOWN).
+    id: 'phoenixDown',
+    name: PHOENIX_DOWN.name,
+    description: `If your run ends while you hold this, you can pay ${PHOENIX_DOWN.cost} Credits to continue: strikes wiped and ${PHOENIX_DOWN.seconds} seconds on the clock. Works once, then it's gone.`,
+    flavorText: 'Rise from the ashes. Bring your wallet.',
+    icon: PHOENIX_DOWN.icon,
+    subtheme: 'utility',
+    effectType: 'triggered',
+    durationTag: 'PERSISTENT',
+    activate: createPassiveBuff('phoenixDown'),
   },
   {
     id: 'imAlwaysHere',

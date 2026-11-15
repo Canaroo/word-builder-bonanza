@@ -20,6 +20,9 @@ describe('Bones', () => {
         expect(toBone('x', { ...row, charms: '' })).toBeNull();
         expect(toBone('x', { ...row, charms: 'a b,c' })).toBeNull();
         expect(toBone('x', null)).toBeNull();
+        // Phoenix Down is never loot.
+        expect(toBone('x', { ...row, charms: 'phoenixDown,oneRing' })?.charms).toEqual(['oneRing']);
+        expect(toBone('x', { ...row, charms: 'phoenixDown' })).toBeNull();
     });
     test('only runs worth finding leave bones', () => {
         const run = { level: 3, hand: ['P', 'L', 'A', 'N', 'T', 'S', 'E', 'R'], charms: ['oneRing'] };
