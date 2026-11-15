@@ -45,7 +45,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | Scoring | `services/gameUtils.ts` `calculateScore` |
 | Game state, reducer, turn logic | `services/screens/GameScreen.tsx` (large) |
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
-| PowerPlays / charms (100 / 102) | `data/powerPlays.ts`, `data/charms.ts` |
+| PowerPlays / charms (101 / 102) | `data/powerPlays.ts`, `data/charms.ts` |
 | Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
 | Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Fork, Hold Slot, Grudge Match, Bones | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `FORK`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`; cards in `components/` (`LastWordsCard`, `ForkCard`, `BonesCard`) |
 | Secret bonuses (115 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
@@ -106,6 +106,15 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   An open gamble card keeps its board in the pop-up (`useSaved` in `GambleCard.tsx`, action
   `SET_GAMBLE_STATE`), so quitting and resuming restores it instead of redealing. New card games
   use `useSaved` for any state, especially the opening deal.
+- **WILDCARD (v7.50.0)** (`wildcard`, `Wildcard` in `GambleCard.tsx`, odds in
+  `POWER_PLAY_VALUES.wildcard`): a pocket gamble card. The owner's GIF plays at the top
+  (`public/powerplays/wildcard.gif`; a spinning 🎡 shows if it's missing), then SPIN runs a light
+  around four outcomes and slows onto the roll (rolled once, saved): +5 s 30%, +500 30% (a prize,
+  grows with the level), a free tile of the player's choice 30% (any letter, `ADD_FREE_TILE`: an
+  empty slot no word-row tile returns to, else an extra slot; the next hand is dealt fresh, so it
+  lasts this hand), a strike 10% (the owner's call: a real strike through `ADD_STRIKE`, so a shield
+  blocks it and it can end the run; the card says when a shield is up). Keep GIFs small: trim
+  frames and colors with ffmpeg before committing (`gif` is in the PWA precache list).
 - **Multi-word PowerPlays (v7.28)** settle in `completeSubmission` and pay outside the word, with
   a progress chip above the hand (`components/PowerPlayTrackers.tsx`): Tamagotchi (pot), Time
   Capsule (buried word), Smell Ya Later! (rival race), Winner Winner Chicken Dinner (each valid word

@@ -141,6 +141,15 @@ export const POWER_PLAY_VALUES = {
   minesweeperSquares: 9,                         // one is a mine
   minesweeperLadder: [100, 125, 150, 200, 250, 300, 400, 500],
   hotTub: [{ seconds: 25, chance: 0.35 }, { seconds: 10, chance: 0.45 }, { seconds: -8, chance: 0.2 }],
+  // WILDCARD (v7.50.0): a wheel of four. The owner's odds: 30 / 30 / 30 / 10. The points grow with
+  // the level like other prizes; the free tile is any letter, added to this hand only; the strike
+  // is a real strike (a shield blocks it, and it can end the run).
+  wildcard: [
+    { kind: 'time', seconds: 5, chance: 0.3 },
+    { kind: 'points', points: 500, chance: 0.3 },
+    { kind: 'tile', chance: 0.3 },
+    { kind: 'strike', chance: 0.1 },
+  ] as { kind: 'time' | 'points' | 'tile' | 'strike'; seconds?: number; points?: number; chance: number }[],
   dailyDoublePercent: 10,                        // wager this share of your score...
   dailyDoubleMin: 100,
   dailyDoubleMax: 500,

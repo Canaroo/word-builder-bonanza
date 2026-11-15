@@ -1185,6 +1185,17 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     activate: () => ({}), // Handled in GameScreen (v7.25 gambles)
   },
   {
+    id: 'wildcard',
+    name: 'WILDCARD',
+    description: `Spin the wheel: ${Math.round(POWER_PLAY_VALUES.wildcard[0].chance * 100)}% +${POWER_PLAY_VALUES.wildcard[0].seconds} seconds, ${Math.round(POWER_PLAY_VALUES.wildcard[1].chance * 100)}% +${POWER_PLAY_VALUES.wildcard[1].points} points, ${Math.round(POWER_PLAY_VALUES.wildcard[2].chance * 100)}% a free tile of your choice for this hand, or ${Math.round(POWER_PLAY_VALUES.wildcard[3].chance * 100)}% a strike (a shield blocks it).`,
+    flavorText: 'Wildcard! Yee-haw!',
+    icon: '🎡',
+    subtheme: 'utility',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (gamble card, v7.50.0)
+  },
+  {
     id: 'luckyCharms',
     name: 'Lucky Charms',
     description: 'Equips a random charm right now (any of them, even the trade-offs). With full slots, it replaces a random charm.',
@@ -1404,5 +1415,5 @@ export const PRIZE_POWER_PLAY_IDS: ReadonlySet<string> = new Set([
   'schruteBucks',
   'letsMakeADeal', 'dealOrNoDeal', 'noWhammies', 'minesweeper', 'cardSharks', 'plinko', 'chickenDinner',
   'fluncleIsProud', 'actClear', 'priceIsRight', 'tamagotchi', 'smellYaLater', 'popQuizHotshot',
-  'withGreatPower', 'gumpLuck', 'warioWarp', 'thanosGift',
+  'withGreatPower', 'gumpLuck', 'warioWarp', 'thanosGift', 'wildcard',
 ]);

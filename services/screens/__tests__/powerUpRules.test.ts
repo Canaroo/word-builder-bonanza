@@ -4,7 +4,9 @@ import { describe, test, expect, vi, afterEach } from 'vitest';
 import { gameReducer, screenInitialState, maxStrikesFor, savableScreenState, RESUME_COUNTDOWN, POST_WORD_MODALS, type GameScreenState } from '../GameScreen';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS } from '../../../data/powerPlays';
+import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, PRIZE_POWER_PLAY_IDS } from '../../../data/powerPlays';
+import { GAMBLE_CARD_IDS } from '../../../components/GambleCard';
+import { wildcardIndex } from '../../rules';
 import { CHARMS_LIST } from '../../../data/charms';
 import { SECRET_BONUSES } from '../../../data/secretBonuses';
 import { CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, CHARM_BONUS } from '../../../config/gameplay';
@@ -786,5 +788,54 @@ describe('Mission: Impossible', () => {
         expect(d).toContain(`-${POWER_PLAY_VALUES.missionImpossiblePenalty} seconds`);
         expect(POWER_PLAY_VALUES.missionImpossibleSeconds).toBeGreaterThan(TIME_BONUS.timeBoost);
         expect(POWER_PLAY_VALUES.missionImpossiblePenalty).toBeGreaterThan(0);
+    });
+});
+
+describe('WILDCARD (v7.50.0)', () => {
+    test('four outcomes at the owner\'s odds: 30 / 30 / 30 / 10', () => {
+        expect(POWER_PLAY_VALUES.wildcard.map(o => [o.kind, o.chance])).toEqual([['time', 0.3], ['points', 0.3], ['tile', 0.3], ['strike', 0.1]]);
+        expect(POWER_PLAY_VALUES.wildcard.reduce((a, o) => a + o.chance, 0)).toBeCloseTo(1);
+        expect(POWER_PLAY_VALUES.wildcard[0].seconds).toBe(5);
+        expect(POWER_PLAY_VALUES.wildcard[1].points).toBe(500);
+    });
+    test('a roll lands on each outcome in its share', () => {
+        const counts = [0, 0, 0, 0];
+        for (let i = 0; i < 1000; i++) counts[wildcardIndex(i / 1000)]++;
+        expect(counts).toEqual([300, 300, 300, 100]);
+    });
+    test('it is a pocket gamble card, its +500 grows with the level, and the text reads from config', () => {
+        const pp = POWER_PLAYS_LIST.find(p => p.id === 'wildcard')!;
+        expect(pp.name).toBe('WILDCARD');
+        expect(INSTANT_POWER_PLAY_IDS.has('wildcard')).toBe(false);
+        expect(GAMBLE_CARD_IDS).toContain('wildcard');
+        expect(PRIZE_POWER_PLAY_IDS.has('wildcard')).toBe(true);
+        expect(pp.description).toContain('+5 seconds');
+        expect(pp.description).toContain('+500 points');
+        expect(pp.description).toContain('10% a strike');
+    });
+    test('the free tile fills an empty slot (never one a word-row tile returns to), else adds one', () => {
+        const s = start({});
+        const empty = s.hand.indexOf(null);
+        expect(empty).toBeGreaterThan(-1);
+        const after = gameReducer(s, { type: 'ADD_FREE_TILE', payload: { letter: 'q' } });
+        expect(after.hand).toHaveLength(s.hand.length);
+        expect(after.hand[empty]?.letter).toBe('Q');
+        // The first tile sits in the word row: its slot stays reserved.
+        const moved = gameReducer(s, { type: 'MOVE_TILE_TO_BUILD', payload: { tile: s.hand[0]!, fromIndex: 0 } });
+        const q = gameReducer(moved, { type: 'ADD_FREE_TILE', payload: { letter: 'Q' } });
+        expect(q.hand[0]).toBeNull();
+        // A full hand grows by one.
+        const full = { ...s, hand: s.hand.map(t => t ?? gameUtils.createTile('E')) };
+        const grown = gameReducer(full, { type: 'ADD_FREE_TILE', payload: { letter: 'Z' } });
+        expect(grown.hand).toHaveLength(full.hand.length + 1);
+        expect(grown.hand[full.hand.length]?.letter).toBe('Z');
+        expect(gameReducer(s, { type: 'ADD_FREE_TILE', payload: { letter: '7' } })).toBe(s);
+    });
+    test('its strike goes through ADD_STRIKE, so a shield blocks it', () => {
+        const s = start({ activePowerPlays: { strikeShield: true }, activeBuffs: [] });
+        const after = gameReducer(s, { type: 'ADD_STRIKE' });
+        expect(after.gameState!.strikes).toBe(s.gameState!.strikes);
+        const bare = start({ activePowerPlays: {} });
+        expect(gameReducer(bare, { type: 'ADD_STRIKE' }).gameState!.strikes).toBe(bare.gameState!.strikes + 1);
     });
 });

@@ -413,6 +413,8 @@ export const plinkoPayout = (roll: number): number => pickByChance(POWER_PLAY_VA
 export const hotTubSeconds = (roll: number): number => pickByChance(POWER_PLAY_VALUES.hotTub, roll).seconds;
 /** The Hot Tub outcome a roll in [0, 1) lands on, as an index into POWER_PLAY_VALUES.hotTub. */
 export const hotTubIndex = (roll: number): number => POWER_PLAY_VALUES.hotTub.indexOf(pickByChance([...POWER_PLAY_VALUES.hotTub], roll));
+/** The WILDCARD outcome a roll in [0, 1) lands on, as an index into POWER_PLAY_VALUES.wildcard. */
+export const wildcardIndex = (roll: number): number => POWER_PLAY_VALUES.wildcard.indexOf(pickByChance([...POWER_PLAY_VALUES.wildcard], roll));
 
 /**
  * No Whammies! board (v7.39.1): a ring of 12 squares, clockwise from the top-left. The squares are

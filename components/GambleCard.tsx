@@ -1,4 +1,4 @@
-import { hotTubIndex } from '../services/rules';
+import { hotTubIndex, wildcardIndex } from '../services/rules';
 import { Sec } from './Seconds';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import ArcadeButton from './ArcadeButton';
@@ -20,6 +20,8 @@ export interface GambleResult {
   draft?: string[];
   /** Lucky Charms: the charm to equip (and the one it bumps out when slots are full). */
   charm?: { id: string; replaceId?: string };
+  /** WILDCARD: a free tile of this letter joins the hand. */
+  tile?: string;
 }
 
 // A gamble card's board is saved with the run (v7.28.9). Without it, quitting and resuming brought
@@ -790,10 +792,126 @@ const LuckyCharms: React.FC<{ onResolve: (r: GambleResult) => void; extra?: Reco
   );
 };
 
+/**
+ * WILDCARD (v7.50.0): the owner's GIF plays over a wheel of four. SPIN runs a light around the
+ * four outcomes, slowing onto the roll (made once and saved, so a quit can't reroll). A free tile
+ * opens a letter picker; the tile joins this hand only. The GIF lives at public/powerplays/
+ * wildcard.gif; until it's there the card shows a spinning 🎡 instead.
+ */
+const WILDCARD_GIF = `${import.meta.env.BASE_URL ?? '/'}powerplays/wildcard.gif`;
+const WILDCARD_FACES = [
+  { icon: '⏱️', tone: 'text-neon-green', ring: 'ring-neon-green', bg: 'bg-neon-green/25' },
+  { icon: '💰', tone: 'text-neon-yellow', ring: 'ring-neon-yellow', bg: 'bg-neon-yellow/25' },
+  { icon: '🔤', tone: 'text-neon-cyan', ring: 'ring-neon-cyan', bg: 'bg-neon-cyan/25' },
+  { icon: '❌', tone: 'text-neon-red', ring: 'ring-neon-red', bg: 'bg-neon-red/25' },
+];
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const Wildcard: React.FC<{ onResolve: (r: GambleResult) => void; extra?: Record<string, unknown> }> = ({ onResolve, extra }) => {
+  const outcomes = V.wildcard;
+  const [roll, setRoll] = useSaved<number | null>('roll', null);
+  const [done, setDone] = useSaved('done', false);
+  const [letter, setLetter] = useSaved<string | null>('letter', null);
+  const [lit, setLit] = useState<number | null>(null);
+  const [gifOk, setGifOk] = useState(true);
+  const rolled = useRef(false);
+  const shielded = !!extra?.shielded;
+  const label = (i: number) => {
+    const o = outcomes[i];
+    return o.kind === 'time' ? <>+{o.seconds}<Sec /></> : o.kind === 'points' ? `+${o.points}` : o.kind === 'tile' ? 'FREE TILE' : 'STRIKE';
+  };
+
+  // The spin: the light runs around the four (clockwise on the 2x2 grid), slowing onto the roll.
+  useEffect(() => {
+    if (roll === null || done) return;
+    if (prefersReducedMotion()) { setLit(roll); setDone(true); return; }
+    const order = [0, 1, 3, 2]; // clockwise around a 2x2 grid
+    const endAt = order.indexOf(roll);
+    const steps = 16 + endAt;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let at = 0;
+    for (let i = 0; i <= steps; i++) {
+      at += 55 + i * i * 1.6;
+      const idx = order[i % 4];
+      timers.push(setTimeout(() => {
+        setLit(idx);
+        soundService.playTileClick();
+        if (i === steps) {
+          const bad = outcomes[roll].kind === 'strike';
+          buzz(bad ? 80 : [20, 40, 20]);
+          if (!bad) soundService.playMilestone();
+          setDone(true);
+        }
+      }, at));
+    }
+    return () => timers.forEach(clearTimeout);
+  }, [roll, done]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const spin = () => {
+    if (roll !== null || rolled.current) return;
+    rolled.current = true;
+    soundService.playPowerUp(); buzz(15);
+    setRoll(wildcardIndex(Math.random()));
+  };
+  const result = done && roll !== null ? outcomes[roll] : null;
+  const shown = done && roll !== null ? roll : lit;
+  const take = () => {
+    if (!result) return;
+    if (result.kind === 'time') onResolve({ seconds: result.seconds, headline: `+${result.seconds} SECONDS`, detail: 'The wheel landed on time. Your clock gets a little extra.', tone: 'win' });
+    else if (result.kind === 'points') onResolve({ points: result.points, headline: `+${result.points} POINTS`, detail: 'The wheel landed on cash. Straight to your score.', tone: 'win' });
+    else if (result.kind === 'tile' && letter) onResolve({ tile: letter, headline: `FREE TILE: ${letter}`, detail: `A ${letter} tile joins your hand. It's yours for this hand only, so use it before your next word.`, tone: 'win' });
+    else if (result.kind === 'strike') onResolve({ strike: true, headline: shielded ? 'STRIKE BLOCKED' : 'STRIKE!', detail: shielded ? 'The wheel landed on a strike, but your shield took the hit.' : 'The wheel landed on a strike. Wildcard giveth, wildcard taketh away.', tone: shielded ? 'neutral' : 'lose' });
+  };
+
+  return (
+    <>
+      {gifOk ? (
+        <img src={WILDCARD_GIF} alt="" aria-hidden="true" onError={() => setGifOk(false)}
+          className="w-full max-h-40 object-contain rounded-xl ring-2 ring-neon-pink/60 bg-crt-950" />
+      ) : (
+        <div className={`text-6xl leading-none ${roll !== null && !done ? 'animate-spin' : ''}`} aria-hidden="true">🎡</div>
+      )}
+      <p className="text-slate-200 text-sm leading-snug min-h-[2.5rem] flex items-center justify-center" aria-live="polite">
+        {result ? (result.kind === 'tile' ? (letter ? `Your free tile: ${letter}. It's yours for this hand.` : 'A free tile! Pick any letter for this hand.')
+            : result.kind === 'strike' ? (shielded ? 'A strike! Your shield blocks it.' : 'Ouch, a strike!')
+            : result.kind === 'time' ? `+${result.seconds} seconds on the clock!` : `+${result.points} points!`)
+          : roll !== null ? 'Round and round it goes…' : 'Spin the wheel. Three prizes and one strike.'}
+      </p>
+      <div className="w-full grid grid-cols-2 gap-2">
+        {outcomes.map((o, i) => (
+          <div key={i} className={`rounded-xl ring-2 py-2 transition-all ${shown === i ? `${WILDCARD_FACES[i].bg} ${WILDCARD_FACES[i].ring} scale-105` : 'bg-crt-950 ring-white/10'}`}>
+            <p className="text-2xl leading-none" aria-hidden="true">{WILDCARD_FACES[i].icon}</p>
+            <p className={`font-display text-lg leading-tight mt-1 ${WILDCARD_FACES[i].tone}`}>{label(i)}</p>
+            <p className="osd-text text-sm leading-none text-slate-400">{Math.round(o.chance * 100)}%</p>
+          </div>
+        ))}
+      </div>
+      {result?.kind === 'tile' && (
+        <div className="w-full grid grid-cols-7 gap-1" role="group" aria-label="Pick your free letter">
+          {ALPHABET.map(l => (
+            <button key={l} type="button" aria-label={`Letter ${l}`} aria-pressed={letter === l} onClick={() => { soundService.playTileClick(); setLetter(l); }}
+              className={`aspect-square rounded-md grid place-items-center font-tile font-extrabold text-lg tile-3d select-none ${letter === l ? 'bg-neon-yellow text-crt-900 -translate-y-0.5' : 'bg-[#f6e7c1] text-crt-900'}`}>{l}</button>
+          ))}
+        </div>
+      )}
+      {roll === null ? (
+        <ArcadeButton color="pink" className="w-full" onClick={spin}>🎡 Spin the Wheel</ArcadeButton>
+      ) : result ? (
+        result.kind === 'tile' ? (
+          <ArcadeButton color="green" className="w-full" disabled={!letter} onClick={take}>{letter ? `Take the ${letter}` : 'Pick a letter'}</ArcadeButton>
+        ) : (
+          <ArcadeButton color={result.kind === 'strike' ? 'slate' : 'green'} className="w-full" onClick={take}>
+            {result.kind === 'strike' ? (shielded ? 'Continue' : 'Take the strike') : result.kind === 'time' ? `Take +${result.seconds}s` : `Take +${result.points}`}
+          </ArcadeButton>
+        )
+      ) : null}
+    </>
+  );
+};
+
 const GAMES: Record<string, React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[]; extra?: Record<string, unknown> }>> = {
   letsMakeADeal: Doors, dealOrNoDeal: Deal, noWhammies: Whammies, minesweeper: Mines,
   priceIsRight: PriceIsRight, draftDay: DraftDay, cardSharks: CardSharks, plinko: Plinko,
-  hotTubTimeMachine: HotTub, luckyCharms: LuckyCharms,
+  hotTubTimeMachine: HotTub, luckyCharms: LuckyCharms, wildcard: Wildcard,
 };
 
 /** The interactive part of a gamble PowerPlay. */
