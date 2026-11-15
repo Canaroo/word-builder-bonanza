@@ -308,7 +308,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   **Head Start** (`services/headStart.ts`, per player): a run ending before level 4 adds 3 s to the
   next starting clock (max 15), reaching level 4 clears it; a chip shows it until the first word.
   Never applied on the scored Daily Run.
-  **Skill Shot** (`gameState.skillShot`): on a level's first word one tile is lit (seeded pick);
+  **Skill Shot** (`gameState.skillShot`): on the first word of each level reached in the run, from
+  level 2 (v7.44.6: a new run's opening hand never has one; the owner's call), one tile is lit (seeded pick);
   using it pays +50, +25 more per level in a row, max 200, as a "🎯 Skill Shot" line.
   Made obvious in v7.44.5 (players didn't notice it): the lit tile wears its prize ("🎯+50"), the
   chip is an instruction ("USE THE +50 TILE IN YOUR NEXT WORD"), a toast says SKILL SHOT! or why

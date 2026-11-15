@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // v7.42: Last Words, Head Start, Skill Shot and Gem Tiles.
 import { describe, test, expect, beforeEach } from 'vitest';
-import { gameReducer, screenInitialState, type GameScreenState } from '../GameScreen';
+import { gameReducer, screenInitialState, createInitialGameState, type GameScreenState } from '../GameScreen';
 import { GEM_TILES, HEAD_START, SKILL_SHOT } from '../../../config/gameplay';
 import { gemMultiplierFor, skillShotPoints } from '../../rules';
 import { headStartSeconds, headStartFor, recordRunForHeadStart } from '../../headStart';
@@ -55,6 +55,10 @@ describe('Head Start', () => {
 });
 
 describe('Skill Shot', () => {
+    test('a new run starts with no lit tile and no streak, and the first one waits for level 2', () => {
+        expect(createInitialGameState().skillShot).toBeNull();
+        expect(SKILL_SHOT.fromLevel).toBe(2);
+    });
     test('pays more for each level in a row, up to the cap', () => {
         expect(skillShotPoints(0)).toBe(0);
         expect(skillShotPoints(1)).toBe(SKILL_SHOT.base);

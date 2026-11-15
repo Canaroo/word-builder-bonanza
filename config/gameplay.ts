@@ -402,14 +402,16 @@ export const CHARM_SET_BONUS = { pair: 50, trio: 100, pullChance: 0.5 } as const
  * LAST_WORDS: when a run ends, one untimed word from the final hand scores x multiplier.
  * HEAD_START: each run that ends before `untilLevel` adds `perRun` seconds to that player's next
  *   starting clock, up to `max`; reaching the level clears it (services/headStart.ts).
- * SKILL_SHOT: each level lights one tile; using it in the level's first word pays `base`, plus
+ * SKILL_SHOT: each new level (from level 2; never a run's opening hand) lights one tile; using it in the level's first word pays `base`, plus
  *   `step` for each level in a row it was hit, up to `max`.
  * GEM_TILES: a word of this many letters turns one tile of the next hand into a word-multiplier
  *   gem (6 letters x3, 7 x4, 8+ x5). Natural x2 tiles show up on 15% of draws, so a gem has to beat that.
  */
 export const LAST_WORDS = { multiplier: 3 } as const;
 export const HEAD_START = { perRun: 3, max: 15, untilLevel: 4 } as const;
-export const SKILL_SHOT = { base: 50, step: 25, max: 200, introShows: 2 } as const; // introShows: times a player sees the explainer card
+// fromLevel: the first level that lights a tile (a run's opening hand never does: v7.44.6).
+// introShows: times a player sees the explainer card.
+export const SKILL_SHOT = { base: 50, step: 25, max: 200, introShows: 2, fromLevel: 2 } as const;
 export const GEM_TILES: Record<number, number> = { 6: 3, 7: 4, 8: 5 };
 
 /**

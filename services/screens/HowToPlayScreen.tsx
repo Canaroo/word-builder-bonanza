@@ -137,7 +137,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             gambles like Double or Nothing multiply the final score.
           </p>
           <p>
-            <Key>🎯 Skill Shot:</Key> each level lights one tile. Use it in your first word of the level for +
+            <Key>🎯 Skill Shot:</Key> each new level you reach (from level {SKILL_SHOT.fromLevel}) lights one tile. Use it in your first word of the level for +
             {SKILL_SHOT.base}, growing by {SKILL_SHOT.step} for each level in a row (up to +{SKILL_SHOT.max}).{' '}
             <Key>💎 Gem tiles:</Key> a {6}-letter word turns a tile in your next hand into a x{GEM_TILES[6]} word tile, 7
             letters x{GEM_TILES[7]}, 8 or more x{GEM_TILES[8]}.{' '}
