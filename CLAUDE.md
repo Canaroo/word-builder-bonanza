@@ -258,6 +258,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   shares the day's password, and every other run gets one the player hasn't had recently (per-player
   `gatePasswordsSeen`, so the whole list cycles before a repeat; daily practice too), and any real
   word using all six letters counts: +1,000, +500 with the first-letter hint, +250 on a miss.
+  The scramble (`scramble`, `giveaway`, `GATE_ANAGRAMS` in `data/gates.ts`, v7.44.3) never deals
+  the password or any other word that opens the gate (30 passwords have such anagrams, STREAM has
+  seven), and picks the shuffle that leaves the fewest letters in place and 3-letter chunks intact.
+  A test rebuilds `GATE_ANAGRAMS` from the dictionary.
   30,000: the Bonus Stage, 30 s on its own clock with a balanced 10-tile hand (4 vowels); each word
   pays (its normal score + 25 a letter) x3, charms included, and doesn't touch the run's tile
   stream. Both reuse the arcade card (`minigame` modal with `gate` in its data) and pay flat (no

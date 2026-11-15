@@ -33,12 +33,48 @@ export const gatePassword = (opts: { dailyKey?: string; recent?: readonly string
 /** How many recent passwords a player is spared (the list cycles before one repeats). */
 export const RECENT_PASSWORDS = GATE_PASSWORDS.length - 1;
 
-/** Scrambled letters for a password, never in the answer's own order. */
+/**
+ * Other real words each password's letters can spell (v7.44.3). Any of them opens the gate, so the
+ * scramble must never land on one: a run once dealt the tiles already spelling the answer. A test
+ * rebuilds this list from the dictionary, so adding a password or a word keeps it honest.
+ */
+export const GATE_ANAGRAMS: Record<string, readonly string[]> = {
+  PLANET: ['PLATEN'], CASTLE: ['CLEATS', 'ECLATS', 'LACETS', 'SCLATE'], PIRATE: ['PRATIE', 'PTERIA'], LEGEND: ['LENGED'],
+  PUZZLE: ['PUZZEL'], RECORD: ['CORDER'], FOREST: ['FETORS', 'FORTES', 'FOSTER', 'SOFTER'],
+  SILVER: ['ERVILS', 'LIVERS', 'LIVRES', 'RIVELS', 'SLIVER'], GOLDEN: ['DONGLE', 'LONGED'], BRIDGE: ['BEGIRD'], CANDLE: ['LANCED'],
+  MARBLE: ['AMBLER', 'BLAMER', 'LAMBER', 'RAMBLE'], ORANGE: ['ONAGER'], TEMPLE: ['PELMET'], CARPET: ['PREACT'],
+  DESERT: ['DETERS', 'RESTED'], DINNER: ['ENDRIN'], FALCON: ['FLACON'], FLOWER: ['FOWLER', 'REFLOW', 'WOLFER'],
+  GARDEN: ['DANGER', 'GANDER', 'GRANDE', 'RANGED'], HOCKEY: ['CHOKEY'], LADDER: ['LARDED', 'RADDLE'], PARROT: ['RAPTOR'],
+  RIBBON: ['ROBBIN'], SADDLE: ['ADDLES', 'DALEDS'], SALMON: ['MONALS'], SCHOOL: ['CHOLOS'],
+  SPIDER: ['PRIDES', 'PRISED', 'REDIPS', 'RISPED', 'SPIRED'],
+  STREAM: ['ARMETS', 'MASTER', 'MATERS', 'MATRES', 'RAMETS', 'TAMERS', 'TREMAS'], TENNIS: ['SENNIT', 'SINNET'],
+};
+
+/** How much a scramble gives away about a target word: letters still in place, and 3-letter runs kept. */
+export const giveaway = (arrangement: string, target: string): number => {
+  let score = 0;
+  for (let i = 0; i < target.length; i++) if (arrangement[i] === target[i]) score += 2;
+  for (let i = 0; i + 3 <= target.length; i++) if (arrangement.includes(target.slice(i, i + 3))) score += 3;
+  return score;
+};
+
+/**
+ * Scrambled letters for a password. Never the password or any other word that opens the gate, and
+ * as far from them as the letters allow: of many shuffles, the one that leaves the fewest letters
+ * in place and the fewest 3-letter runs of an answer is used (BANANA can't avoid every one).
+ */
 export const scramble = (word: string, rand: () => number = Math.random): string[] => {
-  const letters = word.split('');
-  for (let tries = 0; tries < 20; tries++) {
+  const answers = [word, ...(GATE_ANAGRAMS[word] ?? [])];
+  let best: string[] | null = null, bestScore = Infinity;
+  for (let tries = 0; tries < 200 && bestScore > 0; tries++) {
+    const letters = word.split('');
     for (let i = letters.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [letters[i], letters[j]] = [letters[j], letters[i]]; }
-    if (letters.join('') !== word) break;
+    const arrangement = letters.join('');
+    if (answers.includes(arrangement)) continue;
+    // The password itself counts most; the other answers count too.
+    const score = answers.reduce((sum, a, i) => sum + giveaway(arrangement, a) * (i === 0 ? 5 : 1), 0);
+    if (score < bestScore) { best = letters; bestScore = score; }
   }
-  return letters;
+  // 200 shuffles of six letters can't all be answers, but never hand back the word itself.
+  return best ?? [...word.slice(1), word[0]];
 };
