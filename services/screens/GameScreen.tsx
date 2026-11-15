@@ -901,6 +901,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         // Hold Slot (v7.43): park one tile; it stays out of new hands and shuffles until tapped back.
         case 'HOLD_STASH': {
             const { tile, fromIndex } = action.payload;
+            if (!state.gameState.activeCharms.some(c => c.id === HOLD_SLOT.charmId)) return state;
             if (state.gameState.holdTile || state.hand[fromIndex]?.id !== tile.id) return state;
             const newHand = [...state.hand];
             newHand[fromIndex] = null;
@@ -1517,6 +1518,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         case 'CHOOSE_CHARM': {
             const { charm, hand, allOffered, replaceId } = action.payload;
             let newHand = hand;
+            let returnedBag = state.tileBag;
             let newGameState = { ...gameState };
             // A charm that leaves (or comes back fresh) loses its upgrade.
             newGameState.charmUpgrades = (newGameState.charmUpgrades ?? []).filter(id => id !== replaceId && id !== charm.id);
@@ -1531,6 +1533,14 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     scoreChange: 0, cumulativeScore: newGameState.score,
                 } as EventLogEntry];
                 newGameState.lastPowerPlayResult = { message: `🔄 Charm swapped! ${droppedCharm.icon} ${droppedCharm.name} out, ${charm.icon} ${charm.name} in.`, scoreChange: 0 };
+            }
+            // Dropping Hold That Thought hands back the parked tile (or returns it to the bag if the hand is full).
+            if (replaceId === HOLD_SLOT.charmId && newGameState.holdTile) {
+                const held = newGameState.holdTile;
+                const slot = newHand.indexOf(null);
+                if (slot !== -1) { newHand = [...newHand]; newHand[slot] = held; }
+                else returnedBag = [...returnedBag, held.letter];
+                newGameState.holdTile = null;
             }
             if (replaceId) {
                 newGameState.activeCharms = newGameState.activeCharms.filter(c => c.id !== replaceId);
@@ -1603,6 +1613,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             return {
                 ...state,
                 hand: newHand,
+                tileBag: returnedBag,
                 time: newTime,
                 gameState: withSesameLetter({
                     ...newGameState,
@@ -3496,7 +3507,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
   // Hold Slot (v7.43): tap HOLD, then a tile, to park it; tap the held tile to take it back.
   const [holdArmed, setHoldArmed] = useState(false);
-  const holdOpen = levelFor(totalWords) >= HOLD_SLOT.fromLevel;
+  // The Hold slot comes from a charm (v7.45): it's there while Hold That Thought is equipped.
+  const holdOpen = (gameState?.activeCharms ?? []).some(c => c.id === HOLD_SLOT.charmId);
   const handleHoldTap = () => {
     if (!holdOpen || isPaused || isChallengeLock) return;
     soundService.playTileClick();
