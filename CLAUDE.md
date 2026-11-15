@@ -316,13 +316,16 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   numbers (`grudgeTaunt`; keep the jabs playful, kids play this), and beating it pays the badge
   points x2. The double is left off the scored Daily Run.
 - **Bones (v7.44.0)** (`services/bones.ts`, `components/BonesCard.tsx`, `BONES`): a run that ends
-  on level 2+ holding a charm, with a final hand that can spell a common 5+ letter word, posts
-  that hand, its charm ids, the score and the player's name to `/bones` (`App.tsx`
+  on level 2+ holding a charm posts its final hand (5+ tiles), its charm ids, the score and the player's name to `/bones` (`App.tsx`
   `handleGameOver`). A run loads the newest 60 when it starts (`refreshBones`, cached in
   sessionStorage). On a level-up, `bonesModal` may open the newest ghost for that level: never the
   player's own (by name), one they looted before, a stale one (30 days), or one whose charms they
   all hold; one ghost a run; never on the scored Daily Run. A 5+ letter word from the tiles in 30 s
   opens a normal charm offer made of the fallen player's charms (swap and upgrade work as usual).
+  **Always winnable (v7.44.2):** when the card opens, `solveHand` checks the tiles with the
+  dictionary's common-word finder; if they can't spell a 5+ letter word it swaps tiles two at a
+  time (keeping about three vowels) until they can, and the card says how many were swapped. A
+  miss or "Give up" shows a word that would have worked, with its tiles lit in order.
   Bones carry names like the leaderboard does; usage stats stay anonymous (`bones` event: `taken`,
   `level`). Needs the `bones` rules block in `docs/LEADERBOARD.md`; until it is published nothing
   posts or loads and the game plays as before. Browser checks seed `wordNerdBonesCache`.

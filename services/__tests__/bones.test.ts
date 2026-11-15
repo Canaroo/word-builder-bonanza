@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 // v7.44 Bones: what gets left behind, what counts as a ghost worth meeting.
 import { describe, test, expect, beforeEach } from 'vitest';
-import { toBone, pickBone, worthLeaving, markLooted, type Bone } from '../bones';
+import { toBone, pickBone, worthLeaving, markLooted, solveHand, LAST_RESORT, type Bone } from '../bones';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { canBeMadeFromLetters } from '../rackMatch';
 import { BONES } from '../../config/gameplay';
 import { POST_WORD_MODALS } from '../screens/GameScreen';
 
@@ -48,6 +51,39 @@ describe('Bones', () => {
         markLooted('new');
         expect(pickBone(3, { player: 'Bobby', heldCharmIds: [], now: NOW }, [bone({ id: 'new' })])).toBeNull();
     });
+    // A tiny dictionary stands in for the real word finder.
+    const WORDS = ['PLANT', 'STONE', 'TRAIN', 'HOUSE', 'BREAD', 'LIGHT', 'RADIO', 'OCEAN', 'SNAIL', 'TIGER', 'ALONE', 'IRATE', 'ARISE', 'LEARN', 'STARE', 'NOTES', 'CAT'];
+    const find = async (letters: string[]) => WORDS.filter(w => w.length >= 5).find(w => canBeMadeFromLetters(w, letters)) ?? null;
+    const seeded = (n: number) => () => (n = (n * 1664525 + 1013904223) >>> 0) / 4294967296;
+    test('a hand that can already spell a word is left alone', async () => {
+        const s = await solveHand(['P', 'L', 'A', 'N', 'T', 'S', 'E', 'R'], find);
+        expect(s).toEqual({ hand: ['P', 'L', 'A', 'N', 'T', 'S', 'E', 'R'], answer: 'PLANT', swapped: 0 });
+    });
+    test('a hopeless hand gets tiles swapped until a 5+ letter word is there, every time', async () => {
+        for (let i = 1; i <= 40; i++) {
+            const s = await solveHand(['Q', 'Z', 'X', 'J', 'K', 'V', 'W', 'Y'], find, seeded(i));
+            expect(s.answer.length).toBeGreaterThanOrEqual(BONES.minLetters);
+            expect(canBeMadeFromLetters(s.answer, s.hand)).toBe(true);
+            expect(s.swapped).toBeGreaterThan(0);
+            expect(s.hand).toHaveLength(8);
+        }
+    });
+    test('a short hand is topped up to eight, and no dictionary means no card', async () => {
+        const s = await solveHand(['P', 'L', 'A', 'N', 'T'], find, seeded(3));
+        expect(s.hand).toHaveLength(8);
+        expect(s.hand.slice(0, 5)).toEqual(['P', 'L', 'A', 'N', 'T']);
+    });
+    test('even with a finder that finds nothing, the hand is dealt around a real word', async () => {
+        const list = new Set(readFileSync(resolve(__dirname, '../../public/words/wordlist.txt'), 'utf8').split(/\s+/));
+        for (const w of LAST_RESORT) expect(list.has(w.toLowerCase()), w).toBe(true);
+        for (let i = 1; i <= 20; i++) {
+            const s = await solveHand(['Q', 'Z', 'X', 'J', 'K'], async () => null, seeded(i));
+            expect(LAST_RESORT).toContain(s.answer);
+            expect(canBeMadeFromLetters(s.answer, s.hand)).toBe(true);
+            expect(s.hand).toHaveLength(8);
+        }
+    });
+
     test('the card continues the round when it closes, and a ghost needs a long word', () => {
         expect(POST_WORD_MODALS).toContain('bones');
         expect(BONES.minLetters).toBeGreaterThanOrEqual(5);

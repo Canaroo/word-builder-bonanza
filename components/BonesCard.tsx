@@ -5,11 +5,15 @@ import { dictionaryService } from '../services/dictionaryService';
 import { CHARMS_LIST } from '../data/charms';
 import { TILE_DISTRIBUTION } from '../constants';
 import { BONES } from '../config/gameplay';
-import type { Bone } from '../services/bones';
+import { solveHand, type Bone, type SolvedHand } from '../services/bones';
+import { assignTilesToWord } from '../services/rackMatch';
 
 // Bones (v7.44): another player's run ended on this level. Their final hand is on the table: spell
 // a word of BONES.minLetters or more from it before the clock runs out, and one of the charms they
 // were carrying is yours. Miss and nothing is lost. The run's own clock waits.
+// The hand is checked first (v7.44.2): if their tiles can't spell a word that long, some are
+// swapped for fresh ones until they can, so the search is always winnable. A miss shows a word
+// that would have worked, with its tiles lit.
 const ago = (ms: number, now = Date.now()): string => {
   const mins = Math.floor((now - ms) / 60000);
   if (mins < 60) return mins < 2 ? 'moments ago' : `${mins} minutes ago`;
@@ -26,7 +30,19 @@ const BonesCard: React.FC<{ bone: Bone; heldCharmIds: string[]; onDone: (word: s
   const [busy, setBusy] = useState(false);
   const [left, setLeft] = useState(BONES.seconds * 1000);
   const done = useRef(false);
-  useEffect(() => { soundService.playModalOpen(); }, []);
+  // The playable hand and a word it can spell. Until this is ready the search can't start.
+  const [solved, setSolved] = useState<SolvedHand | null>(null);
+  const [unsolvable, setUnsolvable] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    soundService.playModalOpen();
+    solveHand(bone.hand, letters => dictionaryService.findPlayableWord(letters, { minLength: BONES.minLetters }))
+      .then(s => { if (alive) setSolved(s); })
+      .catch(() => { if (alive) setUnsolvable(true); });
+    return () => { alive = false; };
+  }, [bone.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tiles = solved?.hand ?? bone.hand;
+  const answerTiles = solved ? assignTilesToWord(solved.answer, solved.hand) ?? [] : [];
   useEffect(() => {
     if (phase !== 'play') return;
     let last = performance.now();
@@ -42,7 +58,7 @@ const BonesCard: React.FC<{ bone: Bone; heldCharmIds: string[]; onDone: (word: s
   }, [phase]);
 
   const charms = bone.charms.map(id => CHARMS_LIST.find(c => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c && !heldCharmIds.includes(c.id));
-  const word = picked.map(i => bone.hand[i]).join('');
+  const word = picked.map(i => tiles[i]).join('');
   const submit = async () => {
     if (busy || done.current || word.length < BONES.minLetters) return;
     setBusy(true);
@@ -71,7 +87,12 @@ const BonesCard: React.FC<{ bone: Bone; heldCharmIds: string[]; onDone: (word: s
             </p>
             <p className="text-2xl leading-none" aria-label={`Charms: ${charms.map(c => c.name).join(', ')}`}>{charms.map(c => c.icon).join(' ')}</p>
             <p className="text-sm text-slate-400">Miss and nothing is lost. Your clock is stopped.</p>
-            <ArcadeButton color="cyan" size="lg" className="w-full" onClick={() => { soundService.playPowerUp(); setPhase('play'); }}>▶ Search the bones</ArcadeButton>
+            {solved && solved.swapped > 0 && (
+              <p className="text-sm text-slate-300 leading-snug">🎲 Their tiles couldn't spell one, so the ghost swapped {solved.swapped === 1 ? 'a tile' : `${solved.swapped} tiles`}. There is a word in there now.</p>
+            )}
+            {unsolvable
+              ? <ArcadeButton color="slate" className="w-full" onClick={() => onDone(null)}>The ghost fades. Continue</ArcadeButton>
+              : <ArcadeButton color="cyan" size="lg" className="w-full" disabled={!solved} onClick={() => { soundService.playPowerUp(); setPhase('play'); }}>{solved ? '▶ Search the bones' : 'Sorting the tiles…'}</ArcadeButton>}
             <ArcadeButton variant="text" color="slate" onClick={() => onDone(null)}>Leave them in peace</ArcadeButton>
           </>
         )}
@@ -83,7 +104,7 @@ const BonesCard: React.FC<{ bone: Bone; heldCharmIds: string[]; onDone: (word: s
             </div>
             <p className="osd-text text-lg text-neon-yellow min-h-[1.5rem]" aria-live="polite">{busy ? 'Checking…' : flash ?? ''}</p>
             <div className="grid grid-cols-4 gap-1.5 w-full">
-              {bone.hand.map((l, i) => (
+              {tiles.map((l, i) => (
                 <button key={i} type="button" onPointerDown={e => { e.preventDefault(); setFlash(null); setPicked(p => (p.includes(i) ? p.filter(x => x !== i) : [...p, i])); }}
                   aria-label={`Bones tile ${l}`}
                   className={`relative h-14 rounded-lg grid place-items-center font-tile font-extrabold tile-3d select-none touch-none ${l.length > 1 ? 'text-xl' : 'text-2xl'} ${picked.includes(i) ? 'bg-neon-yellow text-crt-900 -translate-y-1' : 'bg-slate-300 text-crt-900'}`}>
@@ -95,12 +116,31 @@ const BonesCard: React.FC<{ bone: Bone; heldCharmIds: string[]; onDone: (word: s
               <ArcadeButton color="slate" variant="outline" onClick={() => { setPicked([]); setFlash(null); }}>Clear</ArcadeButton>
               <ArcadeButton color="green" onClick={submit} disabled={word.length < BONES.minLetters || busy}>Submit</ArcadeButton>
             </div>
+            <ArcadeButton variant="text" color="slate" onClick={() => { if (!done.current) { done.current = true; setPhase('lost'); } }}>Give up and see a word</ArcadeButton>
           </>
         )}
         {phase === 'lost' && (
           <>
             <p className="font-display text-2xl text-slate-400">THE GHOST KEEPS IT</p>
-            <p className="text-slate-200">Time ran out. {bone.name}'s charms stay where they fell. Nothing lost.</p>
+            {solved && (
+              <>
+                <p className="text-slate-200">One word that would have worked:</p>
+                <p className="font-tile font-extrabold text-3xl tracking-widest text-neon-yellow" aria-label={`A word that would have worked: ${solved.answer}`}>{solved.answer}</p>
+                {/* Their tiles again, with the ones that spell it lit and numbered in order. */}
+                <div className="grid grid-cols-4 gap-1.5 w-full" aria-hidden="true">
+                  {tiles.map((l, i) => {
+                    const order = answerTiles.indexOf(i);
+                    return (
+                      <div key={i} className={`relative h-12 rounded-lg grid place-items-center font-tile font-extrabold text-xl ${order >= 0 ? 'bg-neon-yellow text-crt-900' : 'bg-slate-600 text-slate-400 opacity-50'}`}>
+                        {l}
+                        {order >= 0 && <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-crt-900 text-neon-yellow font-osd text-sm leading-5 text-center">{order + 1}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            <p className="text-slate-300 text-sm">{bone.name}'s charms stay where they fell. Nothing lost.</p>
             <ArcadeButton color="slate" className="w-full" onClick={() => onDone(null)}>Continue</ArcadeButton>
           </>
         )}
