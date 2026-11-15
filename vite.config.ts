@@ -40,7 +40,7 @@ export default defineConfig({
       },
       workbox: {
         // Precache the app, the word list and the music so the game works offline.
-        globPatterns: ['**/*.{js,css,html,svg,png,gif,woff2,txt,mp3}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,gif,webp,woff2,txt,mp3}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
           {

@@ -108,13 +108,15 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   use `useSaved` for any state, especially the opening deal.
 - **WILDCARD (v7.50.0)** (`wildcard`, `Wildcard` in `GambleCard.tsx`, odds in
   `POWER_PLAY_VALUES.wildcard`): a pocket gamble card. The owner's GIF plays at the top
-  (`public/powerplays/wildcard.gif`; a spinning 🎡 shows if it's missing), then SPIN runs a light
+  (`public/powerplays/wildcard.webp`, v7.50.1: the van "YEEEHAAAAA!" clip from the owner's imgur
+  link, an animated WebP at 360 px, 75 KB instead of the 1 MB GIF; a spinning 🎡 shows if it fails), then SPIN runs a light
   around four outcomes and slows onto the roll (rolled once, saved): +5 s 30%, +500 30% (a prize,
   grows with the level), a free tile of the player's choice 30% (any letter, `ADD_FREE_TILE`: an
   empty slot no word-row tile returns to, else an extra slot; the next hand is dealt fresh, so it
   lasts this hand), a strike 10% (the owner's call: a real strike through `ADD_STRIKE`, so a shield
-  blocks it and it can end the run; the card says when a shield is up). Keep GIFs small: trim
-  frames and colors with ffmpeg before committing (`gif` is in the PWA precache list).
+  blocks it and it can end the run; the card says when a shield is up). Keep animated images small:
+  convert GIFs to animated WebP with ffmpeg (`-c:v libwebp -loop 0 -q:v 60`, about 360 px wide)
+  before committing (`gif` and `webp` are in the PWA precache list).
 - **Multi-word PowerPlays (v7.28)** settle in `completeSubmission` and pay outside the word, with
   a progress chip above the hand (`components/PowerPlayTrackers.tsx`): Tamagotchi (pot), Time
   Capsule (buried word), Smell Ya Later! (rival race), Winner Winner Chicken Dinner (each valid word

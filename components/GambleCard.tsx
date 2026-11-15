@@ -795,10 +795,11 @@ const LuckyCharms: React.FC<{ onResolve: (r: GambleResult) => void; extra?: Reco
 /**
  * WILDCARD (v7.50.0): the owner's GIF plays over a wheel of four. SPIN runs a light around the
  * four outcomes, slowing onto the roll (made once and saved, so a quit can't reroll). A free tile
- * opens a letter picker; the tile joins this hand only. The GIF lives at public/powerplays/
- * wildcard.gif; until it's there the card shows a spinning 🎡 instead.
+ * opens a letter picker; the tile joins this hand only. The clip is an animated WebP at
+ * public/powerplays/wildcard.webp (v7.50.1: 75 KB, from a 1 MB GIF); if it fails to load the card
+ * shows a spinning 🎡 instead.
  */
-const WILDCARD_GIF = `${import.meta.env.BASE_URL ?? '/'}powerplays/wildcard.gif`;
+const WILDCARD_GIF = `${import.meta.env.BASE_URL ?? '/'}powerplays/wildcard.webp`;
 const WILDCARD_FACES = [
   { icon: '⏱️', tone: 'text-neon-green', ring: 'ring-neon-green', bg: 'bg-neon-green/25' },
   { icon: '💰', tone: 'text-neon-yellow', ring: 'ring-neon-yellow', bg: 'bg-neon-yellow/25' },
