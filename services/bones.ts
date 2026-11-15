@@ -2,6 +2,7 @@ import { isOnlineLeaderboardEnabled } from './onlineLeaderboard';
 import { storage, STORAGE_KEYS } from './storage';
 import { playerKey, sameName } from './players';
 import { BONES } from '../config/gameplay';
+import { TILE_DISTRIBUTION } from '../constants';
 
 // Bones (v7.44): when a run ends, the player's final hand and charms are left behind at the level
 // they fell on. Another player who reaches that level may find the ghost: spell a long word from
@@ -107,4 +108,61 @@ export const pickBone = (
     .filter(b => b.charms.some(c => !ctx.heldCharmIds.includes(c)))
     .sort((a, b) => b.timestamp - a.timestamp);
   return fresh[0] ?? null;
+};
+
+// --- A hand that can always be solved (v7.44.2) --------------------------------------------------
+const BAG = Object.entries(TILE_DISTRIBUTION).filter(([l]) => l.length === 1).flatMap(([letter, { count }]) => Array(count).fill(letter) as string[]);
+const VOWEL_BAG = BAG.filter(l => 'AEIOU'.includes(l)), CONSONANT_BAG = BAG.filter(l => !'AEIOU'.includes(l));
+const draw = (vowel: boolean, rand: () => number): string => { const pool = vowel ? VOWEL_BAG : CONSONANT_BAG; return pool[Math.floor(rand() * pool.length)]; };
+
+/** Everyday five-letter words for the last-resort hand (all in the game's dictionary; a test checks). */
+export const LAST_RESORT = ['PLANT', 'STONE', 'TRAIN', 'HOUSE', 'BREAD', 'LIGHT', 'RADIO', 'OCEAN', 'SNAIL', 'TIGER'] as const;
+
+export interface SolvedHand {
+  /** The tiles to play with: the fallen player's, with some swapped if theirs couldn't spell a word. */
+  hand: string[];
+  /** A common word of BONES.minLetters or more these tiles can spell (shown if the player misses). */
+  answer: string;
+  /** How many of the original tiles were swapped for new ones. */
+  swapped: number;
+}
+
+/**
+ * Makes sure a ghost's hand can spell a common word of BONES.minLetters or more. If the fallen
+ * player's tiles can't, tiles are swapped for fresh ones, two at a time (a vowel for a vowel, a
+ * consonant for a consonant), keeping as much of their hand as possible; then the hand is
+ * redealt; and if even that finds nothing, it is dealt around a known word. It always returns a
+ * hand with an answer. `find` is the dictionary's word finder.
+ */
+export const solveHand = async (
+  original: readonly string[],
+  find: (letters: string[]) => Promise<string | null>,
+  rand: () => number = Math.random,
+): Promise<SolvedHand> => {
+  const long = async (letters: string[]) => { const w = await find(letters); return w && w.length >= BONES.minLetters ? w.toUpperCase() : null; };
+  let hand = [...original];
+  while (hand.length < 8) hand.push(draw(hand.filter(l => 'AEIOU'.includes(l)).length < 3, rand));
+  let answer = await long(hand);
+  const changed = new Set<number>();
+  for (let tries = 0; !answer && tries < 12; tries++) {
+    for (let k = 0; k < 2; k++) {
+      const i = Math.floor(rand() * hand.length);
+      // Keep the hand playable: about three vowels, the rest consonants.
+      const vowels = hand.filter((l, j) => j !== i && 'AEIOU'.includes(l)).length;
+      hand[i] = draw(vowels < 3, rand);
+      changed.add(i);
+    }
+    answer = await long(hand);
+  }
+  for (let deals = 0; !answer && deals < 20; deals++) {
+    hand = Array.from({ length: 8 }, (_, i) => draw(i < 3, rand));
+    hand.forEach((_, i) => changed.add(i));
+    answer = await long(hand);
+  }
+  if (answer) return { hand, answer, swapped: Math.min(changed.size, hand.length) };
+  // The guarantee: a hand built around a word we know, plus three loose tiles, mixed up.
+  const word = LAST_RESORT[Math.floor(rand() * LAST_RESORT.length)];
+  const dealt = [...word, draw(true, rand), draw(false, rand), draw(false, rand)];
+  for (let i = dealt.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [dealt[i], dealt[j]] = [dealt[j], dealt[i]]; }
+  return { hand: dealt, answer: word, swapped: dealt.length };
 };
