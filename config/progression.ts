@@ -31,11 +31,12 @@ export const STREAK_FREEZE = { cost: 30, maxHeld: 2 };
 export const POWER_WORD_BONUS = { base: 500, perStreakDay: 50, max: 1000 };
 
 /**
- * Phoenix Down (v7.41): when a run ends (clock or strikes), a one-time charm offers to keep it
- * going for Credits. Offered once per run, never on the scored Daily Run (that board stays even).
- * Strikes are wiped and the clock comes back to at least `seconds`.
+ * Phoenix Down (a charm, data/charms.ts `phoenixDown`): it shows up in at most one charm offer a
+ * run, and the player has to take it and keep it. If the run then ends (clock or strikes) while
+ * they hold it, a card offers to continue for `cost` Credits: strikes wiped, clock back to at
+ * least `seconds`, and the charm burns up. Never offered on the scored Daily Run.
  */
-export const PHOENIX_DOWN = { name: 'Phoenix Down', icon: '🪶', cost: 150, seconds: 30 };
+export const PHOENIX_DOWN = { id: 'phoenixDown', name: 'Phoenix Down', icon: '🪶', cost: 150, seconds: 30 };
 
 /** Daily reset hour (local time), shared by missions, streaks and the Power Word spin. */
 export const DAILY_RESET_HOUR = 8;

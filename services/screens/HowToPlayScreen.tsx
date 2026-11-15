@@ -51,9 +51,10 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             <Key>PowerPlays</Key> and <Key>charms</Key> can take one back or block it.
           </p>
           <p>
-            <Key>{PHOENIX_DOWN.icon} {PHOENIX_DOWN.name}:</Key> the first time a run ends (strikes or the clock), a one-time
-            charm offers to keep it going for <Key>{PHOENIX_DOWN.cost} Credits</Key>: strikes wiped and{' '}
-            {PHOENIX_DOWN.seconds} seconds on the clock. Once a run, and not on your scored Daily Run.
+            <Key>{PHOENIX_DOWN.icon} {PHOENIX_DOWN.name}:</Key> a rare charm (it shows up in one charm offer a run at
+            most). Take it and keep it, and if your run ends (strikes or the clock) it offers to keep you going for{' '}
+            <Key>{PHOENIX_DOWN.cost} Credits</Key>: strikes wiped and {PHOENIX_DOWN.seconds} seconds on the clock. It
+            works once, then it's gone. Not offered on your scored Daily Run.
           </p>
           <p>
             <Key>🎤 Last Words:</Key> when the run does end, the clock stops and you get one more word from your final

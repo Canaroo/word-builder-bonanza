@@ -35,6 +35,23 @@ describe('Phoenix Down', () => {
         expect(s.isPaused).toBe(false);
         expect(s.gameState.log.some(e => e.type === 'event' && e.name === PHOENIX_DOWN.name)).toBe(true);
     });
+    test('it is a real charm: in the list, outside the sets, and it burns up when used', () => {
+        const phoenix = charm(PHOENIX_DOWN.id);
+        expect(phoenix).toBeTruthy();
+        expect(phoenix.name).toBe(PHOENIX_DOWN.name);
+        expect(phoenix.description).toContain(`${PHOENIX_DOWN.cost} Credits`);
+        expect(CHARM_SETS.some(set => set.members.includes(PHOENIX_DOWN.id))).toBe(false);
+        const other = charm('oneRing');
+        const held = start({ strikes: 3, activeCharms: [other, phoenix], activeBuffs: [other, phoenix] });
+        const after = gameReducer(gameReducer(held, { type: 'OFFER_CONTINUE', payload: { reason: 'strikes' } }), { type: 'ACCEPT_CONTINUE' });
+        expect(after.gameState.activeCharms.map(c => c.id)).toEqual(['oneRing']);
+        expect(after.gameState.activeBuffs.map(b => b.id)).toEqual(['oneRing']);
+        expect(after.gameState.strikes).toBe(0);
+    });
+    test('without the open card, accepting does nothing', () => {
+        const s = start({ strikes: 3 });
+        expect(gameReducer(s, { type: 'ACCEPT_CONTINUE' })).toBe(s);
+    });
     test('a clock-out continue never lowers a bigger clock', () => {
         const offered = gameReducer(start({}, { time: 0 }), { type: 'OFFER_CONTINUE', payload: { reason: 'time' } });
         expect(gameReducer(offered, { type: 'ACCEPT_CONTINUE' }).time).toBe(PHOENIX_DOWN.seconds);

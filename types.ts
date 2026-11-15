@@ -329,7 +329,9 @@ export interface GameState {
   powerHint?: { level: number; id: string } | null;
   /** Mystery Tape: the id of the PowerPlay hidden face down in the current offer (null: none). */
   mysteryTapeId?: string | null;
-  /** Phoenix Down: the continue offer has been shown this run (it shows once), and whether it was bought. */
+  /** Phoenix Down: the charm has appeared in an offer this run (it appears once). */
+  phoenixOffered?: boolean;
+  /** Phoenix Down: the continue card has been shown this run, and whether it was bought. */
   continueOffered?: boolean;
   continued?: boolean;
   /** How the run ended, and the seconds the clock actually ran (usage stats). */

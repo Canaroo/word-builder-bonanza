@@ -2674,6 +2674,10 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 isPaused: false,
                 gameState: {
                     ...gs,
+                    // The charm burns up: its slot is free again.
+                    activeCharms: gs.activeCharms.filter(c => c.id !== PHOENIX_DOWN.id),
+                    activeBuffs: gs.activeBuffs.filter(b => b.id !== PHOENIX_DOWN.id),
+                    charmUpgrades: (gs.charmUpgrades ?? []).filter(id => id !== PHOENIX_DOWN.id),
                     strikes: 0,
                     continued: true,
                     log: [...gs.log, {
@@ -3338,8 +3342,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // Apply guards for pause, load, a backgrounded app, or special rounds/power-ups that stop time.
       if (!isVisible || isPaused || isLoading || (state.resumeCountdown ?? 0) > 0 || gameState?.activePowerPlays?.leafOnTheWind) return;
 
-      // Phoenix Down: one continue offer per run, never on the scored Daily Run.
-      const continueOpen = !gameState?.continueOffered && !(gameState?.daily && !gameState.daily.practice);
+      // Phoenix Down: the continue card opens only for a player holding the charm (once a run).
+      const continueOpen = !gameState?.continueOffered && !(gameState?.daily && !gameState.daily.practice)
+          && (gameState?.activeCharms ?? []).some(c => c.id === PHOENIX_DOWN.id);
 
       // First, check for game-ending strike condition.
       if ((gameState?.strikes ?? 0) >= maxStrikes) {
@@ -4887,6 +4892,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               !newState.activeCharms.some(ac => ac.id === c.id) &&
               !(c.id === 'goldenSnitch' && snitchTargetFor(newState.snitchCatches ?? 0) === null) &&
               !(c.id === 'gottaCatchEmAll' && newState.pokedexComplete) &&
+              // Phoenix Down shows up in one offer a run, and never on the scored Daily Run.
+              !(c.id === PHOENIX_DOWN.id && (newState.phoenixOffered || (newState.daily && !newState.daily.practice))) &&
               // Mr. Glass takes a strike slot away: never offer it when that would end the run.
               !(c.id === 'mrGlass' && newState.strikes >= maxStrikesFor({ ...newState, activeCharms: [...newState.activeCharms, c] })) &&
               !newState.charmCooldowns[c.id]
@@ -4896,6 +4903,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           const { offeredItems: offeredCharms, offerDetails } = pullSetPiece(charmOffer, charmsToOfferFrom, newState);
 
           if(offeredCharms.length > 0) {
+            if (offeredCharms.some(c => c.id === PHOENIX_DOWN.id)) newState.phoenixOffered = true;
             // Update state for weighting logic
             newState.offerHistory.push(offerDetails);
             newState.totalOffersMade++;
@@ -5523,6 +5531,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         if (powerPlay.id === 'luckyCharms') {
             const pool = CHARMS_LIST.filter(c =>
                 c.effectType !== 'selection' && !gameState.activeCharms.some(a => a.id === c.id) &&
+                c.id !== PHOENIX_DOWN.id && // only ever from a charm offer
                 !(c.id === 'goldenSnitch' && snitchTargetFor(gameState.snitchCatches ?? 0) === null) &&
                 !(c.id === 'gottaCatchEmAll' && gameState.pokedexComplete) &&
                 !(c.id === 'mrGlass' && gameState.strikes >= maxStrikesFor({ ...gameState, activeCharms: [...gameState.activeCharms, c] })));
