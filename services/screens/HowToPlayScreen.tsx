@@ -1,7 +1,7 @@
 import { Sec } from '../../components/Seconds';
 import React from 'react';
 import { soundService } from '../soundService';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, HEAD_START, SKILL_SHOT, GEM_TILES, FORK, HOLD_SLOT, GRUDGE, BONES } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, HEAD_START, SKILL_SHOT, GEM_TILES, FORK, HOLD_SLOT, GRUDGE, BONES, GATES } from '../../config/gameplay';
 import { PHOENIX_DOWN } from '../../config/progression';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import ArcadeButton from '../../components/ArcadeButton';
@@ -220,6 +220,29 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             Every <Key>{BOSS.everyLevels}rd level</Key> a villain shows up with a rule (like <Key>no E</Key>) for your next{' '}
             <Key>{BOSS.words} words</Key>. Land <Key>{BOSS.hitsToWin} hits</Key> (words that follow the rule) to win their{' '}
             <Key>Boss Badge</Key>, worth points and time (the toughest rules need fewer hits). Breaking the rule never costs you: the word still scores.
+          </p>
+        </Section>
+
+        <Section title="Score Gates" icon="🚪" tone="text-neon-pink">
+          <p>
+            Your first word past each gate opens a one-time event (once a run), and each one pays points:
+          </p>
+          <p>
+            <Key>{GATES.password.score.toLocaleString()}</Key> 🔐 The Password Gate: unscramble a 6-letter password in {GATES.password.seconds}<Sec /> for{' '}
+            <Key>+{GATES.password.solve.toLocaleString()}</Key>.
+          </p>
+          <p>
+            <Key>{GATES.bonusStage.score.toLocaleString()}</Key> 🌟 Bonus Stage: {GATES.bonusStage.seconds}<Sec /> with a fresh hand, every word x{GATES.bonusStage.multiplier}.
+          </p>
+          <p>
+            <Key>{GATES.ladder.score.toLocaleString()}</Key> 🪜 The Word Ladder: climb rungs of {GATES.ladder.rungs[0]} to {GATES.ladder.rungs[GATES.ladder.rungs.length - 1]}+ letters,{' '}
+            {GATES.ladder.secondsPerRung}<Sec /> each. The pot doubles every rung, up to <Key>{GATES.ladder.pots[GATES.ladder.pots.length - 1].toLocaleString()}</Key>.
+            Bank it any time; miss a rung and it's gone.
+          </p>
+          <p>
+            <Key>{GATES.bigOne.score.toLocaleString()}</Key> 💎 The Big One: the hand hides an 8-letter word. Find it in {GATES.bigOne.seconds}<Sec /> for{' '}
+            <Key>+{GATES.bigOne.prizes[8].toLocaleString()}</Key> (7 letters +{GATES.bigOne.prizes[7].toLocaleString()}, 6 +{GATES.bigOne.prizes[6].toLocaleString()}).
+            Just getting there earns the <Key>💎 70K Club</Key> badge for good.
           </p>
         </Section>
 

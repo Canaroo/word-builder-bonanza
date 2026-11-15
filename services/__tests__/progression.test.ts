@@ -71,7 +71,8 @@ describe('streaks', () => {
 describe('cosmetics and shop', () => {
   test('at least 10 shop items, every one priced; streak items are never sold', () => {
     expect(SHOP_BADGES.length + SHOP_TITLES.length).toBeGreaterThanOrEqual(10);
-    COSMETICS.forEach(c => expect(c.cost === undefined).toBe(c.streakDay !== undefined));
+    // Each cosmetic is bought, a streak reward, or earned in a run: exactly one.
+    COSMETICS.forEach(c => expect([c.cost, c.streakDay, c.earnedBy].filter(v => v !== undefined)).toHaveLength(1));
   });
 
   test('every id passes the live leaderboard rules (docs/LEADERBOARD.md)', () => {
@@ -157,5 +158,19 @@ describe('daily missions', () => {
     const m = getTodaysMissions(day).missions.find(x => x.template.id === 'w_fivesRun')!;
     expect(m.done).toBe(false);
     expect(m.progress).toBe(3);
+  });
+});
+
+describe('earned cosmetics (v7.49)', () => {
+  test('reaching 70,000 earns the 70K Club badge once, and wears it if no badge is worn', async () => {
+    const { earnCosmetic, getProfile } = await import('../progression');
+    const { GATES } = await import('../../config/gameplay');
+    localStorage.clear();
+    expect(earnCosmetic(GATES.bigOne.badgeId)).toBe(true);
+    expect(getProfile().owned).toContain(GATES.bigOne.badgeId);
+    expect(getProfile().badge).toBe(GATES.bigOne.badgeId);
+    expect(earnCosmetic(GATES.bigOne.badgeId)).toBe(false);
+    // A shop badge can't be earned this way.
+    expect(earnCosmetic('b_joystick')).toBe(false);
   });
 });

@@ -97,4 +97,14 @@ export const MINI_GAMES: Record<MiniGameId, MiniGameInfo> = {
     rules: `Watch the queen, then pick her out after the shuffle. ${M.monte.rounds} rounds, each one faster.`,
     prize: `+${M.monte.perFind} a find · all ${M.monte.rounds} +${M.monte.allBonus} more`,
   },
+  ladder: {
+    name: 'The Word Ladder', icon: '🪜',
+    rules: `Climb rungs of ${G.ladder.rungs.join(', ')}+ letters, ${G.ladder.secondsPerRung} seconds each. Every rung doubles the pot. Bank it whenever you like; miss a rung and the pot is gone.`,
+    prize: `Pot ${G.ladder.pots.map(p => p.toLocaleString()).join(' → ')}`,
+  },
+  bigOne: {
+    name: 'The Big One', icon: '💎',
+    rules: `This hand hides an 8-letter word. You have ${G.bigOne.seconds} seconds: find the longest word you can. Reaching this gate earns the 💎 70K Club badge for good.`,
+    prize: `8 letters +${G.bigOne.prizes[8].toLocaleString()} · 7 +${G.bigOne.prizes[7].toLocaleString()} · 6 +${G.bigOne.prizes[6].toLocaleString()}`,
+  },
 };

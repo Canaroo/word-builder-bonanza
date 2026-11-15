@@ -26,7 +26,7 @@ import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePow
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
-import { currentStreak, powerWordBonusFor, recordBossBadge } from '../progression';
+import { currentStreak, powerWordBonusFor, recordBossBadge, earnCosmetic } from '../progression';
 import { PHOENIX_DOWN } from '../../config/progression';
 import { completedSets, setBonusFor, setPullCandidates } from '../../data/charmSets';
 import { CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS } from '../../config/gameplay';
@@ -4748,14 +4748,18 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       newState.score = Math.round(runningScore);
 
       // Score gates (v7.39.0): the first word at or past a gate opens its event, once per run.
-      for (const [kind, gate] of [['password', GATES.password], ['bonusStage', GATES.bonusStage]] as const) {
+      const gateNames = { password: 'the password challenge', bonusStage: 'the bonus stage', ladder: 'the Word Ladder', bigOne: 'the Big One' } as const;
+      for (const [kind, gate] of [['password', GATES.password], ['bonusStage', GATES.bonusStage], ['ladder', GATES.ladder], ['bigOne', GATES.bigOne]] as const) {
           if (newState.score >= gate.score && !(newState.gatesPassed ?? []).includes(gate.score)) {
               newState.gatesPassed = [...(newState.gatesPassed ?? []), gate.score];
+              // The 70K Club badge is earned by reaching the gate (v7.49).
+              const badgeNew = kind === 'bigOne' ? earnCosmetic(GATES.bigOne.badgeId) : false;
               modalQueue.push({ type: 'minigame', title: `The ${gate.score.toLocaleString()} Gate`, data: {
                   id: kind, gate: gate.score,
                   ...(kind === 'password' ? { password: pickGatePassword(newState.daily) } : {}),
+                  ...(kind === 'bigOne' ? { badgeNew } : {}),
               } });
-              eventLogQueue.push({ type: 'event', id: `gate-${gate.score}-${now}`, name: `The ${gate.score.toLocaleString()} Gate`, icon: '🚪', description: kind === 'password' ? 'Crossed the gate: the password challenge.' : 'Crossed the gate: the bonus stage.', scoreChange: 0, cumulativeScore: runningScore });
+              eventLogQueue.push({ type: 'event', id: `gate-${gate.score}-${now}`, name: `The ${gate.score.toLocaleString()} Gate`, icon: '🚪', description: `Crossed the gate: ${gateNames[kind]}.${badgeNew ? ' Earned the 💎 70K Club badge.' : ''}`, scoreChange: 0, cumulativeScore: runningScore });
           }
       }
 

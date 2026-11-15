@@ -114,6 +114,8 @@ export interface SecretBonus {
 export type MiniGameId = 'pong' | 'mole' | 'claw' | 'darts' | 'goal' | 'dice' | 'bowl' | 'golf' | 'hoops'
   /** v7.46: more arcade words. */
   | 'ringToss' | 'riff' | 'striker' | 'pitStop' | 'coaster' | 'seal' | 'monte'
+  /** v7.49: the 50,000 and 70,000 gates. */
+  | 'ladder' | 'bigOne'
   /** Score gates (v7.39.0), opened by crossing a score rather than by a word. */
   | 'password' | 'bonusStage';
 

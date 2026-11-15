@@ -3,7 +3,7 @@ import ArcadeButton from './ArcadeButton';
 import { MINI_GAME_VALUES as M, GATES } from '../config/gameplay';
 import { MINI_GAMES } from '../data/miniGames';
 import type { GameState, MiniGameId, Tile } from '../types';
-import { scramble } from '../data/gates';
+import { scramble, BIG_ONE_WORDS, LADDER_FALLBACK } from '../data/gates';
 import { dictionaryService } from '../services/dictionaryService';
 import { calculateScore } from '../services/gameUtils';
 import { TILE_DISTRIBUTION } from '../constants';
@@ -1059,8 +1059,186 @@ const BonusStage: React.FC<GameProps> = ({ finish, gameState }) => {
   );
 };
 
+
+// --- 50,000 and 70,000 gates (v7.49) -------------------------------------------------------------
+
+/** Tiles for a gate hand, from letters. */
+const gateTiles = (letters: string[]): Tile[] =>
+  letters.map(l => ({ id: `g-${Math.random().toString(36).slice(2)}`, letter: l, points: TILE_DISTRIBUTION[l]?.points ?? 1 }));
+const shuffled = <T,>(xs: T[]): T[] => { const a = [...xs]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+/** A hand of `size` tiles that can spell a common word of `min`+ letters (dealt in if luck won't). */
+const dealLadderHand = async (min: number, size: number): Promise<string[]> => {
+  for (let tries = 0; tries < 12; tries++) {
+    const hand = stageHand(size).map(t => t.letter);
+    const w = await dictionaryService.findPlayableWord(hand, { minLength: min, longest: true });
+    if (w && w.length >= min) return hand;
+  }
+  const pool = LADDER_FALLBACK[Math.min(8, Math.max(3, min))];
+  const word = pool[Math.floor(Math.random() * pool.length)];
+  const fill = Array.from({ length: Math.max(0, size - word.length) }, (_, i) => stageTile(i % 3 === 0).letter);
+  return shuffled([...word, ...fill]);
+};
+
+/** Shared word builder for the gate games: tap tiles, Clear, Submit. */
+const WordPad: React.FC<{ tiles: Tile[]; disabled?: boolean; onSubmit: (word: string) => void; busy?: boolean; flash?: string | null }> = ({ tiles, disabled, onSubmit, busy, flash }) => {
+  const [picked, setPicked] = useState<number[]>([]);
+  useEffect(() => setPicked([]), [tiles]);
+  const word = picked.map(i => tiles[i].letter).join('');
+  return (
+    <>
+      <div className="w-full min-h-[3rem] rounded-lg bg-crt-950 ring-1 ring-white/15 flex items-center justify-center px-2 font-tile font-extrabold text-2xl tracking-widest text-white">{word || <span className="text-slate-600 text-base font-sans font-normal">Tap tiles to build a word</span>}</div>
+      <p className="osd-text text-lg text-neon-yellow min-h-[1.5rem]" aria-live="polite">{busy ? 'Checking…' : flash ?? ''}</p>
+      <div className="grid grid-cols-5 gap-1.5 w-full">
+        {tiles.map((t, i) => (
+          <button key={t.id} type="button" disabled={disabled} onPointerDown={e => { e.preventDefault(); if (disabled) return; tick(); setPicked(p => (p.includes(i) ? p.filter(x => x !== i) : [...p, i])); }}
+            aria-label={`Tile ${t.letter} with ${t.points} points`}
+            className={`relative aspect-square rounded-lg grid place-items-center font-tile font-extrabold text-2xl tile-3d select-none touch-none ${picked.includes(i) ? 'bg-neon-yellow text-crt-900 -translate-y-1' : 'bg-[#f6e7c1] text-crt-900'}`}>
+            {t.letter}<span className="absolute bottom-0.5 right-1 font-osd text-xs">{t.points}</span>
+          </button>
+        ))}
+      </div>
+      <div className="w-full grid grid-cols-2 gap-2">
+        <ArcadeButton color="slate" variant="outline" onClick={() => setPicked([])} disabled={disabled}>Clear</ArcadeButton>
+        <ArcadeButton color="green" onClick={() => { if (word.length >= 3) { onSubmit(word); setPicked([]); } }} disabled={disabled || busy || word.length < 3}>Submit</ArcadeButton>
+      </div>
+    </>
+  );
+};
+
+// 50,000: the Word Ladder.
+const Ladder: React.FC<GameProps> = ({ finish }) => {
+  const L = GATES.ladder;
+  const [state, setState] = useSaved('ladder', { rung: 0, pot: 0 });
+  const [tiles, setTiles] = useState<Tile[] | null>(null);
+  // Resuming mid-ladder goes back to the bank-or-climb choice, never into a half-run rung.
+  const [phase, setPhase] = useState<'deal' | 'climb' | 'choice' | 'done'>(() => (state.rung > 0 ? 'choice' : 'deal'));
+  const [left, setLeft] = useState(L.secondsPerRung * 1000);
+  const [busy, setBusy] = useState(false);
+  const [flash, setFlash] = useState<string | null>(null);
+  const ended = useRef(false);
+  const need = L.rungs[Math.min(state.rung, L.rungs.length - 1)];
+  const end = (points: number, headline: string, detail: string) => { if (ended.current) return; ended.current = true; setPhase('done'); finish({ points, headline, detail }); };
+  // Deal a hand for the rung, then start its clock.
+  useEffect(() => {
+    if (phase !== 'deal' || ended.current) return;
+    let alive = true;
+    dealLadderHand(need, L.handSize).then(h => { if (!alive) return; setTiles(gateTiles(h)); setLeft(L.secondsPerRung * 1000); setFlash(null); setPhase('climb'); });
+    return () => { alive = false; };
+  }, [phase, state.rung]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (phase !== 'climb') return;
+    let last = performance.now();
+    const t = setInterval(() => {
+      const now = performance.now();
+      setLeft(l => {
+        const n = Math.max(0, l - (now - last)); last = now;
+        if (n <= 0 && !ended.current) { soundService.playInvalidWord(); buzz(80); end(0, 'YOU SLIPPED!', state.pot ? `Time ran out on the ${need}-letter rung. The ${state.pot.toLocaleString()} pot is gone.` : `Time ran out on the ${need}-letter rung.`); }
+        return n;
+      });
+    }, 100);
+    return () => clearInterval(t);
+  }, [phase, state.rung]); // eslint-disable-line react-hooks/exhaustive-deps
+  const submit = async (word: string) => {
+    if (phase !== 'climb' || ended.current) return;
+    if (word.length < need) { setFlash(`Needs ${need}+ letters`); buzz(40); return; }
+    setBusy(true);
+    const ok = await dictionaryService.isValidWord(word.toLowerCase());
+    setBusy(false);
+    if (ended.current) return;
+    if (!ok) { setFlash(`${word}? Not a word`); buzz(60); return; }
+    const pot = L.pots[state.rung];
+    soundService.playMilestone(); buzz([20, 30, 20]);
+    const rung = state.rung + 1;
+    setState({ rung, pot });
+    if (rung >= L.rungs.length) { end(pot, `TOP OF THE LADDER! +${pot.toLocaleString()}`, `${word} cleared the ${need}-letter rung. You climbed all ${L.rungs.length}.`); return; }
+    setFlash(`${word}! Pot: ${pot.toLocaleString()}`);
+    setPhase('choice');
+  };
+  const nextNeed = L.rungs[Math.min(state.rung, L.rungs.length - 1)];
+  return (
+    <>
+      <div className="w-full flex items-end justify-center gap-1" aria-label={`Rung ${Math.min(state.rung + 1, L.rungs.length)} of ${L.rungs.length}`}>
+        {L.rungs.map((r, i) => (
+          <div key={r} className={`flex-1 rounded-md text-center osd-text text-sm leading-tight py-1 ${i < state.rung ? 'bg-neon-green text-crt-900' : i === state.rung ? 'bg-neon-yellow text-crt-900' : 'bg-crt-950 text-slate-500 ring-1 ring-white/10'}`}>
+            {r}+<br />{L.pots[i] >= 1000 ? `${L.pots[i] / 1000}K` : L.pots[i]}
+          </div>
+        ))}
+      </div>
+      <p className="font-display text-xl text-neon-yellow">POT {state.pot.toLocaleString()}</p>
+      {phase === 'choice' ? (
+        <>
+          <p className="text-slate-200 leading-snug">Next rung: a word of <strong className="text-white">{nextNeed}+ letters</strong> for <strong className="text-neon-yellow">{L.pots[state.rung].toLocaleString()}</strong>. Miss it and you lose the {state.pot.toLocaleString()}.</p>
+          <ArcadeButton color="green" className="w-full" onClick={() => end(state.pot, `BANKED +${state.pot.toLocaleString()}`, `You stopped after ${state.rung} ${state.rung === 1 ? 'rung' : 'rungs'}. The next one needed ${nextNeed} letters.`)}>💰 Bank {state.pot.toLocaleString()}</ArcadeButton>
+          <ArcadeButton color="pink" variant="outline" className="w-full" onClick={() => { soundService.playPowerUp(); setPhase('deal'); }}>🪜 Climb: {nextNeed}+ letters for {L.pots[state.rung].toLocaleString()}</ArcadeButton>
+        </>
+      ) : (
+        <>
+          <div className="w-full flex justify-between items-baseline"><span className="osd-text text-lg text-white">RUNG: {need}+ LETTERS</span><Secs ms={left} warnBelow={5000} /></div>
+          <TimeBar ms={left} total={L.secondsPerRung * 1000} warnBelow={5000} />
+          {tiles ? <WordPad tiles={tiles} disabled={phase !== 'climb'} busy={busy} flash={flash} onSubmit={submit} /> : <p className="osd-text text-lg text-slate-400">DEALING…</p>}
+        </>
+      )}
+    </>
+  );
+};
+
+// 70,000: the Big One.
+const BigOne: React.FC<GameProps> = ({ finish, extra }) => {
+  const B = GATES.bigOne;
+  const [deal] = useSaved('bigOne', () => {
+    const word = BIG_ONE_WORDS[Math.floor(Math.random() * BIG_ONE_WORDS.length)];
+    const extras = Array.from({ length: B.extraTiles }, (_, i) => stageTile(i === 0).letter);
+    let letters = shuffled([...word, ...extras]);
+    for (let k = 0; k < 20 && letters.join('').includes(word.slice(0, 4)); k++) letters = shuffled(letters);
+    return { word, letters };
+  });
+  const tiles = React.useMemo(() => gateTiles(deal.letters), [deal]);
+  const [best, setBest] = useSaved('bigBest', '');
+  const [left, setLeft] = useState(B.seconds * 1000);
+  const [busy, setBusy] = useState(false);
+  const [flash, setFlash] = useState<string | null>(null);
+  const ended = useRef(false);
+  const bestRef = useRef(best);
+  const prizeFor = (len: number) => (len >= 8 ? B.prizes[8] : B.prizes[len] ?? 0);
+  const end = (w: string) => {
+    if (ended.current) return; ended.current = true;
+    const pts = prizeFor(w.length);
+    finish({ points: pts, headline: w.length >= 8 ? `FOUND IT! +${pts.toLocaleString()}` : pts ? `${w}: +${pts.toLocaleString()}` : 'TIME!', detail: `The hidden word was ${deal.word}.${w ? ` Your longest: ${w} (${w.length} letters).` : ''}${extra?.badgeNew ? ' 💎 70K Club badge earned: it\'s in your Collection for good.' : ''}` });
+  };
+  useEffect(() => {
+    let last = performance.now();
+    const t = setInterval(() => {
+      const now = performance.now();
+      setLeft(l => { const n = Math.max(0, l - (now - last)); last = now; if (n <= 0) end(bestRef.current); return n; });
+    }, 100);
+    return () => clearInterval(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const submit = async (word: string) => {
+    if (ended.current) return;
+    if (word.length <= bestRef.current.length) { setFlash(`Beat ${bestRef.current.length} letters`); return; }
+    setBusy(true);
+    const ok = await dictionaryService.isValidWord(word.toLowerCase());
+    setBusy(false);
+    if (ended.current) return;
+    if (!ok) { setFlash(`${word}? Not a word`); buzz(60); return; }
+    bestRef.current = word; setBest(word); tick(); buzz(15);
+    if (word.length >= 8) { soundService.playMilestone(); end(word); return; }
+    setFlash(`${word}: ${prizeFor(word.length) ? `+${prizeFor(word.length).toLocaleString()} so far` : 'keep going'}`);
+  };
+  return (
+    <>
+      {extra?.badgeNew && <p className="osd-text text-lg text-neon-cyan leading-tight">💎 70K CLUB BADGE EARNED!</p>}
+      <div className="w-full flex justify-between items-baseline"><span className="osd-text text-lg text-white">BEST: {best || '—'}</span><Secs ms={left} warnBelow={10000} /></div>
+      <TimeBar ms={left} total={B.seconds * 1000} warnBelow={10000} />
+      <WordPad tiles={tiles} busy={busy} flash={flash} onSubmit={submit} />
+    </>
+  );
+};
+
 const GAMES: Record<MiniGameId, React.FC<GameProps>> = { pong: Pong, mole: Mole, claw: Claw, darts: Darts, goal: Goal, dice: Dice, bowl: Bowl, golf: Golf, hoops: Hoops, password: Password, bonusStage: BonusStage,
-  ringToss: RingToss, riff: Riff, striker: Striker, pitStop: PitStop, coaster: Coaster, seal: Seal, monte: Monte };
+  ringToss: RingToss, riff: Riff, striker: Striker, pitStop: PitStop, coaster: Coaster, seal: Seal, monte: Monte,
+  ladder: Ladder, bigOne: BigOne };
 
 /** The arcade card: intro (Play or Skip), the game, then the result. */
 const MiniGameCard: React.FC<{

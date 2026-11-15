@@ -3,7 +3,7 @@ import { describe, test, expect } from 'vitest';
 import { SECRET_BONUSES } from '../../data/secretBonuses';
 import { MINI_GAMES } from '../../data/miniGames';
 import { MINI_GAME_VALUES as M, GATES } from '../../config/gameplay';
-import { GATE_PASSWORDS, GATE_ANAGRAMS, gatePassword, scramble, giveaway } from '../../data/gates';
+import { GATE_PASSWORDS, GATE_ANAGRAMS, gatePassword, scramble, giveaway, BIG_ONE_WORDS, LADDER_FALLBACK } from '../../data/gates';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopShot, hoopsPrize, goalPrize, golfStroke, golfPrize, ringTossPoints, riffPrize, strikerSwing, strikerPrize, pitStopPrize, coasterRide, coasterPrize, sealPrize, montePrize } from '../miniGameRules';
@@ -15,7 +15,7 @@ describe('arcade words', () => {
     for (const b of arcade) expect(b.points ?? 0).toBe(0);
     // Every arcade game has a word (LANE shares Bowling with BOWL); the two gate games open by score instead.
     const games = new Set(arcade.map(b => b.miniGame));
-    for (const id of Object.keys(MINI_GAMES)) if (id !== 'password' && id !== 'bonusStage') expect(games.has(id as any), id).toBe(true);
+    for (const id of Object.keys(MINI_GAMES)) if (!['password', 'bonusStage', 'ladder', 'bigOne'].includes(id)) expect(games.has(id as any), id).toBe(true);
     expect(arcade.filter(b => b.miniGame === 'bowl').map(b => b.word).sort()).toEqual(['BOWL', 'LANE']);
   });
 
@@ -155,5 +155,28 @@ describe('score gates (v7.39.0)', () => {
       expect([...s].sort().join('')).toBe([...w].sort().join(''));
       expect(s.join('')).not.toBe(w);
     }
+  });
+});
+
+describe('the 50,000 and 70,000 gates (v7.49)', () => {
+  const common = new Set(readFileSync(resolve(__dirname, '../../public/words/common.txt'), 'utf8').split(/\s+/));
+  const secret = new Set(SECRET_BONUSES.map(b => b.word?.toUpperCase()).filter(Boolean));
+  test('gates come in order and pay points, never time', () => {
+    const scores = [GATES.password.score, GATES.bonusStage.score, GATES.ladder.score, GATES.bigOne.score];
+    expect(scores).toEqual([10000, 30000, 50000, 70000]);
+    expect(GATES.ladder.pots).toEqual([250, 500, 1000, 2000, 4000, 8000]);
+    expect(GATES.ladder.rungs).toHaveLength(GATES.ladder.pots.length);
+    for (let i = 1; i < GATES.ladder.pots.length; i++) expect(GATES.ladder.pots[i]).toBe(GATES.ladder.pots[i - 1] * 2);
+    expect([GATES.bigOne.prizes[6], GATES.bigOne.prizes[7], GATES.bigOne.prizes[8]]).toEqual([1000, 2500, 5000]);
+  });
+  test('the Big One deals everyday 8-letter words; the ladder has a word for every rung', () => {
+    expect(BIG_ONE_WORDS.length).toBeGreaterThanOrEqual(60);
+    for (const w of BIG_ONE_WORDS) {
+      expect(w, w).toHaveLength(8);
+      expect(common.has(w.toLowerCase()), w).toBe(true);
+      expect(secret.has(w), w).toBe(false);
+    }
+    expect(new Set(BIG_ONE_WORDS).size).toBe(BIG_ONE_WORDS.length);
+    for (const n of GATES.ladder.rungs) for (const w of LADDER_FALLBACK[n]) { expect(w.length).toBe(n); expect(common.has(w.toLowerCase()), w).toBe(true); }
   });
 });

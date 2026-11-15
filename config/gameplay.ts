@@ -498,6 +498,14 @@ export const MINI_GAME_VALUES = {
 export const GATES = {
   password: { score: 10000, seconds: 20, solve: 1000, hint: 500, miss: 250 },
   bonusStage: { score: 30000, seconds: 30, multiplier: 3, handSize: 10, perLetter: 25 }, // each word: (its score + 25 a letter) x3
+  // v7.49: 9% of Nov 12-15 runs passed 50,000 and 2% passed 70,000. Points (and a badge), never
+  // time: late runs are clock-limited, and time would undo Overtime.
+  // 50,000: the Word Ladder. Rung N needs a word of rungs[N]+ letters within secondsPerRung; each rung
+  // cleared sets the pot (pots[N]). Bank any time; a missed rung loses the pot.
+  ladder: { score: 50000, rungs: [3, 4, 5, 6, 7, 8], pots: [250, 500, 1000, 2000, 4000, 8000], secondsPerRung: 15, handSize: 10 },
+  // 70,000: the Big One. A hand hiding an 8-letter word; your longest word in `seconds` pays by
+  // length. Reaching the gate earns the 70K Club badge (`badgeId`, permanent).
+  bigOne: { score: 70000, seconds: 45, prizes: { 8: 5000, 7: 2500, 6: 1000 } as Record<number, number>, extraTiles: 2, badgeId: 'b_seventyKClub' },
 } as const;
 
 /**
