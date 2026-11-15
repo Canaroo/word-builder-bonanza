@@ -827,7 +827,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             )}
           </div>
           {gameState?.daily && (
-            <p className={`osd-text text-sm leading-none mt-0.5 ${gameState.daily.practice ? 'text-slate-400' : 'text-neon-cyan'}`} aria-label={gameState.daily.practice ? `Daily Run ${gameState.daily.number}, practice` : `Daily Run ${gameState.daily.number}`}>
+            <p className={`osd-text text-sm leading-none mt-0.5 ${gameState.daily.practice ? 'text-slate-400' : 'text-neon-cyan'}`} aria-label={gameState.daily.practice ? `Daily Challenge ${gameState.daily.number}, practice` : `Daily Challenge ${gameState.daily.number}`}>
               📅 DAILY #{gameState.daily.number}{gameState.daily.practice ? ' · PRACTICE' : ''}
             </p>
           )}

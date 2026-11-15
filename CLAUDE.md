@@ -160,8 +160,13 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
 - **Start screen (v7.31):** top bar (player chip → switcher, 🔥 streak, 🪙 credits → shop, sound),
   the logo, then the actions anchored above a bottom tab bar (🏠 Play · 🏆 Top 50 · 📼 Collect sheet ·
   🛒 Shop · 🪪 Me sheet). One main button: ▶ CONTINUE when a run is saved (New Game becomes an
-  outline button), else ▶ NEW GAME; then the Today's Run card and a Today strip (Power Word spin,
-  Missions row that expands). The name field shows only for a new player. The version (`VER x.y.z`) shows under the tagline so the owner can check what's live. It fits one phone screen.
+  outline button), else ▶ PLAY; then a Today strip (Daily Challenge chip, Power Word spin, Missions
+  row that expands). **One Play button (v7.48.0):** the separate Today's Run card confused players
+  (two ways to start a game, difference not shown; 13 of 134 November runs were dailies). Now the
+  first Play of the day, while the daily is unplayed, opens a chooser: 🏆 Daily Challenge (same
+  tiles for everyone, one scored try) or 🎲 Regular game. Either answer sticks for the day
+  (per-player `dailyChooserDay`); the 📅 Daily Challenge chip in the Today strip is the way back in
+  (resume, practice, share). "Today's Run" is now "Daily Challenge" everywhere players see it. The name field shows only for a new player. The version (`VER x.y.z`) shows under the tagline so the owner can check what's live. It fits one phone screen.
   Buttons use three tiers (`ArcadeButton` `variant`): solid for the one main action, `outline` for
   the rest, `text` for Cancel/Close links. Keep a screen to one solid button where possible.
   Every other menu screen uses `components/ScreenShell.tsx` (◀ back, neon title, 🪙 chip, optional

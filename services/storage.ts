@@ -29,6 +29,8 @@ export const STORAGE_KEYS = {
     gatePasswordsSeen: 'wordNerdGatePasswordsSeen',
     /** Per player: how many times the Skill Shot intro card has been shown (it shows twice). */
     skillShotTips: 'wordNerdSkillShotTips',
+    /** Per player: the game day the Play button last offered the Daily Challenge (it asks once a day). */
+    dailyChooserDay: 'wordNerdDailyChooserDay',
     /** Per player: ids of bones (other players' fallen runs) they've taken a charm from. */
     bonesLooted: 'wordNerdBonesLooted',
     /** Per player: each boss's record against them, for Grudge Matches (services/grudges.ts). */
