@@ -3,7 +3,9 @@ import { describe, test, expect } from 'vitest';
 import { SECRET_BONUSES } from '../../data/secretBonuses';
 import { MINI_GAMES } from '../../data/miniGames';
 import { MINI_GAME_VALUES as M, GATES } from '../../config/gameplay';
-import { GATE_PASSWORDS, gatePassword, scramble } from '../../data/gates';
+import { GATE_PASSWORDS, GATE_ANAGRAMS, gatePassword, scramble, giveaway } from '../../data/gates';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopShot, hoopsPrize, goalPrize, golfStroke, golfPrize } from '../miniGameRules';
 
 describe('arcade words', () => {
@@ -88,6 +90,39 @@ describe('score gates (v7.39.0)', () => {
     for (const w of GATE_PASSWORDS) expect(secretWords.has(w)).toBe(false);
     expect(new Set(GATE_PASSWORDS).size).toBe(GATE_PASSWORDS.length);
   });
+  test('the list of other answers matches the dictionary', () => {
+    const six = readFileSync(resolve(__dirname, '../../public/words/wordlist.txt'), 'utf8').split(/\s+/).filter(w => w.length === 6);
+    const byLetters = new Map<string, string[]>();
+    for (const w of six) { const k = [...w].sort().join(''); byLetters.set(k, [...(byLetters.get(k) ?? []), w.toUpperCase()]); }
+    const expected: Record<string, string[]> = {};
+    for (const w of GATE_PASSWORDS) {
+      const others = (byLetters.get([...w.toLowerCase()].sort().join('')) ?? []).filter(a => a !== w).sort();
+      if (others.length) expected[w] = others;
+    }
+    expect(GATE_ANAGRAMS, 'update GATE_ANAGRAMS in data/gates.ts').toEqual(expected);
+  });
+  test('the scramble never spells the password or any other word that opens the gate, and gives little away', () => {
+    let n = 7; const rand = () => (n = (n * 1664525 + 1013904223) >>> 0) / 4294967296;
+    for (const w of GATE_PASSWORDS) {
+      const answers = [w, ...(GATE_ANAGRAMS[w] ?? [])];
+      for (let i = 0; i < 300; i++) {
+        const s = scramble(w, rand).join('');
+        expect([...s].sort().join('')).toBe([...w].sort().join(''));
+        expect(answers, `${w} dealt as ${s}`).not.toContain(s);
+        // The password itself: at most one letter left in place and no 3-letter run, unless its
+        // repeated letters make that impossible (BANANA, COFFEE and friends).
+        if (new Set(w).size === w.length) expect(giveaway(s, w), `${w} dealt as ${s}`).toBeLessThanOrEqual(2);
+        // Never a near-spelling of any answer: at most two letters in place and one short run.
+        for (const a of answers) expect(giveaway(s, a), `${w} dealt as ${s}, close to ${a}`).toBeLessThanOrEqual(7);
+      }
+    }
+  });
+  test('giveaway counts letters in place and runs kept', () => {
+    expect(giveaway('PLANET', 'PLANET')).toBe(6 * 2 + 4 * 3);
+    expect(giveaway('TENALP', 'PLANET')).toBe(0);
+    expect(giveaway('ETPLAN', 'PLANET')).toBe(6); // PLA and LAN survive
+  });
+
   test('the scramble uses the same letters and never shows the answer', () => {
     for (const w of GATE_PASSWORDS) {
       const s = scramble(w);
