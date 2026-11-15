@@ -167,6 +167,20 @@ export const buyCosmetic = (id: string, coins: number): number => {
   return item.cost;
 };
 
+/**
+ * Earn a run reward cosmetic (v7.49: the 70K Club badge). It's owned for good and worn right away
+ * if the player wears no badge yet. Returns whether it's new.
+ */
+export const earnCosmetic = (id: string): boolean => {
+  const item = cosmeticById(id);
+  const p = getProfile();
+  if (!item || item.earnedBy === undefined || p.owned.includes(id)) return false;
+  p.owned.push(id);
+  if (!p[item.kind]) p[item.kind] = id;
+  saveProfile(p);
+  return true;
+};
+
 /** Wear an owned badge or title (null takes it off). */
 export const equipCosmetic = (kind: CosmeticKind, id: string | null): Profile => {
   const p = getProfile();

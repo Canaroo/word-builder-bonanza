@@ -90,6 +90,8 @@ const VibezScreen: React.FC<VibezScreenProps> = ({
       action = <ArcadeButton color="slate" size="sm" onClick={click(() => onEquipCosmetic(item.kind, null))}>✓ Wearing</ArcadeButton>;
     } else if (owned) {
       action = <ArcadeButton color="purple" variant="outline" size="sm" onClick={click(() => onEquipCosmetic(item.kind, item.id))}>Wear</ArcadeButton>;
+    } else if (item.earnedBy === '70k') {
+      action = <span className="osd-text text-base leading-none text-neon-cyan text-right">💎 REACH<br />70,000</span>;
     } else if (item.streakDay) {
       action = <span className="osd-text text-base leading-none text-neon-orange text-right">🔥 {item.streakDay}-DAY<br />STREAK</span>;
     } else {
@@ -117,7 +119,7 @@ const VibezScreen: React.FC<VibezScreenProps> = ({
   const listFor = (kind: CosmeticKind) => {
     const items = COSMETICS.filter(c => c.kind === kind);
     // Shop items by price, then streak rewards by length.
-    return [...items.filter(c => c.cost !== undefined).sort((a, b) => a.cost! - b.cost!), ...items.filter(c => c.streakDay !== undefined)];
+    return [...items.filter(c => c.cost !== undefined).sort((a, b) => a.cost! - b.cost!), ...items.filter(c => c.streakDay !== undefined), ...items.filter(c => c.earnedBy !== undefined)];
   };
 
   return (

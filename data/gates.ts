@@ -78,3 +78,27 @@ export const scramble = (word: string, rand: () => number = Math.random): string
   // 200 shuffles of six letters can't all be answers, but never hand back the word itself.
   return best ?? [...word.slice(1), word[0]];
 };
+
+/**
+ * The 70,000 gate's hidden words (v7.49): everyday 8-letter words from the common list (none a
+ * secret word or on the no-suggest list; a test checks). The Big One deals one of these, scrambled,
+ * plus a couple of extra tiles.
+ */
+export const BIG_ONE_WORDS = [
+  'BIRTHDAY', 'CHAMPION', 'DINOSAUR', 'ELEPHANT', 'FOOTBALL', 'HOMEWORK', 'KEYBOARD', 'MOUNTAIN', 'NOTEBOOK', 'PAINTING',
+  'SANDWICH', 'TREASURE', 'VACATION', 'UMBRELLA', 'AIRPLANE', 'MAGICIAN', 'MONSTERS', 'PRINCESS', 'SUNSHINE', 'PANCAKES',
+  'BASEBALL', 'BACKPACK', 'BATHROOM', 'COMPUTER', 'DAUGHTER', 'EXERCISE', 'FAVORITE', 'FIREWORK', 'FLAMINGO', 'GOLDFISH',
+  'HOSPITAL', 'INTERNET', 'KANGAROO', 'LEMONADE', 'MARATHON', 'MIDNIGHT', 'NECKLACE', 'PASSPORT', 'PEACEFUL', 'QUESTION',
+  'RAINBOWS', 'REINDEER', 'SEASHELL', 'SHOULDER', 'SKELETON', 'SNOWBALL', 'SPARKLER', 'SQUIRREL', 'STARFISH', 'STRENGTH',
+  'SUITCASE', 'SUNLIGHT', 'TOMORROW', 'TRIANGLE', 'VAMPIRES', 'WILDLIFE', 'ZUCCHINI', 'ALPHABET', 'ARMCHAIR', 'BLUEBIRD',
+  'BOOKCASE', 'CARNIVAL', 'CUPBOARD', 'DUMBBELL', 'FIRESIDE', 'HANDBOOK', 'HEIRLOOM', 'HORRIBLE', 'KITCHENS', 'LOLLIPOP',
+  'MERMAIDS', 'MUSHROOM', 'OVERCOAT', 'POSTCARD', 'PUMPKINS', 'RAINDROP', 'SCISSORS', 'SNOWFALL', 'TEASPOON', 'THOUSAND',
+  'TORTOISE', 'TRAVELER', 'UNICORNS', 'UNIFORMS', 'WEEKENDS', 'WHISTLES', 'WINDMILL',
+] as const;
+
+/** Word Ladder fallbacks (v7.49): if a dealt hand can't reach a rung, one of these is dealt in. */
+export const LADDER_FALLBACK: Record<number, readonly string[]> = {
+  3: ['CAT', 'SUN', 'TOE'], 4: ['RAIN', 'TONE', 'LATE'], 5: ['PLANT', 'STONE', 'TRAIN'],
+  6: ['GARDEN', 'CANDLE', 'ROCKET', 'PLANET'], 7: ['KITCHEN', 'TEACHER', 'MORNING', 'DIAMOND'],
+  8: ['ELEPHANT', 'MOUNTAIN', 'SANDWICH', 'TREASURE'],
+};

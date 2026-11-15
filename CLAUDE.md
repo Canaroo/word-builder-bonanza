@@ -294,6 +294,16 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   pays (its normal score + 25 a letter) x3, charms included, and doesn't touch the run's tile
   stream. Both reuse the arcade card (`minigame` modal with `gate` in its data) and pay flat (no
   level boost). Stats: 44% of runs reached 10,000 and 11% reached 30,000.
+  **50,000 and 70,000 (v7.49.0):** 9% of runs passed 50k and 2% passed 70k (Nov 12-15), so the
+  top end got two harder events. 50,000: **The Word Ladder** (`GATES.ladder`, `Ladder` in
+  `MiniGames.tsx`): a 10-tile hand, rungs of 3-8+ letters, 15 s each, pot 250 → 8,000 doubling;
+  bank between rungs, a miss or the timer wipes the pot. The hand is checked to spell an 8-letter
+  word (`dealLadderHand`, `LADDER_FALLBACK` in `data/gates.ts`). 70,000: **The Big One**
+  (`GATES.bigOne`, `BigOne`): a hidden 8-letter word from `BIG_ONE_WORDS` (87 everyday words, none
+  a secret) plus 2 tiles, 45 s, +5,000 / 2,500 / 1,000 for 8 / 7 / 6 letters. Reaching it earns the
+  **💎 70K Club** badge (`b_seventyKClub`) for good: `earnedBy` on a cosmetic marks a run reward
+  (not sold, shown as "💎 REACH 70,000" in the shop), granted by `earnCosmetic()` in
+  `services/progression.ts`. Gates pay points, never time.
 - **Four features from the 146-run stats review (v7.41.0).** The stats showed 15 names ever, three
   regulars, 47% of runs ending by level 3 (17 of 40 on strikes), 52% of charm offers passed after
   level 6, 25 PowerPlays picked under 12%, and power words firing 14 times in 146 runs.
