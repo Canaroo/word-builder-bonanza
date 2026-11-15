@@ -13,7 +13,7 @@ import RankingModal from '../../components/RankingModal';
 import ArcadeButton from '../../components/ArcadeButton';
 import { collectionProgress } from '../collection';
 import { BOSSES } from '../../data/bosses';
-import { listPlayers, switchToPlayer, currentPlayer, sameName } from '../players';
+import { listPlayers, switchToPlayer, currentPlayer, sameName, playerKey } from '../players';
 import { storage, STORAGE_KEYS } from '../storage';
 import { todaysRun, dailyRecord, dailyShareText } from '../daily';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
@@ -229,12 +229,32 @@ const StartScreen: React.FC<StartScreenProps> = ({
       return;
     }
     setConfirmNewGame(false);
-    if (name.trim()) {
-      soundService.initialize(); // Initialize AudioContext on user gesture
-      musicService.play();
+    if (!name.trim()) return;
+    // One Play button (v7.48): the first Play of the day, while the Daily Challenge is still open,
+    // asks which game to start. Picking either answers it for the day; the chip in the Today strip
+    // stays as the way back in.
+    if (dailyState === 'new' && storage.getString(playerKey(STORAGE_KEYS.dailyChooserDay)) !== today.key) {
+      soundService.initialize();
       soundService.playUIClick();
-      onPlay(name.trim());
+      setShowChooser(true);
+      return;
     }
+    startRegular();
+  };
+  const startRegular = () => {
+    soundService.initialize(); // Initialize AudioContext on user gesture
+    musicService.play();
+    soundService.playUIClick();
+    onPlay(name.trim());
+  };
+  const [showChooser, setShowChooser] = useState(false);
+  const answerChooser = (choice: 'daily' | 'regular') => {
+    storage.setString(playerKey(STORAGE_KEYS.dailyChooserDay), today.key);
+    setShowChooser(false);
+    if (choice === 'regular') { startRegular(); return; }
+    // The chooser already explained the challenge, so it starts straight away.
+    soundService.initialize(); musicService.play(); soundService.playUIClick();
+    onPlayDaily(name.trim());
   };
   
   const handleShowLeaderboard = () => {
@@ -448,14 +468,42 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   return (
     <>
+      {showChooser && (
+        <div className="absolute inset-0 z-50 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Which game?">
+          <div className="bg-crt-900 border-2 border-neon-yellow shadow-glow-yellow rounded-2xl p-5 max-w-sm w-full text-center flex flex-col gap-3 bonus-insert">
+            <p className="osd-text text-lg tracking-[0.3em] text-slate-300">FIRST GAME TODAY</p>
+            <h2 className="font-display text-2xl text-neon-yellow leading-tight">Which game?</h2>
+            <button type="button" onClick={() => answerChooser('daily')} aria-label={`Daily Challenge number ${today.number}`}
+              className="w-full text-left rounded-xl p-3 ring-2 ring-neon-cyan bg-neon-cyan/10 hover:bg-neon-cyan/20 flex gap-3 items-start outline-none focus-visible:ring-white">
+              <span className="text-3xl leading-none" aria-hidden="true">🏆</span>
+              <span className="flex-1">
+                <span className="block font-display text-lg text-neon-cyan leading-tight">Daily Challenge #{today.number}</span>
+                <span className="block text-sm text-slate-200 leading-snug mt-0.5">
+                  <strong className="text-white">Same tiles for everyone today.</strong> Your one shot at today's Daily board, +{DAILY_RUN.finishCredits} Credits (+{DAILY_RUN.topCredits} more for a top {DAILY_RUN.topRank}).
+                </span>
+              </span>
+            </button>
+            <button type="button" onClick={() => answerChooser('regular')} aria-label="Regular game"
+              className="w-full text-left rounded-xl p-3 ring-2 ring-neon-yellow/70 bg-crt-950/70 hover:bg-neon-yellow/10 flex gap-3 items-start outline-none focus-visible:ring-white">
+              <span className="text-3xl leading-none" aria-hidden="true">🎲</span>
+              <span className="flex-1">
+                <span className="block font-display text-lg text-neon-yellow leading-tight">Regular game</span>
+                <span className="block text-sm text-slate-200 leading-snug mt-0.5">Fresh random tiles. Play as many as you like; your best still goes on the Top 50.</span>
+              </span>
+            </button>
+            <p className="text-xs text-slate-500 leading-snug">Not feeling it today? The Daily Challenge waits under Play until the {DAILY_RESET_HOUR} AM reset.</p>
+            <button type="button" className="osd-text text-lg text-slate-400 underline leading-tight" onClick={() => { soundService.playUIClick(); setShowChooser(false); }}>Back</button>
+          </div>
+        </div>
+      )}
       {showDailyIntro && (
-        <div className="absolute inset-0 z-50 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label={`Today's Run #${today.number}`}>
+        <div className="absolute inset-0 z-50 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label={`Daily Challenge #${today.number}`}>
           <div className="bg-crt-900 border-2 border-neon-cyan shadow-glow-cyan rounded-2xl p-5 max-w-sm w-full text-center flex flex-col gap-3 bonus-insert">
             <p className="osd-text text-lg tracking-[0.3em] text-slate-300">HEADS UP, WORD NERD</p>
             <div className="text-5xl leading-none" aria-hidden="true">📅</div>
-            <h2 className="font-display text-2xl text-neon-cyan leading-tight">Today's Run #{today.number}</h2>
+            <h2 className="font-display text-2xl text-neon-cyan leading-tight">Daily Challenge #{today.number}</h2>
             <p className="text-slate-200 leading-snug">
-              You're about to start <strong className="text-white">Today's Run</strong>. Everyone in the world gets the
+              You're about to start the <strong className="text-white">Daily Challenge</strong>. Everyone in the world gets the
               <strong className="text-white"> same tiles, offers and bosses</strong> today, so it's a fair fight.
             </p>
             <ul className="text-left text-sm text-slate-200 space-y-1.5 rounded-lg bg-crt-950/70 ring-1 ring-white/10 p-3">
@@ -618,38 +666,32 @@ const StartScreen: React.FC<StartScreenProps> = ({
               </>
             ) : (
               <>
-                <ArcadeButton color="yellow" size="lg" className="w-full" disabled={!name.trim()} onClick={handlePlayClick}>▶ New Game</ArcadeButton>
+                <ArcadeButton color="yellow" size="lg" className="w-full" disabled={!name.trim()} onClick={handlePlayClick}>▶ Play</ArcadeButton>
                 {!showNameEntry && <p className="osd-text text-lg leading-none text-neon-yellow blink -mt-1">PRESS START</p>}
               </>
             )}
           </section>
 
-          {/* Today's Run: one shared deal a day. Its own card so it reads as a separate mode. */}
-          <section className="w-full rounded-xl bg-crt-950/70 ring-1 ring-neon-cyan/50 p-3 text-left flex items-center gap-3" aria-label={`Today's Run number ${today.number}`}>
-            <span className="text-3xl leading-none" aria-hidden="true">📅</span>
-            <div className="flex-1 min-w-0">
-              <p className="font-display text-base leading-tight text-neon-cyan">TODAY'S RUN #{today.number}</p>
-              <p className="osd-text text-base leading-tight text-slate-300">
-                {dailyState === 'resume' ? 'UNFINISHED · PICK UP WHERE YOU LEFT OFF'
-                  : dailyState === 'done' ? `${todayRecord!.score!.toLocaleString()} PTS${todayRecord!.rank ? ` · #${todayRecord!.rank} TODAY` : ''}`
-                  : dailyState === 'started' ? 'TRY USED · REPLAY AS PRACTICE'
-                  : 'SAME DEAL FOR EVERYONE. ONE SCORED TRY.'}
-              </p>
-            </div>
-            {dailyState === 'done' ? (
-              <div className="flex flex-col gap-1.5 shrink-0">
-                <ArcadeButton color="cyan" size="sm" onClick={handleShareDaily}>Share</ArcadeButton>
-                <ArcadeButton color="cyan" variant="outline" size="sm" disabled={!name.trim()} onClick={handleDailyClick}>Practice</ArcadeButton>
-              </div>
-            ) : (
-              <ArcadeButton color="cyan" size="sm" className="shrink-0" disabled={!name.trim()} onClick={handleDailyClick}>
-                {dailyState === 'resume' ? '⏯ Resume' : dailyState === 'started' ? 'Practice' : '▶ Play'}
-              </ArcadeButton>
-            )}
-          </section>
-
           {/* Today strip: the daily rituals side by side. */}
           <section className="w-full grid grid-cols-2 gap-2" aria-label="Today">
+            {/* Daily Challenge chip (v7.48): the way back in to the daily, not a second Play button. */}
+            <div className="col-span-2 flex items-center gap-2 rounded-xl ring-1 ring-neon-cyan/40 bg-crt-950/70 pl-2.5 pr-1.5 py-1.5">
+              <button type="button" disabled={!name.trim()} onClick={handleDailyClick} className="flex-1 min-w-0 flex items-center gap-2 text-left disabled:opacity-40"
+                aria-label={`Daily Challenge number ${today.number}: ${dailyState === 'resume' ? 'resume it' : dailyState === 'new' ? 'not played yet, try it' : 'practice'}`}>
+                <span className="text-xl leading-none" aria-hidden="true">📅</span>
+                <span className="flex-1 min-w-0">
+                  <span className="block osd-text text-lg leading-none text-neon-cyan truncate">DAILY CHALLENGE #{today.number}</span>
+                  <span className="block osd-text text-base leading-tight text-slate-400 truncate">
+                    {dailyState === 'resume' ? 'UNFINISHED · TAP TO RESUME'
+                      : dailyState === 'done' ? `${todayRecord!.score!.toLocaleString()} PTS${todayRecord!.rank ? ` · #${todayRecord!.rank} TODAY` : ''} · TAP TO PRACTICE`
+                      : dailyState === 'started' ? 'TRY USED · TAP TO PRACTICE'
+                      : 'SAME TILES FOR EVERYONE · NOT PLAYED YET'}
+                  </span>
+                </span>
+                <span className="osd-text text-2xl leading-none text-neon-cyan" aria-hidden="true">›</span>
+              </button>
+              {dailyState === 'done' && <button type="button" onClick={handleShareDaily} className="osd-text text-base leading-none px-2 py-1.5 rounded-md ring-1 ring-neon-cyan text-neon-cyan shrink-0">SHARE</button>}
+            </div>
             {canSpin ? (
               <button type="button" onClick={onSpin} className="flex items-center justify-center gap-2 rounded-xl ring-1 ring-neon-pink/60 bg-neon-pink/10 hover:bg-neon-pink/20 px-2 py-2.5" aria-label="Spin for your daily Power Word">
                 <span className="text-xl leading-none animate-spin" aria-hidden="true">💥</span>

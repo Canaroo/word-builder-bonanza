@@ -333,7 +333,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
           </ArcadeButton>
         )}
         <ArcadeButton color="yellow" size="lg" className="w-full" onClick={handlePlayAgainClick} disabled={isActionLocked}>
-          {daily ? '▶ Practice Today’s Run' : '▶ Play Again'}
+          {daily ? '▶ Practice the Daily Challenge' : '▶ Play Again'}
         </ArcadeButton>
         <div className="grid grid-cols-3 gap-2">
           <ArcadeButton color="slate" variant="outline" size="sm" onClick={handleShowWordLogClick} disabled={isActionLocked}>📼 Log</ArcadeButton>

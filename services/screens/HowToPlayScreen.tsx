@@ -55,7 +55,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             <Key>{PHOENIX_DOWN.icon} {PHOENIX_DOWN.name}:</Key> a rare charm (it shows up in one charm offer a run at
             most). Take it and keep it, and if your run ends (strikes or the clock) it offers to keep you going for{' '}
             <Key>{PHOENIX_DOWN.cost} Credits</Key>: strikes wiped and {PHOENIX_DOWN.seconds} seconds on the clock. It
-            works once, then it's gone. Not offered on your scored Daily Run.
+            works once, then it's gone. Not offered on your scored Daily Challenge.
           </p>
           <p>
             <Key>🎤 Last Words:</Key> when the run does end, the clock stops and you get one more word from your final
@@ -83,7 +83,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
           <p>
             <Key>🛠️ Head Start:</Key> a run that ends before level {HEAD_START.untilLevel} adds{' '}
             <Key>+{HEAD_START.perRun} seconds</Key> to your next starting clock, up to +{HEAD_START.max}. Reach level{' '}
-            {HEAD_START.untilLevel} and it resets. Not on your scored Daily Run.
+            {HEAD_START.untilLevel} and it resets. Not on your scored Daily Challenge.
           </p>
         </Section>
 
@@ -223,10 +223,11 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
           </p>
         </Section>
 
-        <Section title="Today's Run" icon="📅" tone="text-neon-cyan">
+        <Section title="Daily Challenge" icon="📅" tone="text-neon-cyan">
           <p>
-            One shared deal a day: everyone gets the <Key>same tiles, offers and bosses</Key>. Your first daily run is the
-            scored one and goes on the day's board; replays are practice. Finish it for <Key>+{DAILY_RUN.finishCredits} Credits</Key>,
+            One shared deal a day: everyone gets the <Key>same tiles, offers and bosses</Key>. Your first Play of the day asks
+            whether you want the Daily Challenge or a regular game; the 📅 chip on the main screen gets you back to it later.
+            Your first try is the scored one and goes on the day's board; replays are practice. Finish it for <Key>+{DAILY_RUN.finishCredits} Credits</Key>,
             plus <Key>+{DAILY_RUN.topCredits}</Key> for a top-{DAILY_RUN.topRank} finish. It resets at {DAILY_RESET_HOUR}:00 AM.
           </p>
         </Section>
