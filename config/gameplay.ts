@@ -179,8 +179,12 @@ export const POWER_PLAY_VALUES = {
   over9000Words: 3,              // It's Over 9000!: charm points pay double for this many words
   draftDayTiles: 3,              // Draft Day: packs of this many tiles replace your lowest-value tiles
   draftDayPacks: 3,
-  // Smell Ya Later!: a rival earns this many points per second while you play your next few words.
-  rivalPointsPerSecond: 3,
+  // Smell Ya Later!: a rival earns points per second while you play your next few words. Since
+  // v7.47.1 he races at your own pace: your points per second of play this run (score / seconds
+  // the clock ran) x rivalPace, never below rivalPointsPerSecond. At a flat 3 a second he scored
+  // about 37 in a race where players scored about 380 (Nov 12-15: median 31 points a second).
+  rivalPointsPerSecond: 15,
+  rivalPace: 1,
   rivalWords: 3,
   rivalPrize: 250,
   birdBoxSeconds: 3,             // Bird Box: tiles flip face down after this many seconds...

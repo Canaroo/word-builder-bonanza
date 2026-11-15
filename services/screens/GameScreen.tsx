@@ -22,7 +22,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, charmLengthPoints, charmLengthBoostFor, charmMultiplierPoints, itemMultiplierIn, prizeFor, prizeScaleFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, charmTimeAt, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, redrumReverse } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, charmLengthPoints, charmLengthBoostFor, charmMultiplierPoints, itemMultiplierIn, prizeFor, prizeScaleFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, charmTimeAt, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, rivalRateFor, redrumReverse } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
@@ -1760,10 +1760,11 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 newGameState = { ...newGameState, ...changes };
                 // Timed challenges start on the clock as it stands now (it runs once the offer closes).
                 if (powerPlay.id === 'popQuizHotshot') newGameState.activePowerPlays = { ...newGameState.activePowerPlays, popQuizHotshot: { startClock: state.time, startMs: state.quizMs ?? 0 } };
-                if (powerPlay.id === 'smellYaLater') newGameState.activePowerPlays = { ...newGameState.activePowerPlays, smellYaLater: { ...newGameState.activePowerPlays.smellYaLater, clock: state.time, startMs: state.quizMs ?? 0 } };
+                const raceRate = rivalRateFor(state.gameState.score, state.playMs ?? 0);
+                if (powerPlay.id === 'smellYaLater') newGameState.activePowerPlays = { ...newGameState.activePowerPlays, smellYaLater: { ...newGameState.activePowerPlays.smellYaLater, clock: state.time, startMs: state.quizMs ?? 0, rate: raceRate } };
                 const startsNow: Record<string, string> = {
                     popQuizHotshot: `🚌 Pop quiz! Play a word within ${POWER_PLAY_VALUES.popQuizSeconds} seconds.`,
-                    smellYaLater: `🏃 The race is on! Your rival scores ${POWER_PLAY_VALUES.rivalPointsPerSecond} points a second.`,
+                    smellYaLater: `🏃 The race is on! Your rival scores ${raceRate} points a second: your own pace this run.`,
                     birdBox: `🙈 Bird Box: look now. Your tiles flip face down in ${POWER_PLAY_VALUES.birdBoxSeconds} seconds.`,
                     scroogeSwipe: `🎩 Money Bin! Score ${POWER_PLAY_VALUES.moneyBinScore}+ with your next word for ${POWER_PLAY_VALUES.moneyBinCredits} Credits.`,
                     dailyDouble: `❓ Daily Double! Wager ${newGameState.activePowerPlays.dailyDouble?.wager ?? 0}: your next word needs ${POWER_PLAY_VALUES.dailyDoubleLetters}+ letters.`,
@@ -4187,17 +4188,17 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // Smell Ya Later!: your words' points against the rival's points per second.
       // The rival scores per real second of play (v7.36.2): it used the bank clock, which runs up to
       // x2 at high levels and jumps +5 s on Shuffle (wiping the rival's points). Older saves fall back.
-      const race = newState.activePowerPlays.smellYaLater as { words: number; mine: number; rival: number; clock?: number; startMs?: number } | undefined;
+      const race = newState.activePowerPlays.smellYaLater as { words: number; mine: number; rival: number; clock?: number; startMs?: number; rate?: number } | undefined;
       if (race) {
           const rivalPP = ppById('smellYaLater');
           const nowMs = quizMsRef.current;
           const startClock = race.clock ?? newState.roundStartClock ?? time;
           const seconds = race.startMs !== undefined ? Math.max(0, nowMs - race.startMs) / 1000 : startClock - time;
           const mine = race.mine + wordPoints;
-          const rival = race.rival + rivalScore(seconds);
+          const rival = race.rival + rivalScore(seconds, race.rate);
           const left = race.words - 1;
           if (left > 0) {
-              setPP('smellYaLater', { words: left, mine, rival, startMs: nowMs }, `You ${mine}, rival ${rival}. ${left} ${left === 1 ? 'word' : 'words'} to go.`);
+              setPP('smellYaLater', { words: left, mine, rival, startMs: nowMs, rate: race.rate }, `You ${mine}, rival ${rival}. ${left} ${left === 1 ? 'word' : 'words'} to go.`);
               showMessage(`🏃 You ${mine} · Rival ${rival}`, 2000);
           } else {
               dropPP('smellYaLater');
@@ -5907,8 +5908,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         upcomingTiles: gameState.activePowerPlays?.psychicFriends ? tileBag.slice(-POWER_PLAY_VALUES.psychicTiles).reverse() : [],
         // Smell Ya Later!: the rival's score as it climbs, in real seconds.
         raceRival: (() => {
-            const r = gameState.activePowerPlays?.smellYaLater as { rival: number; startMs?: number } | undefined;
-            return r && r.startMs !== undefined ? r.rival + rivalScore(Math.max(0, (state.quizMs ?? 0) - r.startMs) / 1000) : undefined;
+            const r = gameState.activePowerPlays?.smellYaLater as { rival: number; startMs?: number; rate?: number } | undefined;
+            return r && r.startMs !== undefined ? r.rival + rivalScore(Math.max(0, (state.quizMs ?? 0) - r.startMs) / 1000, r.rate) : undefined;
         })(),
         quizLeft: (() => {
             const q = gameState.activePowerPlays?.popQuizHotshot as { startMs?: number } | undefined;

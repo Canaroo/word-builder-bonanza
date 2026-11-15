@@ -1191,3 +1191,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .cereal-shake, .charm-tumble, .charm-flip, .slot-wobble, .tub-bubble { animation: none; }
 }
+
+/* End-of-run cards hold off taps for a moment (components/useArmDelay.ts): this bar fills meanwhile. */
+@keyframes arm-fill { from { width: 0%; } to { width: 100%; } }
+.arm-fill { width: 0%; animation-name: arm-fill; animation-timing-function: linear; animation-fill-mode: forwards; }

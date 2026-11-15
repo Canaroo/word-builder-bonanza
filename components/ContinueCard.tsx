@@ -2,12 +2,15 @@ import React, { useEffect } from 'react';
 import ArcadeButton from './ArcadeButton';
 import { soundService } from '../services/soundService';
 import { PHOENIX_DOWN } from '../config/progression';
+import { useArmDelay } from './useArmDelay';
+import { ArmBar } from './LastWordsCard';
 
 // Phoenix Down: the run just ended and the player is holding the charm. It offers to keep the run
 // going for Credits, once; "No thanks" (or too few Credits) ends the run as usual.
 const ContinueCard: React.FC<{ reason: 'strikes' | 'time'; credits: number; onAnswer: (accept: boolean) => void }> = ({ reason, credits, onAnswer }) => {
   const canPay = credits >= PHOENIX_DOWN.cost;
   useEffect(() => { soundService.playPowerUp(); }, []);
+  const armed = useArmDelay();
 
   return (
     <div className="absolute inset-0 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label={`${PHOENIX_DOWN.name}: continue for ${PHOENIX_DOWN.cost} Credits?`}>
@@ -24,10 +27,11 @@ const ContinueCard: React.FC<{ reason: 'strikes' | 'time'; credits: number; onAn
         <p className={`osd-text text-lg ${canPay ? 'text-neon-yellow' : 'text-neon-red'}`}>
           YOU HAVE 🪙 {credits.toLocaleString()}{canPay ? '' : ` · YOU NEED ${PHOENIX_DOWN.cost}`}
         </p>
-        <ArcadeButton color="pink" className="w-full mt-1" disabled={!canPay} onClick={() => onAnswer(true)}>
+        {!armed && <ArmBar />}
+        <ArcadeButton color="pink" className="w-full mt-1" disabled={!canPay || !armed} onClick={() => armed && onAnswer(true)}>
           {canPay ? `▶ Continue · 🪙 ${PHOENIX_DOWN.cost}` : `Not enough Credits`}
         </ArcadeButton>
-        <ArcadeButton variant="text" color="slate" onClick={() => onAnswer(false)}>{canPay ? 'No thanks, end the run' : 'End the run'}</ArcadeButton>
+        <ArcadeButton variant="text" color="slate" disabled={!armed} onClick={() => armed && onAnswer(false)}>{canPay ? 'No thanks, end the run' : 'End the run'}</ArcadeButton>
       </div>
     </div>
   );

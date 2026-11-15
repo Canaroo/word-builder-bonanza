@@ -6,11 +6,19 @@ import { dictionaryService } from '../services/dictionaryService';
 import { calculateScore } from '../services/gameUtils';
 import { assignTilesToWord } from '../services/rackMatch';
 import { LAST_WORDS } from '../config/gameplay';
+import { useArmDelay, END_CARD_ARM_MS } from './useArmDelay';
 
 // Last Words (v7.42): the run is over, but the clock is stopped and the final hand is still on the
 // table. One parting word, untimed, scores x3. A wrong guess costs nothing; "No last words" skips.
 // It pays outside the run's words (no level, no offers, no time), then the run ends as usual.
 export interface LastWordsResult { word: string; points: number }
+
+/** A short bar that fills while taps are held off, so the wait reads as deliberate. */
+export const ArmBar: React.FC = () => (
+  <div className="w-full h-1 rounded-full bg-crt-950 overflow-hidden" aria-hidden="true">
+    <div className="h-full bg-neon-yellow arm-fill" style={{ animationDuration: `${END_CARD_ARM_MS}ms` }} />
+  </div>
+);
 
 const LastWordsCard: React.FC<{
   reason: 'strikes' | 'time';
@@ -23,6 +31,7 @@ const LastWordsCard: React.FC<{
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<LastWordsResult | null>(null);
   useEffect(() => { soundService.playPowerUp(); }, []);
+  const armed = useArmDelay();
 
   const word = picked.map(i => tiles[i].letter).join('');
   const submit = async () => {
@@ -61,11 +70,13 @@ const LastWordsCard: React.FC<{
             <div className="w-full min-h-[3rem] rounded-lg bg-crt-950 ring-1 ring-white/15 flex items-center justify-center gap-1 px-2 font-tile font-extrabold text-2xl tracking-widest text-white">
               {word || <span className="text-slate-600 text-base font-sans font-normal">Tap tiles to build a word</span>}
             </div>
-            <p className="osd-text text-lg text-neon-yellow min-h-[1.5rem]" aria-live="polite">{busy ? 'Checking…' : flash ?? ''}</p>
+            <p className="osd-text text-lg text-neon-yellow min-h-[1.5rem]" aria-live="polite">{!armed ? 'GET READY…' : busy ? 'Checking…' : flash ?? ''}</p>
+            {!armed && <ArmBar />}
             <div className="grid grid-cols-4 gap-1.5 w-full">
               {tiles.map((t, i) => (
                 <button key={t.id} type="button"
-                  onPointerDown={e => { e.preventDefault(); setFlash(null); setPicked(p => (p.includes(i) ? p.filter(x => x !== i) : [...p, i])); }}
+                  disabled={!armed}
+                  onPointerDown={e => { e.preventDefault(); if (!armed) return; setFlash(null); setPicked(p => (p.includes(i) ? p.filter(x => x !== i) : [...p, i])); }}
                   aria-label={`Last Words tile ${t.letter} with ${t.points} points`}
                   className={`relative h-14 rounded-lg grid place-items-center font-tile font-extrabold text-2xl tile-3d select-none touch-none ${picked.includes(i) ? 'bg-neon-yellow text-crt-900 -translate-y-1' : 'bg-[#f6e7c1] text-crt-900'}`}>
                   {t.letter}<span className="absolute bottom-0.5 right-1 font-osd text-xs">{t.points}</span>
@@ -74,9 +85,9 @@ const LastWordsCard: React.FC<{
             </div>
             <div className="w-full grid grid-cols-2 gap-2">
               <ArcadeButton color="slate" variant="outline" onClick={() => { setPicked([]); setFlash(null); }}>Clear</ArcadeButton>
-              <ArcadeButton color="green" onClick={submit} disabled={word.length < 3 || busy || !canSpell(word)}>Submit</ArcadeButton>
+              <ArcadeButton color="green" onClick={submit} disabled={!armed || word.length < 3 || busy || !canSpell(word)}>Submit</ArcadeButton>
             </div>
-            <ArcadeButton variant="text" color="slate" onClick={() => onDone(null)}>No last words, end the run</ArcadeButton>
+            <ArcadeButton variant="text" color="slate" disabled={!armed} onClick={() => armed && onDone(null)}>No last words, end the run</ArcadeButton>
           </>
         )}
       </div>

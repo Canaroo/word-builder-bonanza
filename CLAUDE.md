@@ -125,7 +125,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Pop Quiz times itself in real seconds (`quizMs` on the screen state: play time plus frozen
   seconds; `startMs` on the quiz), not by the bank clock, which runs up to x2 and jumps on Shuffle.
   A chip above the hand counts down (`quizLeft`). Smell Ya Later!'s rival scores per real second the same way
-  (`startMs` on the race, reset each word), and its chip shows the rival's score climbing (`raceRival`). Multiplicity shows what it would copy on the offer
+  (`startMs` on the race, reset each word), and its chip shows the rival's score climbing (`raceRival`).
+  Since v7.47.1 the rival races at the player's own pace (`rivalRateFor`: score per second of play
+  this run x `rivalPace`, floor 15/s, stamped as `rate` on the race at pick time); at a flat 3/s he
+  scored about 37 to the player's 380 (median pace in the stats: 31 points a second). Multiplicity shows what it would copy on the offer
   card, the pocket button ("▶ COPY 🍫 Gump Luck", or NOTHING TO COPY) and its info pop-up.
   The Price Is Right fires on pick too (v7.36.5): its bid card opens in the offer's place, so a
   player can't build a word, read its score and then bid. Fire-on-pick PowerPlays with a card
@@ -317,7 +320,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   **Last Words** (`components/LastWordsCard.tsx`): every ending goes through `END_RUN`, which opens
   one untimed word from the final hand at x3 (once, `lastWordsDone`), then `GAME_OVER_INITIATED`. It
   pays as an event, not a word: no level, offers or time. Order at the end of a run: free rescues,
-  Phoenix Down, Last Words, Game Over.
+  Phoenix Down, Last Words, Game Over. Both end-of-run cards ignore taps for 1.5 s while a bar
+  fills (`useArmDelay`, v7.47.1): players still tapping the board skipped them by accident.
   **Head Start** (`services/headStart.ts`, per player): a run ending before level 4 adds 3 s to the
   next starting clock (max 15), reaching level 4 clears it; a chip shows it until the first word.
   Never applied on the scored Daily Run.
