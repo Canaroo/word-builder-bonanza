@@ -314,13 +314,13 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 return (
                     <div className="absolute inset-0 bg-crt-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-3 animate-fade-in" role="dialog" aria-modal="true" aria-label="How the Skill Shot works">
                         <div className="bg-crt-900 border-4 border-neon-pink shadow-[0_0_28px_rgba(255,79,163,0.5)] rounded-2xl px-4 py-5 max-w-md w-full flex flex-col items-center text-center gap-3 level-stage-in">
-                            <p className="osd-text text-lg tracking-[0.3em] text-neon-pink">NEW · EVERY LEVEL</p>
+                            <p className="osd-text text-lg tracking-[0.3em] text-neon-pink">NEW LEVEL BONUS</p>
                             <h2 className="font-display text-3xl text-white leading-none">🎯 SKILL SHOT</h2>
                             <div className="w-20 h-20 my-2">
                                 <TileComponent tile={{ id: 'skill-intro', letter: data?.letter ?? 'A', points: data?.points ?? 1 }} onClick={() => {}} packTileClass={tileClass} skillShot={skillShotPrize} />
                             </div>
                             <ol className="text-left text-slate-200 leading-snug space-y-1.5 list-decimal pl-5">
-                                <li>At the start of every level, <strong className="text-neon-pink">one tile lights up pink</strong>. Right now it's your <strong className="text-white">{data?.letter ?? 'A'}</strong>.</li>
+                                <li>Each time you reach a new level, <strong className="text-neon-pink">one tile lights up pink</strong>. Right now it's your <strong className="text-white">{data?.letter ?? 'A'}</strong>.</li>
                                 <li>Use that tile in your <strong className="text-white">very next word</strong> and you score <strong className="text-neon-yellow">+{skillShotPrize}</strong> on top.</li>
                                 <li>Hit it level after level and it grows: +{SKILL_SHOT.step} more each time, up to +{SKILL_SHOT.max}. Miss once and it starts over.</li>
                             </ol>

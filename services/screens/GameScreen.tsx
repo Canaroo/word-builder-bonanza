@@ -69,6 +69,7 @@ const BUILD_ROW_SIZE = 8;
 // A fresh starting state for every run. It must be a new object each time: the game updates some
 // nested fields in place, and a shared starting object would carry them into the next run.
 export const createInitialGameState = (): GameState => ({
+  skillShot: null, // a run never inherits a lit tile or a streak
   score: 0,
   log: [],
   longestWord: '',
@@ -3099,7 +3100,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   }, [gameState, isLoading, isPaused, tilesInPlay, hintLevel]);
   // Skill Shot (v7.42): on the level's first word, one tile in the hand is lit. If the lit tile
   // leaves (a shuffle), another lights. The pick is seeded, so a Daily Run lights the same tile.
-  const skillShotOpen = totalWords % GAMEPLAY.levels.wordsPerLevel === 0;
+  // Only on a level reached in this run: a new run's opening hand never has one, and every run starts its streak at zero.
+  const skillShotOpen = totalWords % GAMEPLAY.levels.wordsPerLevel === 0 && hintLevel >= SKILL_SHOT.fromLevel;
   const skillShotTileId = skillShotOpen && gameState?.skillShot?.level === hintLevel ? gameState.skillShot.tileId : '';
   useEffect(() => {
       if (!gameState || isLoading || isPaused || !skillShotOpen || gameState.roundType === 'golden') return;
@@ -4479,7 +4481,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
 
       // Skill Shot (v7.42): the level's first word. Using the lit tile pays, more for each level in a row.
-      if (totalWords % GAMEPLAY.levels.wordsPerLevel === 0 && newState.skillShot?.level === levelFor(totalWords)) {
+      if (totalWords % GAMEPLAY.levels.wordsPerLevel === 0 && levelFor(totalWords) >= SKILL_SHOT.fromLevel && newState.skillShot?.level === levelFor(totalWords)) {
           const shot = newState.skillShot;
           const hit = !wordLocked && submittedTiles.some(t => t.id === shot.tileId);
           const streak = hit ? shot.streak + 1 : 0;
