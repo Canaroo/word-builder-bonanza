@@ -35,7 +35,7 @@ import { grudgeFor, grudgeTaunt, recordBossResult } from '../grudges';
 import { pickBone, refreshBones, markLooted, type Bone } from '../bones';
 import { currentPlayer } from '../players';
 import { BONES } from '../../config/gameplay';
-import { FORK, HOLD_SLOT, GRUDGE } from '../../config/gameplay';
+import { FORK, HOLD_SLOT, GRUDGE, SKILL_SHOT } from '../../config/gameplay';
 import { gemMultiplierFor, skillShotPoints } from '../rules';
 import { findPowerWordHint, powerWordHintStands } from '../powerWordHint';
 import { BOSSES, bossById, pickBoss } from '../../data/bosses';
@@ -3110,6 +3110,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       const sorted = [...tiles].sort((a, b) => a.id.localeCompare(b.id));
       const pick = sorted[Math.floor(gameUtils.dailyRank(gameState.runSeed, hintLevel * 131 + (gameState.shuffleCount ?? 0), 'skill-shot') * sorted.length)];
       dispatch({ type: 'UPDATE_GAME_STATE', payload: { skillShot: { level: hintLevel, tileId: pick.id, streak: shot?.streak ?? 0 } } });
+      // The first couple of times a player meets a lit tile, a card explains it (once per level, never on a relight).
+      if (shot?.level !== hintLevel) {
+          const shown = Number(storage.getJSON<number>(playerKey(STORAGE_KEYS.skillShotTips), 0)) || 0;
+          if (shown < SKILL_SHOT.introShows) {
+              storage.setJSON(playerKey(STORAGE_KEYS.skillShotTips), shown + 1);
+              dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'skill-intro', title: 'Skill Shot', data: { letter: pick.letter, points: pick.points } } });
+          }
+      }
   }, [gameState, isLoading, isPaused, skillShotOpen, hand, buildRow, hintLevel]);
 
   const handlePowerHintInfo = useCallback(() => {
@@ -4479,6 +4487,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               const points = skillShotPoints(streak);
               runningScore += points;
               scoreResult.bonuses.push({ name: '🎯 Skill Shot', description: `+${points} pts (lit tile in the level's first word${streak > 1 ? `, ${streak} levels in a row` : ''})` });
+              showToast(`🎯 SKILL SHOT! +${points}${streak > 1 ? ` · ${streak} IN A ROW` : ''}`, 3000);
+              soundService.playMilestone();
+          } else if (shot.tileId) {
+              // Say why nothing paid, so the rule teaches itself.
+              showToast(wordLocked ? '🎯 Skill Shot: no bonus on a wiped word' : `🎯 Skill Shot missed: the lit tile wasn't in your word${shot.streak > 0 ? ' (streak reset)' : ''}`, 3000);
           }
           newState.skillShot = { ...shot, streak, tileId: '' };
       }

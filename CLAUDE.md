@@ -310,6 +310,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Never applied on the scored Daily Run.
   **Skill Shot** (`gameState.skillShot`): on a level's first word one tile is lit (seeded pick);
   using it pays +50, +25 more per level in a row, max 200, as a "🎯 Skill Shot" line.
+  Made obvious in v7.44.5 (players didn't notice it): the lit tile wears its prize ("🎯+50"), the
+  chip is an instruction ("USE THE +50 TILE IN YOUR NEXT WORD"), a toast says SKILL SHOT! or why
+  it missed, and the first two times a player meets a lit tile a card explains it
+  (`skill-intro` pop-up, per-player `skillShotTips`). Browser checks on a fresh profile: tap
+  "Got it" before anything else.
   **Gem Tiles** (`pendingGem`, `Tile.isGem`): a 6 / 7 / 8+ letter word turns one plain tile of the
   next hand into a x3 / x4 / x5 word tile (`START_NEXT_ROUND`). It scores as a "Tile Multiplier"
   line, so it covers charm points like other tile multipliers.

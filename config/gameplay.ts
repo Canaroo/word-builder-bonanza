@@ -409,7 +409,7 @@ export const CHARM_SET_BONUS = { pair: 50, trio: 100, pullChance: 0.5 } as const
  */
 export const LAST_WORDS = { multiplier: 3 } as const;
 export const HEAD_START = { perRun: 3, max: 15, untilLevel: 4 } as const;
-export const SKILL_SHOT = { base: 50, step: 25, max: 200 } as const;
+export const SKILL_SHOT = { base: 50, step: 25, max: 200, introShows: 2 } as const; // introShows: times a player sees the explainer card
 export const GEM_TILES: Record<number, number> = { 6: 3, 7: 4, 8: 5 };
 
 /**

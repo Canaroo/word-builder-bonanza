@@ -12,8 +12,8 @@ interface TileProps {
   bossHint?: 'dim' | 'glow' | null;
   /** Bird Box: the tile is face down (letter and points hidden) but can still be played. */
   faceDown?: boolean;
-  /** Skill Shot: this is the level's lit tile. */
-  skillShot?: boolean;
+  /** Skill Shot: this is the level's lit tile, and the points it pays (shown on the tile). */
+  skillShot?: number;
 }
 
 const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hintOrder, isGolden, bossHint, faceDown, skillShot }) => {
@@ -75,7 +75,7 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
       onContextMenu={e => e.preventDefault()}
       disabled={tile.isLocked}
       className={`tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none ${tileStyle} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed' : ''} ${bossHint === 'dim' ? 'boss-tile-dim' : bossHint === 'glow' ? 'boss-tile-glow' : ''}`}
-      aria-label={`Tile ${tile.letter} with ${tile.tempPoints ?? tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${skillShot ? ', Skill Shot tile' : ''}${tile.isGem ? `, gem x${tile.multiplier}` : ''}${tile.isLocked ? ' (locked for this turn)' : ''}${bossHint === 'dim' ? ', breaks the boss rule' : bossHint === 'glow' ? ', the boss rule needs this tile' : ''}`}
+      aria-label={`Tile ${tile.letter} with ${tile.tempPoints ?? tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${skillShot ? `, Skill Shot tile: use it in this word for ${skillShot} points` : ''}${tile.isGem ? `, gem x${tile.multiplier}` : ''}${tile.isLocked ? ' (locked for this turn)' : ''}${bossHint === 'dim' ? ', breaks the boss rule' : bossHint === 'glow' ? ', the boss rule needs this tile' : ''}`}
     >
       {/* Rings and glows are overlays: the tile's own box-shadow is its 3D edge. */}
       {isSuperLook && <span className="tile-overlay ring-4 ring-red-400 animate-pulse" aria-hidden="true" />}
@@ -108,7 +108,7 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
       {skillShot && (
         <>
           <span className="tile-overlay ring-4 ring-neon-pink animate-pulse" aria-hidden="true" />
-          <span className="absolute -top-2 -right-2 z-20 text-base leading-none" aria-hidden="true">🎯</span>
+          <span className="absolute -top-2.5 -right-2 z-20 px-1.5 py-0.5 rounded-full bg-neon-pink text-white font-extrabold text-xs leading-none shadow-md animate-bounce" aria-hidden="true">🎯+{skillShot}</span>
         </>
       )}
       {tile.isDuplicate && (

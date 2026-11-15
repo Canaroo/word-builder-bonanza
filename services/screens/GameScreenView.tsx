@@ -23,7 +23,7 @@ import ContinueCard from '../../components/ContinueCard';
 import LastWordsCard from '../../components/LastWordsCard';
 import ForkCard from '../../components/ForkCard';
 import BonesCard from '../../components/BonesCard';
-import { FORK } from '../../config/gameplay';
+import { FORK, SKILL_SHOT } from '../../config/gameplay';
 import { skillShotPoints } from '../../services/rules';
 import GambleCard, { type GambleResult } from '../../components/GambleCard';
 import PowerPlayTrackers from '../../components/PowerPlayTrackers';
@@ -32,7 +32,7 @@ import CharmTimeNote from '../../components/CharmTimeNote';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
-  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'bones';
+  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'bones' | 'skill-intro';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -186,6 +186,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     handleActivatePowerPlay, handleActivateCharm, handleChoosePowerPlay, handleChooseCharm, handlePassCharm, handleUpgradeCharm, handleKeepPowerPlay,
     handleAddTileToSwap, handleRemoveTileFromSwap, handleExecuteSwap, dispatch
 }) => {
+    const skillShotPrize = skillShotPoints((gameState?.skillShot?.streak ?? 0) + 1);
     const timerRef = useRef<HTMLDivElement>(null);
     // Bird Box (v7.28): new tiles show their letters for a few seconds, then flip face down.
     // Only tiles never seen before start a peek (v7.32.4): tapping a tile into the word, or one
@@ -308,6 +309,26 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
             case 'continue-offer':
                 return <ContinueCard reason={data?.reason === 'strikes' ? 'strikes' : 'time'} credits={lexCoins} onAnswer={accept => handleContinueOffer?.(accept)} />;
+
+            case 'skill-intro':
+                return (
+                    <div className="absolute inset-0 bg-crt-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-3 animate-fade-in" role="dialog" aria-modal="true" aria-label="How the Skill Shot works">
+                        <div className="bg-crt-900 border-4 border-neon-pink shadow-[0_0_28px_rgba(255,79,163,0.5)] rounded-2xl px-4 py-5 max-w-md w-full flex flex-col items-center text-center gap-3 level-stage-in">
+                            <p className="osd-text text-lg tracking-[0.3em] text-neon-pink">NEW · EVERY LEVEL</p>
+                            <h2 className="font-display text-3xl text-white leading-none">🎯 SKILL SHOT</h2>
+                            <div className="w-20 h-20 my-2">
+                                <TileComponent tile={{ id: 'skill-intro', letter: data?.letter ?? 'A', points: data?.points ?? 1 }} onClick={() => {}} packTileClass={tileClass} skillShot={skillShotPrize} />
+                            </div>
+                            <ol className="text-left text-slate-200 leading-snug space-y-1.5 list-decimal pl-5">
+                                <li>At the start of every level, <strong className="text-neon-pink">one tile lights up pink</strong>. Right now it's your <strong className="text-white">{data?.letter ?? 'A'}</strong>.</li>
+                                <li>Use that tile in your <strong className="text-white">very next word</strong> and you score <strong className="text-neon-yellow">+{skillShotPrize}</strong> on top.</li>
+                                <li>Hit it level after level and it grows: +{SKILL_SHOT.step} more each time, up to +{SKILL_SHOT.max}. Miss once and it starts over.</li>
+                            </ol>
+                            <p className="text-sm text-slate-400">Skip it if the tile doesn't fit. It costs nothing to miss.</p>
+                            <ArcadeButton color="pink" className="w-full" onClick={handleCloseModal}>Got it</ArcadeButton>
+                        </div>
+                    </div>
+                );
 
             case 'bones':
                 return <BonesCard key={data?.bone?.id} bone={data.bone} heldCharmIds={(gameState?.activeCharms ?? []).map(c => c.id)} onDone={w => handleBonesDone?.(w)} />;
@@ -1027,7 +1048,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     >
                       {item && (
                         <div className="w-full h-full">
-                          <TileComponent tile={item.tile} onClick={() => handleReturnToHand(index)} packTileClass={tileClass} isGolden={item.tile.id === gameState?.goldenTileId} skillShot={item.tile.id === skillShotTileId} />
+                          <TileComponent tile={item.tile} onClick={() => handleReturnToHand(index)} packTileClass={tileClass} isGolden={item.tile.id === gameState?.goldenTileId} skillShot={item.tile.id === skillShotTileId ? skillShotPrize : undefined} />
                         </div>
                       )}
                     </div>
@@ -1065,8 +1086,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
               </span>
             )}
             {skillShotTileId && (
-              <span className="flex items-center gap-1 rounded-full bg-crt-950/80 ring-1 ring-neon-pink/70 px-2 py-0.5 text-xs text-white whitespace-nowrap" aria-label={`Skill Shot: use the lit tile in this word for ${skillShotPoints((gameState?.skillShot?.streak ?? 0) + 1)} points`}>
-                <span aria-hidden="true">🎯</span>SKILL SHOT · USE THE LIT TILE · +{skillShotPoints((gameState?.skillShot?.streak ?? 0) + 1)}
+              <span className="flex items-center gap-1 rounded-full bg-neon-pink/15 ring-1 ring-neon-pink px-2.5 py-1 text-xs font-semibold text-white whitespace-nowrap" aria-label={`Skill Shot: use the lit tile in your next word for ${skillShotPrize} points`}>
+                <span aria-hidden="true">🎯</span>SKILL SHOT: USE THE <span className="text-neon-pink">+{skillShotPrize} TILE</span> IN YOUR NEXT WORD
               </span>
             )}
           </div>
@@ -1098,7 +1119,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 const hintOrder = hintIndex >= 0 ? hintIndex + 1 : undefined;
                 return (
                   <div key={item?.id || originalIndex} className="w-full h-12 min-[375px]:h-14 sm:h-16 flex items-center justify-center">
-                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} skillShot={item.id === skillShotTileId} hintOrder={hintOrder} bossHint={bossTileHint(item)} faceDown={blind && !peeking} /> : <div className="w-full h-full rounded-lg bg-crt-950/60 ring-1 ring-white/5"></div>}
+                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} skillShot={item.id === skillShotTileId ? skillShotPrize : undefined} hintOrder={hintOrder} bossHint={bossTileHint(item)} faceDown={blind && !peeking} /> : <div className="w-full h-full rounded-lg bg-crt-950/60 ring-1 ring-white/5"></div>}
                   </div>
                 );
               })}
