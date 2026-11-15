@@ -68,8 +68,8 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             <Key>x{FORK.danger.points}</Key> on every word.
           </p>
           <p>
-            <Key>🧲 Hold slot:</Key> from level {HOLD_SLOT.fromLevel}, tap HOLD and then a tile to park it. It survives new
-            hands and shuffles until you tap it back into your hand.
+            <Key>🧲 Hold slot:</Key> hold the <Key>Hold That Thought</Key> charm and a HOLD button appears above your
+            tiles. Tap it, then a tile, to park that tile. It survives new hands and shuffles until you tap it back.
           </p>
           <p>
             <Key>⚔️ Grudge Match:</Key> a boss that got away from you remembers. Next time it has something to say, and

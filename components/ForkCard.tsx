@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { soundService } from '../services/soundService';
-import { FORK, HOLD_SLOT } from '../config/gameplay';
+import { FORK } from '../config/gameplay';
 
 // Fork in the Road (v7.43): at the start of a new tier the highway splits. Easy Street slows the
 // clock a little; the Danger Zone speeds it up and pays more on every word. The choice lasts until
@@ -33,11 +33,6 @@ const ForkCard: React.FC<{ level: number; onPick: (route: Route) => void }> = ({
             <span className="osd-text text-lg text-neon-yellow leading-tight">EVERY WORD x{FORK.danger.points}</span>
           </button>
         </div>
-        {level === HOLD_SLOT.fromLevel && (
-          <p className="text-sm text-slate-200 leading-snug rounded-lg ring-1 ring-neon-purple/60 bg-neon-purple/10 px-3 py-2">
-            <strong className="text-neon-purple">🧲 NEW: THE HOLD SLOT.</strong> Tap HOLD above your tiles, then tap a tile to park it. It survives new hands and shuffles until you tap it back.
-          </p>
-        )}
         <p className="text-xs text-slate-500">You can't skip this one. Choose wisely.</p>
       </div>
     </div>

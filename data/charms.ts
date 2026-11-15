@@ -859,6 +859,18 @@ export const CHARMS_LIST: Charm[] = [
     activate: createPassiveBuff('phoenixDown'),
   },
   {
+    // v7.45: the Hold slot, as a charm. While it's equipped a HOLD button sits above the hand.
+    id: 'holdThatThought',
+    name: 'Hold That Thought',
+    description: 'Adds a Hold slot: tap HOLD, then a tile, to park it. It stays through new hands and shuffles until you tap it back. Drop this charm and the parked tile comes back to you.',
+    flavorText: "Don't play it yet. You'll know when.",
+    icon: '🧲',
+    subtheme: 'utility',
+    effectType: 'triggered',
+    durationTag: 'PERSISTENT',
+    activate: createPassiveBuff('holdThatThought'),
+  },
+  {
     id: 'imAlwaysHere',
     name: "I'm Always Here",
     description: `An invalid word costs no time (it's still a strike).`,

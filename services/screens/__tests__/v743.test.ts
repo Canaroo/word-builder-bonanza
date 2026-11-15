@@ -5,6 +5,7 @@ import { gameReducer, screenInitialState, POST_WORD_MODALS, type GameScreenState
 import { FORK, GRUDGE, HOLD_SLOT } from '../../../config/gameplay';
 import { grudgeFor, grudgeTaunt, recordBossResult } from '../../grudges';
 import { BOSSES } from '../../../data/bosses';
+import { CHARMS_LIST } from '../../../data/charms';
 import { RACK_SIZE } from '../../../constants';
 import type { GameState, Tile } from '../../../types';
 
@@ -14,8 +15,9 @@ const handOf = (letters: string): (Tile | null)[] => {
     [...letters].forEach((l, i) => (h[i] = tile(l, i)));
     return h;
 };
+const HOLD = CHARMS_LIST.find(c => c.id === HOLD_SLOT.charmId)!;
 const start = (overrides: Partial<GameState> = {}, screen: Partial<GameScreenState> = {}): GameScreenState =>
-    ({ ...screenInitialState, time: 40, isLoading: false, hand: handOf('TOURSAEP'), ...screen, gameState: { ...screenInitialState.gameState, ...overrides } });
+    ({ ...screenInitialState, time: 40, isLoading: false, hand: handOf('TOURSAEP'), ...screen, gameState: { ...screenInitialState.gameState, activeCharms: [HOLD], ...overrides } });
 
 describe('Grudge Match', () => {
     beforeEach(() => localStorage.clear());
@@ -84,7 +86,20 @@ describe('Hold Slot', () => {
         expect(after.hand.some(t => t?.id === 'S-99')).toBe(true);
         expect(after.gameState.holdTile).toBeNull();
     });
-    test('unlocks with the first fork', () => expect(HOLD_SLOT.fromLevel).toBe(FORK.levels[0]));
+    test('it comes from a charm: no charm, no parking', () => {
+        const without = start({ activeCharms: [] });
+        expect(gameReducer(without, { type: 'HOLD_STASH', payload: { tile: without.hand[0]!, fromIndex: 0 } })).toBe(without);
+        expect(CHARMS_LIST.some(c => c.id === HOLD_SLOT.charmId)).toBe(true);
+    });
+    test('swapping the charm out hands the parked tile back', () => {
+        const hold = CHARMS_LIST.find(c => c.id === HOLD_SLOT.charmId)!;
+        const other = CHARMS_LIST.find(c => c.id === 'oneRing')!;
+        const s = start({ activeCharms: [hold], activeBuffs: [hold], holdTile: tile('Q', 77) }, { hand: handOf('TOUR') });
+        const after = gameReducer(s, { type: 'CHOOSE_CHARM', payload: { charm: other, hand: s.hand, allOffered: [other], replaceId: hold.id } });
+        expect(after.gameState.holdTile).toBeNull();
+        expect(after.hand.some(t => t?.id === 'Q-77')).toBe(true);
+        expect(after.gameState.activeCharms.map(c => c.id)).toEqual(['oneRing']);
+    });
 });
 
 describe('boss fights in the event log (v7.44.7)', () => {

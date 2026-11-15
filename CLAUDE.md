@@ -45,7 +45,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | Scoring | `services/gameUtils.ts` `calculateScore` |
 | Game state, reducer, turn logic | `services/screens/GameScreen.tsx` (large) |
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
-| PowerPlays / charms (100 / 101) | `data/powerPlays.ts`, `data/charms.ts` |
+| PowerPlays / charms (100 / 102) | `data/powerPlays.ts`, `data/charms.ts` |
 | Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
 | Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Fork, Hold Slot, Grudge Match, Bones | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `FORK`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`; cards in `components/` (`LastWordsCard`, `ForkCard`, `BonesCard`) |
 | Secret bonuses (107 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
@@ -329,8 +329,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   in `POST_WORD_MODALS`. Simulated at the pace real runs show (2.2-3.4 s a word): Danger is +50%
   for a player ahead of the clock and cuts survival from 79% to 10% for one on the edge at levels
   7-10; Easy Street lifts that player to 99%.
-  **Hold Slot** (`gameState.holdTile`, `HOLD_STASH` / `HOLD_RETURN`): from level 4, tap HOLD then
-  a tile to park it; it survives new hands and shuffles and joins the final hand for Last Words.
+  **Hold Slot** (`gameState.holdTile`, `HOLD_STASH` / `HOLD_RETURN`): a charm since v7.45.0 (the
+  owner's call; it used to open for everyone at level 4): while **Hold That Thought**
+  (`holdThatThought`, `HOLD_SLOT.charmId`) is equipped, a HOLD button sits above the hand; tap it,
+  then a tile, to park it. The tile survives new hands and shuffles and joins the final hand for
+  Last Words. Swapping the charm out hands the parked tile back (to the bag if the hand is full).
   **Grudge Match** (`services/grudges.ts`, per player): a boss that got away (no badge, or the run
   ended mid-fight) opens next time as a GRUDGE MATCH with a taunt built from the player's own
   numbers (`grudgeTaunt`; keep the jabs playful, kids play this), and beating it pays the badge
