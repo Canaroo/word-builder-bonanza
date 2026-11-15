@@ -401,7 +401,7 @@ const forkModal = (wordsBefore: number): ModalContent | null => {
  * Boss rounds: if this word levels up into a boss level, start the round on `gs` (a copy the
  * caller owns) and return the boss intro pop-up.
  */
-const startBossRound = (gs: GameState, wordsBefore: number): ModalContent | null => {
+const startBossRound = (gs: GameState, wordsBefore: number, logQueue?: EventLogEntry[], scoreNow: number = gs.score): ModalContent | null => {
     const level = levelFor(wordsBefore + 1);
     const number = level > levelFor(wordsBefore) ? bossNumberFor(level) : 0;
     if (!number) return null;
@@ -413,6 +413,14 @@ const startBossRound = (gs: GameState, wordsBefore: number): ModalContent | null
     gs.bossesFaced = [...(gs.bossesFaced ?? []), boss.id];
     sendStat({ type: 'boss_start', boss: boss.id, number });
     const reward = bossRewardFor(number);
+    // The event log records the fight (v7.44.7): who, the rule, and what a win needs. Each word's
+    // hit or dodge is a line in that word's breakdown; the result gets its own entry.
+    const startEntry = {
+        type: 'event', id: `boss-start-${boss.id}-${Date.now()}`, name: `${grudge.streak > 0 ? 'Grudge match' : 'Boss fight'}: ${boss.name}`, icon: boss.icon,
+        description: `Level ${level}. Rule: ${boss.rule} (${boss.description}) Win: ${bossHitsToWin(gs, boss)} hits in ${BOSS.words} words.`,
+        scoreChange: 0, cumulativeScore: scoreNow,
+    } as EventLogEntry;
+    if (logQueue) logQueue.push(startEntry); else gs.log = [...gs.log, startEntry];
     const rules = `Rule: ${boss.description}\n\nLand ${bossHitsToWin(gs, boss)} hits in your next ${BOSS.words} words to win the Boss Badge: +${reward.points} points and +${reward.seconds}s. Words that break the rule still score; they just don't count as hits.`;
     if (grudge.streak > 0) {
         const words = gs.log.filter((e): e is WordLogEntry => e.type === 'word' && e.status === 'valid').map(e => e.word);
@@ -2710,6 +2718,16 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 activeBuffs: finalGameState.activeBuffs.map(b => ({ name: b.name, icon: b.icon })),
                 cumulativeScore: finalGameState.score,
             };
+            // A boss still on the board when the run ends: say how the fight stood (v7.44.7).
+            const openFight = finalGameState.boss;
+            const openBoss = openFight ? bossById(openFight.id) : undefined;
+            if (openFight && openBoss) {
+                finalGameState.log = [...finalGameState.log, {
+                    type: 'event', id: `boss-unfinished-${openBoss.id}-${Date.now()}`, name: `${openBoss.name} was still standing`, icon: openBoss.icon,
+                    description: `The run ended mid-fight: ${openFight.hits}/${bossHitsToWin(finalGameState, openBoss)} hits, ${openFight.wordsLeft} ${openFight.wordsLeft === 1 ? 'word' : 'words'} left.`,
+                    scoreChange: 0, cumulativeScore: finalGameState.score,
+                } as EventLogEntry];
+            }
             finalGameState.log = [...finalGameState.log, gameOverLogEntry];
             
             if (reason === 'strikes') {
@@ -4350,9 +4368,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           const need = bossHitsToWin(newState, boss);
           const { round, outcome } = advanceBoss(bossRound, hit, need, bossCloseHits(boss));
           const hits = bossRound.hits + (hit ? 1 : 0);
+          const fightWord = BOSS.words - bossRound.wordsLeft + 1;
           scoreResult.bonuses.push(hit
-              ? { name: `👊 Boss hit on ${boss.name}`, description: `${hits}/${need}` }
-              : { name: `💨 ${boss.name} dodged`, description: boss.rule });
+              ? { name: `👊 HIT on ${boss.name} (word ${fightWord} of ${BOSS.words})`, description: `${hits}/${need} hits` }
+              : { name: `💨 MISS: ${boss.name} dodged (word ${fightWord} of ${BOSS.words})`, description: `broke ${boss.rule} · ${hits}/${need} hits` });
           newState.boss = round;
           if (hit && newState.activeCharms.some(c => c.id === 'doubleDragon')) {
               runningScore += CHARM_BONUS.doubleDragon;
@@ -4387,10 +4406,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               eventLogQueue.push({ type: 'event', id: `boss-${boss.id}-${now}`, name: `${boss.name} got away`, icon: '😤', description: `${hits}/${need} hits: so close.`, scoreChange: reward.closePoints, cumulativeScore: runningScore });
               modalQueue.push({ type: 'info', title: '😤 SO CLOSE!', content: `${hits}/${need} hits on ${boss.icon} ${boss.name}. +${reward.closePoints} points for the effort, but the badge (and its time) got away.` });
           } else if (outcome === 'escaped') {
+              eventLogQueue.push({ type: 'event', id: `boss-${boss.id}-${now}`, name: `${boss.name} escaped`, icon: '💨', description: `${hits}/${need} hits in ${BOSS.words - (round?.wordsLeft ?? 0)} words: no badge this time.`, scoreChange: 0, cumulativeScore: runningScore });
               modalQueue.push({ type: 'info', title: `💨 ${boss.name} got away`, content: `${hits}/${need} hits. No badge this time, and nothing lost.`, autoClose: 2500 });
           }
       }
-      const bossIntro = startBossRound(newState, totalWords);
+      const bossIntro = startBossRound(newState, totalWords, eventLogQueue, runningScore);
       if (bossIntro) modalQueue.push(bossIntro);
 
       // Gotta Catch 'Em All: collect all five vowels across your words, once per run.

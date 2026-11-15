@@ -188,7 +188,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   (words that follow it) for the Boss Badge (points + time that skips the level shrink); 4–5 hits
   pays points only. The four hardest rules (Ivan Drago, Big Boss, Cruella, Jafar) need 4 hits
   (`hitsToWin` on the boss; "so close" is always 2 below, `bossCloseHits`). Breaking the rule never costs anything: the word still scores. Bosses go
-  early → mid → late, random within a tier. Boss Badges are permanent (one per boss) and show
+  early → mid → late, random within a tier. The event log records each fight (v7.44.7): a "Boss
+  fight: X" entry with the rule when it starts, a HIT or MISS line (word N of 8, hits so far) in
+  each word's breakdown, then Beat X / X got away (so close) / X escaped, or "X was still standing"
+  if the run ended mid-fight. Boss Badges are permanent (one per boss) and show
   on the Top 50 as 🏅N; Firebase needs the `bosses` rule line in `docs/LEADERBOARD.md`.
 - **Balance from usage stats (v7.33.0, 90 runs):** bosses were either free or impossible, so
   Ursula, The Noid and Magneto also need 4+ letters (they were beaten 34 of 35 times), the four
