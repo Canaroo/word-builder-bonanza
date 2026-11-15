@@ -1344,7 +1344,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'smellYaLater',
     name: 'Smell Ya Later!',
-    description: `Starts the moment you pick it: race your rival for your next ${POWER_PLAY_VALUES.rivalWords} words: he scores ${POWER_PLAY_VALUES.rivalPointsPerSecond} points for every second you take. Outscore him with those words and win +${POWER_PLAY_VALUES.rivalPrize}.`,
+    description: `Starts the moment you pick it: race your rival for your next ${POWER_PLAY_VALUES.rivalWords} words. He scores as fast as you've been scoring this run (at least ${POWER_PLAY_VALUES.rivalPointsPerSecond} points a second) for every second you take. Outscore him with those words and win +${POWER_PLAY_VALUES.rivalPrize}.`,
     flavorText: 'Smell ya later!',
     icon: '🏃',
     subtheme: 'timer',

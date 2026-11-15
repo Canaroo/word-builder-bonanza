@@ -10,7 +10,7 @@ import { calculateScore } from '../../gameUtils';
 import * as gameUtils from '../../gameUtils';
 import { RACK_SIZE } from '../../../constants';
 import type { GameState, Tile } from '../../../types';
-import { tamagotchiPot, tamagotchiFeed, blackjackPayout, blackjackCard, cardSharksPot, drawCard, cardFace, rivalScore, redrumReverse } from '../../rules';
+import { tamagotchiPot, tamagotchiFeed, blackjackPayout, blackjackCard, cardSharksPot, drawCard, cardFace, rivalScore, rivalRateFor, redrumReverse } from '../../rules';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -60,6 +60,11 @@ describe('v7.28 rules', () => {
     });
     test('rival scores per second; REDRUM needs 4+ letters', () => {
         expect(rivalScore(10)).toBe(10 * V.rivalPointsPerSecond);
+        expect(rivalScore(10, 40)).toBe(400);
+        // The rival races at your pace this run (score per second of play), never below the floor.
+        expect(rivalRateFor(3100, 100_000)).toBe(31);
+        expect(rivalRateFor(500, 100_000)).toBe(V.rivalPointsPerSecond);
+        expect(rivalRateFor(9000, 10_000)).toBe(V.rivalPointsPerSecond); // under 20 seconds: no pace yet
         expect(rivalScore(-3)).toBe(0);
         expect(redrumReverse('STAR')).toBe('rats');
         expect(redrumReverse('CAT')).toBeNull();
@@ -164,7 +169,8 @@ describe('timed and blind PowerPlays start the moment they are picked (v7.28.1)'
         const quiz = gameReducer(start({ powerPlayOffer: [pp('popQuizHotshot')] }, 33), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('popQuizHotshot'), allOffered: [pp('popQuizHotshot')] } });
         expect(quiz.gameState.activePowerPlays.popQuizHotshot).toEqual({ startClock: 33, startMs: 0 });
         const race = gameReducer(start({ powerPlayOffer: [pp('smellYaLater')] }, 27), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('smellYaLater'), allOffered: [pp('smellYaLater')] } });
-        expect(race.gameState.activePowerPlays.smellYaLater).toEqual({ words: V.rivalWords, mine: 0, rival: 0, clock: 27, startMs: 0 });
+        // No pace yet (fresh run): the rival runs at the floor rate.
+        expect(race.gameState.activePowerPlays.smellYaLater).toEqual({ words: V.rivalWords, mine: 0, rival: 0, clock: 27, startMs: 0, rate: V.rivalPointsPerSecond });
     });
 
     test('The Price Is Right opens the bid on pick, before any word is built (v7.36.5)', () => {

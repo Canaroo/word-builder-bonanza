@@ -486,8 +486,20 @@ export const cardSharksPot = (right: number): number =>
 export const drawCard = (rand: () => number = Math.random): number => 2 + Math.floor(rand() * 13);
 /** Card Sharks: the card's face (2-10, J, Q, K, A). */
 export const cardFace = (card: number): string => ({ 11: 'J', 12: 'Q', 13: 'K', 14: 'A' } as Record<number, string>)[card] ?? String(card);
-/** Smell Ya Later!: the rival's score after this many seconds. */
-export const rivalScore = (seconds: number): number => Math.round(Math.max(0, seconds) * POWER_PLAY_VALUES.rivalPointsPerSecond);
+/** Smell Ya Later!: the rival's score after this many seconds, at `rate` points a second. */
+export const rivalScore = (seconds: number, rate: number = POWER_PLAY_VALUES.rivalPointsPerSecond): number =>
+    Math.round(Math.max(0, seconds) * rate);
+/**
+ * Smell Ya Later!: the rival's points a second for a race starting now (v7.47.1): the player's own
+ * pace this run (score per second the clock has run) x rivalPace, at least rivalPointsPerSecond.
+ * Under 20 seconds of play there's no pace yet, so the floor applies.
+ */
+export const rivalRateFor = (score: number, playMs: number): number => {
+    const V = POWER_PLAY_VALUES;
+    const seconds = playMs / 1000;
+    const pace = seconds >= 20 ? (Math.max(0, score) / seconds) * V.rivalPace : 0;
+    return Math.max(V.rivalPointsPerSecond, Math.round(pace));
+};
 /** REDRUM: the word spelled backward (lowercase) when it's long enough to count, else null. */
 export const redrumReverse = (word: string): string | null =>
     word.length >= POWER_PLAY_VALUES.redrumLetters ? word.split('').reverse().join('').toLowerCase() : null;
