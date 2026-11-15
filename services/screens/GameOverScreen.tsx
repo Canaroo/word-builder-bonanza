@@ -1,4 +1,5 @@
 
+import { Sec } from '../../components/Seconds';
 import React, { useState, useEffect } from 'react';
 import { FinalGameState, WordLogEntry, TimeLedger } from '../../types';
 import { soundService } from '../soundService';
@@ -57,7 +58,7 @@ const TimeRecap: React.FC<{ ledger?: TimeLedger }> = ({ ledger }) => {
     <div className="py-2 border-b border-dashed border-white/10 text-left" aria-label="Where your time came from">
       <div className="flex items-baseline justify-between gap-2">
         <span className="osd-text text-lg leading-none text-neon-cyan/90">⏱ TIME EARNED</span>
-        <span className="font-osd text-2xl leading-none text-white">{total}s</span>
+        <span className="font-osd text-2xl leading-none text-white">{total}<Sec /></span>
       </div>
       <div className="mt-2 flex h-2.5 rounded-full overflow-hidden bg-crt-700">
         {TIME_SOURCES.map(src => ledger[src.key] > 0 && (

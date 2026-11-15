@@ -89,6 +89,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   (`WHAMMY_BOARD`), STOP rolls the result (`whammySpin`: Whammy at `whammyChance`, else cash from
   `whammyCash`, which averages the old +150) and the light slows onto a matching square. Luck, not
   timing; the roll is saved before the light lands, so a quit can't reroll it.
+  (v7.44.4: the roll is made once, `hotTubIndex`. It used to be rolled again for each outcome it
+  was compared with, so 29% of spins matched nothing and froze the card, and the odds were off.)
   Hot Tub Time Machine (v7.36.4, `HotTub`): hold to crank a year dial, let go, it spins down onto
   +25 s (1986), +10 s (2006) or -8 s (2036); rolled on release from `POWER_PLAY_VALUES.hotTub`.
   Lucky Charms (`LuckyCharms`): shake the cereal box, a charm tumbles out and flips, and a bumped
@@ -173,6 +175,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
   warning the level before, always first in the pop-up queue, then the level badge flashes.
+- **Seconds are never a bare "s" in the arcade fonts** (v7.44.4). Bungee has no lowercase, so
+  "+25s" drew as "+25S" and read as "+255"; VT323 is nearly as bad. Use `<Sec />` after a number or
+  `withSec()` on a string (`components/Seconds.tsx`): a small lowercase "sec" in the plain font.
+  `ArcadeButton`, the message bar, plain card titles, outcome headlines and level-up rows run their
+  text through it already; decade names ("'90s Throwback") are left alone. Plain body text is fine.
 - **Shuffle** is press-and-hold (450 ms), adds +5 s, and never pauses the clock.
 - **Tiles** act on touch-down (pointerdown), not click.
 - **Combo Breaker:** next 3 words, each 4+ letter word scores x3, a shorter word scores 0 and ends

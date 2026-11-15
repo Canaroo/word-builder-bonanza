@@ -1,3 +1,5 @@
+import { hotTubIndex } from '../services/rules';
+import { Sec } from './Seconds';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import ArcadeButton from './ArcadeButton';
 import { POWER_PLAY_VALUES as V } from '../config/gameplay';
@@ -629,6 +631,7 @@ const HotTub: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve 
   const [year, setYear] = useState('2026');
   const [lit, setLit] = useState<number | null>(null);
   const crankStart = useRef(0);
+  const rolling = useRef(false);
 
   // Cranking: the year digits whir.
   useEffect(() => {
@@ -661,7 +664,11 @@ const HotTub: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve 
   const endCrank = () => {
     if (!cranking) return;
     const wait = Math.max(0, 350 - (performance.now() - crankStart.current)); // a tap still cranks a little
-    setTimeout(() => { setCranking(false); setRoll(outcomes.findIndex(o => o.seconds === hotTubSeconds(Math.random()))); }, wait);
+    // One roll, made once. (It used to be rolled again for each outcome it was compared with, so
+    // 29% of spins matched nothing and froze the card, and the odds were off: v7.44.4.)
+    if (rolling.current) return; // letting go fires more than one event; roll once
+    rolling.current = true;
+    setTimeout(() => { setCranking(false); setRoll(hotTubIndex(Math.random())); }, wait);
   };
   const shown = done && roll !== null ? roll : lit;
   const result = done && roll !== null ? outcomes[roll].seconds : null;
@@ -690,7 +697,7 @@ const HotTub: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve 
       <div className="w-full grid grid-cols-3 gap-2">
         {outcomes.map((o, i) => (
           <div key={i} className={`rounded-xl ring-2 py-2 transition-all ${shown === i ? (o.seconds > 0 ? 'bg-neon-green/25 ring-neon-green scale-105' : 'bg-neon-red/25 ring-neon-red scale-105') : 'bg-crt-950 ring-white/10'}`}>
-            <p className={`font-display text-xl leading-none ${o.seconds > 0 ? 'text-neon-green' : 'text-neon-red'}`}>{o.seconds > 0 ? '+' : ''}{o.seconds}s</p>
+            <p className={`font-display text-xl leading-none ${o.seconds > 0 ? 'text-neon-green' : 'text-neon-red'}`}>{o.seconds > 0 ? '+' : ''}{o.seconds}<Sec /></p>
             <p className="osd-text text-sm leading-none text-slate-400 mt-1">{HOT_TUB_YEARS[i]} · {Math.round(o.chance * 100)}%</p>
           </div>
         ))}

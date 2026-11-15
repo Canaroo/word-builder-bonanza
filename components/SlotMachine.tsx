@@ -1,3 +1,4 @@
+import { Sec, withSec } from './Seconds';
 import React, { useEffect, useRef, useState } from 'react';
 import { soundService } from '../services/soundService';
 
@@ -43,7 +44,7 @@ const SlotMachine: React.FC<{ title: string; seconds: number; reels: string; jac
       <div className="w-full max-w-sm rounded-2xl p-[3px] bg-gradient-to-b from-neon-yellow via-neon-orange to-neon-pink shadow-[0_0_28px_rgba(255,210,63,0.5)]">
         <div className="rounded-[14px] bg-crt-900 p-4 flex flex-col items-center gap-4">
           <h2 className="font-display text-2xl text-neon-yellow text-center leading-none">{title}</h2>
-          <p className="osd-text text-base text-slate-400 text-center leading-tight">EVERY PULL WINS: 🍒 +1s · 🔔 +3s · 7️⃣ +10s</p>
+          <p className="osd-text text-base text-slate-400 text-center leading-tight">{withSec('EVERY PULL WINS: 🍒 +1s · 🔔 +3s · 7️⃣ +10s')}</p>
           <div className="flex gap-2 items-center">
             <div className="flex gap-2 rounded-xl bg-crt-950 ring-2 ring-neon-yellow/60 p-2" aria-live="polite" aria-label={phase === 'done' ? `${reels} ${reels} ${reels}: plus ${seconds} seconds` : 'Reels'}>
               {faces.map((f, i) => (
@@ -59,7 +60,7 @@ const SlotMachine: React.FC<{ title: string; seconds: number; reels: string; jac
           </div>
           {phase === 'done' ? (
             <>
-              <p className={`font-display text-3xl leading-none ${jackpot ? 'text-neon-yellow neon-flicker' : 'text-neon-cyan'}`}>{label} +{seconds}s</p>
+              <p className={`font-display text-3xl leading-none ${jackpot ? 'text-neon-yellow neon-flicker' : 'text-neon-cyan'}`}>{label} +{seconds}<Sec /></p>
               <p className="osd-text text-base text-slate-400">ADDED TO YOUR NEXT ROUND</p>
               <button type="button" onClick={onClose} className="w-full px-6 py-3 text-xl font-bold text-slate-900 bg-neon-yellow rounded-lg">▶ CONTINUE</button>
             </>
