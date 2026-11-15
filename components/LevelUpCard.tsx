@@ -16,6 +16,12 @@ const TONE: Record<LevelUpInfo['tone'], { text: string; border: string; glow: st
 
 const Changes: React.FC<{ info: LevelUpInfo; text: string; hideBossNow?: boolean }> = ({ info, text, hideBossNow = false }) => (
   <ul className="w-full space-y-1.5 my-4 text-left" aria-label="What changed">
+    {info.overtime && (
+      <li className="rounded-lg bg-neon-orange/15 ring-2 ring-neon-orange px-3 py-2 text-center">
+        <span className="font-display text-xl text-neon-orange block leading-tight">⏰ OVERTIME</span>
+        <span className="text-sm text-slate-200 leading-snug">From here on, every level the clock speeds up more and words earn less time.</span>
+      </li>
+    )}
     {info.changes.map(c => (
       <li key={c.label} className="flex items-center gap-2 rounded-lg bg-crt-950/70 ring-1 ring-white/10 px-3 py-2">
         <span aria-hidden="true">{c.icon}</span>

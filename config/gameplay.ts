@@ -42,9 +42,19 @@ export const GAMEPLAY = {
     /** Extra clock speed per level (0.05 = 5% faster each level), then per late level. */
     speedUpPerLevel: 0.05,
     lateSpeedUpPerLevel: 0.07,
-    /** The clock never runs faster than this (reached at level 17, word 288). */
+    /** The normal ramp stops here (level 17); OVERTIME (below) keeps going past it. */
     maxSpeed: 2.0,
   },
+
+  /**
+   * Overtime (v7.47): from this level the squeeze keeps going instead of leveling off (the
+   * normal ramps stop at level 15-17). Each level from here on adds `clockPerLevel` to the clock
+   * speed (up to `clockCap`) and takes `wordTimePerLevel` off the share of time words earn (down
+   * to `wordTimeFloor`). Simulated (stats from Nov 12-15, top runs reaching level 18-24): a top
+   * player's median run ends at level 17 instead of 21 (best 10%: 18 instead of 24); a strong
+   * player's at 14 instead of 15; typical runs (median level 3) never reach it.
+   */
+  overtime: { fromLevel: 12, clockPerLevel: 0.04, clockCap: 2.4, wordTimePerLevel: 0.02, wordTimeFloor: 0.55 },
 
   /**
    * Level tiers: a name and color for each stretch of levels, shown on the level badge and the
