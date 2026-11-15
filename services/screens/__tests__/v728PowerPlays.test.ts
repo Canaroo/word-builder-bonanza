@@ -27,10 +27,10 @@ const scoreWith = (active: Record<string, unknown>) =>
     calculateScore('cat', tiles('CAT'), { ...screenInitialState.gameState, activePowerPlays: active }).totalScore;
 
 describe('v7.28 PowerPlays', () => {
-    test('all 14 exist, with unique ids, and the total is 100', () => {
+    test('all 14 exist, with unique ids, and the total is 101', () => {
         for (const id of NEW_IDS) expect(pp(id), id).toBeTruthy();
-        expect(POWER_PLAYS_LIST).toHaveLength(100);
-        expect(new Set(POWER_PLAYS_LIST.map(p => p.id)).size).toBe(100);
+        expect(POWER_PLAYS_LIST).toHaveLength(101); // v7.50.0: WILDCARD
+        expect(new Set(POWER_PLAYS_LIST.map(p => p.id)).size).toBe(101);
     });
 
     test('descriptions read their numbers from config', () => {

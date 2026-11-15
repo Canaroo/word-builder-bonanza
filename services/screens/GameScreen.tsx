@@ -281,7 +281,8 @@ type GameAction =
     | { type: 'BLACKJACK_STAND' }
     | { type: 'RETURN_BUILD_ROW' }
     | { type: 'SET_GAMBLE_STATE', payload: { key: string; value: unknown } }
-    | { type: 'DRAFT_TILES', payload: { letters: string[] } };
+    | { type: 'DRAFT_TILES', payload: { letters: string[] } }
+    | { type: 'ADD_FREE_TILE', payload: { letter: string } };
 
 
 /**
@@ -802,6 +803,19 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             };
         }
         // Draft Day (v7.28): the picked pack replaces the lowest-value tiles in the hand.
+        // WILDCARD (v7.50.0): a free tile of the player's choice joins this hand as an extra slot.
+        // The next hand is dealt fresh at the normal size, so it lasts this hand only.
+        case 'ADD_FREE_TILE': {
+            const letter = String(action.payload.letter ?? '').toUpperCase();
+            if (!/^[A-Z]$/.test(letter)) return state;
+            // An empty slot first (one no tile in the word row will return to), else an extra slot.
+            const taken = new Set(state.buildRow.filter(Boolean).map(b => b!.originalIndex));
+            const slot = state.hand.findIndex((t, i) => t === null && !taken.has(i));
+            const tile = gameUtils.createTile(letter);
+            if (slot === -1) return { ...state, hand: [...state.hand, tile] };
+            const hand = [...state.hand]; hand[slot] = tile;
+            return { ...state, hand };
+        }
         case 'DRAFT_TILES': {
             const letters: string[] = action.payload.letters;
             const slots = state.hand.map((t, i) => ({ t, i })).filter((x): x is { t: Tile; i: number } => x.t !== null)
@@ -5457,6 +5471,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         } });
         // Draft Day: the picked pack joins the hand.
         if (r.draft) dispatch({ type: 'DRAFT_TILES', payload: { letters: r.draft } });
+        // WILDCARD: the free tile joins the hand.
+        if (r.tile) dispatch({ type: 'ADD_FREE_TILE', payload: { letter: r.tile } });
         // Lucky Charms: the charm from the box goes on (bumping the picked one when slots are full).
         if (r.charm) {
             const charm = CHARMS_LIST.find(c => c.id === r.charm!.id);
@@ -5598,7 +5614,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         // --- v7.25 gambles ---
         if (GAMBLE_CARD_IDS.includes(powerPlay.id)) {
             soundService.playPowerUp();
-            dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gamble', title: powerPlay.name, data: { id: powerPlay.id, icon: powerPlay.icon } } });
+            // WILDCARD's card says up front whether a shield would take its strike.
+            const shielded = powerPlay.id === 'wildcard' && !!(gameState.activePowerPlays.strikeShield || gameState.activePowerPlays.plotArmor);
+            dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gamble', title: powerPlay.name, data: { id: powerPlay.id, icon: powerPlay.icon, ...(shielded ? { shielded } : {}) } } });
             return;
         }
         if (powerPlay.id === 'neuralyzer') {
