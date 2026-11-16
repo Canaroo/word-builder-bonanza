@@ -1,7 +1,7 @@
 import { Sec } from '../../components/Seconds';
 import React from 'react';
 import { soundService } from '../soundService';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, HEAD_START, SKILL_SHOT, GEM_TILES, FORK, HOLD_SLOT, GRUDGE, BONES, GATES } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, HEAD_START, SKILL_SHOT, GEM_TILES, FORK, HOLD_SLOT, GRUDGE, BONES, GATES, GREATEST_HITS } from '../../config/gameplay';
 import { PHOENIX_DOWN } from '../../config/progression';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import ArcadeButton from '../../components/ArcadeButton';
@@ -221,6 +221,19 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             <Key>{BOSS.words} words</Key>. Land <Key>{BOSS.hitsToWin} hits</Key> (words that follow the rule) to win their{' '}
             <Key>Boss Badge</Key>, worth points and time (the toughest rules need fewer hits). Breaking the rule never costs you: the word still scores.
           </p>
+        </Section>
+
+        <Section title="Greatest Hits" icon="📀" tone="text-neon-yellow">
+          <p>
+            Got a word you love? Play it again. When a word has been played as many times as it has letters, it goes platinum (once a run for each length):
+          </p>
+          <ul className="list-disc pl-5 space-y-0.5">
+            {GREATEST_HITS.tiers.slice(0, 4).map(t => (
+              <li key={t.letters}>{t.letters}-letter word, {t.letters} times: {t.icon} <Key>{t.title}</Key> +{t.points.toLocaleString()}</li>
+            ))}
+            <li>…and on up the charts for longer words.</li>
+          </ul>
+          <p>A {GREATEST_HITS.tiers[0].icon} chip above your tiles shows the word that's closest to its next record.</p>
         </Section>
 
         <Section title="Score Gates" icon="🚪" tone="text-neon-pink">

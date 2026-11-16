@@ -125,6 +125,21 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   10, and the card shows this level's amount), 40% -300 points (fixed, never below 0). The result is
   rolled when the croc surfaces and saved in the pop-up, so a quit can't reroll it. Expected per 100
   words held: about +24 s and -480 points. The longer it's held, the more rolls.
+- **Greatest Hits (v7.52.0)** (`GREATEST_HITS` in `config/gameplay.ts`, `services/greatestHits.ts`,
+  `components/GreatestHitCard.tsx`, the owner's idea): replaying a word "goes platinum". The first
+  3-letter word played 3 times in a run goes 📀 GOLD (+500); a 4-letter word 4 times 💿 PLATINUM
+  (+1,000); 5 letters 5 times 💎 DIAMOND (+1,500); then 6-8 (+2,000 to +3,000, about never). Each
+  record pays once a run, in any order, as a separate reward after the Danger Zone multiplier
+  (not multiplied or level-boosted). Plays are counted from the log (valid words, any case), so
+  undo and resume stay consistent; `gameState.hitsClaimed` holds the lengths already paid. The
+  owner first wanted +500, +1,000, +1,500 for 3, 4, 5... plays of any word, but that could be
+  farmed (TEA 30 times in a long run would pay 200,000+), so letters must match plays.
+  Simulated (best word per length, 8-tile hands): 3x3 in 98% of 59-word runs; 4x4 in 23% of
+  59-word and 94% of 180-word runs; 5x5 in 6% of 180-word and 26% of 292-word runs. Players see a
+  record card (spinning disc, "TEA WENT GOLD", "That's the 3rd time...", NEXT ON THE CHARTS), a
+  chip above the tiles once a word has 2 plays ("TEA 2/3 · ONE MORE FOR GOLD +500", the closest
+  word only), a score line, an event log entry and a How to Play section. Not the WALL-E charm
+  (which used to be named Recycler: reusing letters from the last word).
 - **Multi-word PowerPlays (v7.28)** settle in `completeSubmission` and pay outside the word, with
   a progress chip above the hand (`components/PowerPlayTrackers.tsx`): Tamagotchi (pot), Time
   Capsule (buried word), Smell Ya Later! (rival race), Winner Winner Chicken Dinner (each valid word

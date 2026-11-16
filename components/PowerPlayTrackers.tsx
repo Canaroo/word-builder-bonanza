@@ -2,6 +2,7 @@ import React from 'react';
 import type { GameState } from '../types';
 import { POWER_PLAY_VALUES as V } from '../config/gameplay';
 import { tamagotchiPot, blackjackPayout } from '../services/rules';
+import { hitInProgress } from '../services/greatestHits';
 
 // Small chips above the hand for PowerPlays that play out over several words (v7.28): the
 // Tamagotchi's pot, a buried Time Capsule, the rival race, the blackjack count (tap to stand),
@@ -15,6 +16,16 @@ const Chip: React.FC<{ icon: string; label: string; children: React.ReactNode }>
 const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string[]; quizLeft?: number; raceRival?: number; onStand: () => void }> = ({ gameState, upcomingTiles = [], quizLeft, raceRival, onStand }) => {
   const a = (gameState?.activePowerPlays ?? {}) as Record<string, any>;
   const chips: React.ReactNode[] = [];
+  // Greatest Hits (v7.52.0): the word closest to its next record, once it has 2 plays.
+  const hit = hitInProgress(gameState?.log ?? [], gameState?.hitsClaimed ?? []);
+  if (hit) {
+    const left = hit.tier.letters - hit.plays;
+    chips.push(
+      <span key="hits" className="flex items-center gap-1 rounded-full bg-neon-yellow/15 ring-1 ring-neon-yellow/70 px-2 py-0.5 text-xs text-white whitespace-nowrap"
+        aria-label={`Greatest Hits: ${hit.word} played ${hit.plays} of ${hit.tier.letters} times. ${left} more to go ${hit.tier.title} for ${hit.tier.points} points`}>
+        <span aria-hidden="true">{hit.tier.icon}</span>{hit.word} {hit.plays}/{hit.tier.letters} · {left === 1 ? 'ONE MORE' : `${left} MORE`} FOR {hit.tier.title} +{hit.tier.points.toLocaleString()}
+      </span>);
+  }
   // Pop Quiz (v7.36.1): its own countdown in real seconds, so the player can see the 5 s running.
   if (quizLeft !== undefined) {
     const left = Math.ceil(quizLeft);

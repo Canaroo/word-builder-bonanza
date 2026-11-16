@@ -13,6 +13,7 @@ import { EASTER_EGGS } from '../../data/easterEggs';
 import { recordFound, collectionProgress } from '../collection';
 import { WORD_BONUSES } from '../../data/wordBonuses';
 import { soundService } from '../soundService';
+import { playCounts, greatestHitFor, nextHit } from '../greatestHits';
 import { dictionaryService } from '../dictionaryService';
 import { seededStream, type DailyRun } from '../daily';
 import { missedWordsService } from '../missedWordsService';
@@ -464,7 +465,7 @@ const levelUpModal = (wordsBefore: number, gs?: GameState): ModalContent | null 
  * stuck in the old round: v7.19.0's level-up card was, so a word whose only pop-up was a
  * level-up lost its word time, and Groundhog's Day saw a word "already played" and didn't fire.
  */
-export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork', 'bones', 'croc'];
+export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork', 'bones', 'croc', 'greatest-hit'];
 
 /**
  * A chance PowerPlay's result (a roll, a coin flip, a random tile): a centered card that waits
@@ -4609,6 +4610,23 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       // --- 6. Aggregate Score and Check Aggregate Bonuses ---
       const turnScorePreMilestone = runningScore - oldScore;
+
+      // Greatest Hits (v7.52.0): an N-letter word played N times this run goes GOLD, PLATINUM...
+      // A separate reward, like the word bonuses below: not multiplied or level-boosted.
+      {
+          const upper = word.toUpperCase();
+          const plays = (playCounts(newState.log).get(upper) ?? 0) + 1; // this word isn't in the log yet
+          const claimed = newState.hitsClaimed ?? [];
+          const hit = greatestHitFor(upper, plays, claimed);
+          if (hit) {
+              runningScore += hit.points;
+              newState.hitsClaimed = [...claimed, hit.letters];
+              const next = nextHit(newState.hitsClaimed);
+              scoreResult.bonuses.push({ name: `${hit.icon} Greatest Hit: ${upper} went ${hit.title}`, description: `+${hit.points} pts` });
+              eventLogQueue.push({ type: 'event', id: `hit-${hit.letters}-${Date.now()}`, name: `Greatest Hit: ${hit.title}`, icon: hit.icon, description: `${upper} played ${plays} times this run.`, scoreChange: hit.points, cumulativeScore: runningScore });
+              modalQueue.push({ type: 'greatest-hit', title: 'Greatest Hit!', data: { word: upper, plays, letters: hit.letters, next: next?.letters ?? null } });
+          }
+      }
 
       // Word Bonuses
       const newWordBonus = WORD_BONUSES.find(wb => 

@@ -323,6 +323,8 @@ export interface GameState {
   holdTile?: Tile | null;
   /** Tick-Tock Croc (v7.51.0): valid words since it was equipped or last surfaced. */
   crocWords?: number;
+  /** Greatest Hits (v7.52.0): the word lengths whose record already paid this run (3 = GOLD...). */
+  hitsClaimed?: number[];
   /** Last Words (v7.42): the parting-word card has been shown this run. */
   lastWordsDone?: boolean;
   /** Head Start: seconds added to this run's starting clock (shown until the first word). */
