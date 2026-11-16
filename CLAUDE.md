@@ -180,7 +180,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Pull the stats with `curl .../stats.json` (the session's environment allows the Firebase host).
   v7.29.1 reworked three never-picked PowerPlays (ids kept for stats): Scrooge's Money Bin (fires
   on pick; a 40+ next word earns 3 Credits, no cost), Duck Hunt (Zapper: shoot a tile, a random
-  replacement is worth 3x), Wario Warp (+300 now for 10 s).
+  replacement is worth 3x), Wario Warp (+300 now for 10 s). v7.52.1 says Wario's cost plainly (the
+  owner found "starts 10 seconds lower" unclear): "you lose 10 seconds off your clock when your next
+  hand is dealt" on the card and in the message, a buffs-tray reminder until it's paid, and "💰 Wario's
+  bill: you lost 10 seconds off your clock" when it comes off (`warioTimeDebt` in `START_NEXT_ROUND`).
 - **Daily Run (v7.30):** one deal a day from a date seed (8 AM reset, `dayKey`; #1 = 2026-11-07).
   Seeded: the tile bag and tile luck (`setTileStream` in `gameUtils.ts`; its position is saved as
   `gameState.daily.rng`), offers (`getOffer` ranks items by `dailyRank`, ignoring pick history), and
