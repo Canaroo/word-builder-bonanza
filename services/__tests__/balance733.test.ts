@@ -348,3 +348,20 @@ describe('multipliers cover charm points (v7.35)', () => {
         }
     });
 });
+
+describe('upgrade preview for percentage charms (v7.51.2)', () => {
+    test('Down to Your Boxers shows +50% -> +75%, the 25% charms 25% -> 37.5%', async () => {
+        const { charmUpgradePercentPreview, charmUpgradePreview } = await import('../rules');
+        const { CHARMS_LIST, UPGRADABLE_CHARM_IDS } = await import('../../data/charms');
+        const d = (id: string) => CHARMS_LIST.find(c => c.id === id)!.description;
+        expect(charmUpgradePreview(d('downToYourBoxers'))).toBeNull();
+        expect(charmUpgradePercentPreview(d('downToYourBoxers'))).toEqual([{ from: 50, to: 75 }]);
+        expect(charmUpgradePercentPreview(d('nicolesGrace'))).toEqual([{ from: 25, to: 37.5 }]);
+        expect(charmUpgradePercentPreview(d('lenaOfTheLostLights'))).toEqual([{ from: 20, to: 30 }]);
+        // The upgrade really pays on Boxers' line: a 120-point word's +60 gets +30 more (+75% in all).
+        const { charmUpgradePoints } = await import('../rules');
+        expect(charmUpgradePoints([{ name: 'Down to Your Boxers', description: '+60 pts (50%)' }], ['Down to Your Boxers'])).toBe(30);
+        // Every upgradable charm now shows real numbers in the picker.
+        for (const c of CHARMS_LIST) if (UPGRADABLE_CHARM_IDS.has(c.id)) expect(charmUpgradePreview(c.description) ?? charmUpgradePercentPreview(c.description), c.id).not.toBeNull();
+    });
+});
