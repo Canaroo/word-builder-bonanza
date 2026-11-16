@@ -4427,7 +4427,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           const rack = [...(hand ?? []).filter((t): t is Tile => t !== null), ...submittedTiles];
           // This word isn't in the log yet, so the log's last valid word is the one before it.
           const lastWord = [...newState.log].reverse().find(e => e.type === 'word' && e.status === 'valid') as WordLogEntry | undefined;
-          const followed = boss.check(word.toUpperCase(), rack, { last: (lastWord?.word ?? '').toUpperCase(), score: scoreResult.totalScore, lastScore: lastWord?.score ?? 0 });
+          const bossCtx = { last: (lastWord?.word ?? '').toUpperCase(), score: scoreResult.totalScore, lastScore: lastWord?.score ?? 0 };
+          const followed = boss.check(word.toUpperCase(), rack, bossCtx);
+          const missWhy = followed ? '' : boss.missReason?.(word.toUpperCase(), rack, bossCtx) ?? '';
           // Hadouken! (v7.28): a word that breaks the rule still counts as a hit.
           const hadouken = newState.activePowerPlays.hadouken as { hits: number } | undefined;
           const hit = followed || !!hadouken;
@@ -4447,7 +4449,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           const fightWord = BOSS.words - bossRound.wordsLeft + 1;
           scoreResult.bonuses.push(hit
               ? { name: `👊 HIT on ${boss.name} (word ${fightWord} of ${BOSS.words})`, description: `${hits}/${need} hits` }
-              : { name: `💨 MISS: ${boss.name} dodged (word ${fightWord} of ${BOSS.words})`, description: `broke ${boss.rule} · ${hits}/${need} hits` });
+              : { name: `💨 MISS: ${boss.name} dodged (word ${fightWord} of ${BOSS.words})`, description: `${missWhy || `broke ${boss.rule}`} · ${hits}/${need} hits` });
           newState.boss = round;
           if (hit && newState.activeCharms.some(c => c.id === 'doubleDragon')) {
               runningScore += CHARM_BONUS.doubleDragon;
@@ -4461,7 +4463,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           // Grudge Match: beating a boss that had got away before pays the badge points again.
           const grudgeBonus = outcome === 'won' && (bossRound.grudge ?? 0) > 0 && grudgePays(newState) ? bossRewardFor(bossRound.number).points * (GRUDGE.multiplier - 1) : 0;
           if (outcome === 'won') newState.bossesBeaten = (newState.bossesBeaten ?? 0) + 1;
-          if (round) showMessage(hit ? `👊 HIT! ${hits}/${need} on ${boss.name}` : `💨 Dodged! ${boss.rule} · ${round.wordsLeft} left`, 1800);
+          if (round) showMessage(hit ? `👊 HIT! ${hits}/${need} on ${boss.name}` : `💨 Dodged! ${missWhy ? missWhy.charAt(0).toUpperCase() + missWhy.slice(1) : boss.rule} · ${round.wordsLeft} left`, 1800);
           const reward = bossRewardFor(bossRound.number);
           if (outcome === 'won') {
               runningScore += reward.points;

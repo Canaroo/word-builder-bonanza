@@ -37,6 +37,12 @@ export interface Boss {
   check: (word: string, tiles: Tile[], ctx: BossContext) => boolean;
   /** Tiles to dim (they'd break the rule) or make glow (the rule needs them). */
   tileHint?: (tile: Tile, tiles: Tile[], ctx: BossContext) => 'dim' | 'glow' | null;
+  /**
+   * Why a word missed, in plain words (v7.51.1). Rules with two parts need it: the tile hint shows
+   * only the letter part, so a 3-letter word that avoids every dimmed tile still misses, and
+   * "broke the rule" didn't say why (players thought Magneto was broken).
+   */
+  missReason?: (word: string, tiles: Tile[], ctx: BossContext) => string;
 }
 
 const vowelCount = (word: string) => [...word].filter(l => VOWELS.has(l)).length;
@@ -48,6 +54,10 @@ const noLetters = (...letters: string[]) => ({
 const HARD_RULE_HITS = 4;
 /** Easy letter bans get a length floor too (v7.33): 3-letter words don't count as hits. */
 const MIN_HIT_LETTERS = 4;
+/** Miss reasons for "no X, and 4+ letters" rules: say which part the word broke. */
+const tooShort = (word: string) => `too short: ${word.length} letters, needs ${MIN_HIT_LETTERS}+`;
+const usedLetters = (word: string, banned: string) => [...new Set([...word].filter(l => banned.includes(l)))].join(', ');
+const noLetterMiss = (letter: string) => (word: string) => word.length < MIN_HIT_LETTERS ? tooShort(word) : `used ${letter}`;
 const rarestPoints = (tiles: Tile[]) => Math.max(0, ...tiles.map(t => t.points));
 
 export const BOSSES: Boss[] = [
@@ -83,6 +93,7 @@ export const BOSSES: Boss[] = [
     taunt: 'Avoid the E! And no puny words!',
     ...noLetters('E'),
     check: word => !word.includes('E') && word.length >= MIN_HIT_LETTERS,
+    missReason: noLetterMiss('E'),
   },
   {
     id: 'ursula', name: 'Ursula', icon: '🐙', tier: 'mid', source: 'The Little Mermaid',
@@ -90,6 +101,7 @@ export const BOSSES: Boss[] = [
     taunt: 'Poor unfortunate A’s. They belong to me now. And do speak up, dear: no tiny words.',
     ...noLetters('A'),
     check: word => !word.includes('A') && word.length >= MIN_HIT_LETTERS,
+    missReason: noLetterMiss('A'),
   },
   {
     id: 'motherBrain', name: 'Mother Brain', icon: '🧪', tier: 'mid', source: 'Metroid',
@@ -182,10 +194,11 @@ export const BOSSES: Boss[] = [
   },
   {
     id: 'magneto', name: 'Magneto', icon: '🧲', tier: 'mid', source: 'X-Men',
-    rule: `NO LAST-WORD LETTERS · ${MIN_HIT_LETTERS}+`, description: `A word can’t share any letter with your last word, and needs at least ${MIN_HIT_LETTERS} letters. Like poles repel.`,
+    rule: `NO LAST-WORD LETTERS · ${MIN_HIT_LETTERS}+ LETTERS`, description: `A word can’t share any letter with your last word, and needs at least ${MIN_HIT_LETTERS} letters. Like poles repel.`,
     taunt: 'Like poles repel, my friend. Share nothing with your last word, and make it count.',
     check: (word, tiles, ctx) => word.length >= MIN_HIT_LETTERS && ![...word].some(l => ctx.last.includes(l)),
     tileHint: (tile, tiles, ctx) => ([...tile.letter].some(l => ctx.last.includes(l)) ? 'dim' : null),
+    missReason: (word, tiles, ctx) => word.length < MIN_HIT_LETTERS ? tooShort(word) : `shared ${usedLetters(word, ctx.last)} with ${ctx.last}`,
   },
   {
     id: 'ivanDrago', name: 'Ivan Drago', icon: '🏋️', tier: 'late', source: 'Rocky IV',
