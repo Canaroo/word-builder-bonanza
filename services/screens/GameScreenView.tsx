@@ -23,6 +23,7 @@ import ContinueCard from '../../components/ContinueCard';
 import LastWordsCard from '../../components/LastWordsCard';
 import ForkCard from '../../components/ForkCard';
 import CrocCard from '../../components/CrocCard';
+import SoundMenu from '../../components/SoundMenu';
 import GreatestHitCard from '../../components/GreatestHitCard';
 import BonesCard from '../../components/BonesCard';
 import { FORK, SKILL_SHOT } from '../../config/gameplay';
@@ -244,6 +245,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       ? [...(hand ?? []), ...(buildRow ?? []).map(i => i?.tile)].find(t => t?.id === gameState.goldenTileId)?.letter
       : undefined;
 
+    // The 🔊 button opens the sound panel (v7.53.0): mute and the music track. The clock keeps running.
+    const [showSound, setShowSound] = React.useState(false);
     // Boss round: dim the tiles that would break the rule, or make the ones it needs glow.
     const activeBoss = gameState?.roundType !== 'golden' ? bossById(gameState?.boss?.id) : undefined;
     const rackTiles = [...(hand ?? []), ...(buildRow ?? []).map(i => i?.tile)].filter((t): t is Tile => !!t);
@@ -786,6 +789,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     <div className="flex flex-col h-full min-h-0 p-3 text-slate-200 gap-2">
       {/* --- MODALS --- */}
       {renderModal()}
+      {showSound && <SoundMenu isMuted={isMuted} onToggleMute={handleMuteToggle} onClose={() => setShowSound(false)} inRun />}
       {/* Resumed run: the board stays hidden (no free look at the tiles) until the 3-2-1 ends. */}
       {resumeCountdown > 0 && (
         <div className="absolute inset-0 z-[70] bg-crt-950 flex flex-col items-center justify-center gap-3 text-center" role="status" aria-live="assertive" aria-label={`Run restored. Resuming in ${resumeCountdown}`}>
@@ -900,7 +904,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         </div>
         <div className="flex gap-3">
           <button onClick={handleShowEventLog} className="text-2xl transition-transform hover:scale-110" title="Event Log" aria-label="Event log">📖</button>
-          <button onClick={handleMuteToggle} className="text-2xl transition-transform hover:scale-110" title="Toggle Sound">{isMuted ? '🔇' : '🔊'}</button>
+          <button onClick={() => setShowSound(true)} className="text-2xl transition-transform hover:scale-110" title="Sound and music" aria-label={`Sound and music (${isMuted ? 'sound off' : 'sound on'})`}>{isMuted ? '🔇' : '🔊'}</button>
         </div>
       </div>
 

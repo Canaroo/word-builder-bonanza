@@ -220,6 +220,20 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   in `StartScreen.tsx`); opened from Me, their ◀ goes back to Me. Small choices stay pop-ups.
   In a run, Golden Round, PowerPlay meter and Word Combo share one compact row (`GameScreenView`),
   and the buffs tray labels itself inline ("BUFFS 2/5").
+- **Music shop (v7.53.0)** (`data/music.ts`, `services/music.ts`, `services/musicService.ts`,
+  `components/SoundMenu.tsx`, `MUSIC_PRICE` and `SHOP_NEWS` in `config/progression.ts`): the shop's
+  🎵 Music tab sells four original tracks at 80 Credits each: 🏡 Pixel Hometown (a cozy 3/4 waltz
+  leaning on Toby Fox's soundfont-piano and music-box style, the owner's ask), 📼 Midnight Rental
+  (slow synthwave), 🪙 Coin-Op Lounge (chiptune bossa) and ☎️ Dial-Up Dreams (late-90s chill beats).
+  Mindscape stays free and the default. Scores and the renderer live in `tools/music` (see its
+  README); files in `public/audio/shop/`, kept out of the PWA precache (`globIgnores`) and cached
+  on first play, so only tracks someone hears are downloaded. Owned tracks and the pick belong to
+  the device, like themes. Each card has ▶ Preview (15 s, plays even when muted, the game's music
+  ducks) and Buy / Play this / ✓ Playing. The 🔊 button (start screen and in a run) opens a Sound
+  panel instead of muting: sound on/off plus the owned tracks (switching crossfades); in a run the
+  clock keeps running while it's open. A "🎵 NEW IN THE SHOP" banner sits above the logo until it's
+  tapped (opens the Music tab), closed, or the shop is visited (`shopNewsSeen`); change
+  `SHOP_NEWS.id` and text to announce the next shop drop.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

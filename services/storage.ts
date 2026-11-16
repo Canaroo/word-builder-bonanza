@@ -31,6 +31,9 @@ export const STORAGE_KEYS = {
     skillShotTips: 'wordNerdSkillShotTips',
     /** Per player: the game day the Play button last offered the Daily Challenge (it asks once a day). */
     dailyChooserDay: 'wordNerdDailyChooserDay',
+    musicOwned: 'wordNerdMusicOwned',
+    musicTrack: 'wordNerdMusicTrack',
+    shopNewsSeen: 'wordNerdShopNewsSeen',
     /** Per player: ids of bones (other players' fallen runs) they've taken a charm from. */
     bonesLooted: 'wordNerdBonesLooted',
     /** Per player: each boss's record against them, for Grudge Matches (services/grudges.ts). */

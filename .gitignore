@@ -27,3 +27,6 @@ dist-ssr
 public/words/
 # vite-plugin-pwa dev output
 dev-dist
+
+# Music renders (tools/music)
+tools/music/*.wav
