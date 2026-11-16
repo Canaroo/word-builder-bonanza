@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Charm slots, PowerPlay keep-or-swap, and the PowerPlays/charms added or moved in v6.8.
 import { describe, test, expect, vi, afterEach } from 'vitest';
+import { greatestHitFor, hitInProgress, nextHit, playCounts, ordinal } from '../../greatestHits';
 import { gameReducer, crocModal, screenInitialState, maxStrikesFor, savableScreenState, RESUME_COUNTDOWN, POST_WORD_MODALS, type GameScreenState } from '../GameScreen';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -9,7 +10,7 @@ import { GAMBLE_CARD_IDS } from '../../../components/GambleCard';
 import { wildcardIndex } from '../../rules';
 import { CHARMS_LIST } from '../../../data/charms';
 import { SECRET_BONUSES } from '../../../data/secretBonuses';
-import { CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, CHARM_BONUS } from '../../../config/gameplay';
+import { GREATEST_HITS, CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, CHARM_BONUS } from '../../../config/gameplay';
 import { calculateScore } from '../../gameUtils';
 import * as gameUtils from '../../gameUtils';
 import { RACK_SIZE } from '../../../constants';
@@ -877,5 +878,30 @@ describe('Tick-Tock Croc (v7.51.0)', () => {
         const s = start({ activeCharms: [], crocWords: 17 });
         const after = gameReducer(s, { type: 'CHOOSE_CHARM', payload: { charm: croc, hand: s.hand, allOffered: [croc] } });
         expect(after.gameState!.crocWords).toBe(0);
+    });
+});
+
+describe('Greatest Hits (v7.52.0)', () => {
+    const w = (word: string, status: 'valid' | 'invalid' = 'valid') => ({ type: 'word', word, status, score: 5, baseScore: 5, bonuses: [], definition: '', cumulativeScore: 5 }) as any;
+    test('an N-letter word played N times earns its record, once a run', () => {
+        expect(greatestHitFor('TEA', 2, [])).toBeUndefined();
+        expect(greatestHitFor('TEA', 3, [])).toMatchObject({ title: 'GOLD', points: 500 });
+        expect(greatestHitFor('EAT', 3, [3])).toBeUndefined();          // GOLD already paid
+        expect(greatestHitFor('WOOD', 3, [])).toBeUndefined();          // 4 letters needs 4 plays
+        expect(greatestHitFor('WOOD', 4, [3])).toMatchObject({ title: 'PLATINUM', points: 1000 });
+        expect(greatestHitFor('STONE', 5, [3, 4])).toMatchObject({ title: 'DIAMOND', points: 1500 });
+        expect(greatestHitFor('WOOD', 4, [])).toMatchObject({ title: 'PLATINUM' }); // any order
+        expect(GREATEST_HITS.tiers.map(t => [t.letters, t.points])).toEqual([[3, 500], [4, 1000], [5, 1500], [6, 2000], [7, 2500], [8, 3000]]);
+    });
+    test('plays count valid words only, any case', () => {
+        expect(playCounts([w('tea'), w('TEA'), w('TEA', 'invalid'), w('EAT')]).get('TEA')).toBe(2);
+    });
+    test('the chip shows the word closest to an open record, from 2 plays', () => {
+        expect(hitInProgress([w('TEA')], [])).toBeNull();
+        expect(hitInProgress([w('TEA'), w('TEA')], [])).toMatchObject({ word: 'TEA', plays: 2 });
+        expect(hitInProgress([w('TEA'), w('TEA'), w('WOOD'), w('WOOD'), w('WOOD')], [])).toMatchObject({ word: 'WOOD', plays: 3 }); // both 1 away: bigger prize
+        expect(hitInProgress([w('TEA'), w('TEA')], [3])).toBeNull();
+        expect(nextHit([3])?.title).toBe('PLATINUM');
+        expect(ordinal(3)).toBe('3rd'); expect(ordinal(4)).toBe('4th'); expect(ordinal(22)).toBe('22nd');
     });
 });

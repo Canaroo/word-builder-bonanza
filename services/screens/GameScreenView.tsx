@@ -23,6 +23,7 @@ import ContinueCard from '../../components/ContinueCard';
 import LastWordsCard from '../../components/LastWordsCard';
 import ForkCard from '../../components/ForkCard';
 import CrocCard from '../../components/CrocCard';
+import GreatestHitCard from '../../components/GreatestHitCard';
 import BonesCard from '../../components/BonesCard';
 import { FORK, SKILL_SHOT } from '../../config/gameplay';
 import { skillShotPoints } from '../../services/rules';
@@ -33,7 +34,7 @@ import CharmTimeNote from '../../components/CharmTimeNote';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
-  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'bones' | 'skill-intro' | 'croc';
+  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'bones' | 'skill-intro' | 'croc' | 'greatest-hit';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -334,6 +335,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
             case 'bones':
                 return <BonesCard key={data?.bone?.id} bone={data.bone} heldCharmIds={(gameState?.activeCharms ?? []).map(c => c.id)} onDone={w => handleBonesDone?.(w)} />;
+
+            case 'greatest-hit':
+                return <GreatestHitCard word={String(data?.word ?? '')} plays={Number(data?.plays) || 0} letters={Number(data?.letters) || 3} next={data?.next ?? null} onDone={handleCloseModal} />;
 
             case 'croc':
                 return <CrocCard win={!!data?.win} level={Number(data?.level) || 1} saved={data?.saved} onSave={(key, value) => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key, value } })} onDone={() => handleCrocPick?.()} />;

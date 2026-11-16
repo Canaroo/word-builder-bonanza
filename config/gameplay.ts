@@ -542,3 +542,25 @@ export const PRIZE_GROWTH = { perLevel: 0.1, max: 2.5 } as const;
 
 /** Time bank maximum while the Power Glove charm is equipped. */
 export const POWER_GLOVE_BANK_MAX = 120;
+
+/**
+ * Greatest Hits (v7.52.0, the owner's idea): replay a word until it "goes platinum". The first
+ * time a 3-letter word is played 3 times in a run it goes GOLD (+500); a 4-letter word played
+ * 4 times goes PLATINUM (+1,000); 5 letters 5 times DIAMOND (+1,500), and so on. Each record
+ * pays once a run, in any order, as a separate reward (not multiplied, never boosted by level).
+ * Simulated (best word for each length, 8-tile hands): 3x3 in 98% of 59-word runs; 4x4 in 23%
+ * of 59-word runs and 94% of 180-word runs; 5x5 in 6% of 180-word runs and 26% of 292-word
+ * runs; 6x6 and up about never. Matching letters to plays keeps it from being farmed.
+ */
+export const GREATEST_HITS = {
+  tiers: [
+    { letters: 3, points: 500, title: 'GOLD', icon: '📀' },
+    { letters: 4, points: 1000, title: 'PLATINUM', icon: '💿' },
+    { letters: 5, points: 1500, title: 'DIAMOND', icon: '💎' },
+    { letters: 6, points: 2000, title: 'HALL OF FAME', icon: '🏛️' },
+    { letters: 7, points: 2500, title: 'LEGEND', icon: '🎤' },
+    { letters: 8, points: 3000, title: 'ICON', icon: '👑' },
+  ],
+  /** The tracker chip shows a word once it has this many plays toward its record. */
+  chipFrom: 2,
+} as const;
