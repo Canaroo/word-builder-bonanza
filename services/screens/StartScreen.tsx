@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import SoundMenu from '../../components/SoundMenu';
+import { SHOP_NEWS } from '../../config/progression';
 import { soundService } from '../soundService';
 import { musicService } from '../musicService';
 import Leaderboard from '../../components/Leaderboard';
@@ -42,7 +44,7 @@ interface StartScreenProps {
   onPlayDaily: (name: string) => void;
   onResumeGame: (name: string) => void;
   onShowHowToPlay: () => void;
-  onShowVibez: () => void;
+  onShowVibez: (tab?: string) => void;
   onShowCollection: () => void;
   onShowBadgeCase: () => void;
   onShowProfile: () => void;
@@ -268,6 +270,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
     const newMuteState = soundService.toggleMute();
     setIsMuted(newMuteState);
   };
+  // The 🔊 button opens the sound panel (v7.53.0): mute and the music track.
+  const [showSound, setShowSound] = useState(false);
+  // "New in the shop" banner (v7.53.0): shown until it's tapped, closed, or the shop is visited.
+  const [shopNews, setShopNews] = useState(() => storage.getString(STORAGE_KEYS.shopNewsSeen) !== SHOP_NEWS.id);
+  const closeShopNews = () => { storage.setString(STORAGE_KEYS.shopNewsSeen, SHOP_NEWS.id); setShopNews(false); };
 
   const handleResumeClick = () => {
     if (savedGame) {
@@ -468,6 +475,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   return (
     <>
+      {showSound && <SoundMenu isMuted={isMuted} onToggleMute={handleMuteToggle} onClose={() => setShowSound(false)} onShop={() => { setShowSound(false); onShowVibez('music'); }} />}
       {showChooser && (
         <div className="absolute inset-0 z-50 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Which game?">
           <div className="bg-crt-900 border-2 border-neon-yellow shadow-glow-yellow rounded-2xl p-5 max-w-sm w-full text-center flex flex-col gap-3 bonus-insert">
@@ -620,11 +628,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <span className={`text-lg leading-none ${streak > 0 && !bankedToday ? 'animate-pulse' : ''}`} aria-hidden="true">🔥</span>
               <span className="osd-text text-xl leading-none text-neon-orange">{streak}</span>
             </button>
-            <button onClick={onShowVibez} className="flex items-center gap-1 bg-crt-950/70 ring-1 ring-neon-yellow/50 hover:ring-neon-yellow pl-2 pr-2.5 py-1.5 rounded-full" aria-label={`${lexCoins} credits. Open the shop`}>
+            <button onClick={() => onShowVibez()} className="flex items-center gap-1 bg-crt-950/70 ring-1 ring-neon-yellow/50 hover:ring-neon-yellow pl-2 pr-2.5 py-1.5 rounded-full" aria-label={`${lexCoins} credits. Open the shop`}>
               <span className="text-lg leading-none" aria-hidden="true">🪙</span>
               <span className="osd-text text-xl leading-none text-neon-yellow">{lexCoins}</span>
             </button>
-            <button onClick={handleMuteToggle} className="text-xl text-slate-400 hover:text-white p-1.5" aria-label={isMuted ? 'Sound off. Turn on' : 'Sound on. Turn off'}>
+            <button onClick={() => { soundService.initialize(); soundService.playUIClick(); setShowSound(true); }} className="text-xl text-slate-400 hover:text-white p-1.5" aria-label={`Sound and music (${isMuted ? 'sound off' : 'sound on'})`}>
               {isMuted ? '🔇' : '🔊'}
             </button>
           </div>
@@ -633,6 +641,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className="flex-1 w-full max-w-sm mx-auto flex flex-col items-center gap-3 px-4 pt-3 pb-4">
           {/* Logo: the hero, centered in the space above the actions; smaller than before, same neon. */}
           <div className="flex-1 flex flex-col items-center justify-center text-center min-h-[9rem]">
+            {shopNews && (
+              <div className="mb-3 flex items-stretch rounded-full bg-neon-yellow/15 ring-1 ring-neon-yellow shadow-[0_0_14px_rgba(255,226,122,0.4)] animate-fade-in">
+                <button type="button" onClick={() => { closeShopNews(); onShowVibez(SHOP_NEWS.tab); }} className="osd-text text-base leading-none text-neon-yellow pl-3 pr-2 py-1.5 hover:text-white" aria-label={`${SHOP_NEWS.text}. Open the shop`}>
+                  {SHOP_NEWS.text} ›
+                </button>
+                <button type="button" onClick={() => { soundService.playUIClick(); closeShopNews(); }} className="text-neon-yellow/70 hover:text-white px-2.5 border-l border-neon-yellow/40" aria-label="Dismiss">✕</button>
+              </div>
+            )}
             <h1 className="font-display text-4xl min-[375px]:text-5xl [@media(min-height:760px)]:text-6xl tracking-widest neon-text-cyan neon-flicker animate-slide-in-down leading-none">WORD</h1>
             <h2 className="font-display text-6xl min-[375px]:text-7xl [@media(min-height:760px)]:text-8xl tracking-normal marquee-3d animate-bounce-in-up leading-none" style={{ animationDelay: '0.1s' }}>NERD</h2>
             <p className="osd-text text-lg text-neon-pink mt-1 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>SERIOUS WORDS. RIDICULOUS FUN.</p>

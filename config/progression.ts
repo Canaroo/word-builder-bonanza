@@ -24,6 +24,15 @@ export const THEME_PRICES: Record<string, number> = {
   'worlds-finest': 120,
 };
 
+/** Music tracks in the shop (v7.53.0): each costs this many Credits, about three days of missions. */
+export const MUSIC_PRICE = 80;
+
+/**
+ * The start screen's "new in the shop" banner (v7.53.0). Change `id` when something new lands in
+ * the shop and the banner comes back once for everyone; `tab` is the shop tab it opens.
+ */
+export const SHOP_NEWS = { id: 'music-2026-11', text: '🎵 NEW IN THE SHOP: 4 music tracks', tab: 'music' } as const;
+
 /** Streak freezes: each one covers a missed day. */
 export const STREAK_FREEZE = { cost: 30, maxHeld: 2 };
 

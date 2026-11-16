@@ -41,8 +41,20 @@ export default defineConfig({
       workbox: {
         // Precache the app, the word list and the music so the game works offline.
         globPatterns: ['**/*.{js,css,html,svg,png,gif,webp,woff2,txt,mp3}'],
+        // Shop music (v7.53.0) isn't precached: each track downloads when it's previewed or played,
+        // then stays cached (below), so the install stays small.
+        globIgnores: ['**/audio/shop/**'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.includes('/audio/shop/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'shop-music',
+              expiration: { maxEntries: 10 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
           {
             // Theme background images hosted elsewhere: cache after first view.
             urlPattern: ({ url }) => ['images.unsplash.com', 'www.transparenttextures.com'].includes(url.hostname),

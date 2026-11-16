@@ -43,6 +43,8 @@ import type { DailyResult } from './services/screens/GameOverScreen';
 import { recordCareerRun } from './services/career';
 import { soundService } from './services/soundService';
 import { musicService } from './services/musicService';
+import { buyTrack, selectTrack } from './services/music';
+import { trackById } from './data/music';
 import { powerWordService } from './services/powerWordService';
 import { logService } from './services/logService';
 import { PACKS_LIST } from './data/packs';
@@ -459,10 +461,28 @@ const App: React.FC = () => {
     setScreen(Screen.BadgeCase);
   }, []);
 
-  const handleShowVibez = useCallback(() => {
+  // The shop can open on a tab (v7.53.0: the music banner and the sound panel open 🎵 Music).
+  const [shopTab, setShopTab] = useState<string | undefined>(undefined);
+  const handleShowVibez = useCallback((tab?: string) => {
     soundService.initialize();
     soundService.playUIClick();
+    setShopTab(typeof tab === 'string' ? tab : undefined);
     setScreen(Screen.Vibez);
+  }, []);
+  const handleBuyTrack = useCallback((id: string) => {
+    const cost = buyTrack(id, lexCoins);
+    if (!cost) return;
+    setLexCoins(c => c - cost);
+    musicService.setTrack(id);
+    setProfileVersion(v => v + 1);
+    showToast(`${trackById(id)?.icon ?? '🎵'} ${trackById(id)?.name} is yours, and it's playing in your next run!`);
+    soundService.playMilestone();
+  }, [lexCoins]);
+  const handleSelectTrack = useCallback((id: string) => {
+    if (!selectTrack(id)) return;
+    musicService.setTrack(id);
+    setProfileVersion(v => v + 1);
+    soundService.playUIClick();
   }, []);
 
   // Bottom tabs (v7.31): the same five destinations from every menu screen. Top 50 and the
@@ -571,6 +591,9 @@ const App: React.FC = () => {
           onBuyCosmetic={handleBuyCosmetic}
           onEquipCosmetic={handleEquipCosmetic}
           onBuyFreeze={handleBuyFreeze}
+          initialTab={shopTab}
+          onBuyTrack={handleBuyTrack}
+          onSelectTrack={handleSelectTrack}
           />;
       default:
         return <StartScreen onPlay={handlePlay} onPlayDaily={handlePlayDaily} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} onShowBadgeCase={handleShowBadgeCase} onShowProfile={handleShowProfile} onTab={handleTab} openOnMount={startOpen} onOpened={() => setStartOpen(null)} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin} profileVersion={profileVersion} onBuyFreeze={handleBuyFreeze}/>;

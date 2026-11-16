@@ -1,4 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { musicService } from '../musicService';
+import { MUSIC_TRACKS } from '../../data/music';
+import { ownedTracks, selectedTrack } from '../music';
+import { SHOP_NEWS } from '../../config/progression';
 import { soundService } from '../soundService';
 import { PACKS_LIST } from '../../data/packs';
 import { Pack } from '../../types';
@@ -24,11 +28,16 @@ interface VibezScreenProps {
   onBuyCosmetic: (id: string) => void;
   onEquipCosmetic: (kind: CosmeticKind, id: string | null) => void;
   onBuyFreeze: () => void;
+  /** Open on this tab (the music banner and the sound panel open 'music'). */
+  initialTab?: string;
+  onBuyTrack?: (id: string) => void;
+  onSelectTrack?: (id: string) => void;
 }
 
-type Tab = 'themes' | 'badges' | 'titles' | 'streak';
+type Tab = 'themes' | 'music' | 'badges' | 'titles' | 'streak';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'themes', label: '🎨 Themes' },
+  { id: 'music', label: '🎵 Music' },
   { id: 'badges', label: '🎖️ Badges' },
   { id: 'titles', label: '🏷️ Titles' },
   { id: 'streak', label: '🔥 Streak' },
@@ -55,9 +64,21 @@ const PackPreview: React.FC<{ pack: Pack }> = ({ pack }) => (
 /** Shop for themes, badges, titles and streak freezes. Badges and titles are worn like Rocket League bling. */
 const VibezScreen: React.FC<VibezScreenProps> = ({
   onBack, onTab, lexCoins, unlockedPackIds, selectedPackId, onUnlockPack, onSelectPack,
-  profileVersion = 0, onBuyCosmetic, onEquipCosmetic, onBuyFreeze,
+  profileVersion = 0, onBuyCosmetic, onEquipCosmetic, onBuyFreeze, initialTab, onBuyTrack, onSelectTrack,
 }) => {
-  const [tab, setTab] = useState<Tab>('themes');
+  const [tab, setTab] = useState<Tab>(() => (TABS.some(t => t.id === initialTab) ? initialTab as Tab : 'themes'));
+  // Visiting the shop counts as seeing the "new in the shop" banner (v7.53.0).
+  useEffect(() => { storage.setString(STORAGE_KEYS.shopNewsSeen, SHOP_NEWS.id); }, []);
+  // Music previews: re-render when one starts or ends, and stop it when leaving the shop.
+  const [, setPreviewTick] = useState(0);
+  useEffect(() => { const off = musicService.subscribe(() => setPreviewTick(n => n + 1)); return () => { off(); musicService.stopPreview(); }; }, []);
+  const ownedMusic = useMemo(() => ownedTracks(), [profileVersion]);
+  const playingMusic = useMemo(() => selectedTrack(), [profileVersion]);
+  const previewing = musicService.previewing();
+  const togglePreview = (id: string) => {
+    soundService.initialize();
+    if (previewing === id) musicService.stopPreview(); else musicService.preview(id);
+  };
   const profile = useMemo(() => getProfile(), [profileVersion]);
   const name = storage.getString(STORAGE_KEYS.playerName) || 'Player';
   const streak = currentStreak(profile);
@@ -125,14 +146,14 @@ const VibezScreen: React.FC<VibezScreenProps> = ({
   return (
     <ScreenShell title="VIBEZ SHOP" tone="pink" onBack={onBack} credits={lexCoins} tab="shop" onTab={onTab} subheader={
       <div className="flex flex-col gap-1.5">
-        <nav className="grid grid-cols-4 gap-1 bg-crt-950/70 rounded-xl p-1" role="tablist">
+        <nav className="grid grid-cols-5 gap-1 bg-crt-950/70 rounded-xl p-1" role="tablist">
           {TABS.map(t => (
             <button
               key={t.id}
               role="tab"
               aria-selected={tab === t.id}
               onClick={click(() => setTab(t.id))}
-              className={`osd-text text-base leading-none py-2 rounded-lg transition-colors ${tab === t.id ? 'bg-neon-purple text-white shadow-glow-pink' : 'text-slate-300 hover:bg-white/5'}`}
+              className={`osd-text text-sm leading-none py-2 px-0.5 rounded-lg transition-colors whitespace-nowrap ${tab === t.id ? 'bg-neon-purple text-white shadow-glow-pink' : 'text-slate-300 hover:bg-white/5'}`}
             >
               {t.label}
             </button>
@@ -164,6 +185,44 @@ const VibezScreen: React.FC<VibezScreenProps> = ({
                   </div>
                   <p className="text-sm text-slate-300 leading-snug">{pack.description}</p>
                   {renderPackButton(pack)}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {tab === 'music' && (
+          <ul className="space-y-3">
+            <li className="text-sm text-slate-300 leading-snug px-1">Pick the soundtrack for your runs. Tap ▶ to hear a bit first. Switch any time from the 🔊 button.</li>
+            {MUSIC_TRACKS.map(track => {
+              const owned = ownedMusic.includes(track.id);
+              const playing = playingMusic === track.id;
+              const short = track.cost - lexCoins;
+              const hearing = previewing === track.id;
+              return (
+                <li key={track.id} className={`rounded-xl p-3 bg-crt-950/70 ${playing ? 'ring-2 ring-neon-pink shadow-glow-pink' : 'ring-1 ring-white/10'}`}>
+                  <div className="flex items-center gap-3">
+                    {/* A cassette with the track's icon on its label */}
+                    <div className="relative shrink-0 w-16 h-11 rounded-md bg-gradient-to-b from-slate-700 to-slate-900 ring-1 ring-white/20 flex items-center justify-center" aria-hidden="true">
+                      <span className="text-2xl leading-none">{track.icon}</span>
+                      <span className={`absolute bottom-1 left-2 w-2.5 h-2.5 rounded-full ring-1 ring-white/40 ${hearing ? 'animate-spin border-t-2 border-white' : ''}`} />
+                      <span className={`absolute bottom-1 right-2 w-2.5 h-2.5 rounded-full ring-1 ring-white/40 ${hearing ? 'animate-spin border-t-2 border-white' : ''}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <h2 className="font-display text-base text-white leading-tight">{track.name}</h2>
+                        {!owned && <span className="osd-text text-lg leading-none text-neon-yellow shrink-0">🪙 {track.cost}</span>}
+                      </div>
+                      <p className="text-sm text-slate-300 leading-snug">{track.vibe}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <ArcadeButton color="cyan" variant="outline" size="sm" onClick={() => togglePreview(track.id)} aria-label={hearing ? `Stop the ${track.name} preview` : `Hear a bit of ${track.name}`}>
+                      {hearing ? '■ Stop' : '▶ Preview'}
+                    </ArcadeButton>
+                    {playing ? <ArcadeButton color="slate" size="sm" disabled>✓ Playing</ArcadeButton>
+                      : owned ? <ArcadeButton color="purple" variant="outline" size="sm" onClick={click(() => onSelectTrack?.(track.id))}>Play this</ArcadeButton>
+                      : <ArcadeButton color="green" size="sm" disabled={short > 0} onClick={click(() => onBuyTrack?.(track.id))}>{short > 0 ? `🔒 Need ${short} more` : `Buy · 🪙 ${track.cost}`}</ArcadeButton>}
+                  </div>
                 </li>
               );
             })}
