@@ -123,6 +123,21 @@ export const charmUpgradePreview = (description: string): { from: number; to: nu
     return found.length ? found : null;
 };
 
+/**
+ * The same for charms that pay a percentage of the word (v7.51.2): "+50% → +75% A WORD" for Down to
+ * Your Boxers, "25% → 37.5%" for Nicole's Grace. The upgrade adds half of their bonus line, so the
+ * percentage itself grows by half. Before, the picker only said "+50% on its points", which read as
+ * nothing changing.
+ */
+export const charmUpgradePercentPreview = (description: string): { from: number; to: number }[] | null => {
+    const found: { from: number; to: number }[] = [];
+    for (const m of description.matchAll(/\+?(\d+(?:\.\d+)?)%/g)) {
+        const from = Number(m[1]);
+        if (from > 0 && !found.some(f => f.from === from)) found.push({ from, to: Math.round(from * (100 + CHARM_UPGRADE.percent)) / 100 });
+    }
+    return found.length ? found : null;
+};
+
 /** Percent more that charm points pay on a word of this length (0 for short words). */
 export const charmLengthBoostFor = (length: number): number => lookupByLength(CHARM_LENGTH_BOOST, length, 0);
 

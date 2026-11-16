@@ -5,7 +5,7 @@ import { CHARM_SLOTS, CHARM_UPGRADE, MYSTERY_TAPE } from '../config/gameplay';
 import { prizeFor } from '../services/rules';
 import { UPGRADABLE_CHARM_IDS } from '../data/charms';
 import DurationBadge from '../ui/DurationBadge';
-import { charmUpgradePreview } from '../services/rules';
+import { charmUpgradePreview, charmUpgradePercentPreview } from '../services/rules';
 import { storage, STORAGE_KEYS } from '../services/storage';
 import { playerKey } from '../services/players';
 import ArcadeButton from './ArcadeButton';
@@ -197,9 +197,13 @@ const setUpgradeTipCount = (n: number) => storage.setJSON(playerKey(STORAGE_KEYS
 /** "+40 → +60 PTS" for the upgrade picker, from the charm's own description. */
 const UpgradePreview: React.FC<{ charm: Charm }> = ({ charm }) => {
   const nums = charmUpgradePreview(charm.description);
+  // Percentage charms (Down to Your Boxers, Nicole's Grace...): their percentage grows by half.
+  const pcts = nums ? null : charmUpgradePercentPreview(charm.description);
   return (
     <span className="text-neon-yellow">
-      ⭐ {nums ? nums.map(n => `+${n.from} → +${n.to}`).join(' · ') + ' PTS' : `+${CHARM_UPGRADE.percent}% ON ITS POINTS`}
+      ⭐ {nums ? nums.map(n => `+${n.from} → +${n.to}`).join(' · ') + ' PTS'
+        : pcts ? pcts.map(n => `+${n.from}% → +${n.to}%`).join(' · ') + ' A WORD'
+        : `+${CHARM_UPGRADE.percent}% ON ITS POINTS`}
     </span>
   );
 };
