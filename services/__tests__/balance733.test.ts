@@ -100,6 +100,22 @@ describe('boss balance (v7.33)', () => {
         for (const id of ['ursula', 'theNoid', 'magneto']) expect(bossById(id)!.rule).toContain('4+');
     });
 
+    test('a miss says which part of the rule broke (v7.51.1: Magneto looked broken)', () => {
+        const ctx = (last = '') => ({ last, score: 0, lastScore: 0 });
+        const why = (id: string, word: string, last = '') => bossById(id)!.missReason!(word, [], ctx(last));
+        // Avoided every dimmed tile, but too short: this is what players ran into.
+        expect(why('magneto', 'ALE', 'OPUS')).toBe('too short: 3 letters, needs 4+');
+        expect(why('magneto', 'MINT', 'CAT')).toBe('shared T with CAT');
+        expect(why('magneto', 'TACT', 'CAT')).toBe('shared T, A, C with CAT');
+        expect(why('ursula', 'TOE')).toBe('too short: 3 letters, needs 4+');
+        expect(why('ursula', 'TAME')).toBe('used A');
+        expect(why('theNoid', 'CARE')).toBe('used E');
+        expect(bossById('magneto')!.rule).toBe('NO LAST-WORD LETTERS · 4+ LETTERS');
+        // Magneto dims exactly the last word's letters.
+        const tile = (letter: string) => ({ id: letter, letter, points: 1 });
+        expect(['O', 'P', 'A', 'L', 'E'].map(l => bossById('magneto')!.tileHint!(tile(l), [], ctx('OPUS')))).toEqual(['dim', 'dim', null, null, null]);
+    });
+
     test('Doctor Doom is a mid boss and Hades an early one', () => {
         expect(bossById('doctorDoom')!.tier).toBe('mid');
         expect(bossById('hades')!.tier).toBe('early');

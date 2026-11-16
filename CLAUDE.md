@@ -222,7 +222,12 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   early → mid → late, random within a tier. The event log records each fight (v7.44.7): a "Boss
   fight: X" entry with the rule when it starts, a HIT or MISS line (word N of 8, hits so far) in
   each word's breakdown, then Beat X / X got away (so close) / X escaped, or "X was still standing"
-  if the run ended mid-fight. Boss Badges are permanent (one per boss) and show
+  if the run ended mid-fight. **Two-part rules say why a word missed** (v7.51.1, `missReason` on
+  the boss): Magneto, Ursula and The Noid also need 4+ letters, but the dimmed tiles only show the
+  letter part, so players avoided every dimmed tile with a 3-letter word, got a MISS that just
+  repeated the rule, and thought Magneto was broken (its mechanics were right). Misses now read
+  "too short: 3 letters, needs 4+", "shared T with CAT" or "used E", in the toast and the log.
+  A new rule with more than one part should get a `missReason`. Boss Badges are permanent (one per boss) and show
   on the Top 50 as 🏅N; Firebase needs the `bosses` rule line in `docs/LEADERBOARD.md`.
 - **Balance from usage stats (v7.33.0, 90 runs):** bosses were either free or impossible, so
   Ursula, The Noid and Magneto also need 4+ letters (they were beaten 34 of 35 times), the four
