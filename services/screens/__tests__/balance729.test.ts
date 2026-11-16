@@ -79,5 +79,6 @@ describe('reworked PowerPlays (v7.29.1)', () => {
         const { POWER_PLAY_VALUES: V } = await import('../../../config/gameplay');
         expect(V.warioWarpPoints).toBe(300);
         expect(pp('warioWarp').description).toContain(`+${V.warioWarpPoints} points now`);
+        expect(pp('warioWarp').description).toContain(`you lose ${V.warioWarpSeconds} seconds off your clock`); // v7.52.1: said plainly
     });
 });

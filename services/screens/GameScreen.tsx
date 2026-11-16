@@ -1405,8 +1405,12 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             }
 
             if(newGameState.warioTimeDebt > 0) {
-                timerDuration -= newGameState.warioTimeDebt;
+                // Wario's bill (v7.52.1): say so when the seconds come off, and clear the reminder.
+                const bill = newGameState.warioTimeDebt;
+                timerDuration -= bill;
                 newGameState.warioTimeDebt = 0;
+                newGameState.activeBuffs = newGameState.activeBuffs.filter(b => b.id !== 'warioWarp');
+                newGameState.lastPowerPlayResult = { message: `💰 Wario's bill: you lost ${bill} seconds off your clock.`, scoreChange: 0 };
             }
     
             if (newGameState.activePowerPlays.timeTurner && newGameState.activePowerPlays.timeTurner.rounds > 0) {
@@ -5784,17 +5788,19 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     
             const newLogEntry: EventLogEntry = {
                 type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
-                description: `Gained ${scoreChange} points, lost ${POWER_PLAY_VALUES.warioWarpSeconds}s next turn.`, icon: '🛸',
+                description: `Gained ${scoreChange} points now; ${POWER_PLAY_VALUES.warioWarpSeconds} seconds come off the clock when the next hand is dealt.`, icon: '🛸',
                 scoreChange: scoreChange, cumulativeScore: newScore
             };
     
             dispatch({ type: 'UPDATE_GAME_STATE', payload: {
                 score: newScore,
                 warioTimeDebt: POWER_PLAY_VALUES.warioWarpSeconds,
+                // A reminder in the buffs tray until the bill is paid (v7.52.1).
+                activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== 'warioWarp'), { ...powerPlay, description: `Wario's bill: you lose ${POWER_PLAY_VALUES.warioWarpSeconds} seconds off your clock when your next hand is dealt.` }],
                 log: [...gameState.log, newLogEntry],
                 availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
             }});
-            showMessage(`Wario Warp! +${scoreChange} points, -${POWER_PLAY_VALUES.warioWarpSeconds}s next turn.`, 2500);
+            showMessage(`💰 Wario Warp! +${scoreChange} points now. You'll lose ${POWER_PLAY_VALUES.warioWarpSeconds} seconds off your clock when your next hand is dealt.`, 3500);
             return;
         }
         

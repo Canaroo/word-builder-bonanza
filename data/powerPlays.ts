@@ -842,7 +842,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'warioWarp',
     name: 'Wario Warp',
-    description: `Gain +${POWER_PLAY_VALUES.warioWarpPoints} points now; your next round starts ${POWER_PLAY_VALUES.warioWarpSeconds} seconds lower.`,
+    description: `Gain +${POWER_PLAY_VALUES.warioWarpPoints} points now. The catch: you lose ${POWER_PLAY_VALUES.warioWarpSeconds} seconds off your clock when your next hand is dealt.`,
     flavorText: 'Classic Wario — future problems, present profits.',
     icon: '💰',
     subtheme: 'score',
