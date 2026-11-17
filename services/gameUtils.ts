@@ -1,5 +1,5 @@
 import { Tile, Charm, GameState, WordData, ScoreCalculationResult, ScoreBonusInfo, PowerPlay } from '../types';
-import { CHARM_BONUS, CHARM_SLOTS, POWER_PLAY_VALUES, POWER_WORD_EFFECTS } from '../config/gameplay';
+import { CHARM_BONUS, CHARM_SLOTS, POWER_PLAY_VALUES, POWER_WORD_EFFECTS, QUACK_ATTACK } from '../config/gameplay';
 import { TILE_DISTRIBUTION, VOWELS, RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, COMBO_TILES, COMBO_TILE_CHANCE, OFFER_RECENCY_WINDOW, OFFER_EXPLORATION_BOOST, OFFER_REPEAT_PENALTY, OFFER_MAX_RECENCY_PENALTY } from '../constants';
 import { dictionaryService } from './dictionaryService';
 import { canBeMadeFromLetters } from './rackMatch';
@@ -571,6 +571,12 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     if (gameState.activePowerPlays.comboBreaker && word.length >= POWER_PLAY_VALUES.comboBreakerMinLength) {
         wordMultipliers.push(POWER_PLAY_VALUES.comboBreakerMultiplier);
         bonuses.push({ name: 'Combo Breaker', description: `x${POWER_PLAY_VALUES.comboBreakerMultiplier} Word Score`, source: 'word' });
+    }
+
+    // Quack Attack (v7.54.0): four QUAs in a run make the next words score x4.
+    if (gameState.activePowerPlays.quackAttack) {
+        wordMultipliers.push(QUACK_ATTACK.multiplier);
+        bonuses.push({ name: '🦆 Quack Attack', description: `x${QUACK_ATTACK.multiplier} Word Score`, source: 'word' });
     }
 
     // PowerPlay: Let's Get Ready to Rumble! (biglyScore)

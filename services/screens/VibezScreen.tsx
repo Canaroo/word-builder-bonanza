@@ -111,6 +111,8 @@ const VibezScreen: React.FC<VibezScreenProps> = ({
       action = <ArcadeButton color="slate" size="sm" onClick={click(() => onEquipCosmetic(item.kind, null))}>✓ Wearing</ArcadeButton>;
     } else if (owned) {
       action = <ArcadeButton color="purple" variant="outline" size="sm" onClick={click(() => onEquipCosmetic(item.kind, item.id))}>Wear</ArcadeButton>;
+    } else if (item.earnedBy === 'quack') {
+      action = <span className="osd-text text-base leading-none text-neon-yellow text-right">🦆 PLAY QUA<br />4x IN A RUN</span>;
     } else if (item.earnedBy === '70k') {
       action = <span className="osd-text text-base leading-none text-neon-cyan text-right">💎 REACH<br />70,000</span>;
     } else if (item.streakDay) {

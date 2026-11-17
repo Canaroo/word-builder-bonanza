@@ -6,7 +6,7 @@ import { hitInProgress } from '../services/greatestHits';
 
 // Small chips above the hand for PowerPlays that play out over several words (v7.28): the
 // Tamagotchi's pot, a buried Time Capsule, the rival race, the blackjack count (tap to stand),
-// Hadouken charges, a Price Is Right bid, and the Psychic Friends Network's look at the next tiles.
+// Hadouken charges, a Price Is Right bid, and the Psychic Friends Network's call (v7.54.0).
 const Chip: React.FC<{ icon: string; label: string; children: React.ReactNode }> = ({ icon, label, children }) => (
   <span className="flex items-center gap-1 rounded-full bg-crt-950/80 ring-1 ring-neon-cyan/50 px-2 py-0.5 text-xs text-white whitespace-nowrap" aria-label={label}>
     <span aria-hidden="true">{icon}</span>{children}
@@ -57,7 +57,7 @@ const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string
   }
   if (a.hadouken) chips.push(<Chip key="hadouken" icon="💥" label={`Hadouken: ${a.hadouken.hits} boss hits saved`}>×{a.hadouken.hits}{gameState.boss ? '' : ' · next boss'}</Chip>);
   if (a.priceIsRight) chips.push(<Chip key="price" icon="🏷️" label={`Bid: ${a.priceIsRight.bid} or more for ${a.priceIsRight.prize}, miss and lose ${a.priceIsRight.miss ?? 0}`}>{a.priceIsRight.bid}+ → +{a.priceIsRight.prize}{a.priceIsRight.miss ? ` / -${a.priceIsRight.miss}` : ''}</Chip>);
-  if (a.psychicFriends && upcomingTiles.length) chips.push(<Chip key="psychic" icon="🔮" label={`Next tiles: ${upcomingTiles.join(', ')}`}><span className="font-tile font-bold tracking-widest text-neon-cyan">{upcomingTiles.join(' ')}</span></Chip>);
+  if (a.psychicFriends && typeof a.psychicFriends.letters === 'number') chips.push(<Chip key="psychic" icon="🔮" label={`Psychic call: ${a.psychicFriends.letters}${a.psychicFriends.orMore ? ' or more' : ''} letters for ${a.psychicFriends.prize}`}>CALLED: {a.psychicFriends.letters}{a.psychicFriends.orMore ? '+' : ''} LETTERS · +{a.psychicFriends.prize}</Chip>);
   if (!chips.length) return null;
   return <div className="flex flex-wrap justify-center gap-1" aria-label="PowerPlay trackers">{chips}</div>;
 };

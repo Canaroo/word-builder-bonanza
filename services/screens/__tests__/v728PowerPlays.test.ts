@@ -90,7 +90,7 @@ describe('v7.28 scoring', () => {
 
 describe('v7.28 reducer paths', () => {
     test('arming from the pocket stores the right starting state', () => {
-        for (const [id, value] of [['redrum', { words: V.redrumWords }], ['chickenDinner', { total: 0 }], ['hadouken', { hits: V.hadoukenHits }], ['tamagotchi', { feeds: 0 }], ['over9000', { words: V.over9000Words }], ['psychicFriends', { words: V.psychicWords }], ['timeCapsule', true], ['birdBox', true]] as const) {
+        for (const [id, value] of [['redrum', { words: V.redrumWords }], ['chickenDinner', { total: 0 }], ['hadouken', { hits: V.hadoukenHits }], ['tamagotchi', { feeds: 0 }], ['over9000', { words: V.over9000Words }], ['timeCapsule', true], ['birdBox', true]] as const) {
             const s = start({ availablePowerPlays: [pp(id)] });
             const next = gameReducer(s, { type: 'ACTIVATE_POWER_PLAY', payload: pp(id) });
             expect(next.gameState.activePowerPlays[id], id).toEqual(value);

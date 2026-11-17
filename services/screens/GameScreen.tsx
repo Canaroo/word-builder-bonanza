@@ -24,7 +24,7 @@ import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
 import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, charmLengthPoints, charmLengthBoostFor, charmMultiplierPoints, itemMultiplierIn, prizeFor, prizeScaleFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, charmTimeAt, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, rivalRateFor, redrumReverse } from '../rules';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES, GEM_INTRO_SHOWS } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES, GEM_INTRO_SHOWS, QUACK_ATTACK } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
 import { currentStreak, powerWordBonusFor, recordBossBadge, earnCosmetic } from '../progression';
@@ -317,7 +317,7 @@ export const maxStrikesFor = (gs: (Pick<GameState, 'charmUses'> & Partial<Pick<G
 };
 
 // Multi-word PowerPlays: activePowerPlays[id] = { words } counts down one valid word at a time.
-const WORD_COUNTDOWN_POWER_PLAYS = ['konamiCode', 'bigHeadMode', 'ludicrousSpeed', 'letterUpgrade', 'polish', 'comboBreaker', 'redrum', 'over9000', 'psychicFriends'];
+const WORD_COUNTDOWN_POWER_PLAYS = ['konamiCode', 'bigHeadMode', 'ludicrousSpeed', 'letterUpgrade', 'polish', 'comboBreaker', 'redrum', 'over9000', 'quackAttack'];
 
 // Time bank (config/gameplay.ts): the clock never resets between words. A Golden Round runs on
 // its own short clock; the bank is set aside when it starts and given back when it ends.
@@ -465,7 +465,7 @@ const levelUpModal = (wordsBefore: number, gs?: GameState): ModalContent | null 
  * stuck in the old round: v7.19.0's level-up card was, so a word whose only pop-up was a
  * level-up lost its word time, and Groundhog's Day saw a word "already played" and didn't fire.
  */
-export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork', 'bones', 'croc', 'greatest-hit'];
+export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork', 'bones', 'croc', 'greatest-hit', 'quack'];
 
 /**
  * A chance PowerPlay's result (a roll, a coin flip, a random tile): a centered card that waits
@@ -498,7 +498,7 @@ const powerPlaySeconds = (seconds: number): number => seconds;
 export type CharmTimeCut = { full: number; paid: number; percent: number; halved: boolean };
 
 /** Fire-on-pick PowerPlays that open a card in the offer's place (v7.39.2): the bid, the mission, Fluncle, Thwomped. */
-const CARD_ON_PICK = new Set(['priceIsRight', 'missionImpossible', 'fluncleIsProud', 'thwomped']);
+const CARD_ON_PICK = new Set(['priceIsRight', 'psychicFriends', 'missionImpossible', 'fluncleIsProud', 'thwomped']);
 
 /** Seconds of 3-2-1 before a resumed run continues. */
 export const RESUME_COUNTDOWN = 3;
@@ -898,7 +898,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             if (state.lastTurnState) {
                 // A bet the undone word settled (Daily Double, The Price Is Right) stays settled: its
                 // result is kept and it isn't armed again for another try.
-                const settledBets = ['dailyDouble', 'priceIsRight'].filter(id => state.lastTurnState!.gameState.activePowerPlays[id] && !state.gameState.activePowerPlays[id]);
+                const settledBets = ['dailyDouble', 'priceIsRight', 'psychicFriends'].filter(id => state.lastTurnState!.gameState.activePowerPlays[id] && !state.gameState.activePowerPlays[id]);
                 const betEntries = state.gameState.log.slice(state.lastTurnState.gameState.log.length)
                     .filter(e => e.type === 'event' && settledBets.some(id => e.id.startsWith(`pp-${id}-`))) as EventLogEntry[];
                 const betChange = betEntries.reduce((sum, e) => sum + (e.scoreChange ?? 0), 0);
@@ -1851,7 +1851,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 // The Price Is Right (v7.36.5): the bid card opens as the offer closes, before any tiles move.
                 // v7.36.6: the bid card takes the offer's place directly. Queued behind the offer, it was
                 // skipped: closing the offer saw an empty queue and started the next round.
-                if (powerPlay.id === 'priceIsRight') {
+                if (powerPlay.id === 'priceIsRight' || powerPlay.id === 'psychicFriends') {
                     newGameState.lastPowerPlayResult = null;
                     return {
                         ...state,
@@ -4183,6 +4183,20 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           dropPP('priceIsRight');
           modalQueue.push(outcome(ppById('priceIsRight'), priceMade ? `ACTUAL RETAIL: ${scoreResult.totalScore}. +${pricePaid}!` : `ACTUAL RETAIL: ${scoreResult.totalScore}${priceMiss ? `. -${priceMiss}` : ''}`, priceMade ? `You bid ${priceBid.bid}+ and ${word.toUpperCase()} made it. Come on down!` : `You bid ${priceBid.bid}+ but ${word.toUpperCase()} scored ${scoreResult.totalScore}.${priceMiss ? ` You overbid and lose ${priceMiss} points.` : ' No prize this time.'}`, priceMade ? 'win' : 'lose'));
       }
+      // Psychic Friends Network (v7.54.0): did the word match the called length? Paid below, outside
+      // the word, like The Price Is Right. A call armed by the old tile-peek version just ends.
+      const psychic = newState.activePowerPlays.psychicFriends as { letters?: number; prize?: number; orMore?: boolean } | undefined;
+      const psychicCalled = !!psychic && typeof psychic.letters === 'number';
+      const psychicMade = psychicCalled && (psychic!.orMore ? word.length >= psychic!.letters! : word.length === psychic!.letters);
+      const psychicPaid = psychicMade ? prizeFor(psychic!.prize ?? 0, prizeLevel) : 0;
+      if (psychic) {
+          dropPP('psychicFriends');
+          if (psychicCalled) {
+              const call = `${psychic!.letters}${psychic!.orMore ? '+' : ''} letters`;
+              modalQueue.push(outcome(ppById('psychicFriends'), psychicMade ? `THE PSYCHIC WAS RIGHT! +${psychicPaid}` : `THE SPIRITS WERE CLOUDY`,
+                  psychicMade ? `You called ${call} and ${word.toUpperCase()} has ${word.length}. Your psychic friend saw it coming!` : `You called ${call}, but ${word.toUpperCase()} has ${word.length}. No charge for the call.`, psychicMade ? 'win' : 'neutral'));
+          }
+      }
       // Scrooge's Money Bin (v7.29.1): a big enough next word earns credits (paid outside the run).
       if (newState.activePowerPlays.scroogeSwipe) {
           const made = scoreResult.totalScore >= V28.moneyBinScore;
@@ -4216,6 +4230,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (pricePaid) {
           runningScore += pricePaid;
           eventLogQueue.push({ type: 'event', id: `pp-priceIsRight-${now}`, name: 'The Price Is Right', icon: '🏷️', description: `Bid ${priceBid!.bid}+, ${word.toUpperCase()} made it: +${pricePaid}.`, scoreChange: pricePaid, cumulativeScore: runningScore });
+      }
+      if (psychicPaid) {
+          runningScore += psychicPaid;
+          eventLogQueue.push({ type: 'event', id: `pp-psychicFriends-${now}`, name: 'Psychic Friends Network', icon: '🔮', description: `Called ${psychic!.letters}${psychic!.orMore ? '+' : ''} letters, ${word.toUpperCase()} had ${word.length}: +${psychicPaid}.`, scoreChange: psychicPaid, cumulativeScore: runningScore });
       }
       if (priceMiss) {
           const lost = Math.min(priceMiss, runningScore);
@@ -4629,6 +4647,17 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       // --- 6. Aggregate Score and Check Aggregate Bonuses ---
       const turnScorePreMilestone = runningScore - oldScore;
+
+      // Quack Attack (v7.54.0): QUA's fourth play this run. The x4 starts with the next word (armed
+      // after this word's countdowns, below), and the Quack Pack badge is earned for good.
+      let quackStarts = false;
+      if (word.toUpperCase() === QUACK_ATTACK.word && !newState.quackDone && (playCounts(newState.log).get(QUACK_ATTACK.word) ?? 0) + 1 >= QUACK_ATTACK.plays) {
+          quackStarts = true;
+          newState.quackDone = true;
+          const badgeNew = earnCosmetic(QUACK_ATTACK.badgeId);
+          eventLogQueue.push({ type: 'event', id: `quack-${Date.now()}`, name: 'Quack Attack!', icon: '🦆', description: `QUA played ${QUACK_ATTACK.plays} times: the next ${QUACK_ATTACK.words} words score x${QUACK_ATTACK.multiplier}.${badgeNew ? ' Earned the 🦆 Quack Pack badge.' : ''}`, scoreChange: 0, cumulativeScore: runningScore });
+          modalQueue.push({ type: 'quack', title: 'Quack Attack!', data: { badgeNew } });
+      }
 
       // Greatest Hits (v7.52.0): an N-letter word played N times this run goes GOLD, PLATINUM...
       // A separate reward, like the word bonuses below: not multiplied or level-boosted.
@@ -5268,6 +5297,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       });
 
       newState.activePowerPlays = consumedPPs;
+      if (quackStarts) {
+          newState.activePowerPlays = { ...newState.activePowerPlays, quackAttack: { words: QUACK_ATTACK.words } };
+          consumedBuffs = [...consumedBuffs.filter(b => b.id !== 'quackAttack'), { id: 'quackAttack', name: 'Quack Attack', icon: '🦆', description: `Your next ${QUACK_ATTACK.words} words score x${QUACK_ATTACK.multiplier}, charm points too.`, flavorText: 'Ducks fly together!', subtheme: 'score', effectType: 'next_word', durationTag: 'LIMITED', activate: () => ({}) } as any];
+      }
       newState.activeBuffs = consumedBuffs;
 
 
@@ -6018,7 +6051,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         handleForkPick,
         handleCrocPick,
         handleBonesDone,
-        upcomingTiles: gameState.activePowerPlays?.psychicFriends ? tileBag.slice(-POWER_PLAY_VALUES.psychicTiles).reverse() : [],
+        upcomingTiles: [], // Psychic Friends no longer peeks at tiles (v7.54.0)
         // Smell Ya Later!: the rival's score as it climbs, in real seconds.
         raceRival: (() => {
             const r = gameState.activePowerPlays?.smellYaLater as { rival: number; startMs?: number; rate?: number } | undefined;
