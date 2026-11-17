@@ -71,6 +71,7 @@ const BUILD_ROW_SIZE = 8;
 // nested fields in place, and a shared starting object would carry them into the next run.
 export const createInitialGameState = (): GameState => ({
   skillShot: null, // a run never inherits a lit tile or a streak
+  quackDone: false, // Quack Attack: once a run (v7.54.1)
   score: 0,
   log: [],
   longestWord: '',
