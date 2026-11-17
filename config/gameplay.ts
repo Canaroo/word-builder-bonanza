@@ -443,6 +443,8 @@ export const HEAD_START = { perRun: 3, max: 15, untilLevel: 4 } as const;
 // introShows: times a player sees the explainer card.
 export const SKILL_SHOT = { base: 50, step: 25, max: 200, introShows: 2, fromLevel: 2 } as const;
 export const GEM_TILES: Record<number, number> = { 6: 3, 7: 4, 8: 5 };
+/** Times a player sees the gem explainer card (v7.53.1), like Skill Shot's intro. */
+export const GEM_INTRO_SHOWS = 2;
 
 /**
  * v7.43: three more mechanics borrowed from other games.
