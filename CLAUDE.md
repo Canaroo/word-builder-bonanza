@@ -259,7 +259,15 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   letter part, so players avoided every dimmed tile with a 3-letter word, got a MISS that just
   repeated the rule, and thought Magneto was broken (its mechanics were right). Misses now read
   "too short: 3 letters, needs 4+", "shared T with CAT" or "used E", in the toast and the log.
-  A new rule with more than one part should get a `missReason`. Boss Badges are permanent (one per boss) and show
+  A new rule with more than one part should get a `missReason`.
+  **Magneto fairness check (v7.53.3):** the rule and the dimmed tiles agree in every path: both read
+  the last *valid* word from the log (invalid words don't change it; a Golden Round word counts as
+  the last word but isn't a fight word; a Game Genie word is checked like any other), and leftover
+  tiles that share its letters are dimmed too. Simulated fights (8-tile hands with leftovers kept, a
+  player who knows the common-word list): playing the longest hit each time wins the badge 17% of
+  the time, choosing short words with uncommon letters 42% (Ursula 43-46%, The Noid 35-36%). Real
+  fights: Magneto won 68% (19), Ursula 71% (14), The Noid 57% (21). Its description now carries that
+  tip. Boss Badges are permanent (one per boss) and show
   on the Top 50 as 🏅N; Firebase needs the `bosses` rule line in `docs/LEADERBOARD.md`.
 - **Balance from usage stats (v7.33.0, 90 runs):** bosses were either free or impossible, so
   Ursula, The Noid and Magneto also need 4+ letters (they were beaten 34 of 35 times), the four
@@ -417,8 +425,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   next hand into a x3 / x4 / x5 word tile (`START_NEXT_ROUND`). It scores as a "Tile Multiplier"
   line, so it covers charm points like other tile multipliers.
   The first two times a player gets a gem (per player, `gemTips`, `GEM_INTRO_SHOWS`), a `gem-intro`
-  card explains it (v7.53.1): what it multiplies, that it only lasts this hand, and the x3/x4/x5
-  lengths. It waits for any open pop-up and for the Skill Shot card on the same hand.
+  card explains it (v7.53.1): what it multiplies, and the x3/x4/x5 lengths. An unused gem stays in
+  the hand (leftover tiles are kept and topped up to 8; nothing clears a gem) until it's played, and
+  a shuffle trades it away; v7.53.1's card wrongly said it only lasts one hand (fixed in v7.53.3).
+  Two gems in one word add (x5 + x5 = x10), like all word-multiplier tiles, so banking one is a
+  real but bounded tactic. It waits for any open pop-up and for the Skill Shot card on the same hand.
 - **Borrowed mechanics, batch two (v7.43.0).** Values in `FORK`, `HOLD_SLOT`, `GRUDGE`.
   **Fork in the Road** (`components/ForkCard.tsx`, `gameState.route`): at levels 4, 7 and 11 a
   card after the level-up makes the player pick Easy Street (clock 10% slower) or the Danger Zone
