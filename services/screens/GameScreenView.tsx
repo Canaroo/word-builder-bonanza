@@ -348,8 +348,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                             </div>
                             <ol className="text-left text-slate-200 leading-snug space-y-1.5 list-decimal pl-5">
                                 <li>Your long word earned a gem: your <strong className="text-white">{data?.letter ?? 'A'}</strong> is now a <strong className="text-cyan-300">x{mult} word tile</strong>.</li>
-                                <li>Use it in your <strong className="text-white">very next word</strong> and the whole word scores <strong className="text-neon-yellow">x{mult}</strong>, charm points included.</li>
-                                <li>It only lasts <strong className="text-white">this hand</strong>. If your next word skips it, it's gone.</li>
+                                <li>Use it in a word and the whole word scores <strong className="text-neon-yellow">x{mult}</strong>, charm points included.</li>
+                                <li>It stays in your hand until you use it, but a <strong className="text-white">shuffle trades it away</strong>, so play it first.</li>
                             </ol>
                             <p className="text-sm text-slate-400">6-letter words earn x{GEM_TILES[6]}, 7 letters x{GEM_TILES[7]}, 8 or more x{GEM_TILES[8]}.</p>
                             <ArcadeButton color="cyan" className="w-full" onClick={handleCloseModal}>Got it</ArcadeButton>

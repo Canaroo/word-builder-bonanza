@@ -194,7 +194,7 @@ export const BOSSES: Boss[] = [
   },
   {
     id: 'magneto', name: 'Magneto', icon: '🧲', tier: 'mid', source: 'X-Men',
-    rule: `NO LAST-WORD LETTERS · ${MIN_HIT_LETTERS}+ LETTERS`, description: `A word can’t share any letter with your last word, and needs at least ${MIN_HIT_LETTERS} letters. Like poles repel.`,
+    rule: `NO LAST-WORD LETTERS · ${MIN_HIT_LETTERS}+ LETTERS`, description: `A word can’t share any letter with your last word, and needs at least ${MIN_HIT_LETTERS} letters. Like poles repel. Tip: a long word bans a lot of letters next time; short words with uncommon letters keep your next hand open.`,
     taunt: 'Like poles repel, my friend. Share nothing with your last word, and make it count.',
     check: (word, tiles, ctx) => word.length >= MIN_HIT_LETTERS && ![...word].some(l => ctx.last.includes(l)),
     tileHint: (tile, tiles, ctx) => ([...tile.letter].some(l => ctx.last.includes(l)) ? 'dim' : null),
