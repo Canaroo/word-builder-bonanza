@@ -1,4 +1,4 @@
-import { hotTubIndex, wildcardIndex } from '../services/rules';
+import { hotTubIndex, wildcardIndex, MISSIONS, missionById } from '../services/rules';
 import { Sec } from './Seconds';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import ArcadeButton from './ArcadeButton';
@@ -22,6 +22,8 @@ export interface GambleResult {
   charm?: { id: string; replaceId?: string };
   /** WILDCARD: a free tile of this letter joins the hand. */
   tile?: string;
+  /** Scrooge's Money Bin (v7.55.0): Credits caught (paid outside the run). */
+  credits?: number;
 }
 
 // A gamble card's board is saved with the run (v7.28.9). Without it, quitting and resuming brought
@@ -933,10 +935,186 @@ const Wildcard: React.FC<{ onResolve: (r: GambleResult) => void; extra?: Record<
   );
 };
 
+// --- v7.55.0 reworks: five low-pick PowerPlays become quick arcade cards ----------------------
+
+/** A countdown in real time that calls onEnd once; returns ms left. */
+const useCountdown = (running: boolean, ms: number, onEnd: () => void) => {
+  const [left, setLeft] = useState(ms);
+  const ended = useRef(false);
+  useEffect(() => {
+    if (!running) return;
+    const start = performance.now();
+    const t = setInterval(() => {
+      const l = Math.max(0, ms - (performance.now() - start));
+      setLeft(l);
+      if (l <= 0 && !ended.current) { ended.current = true; clearInterval(t); onEnd(); }
+    }, 50);
+    return () => clearInterval(t);
+  }, [running]); // eslint-disable-line react-hooks/exhaustive-deps
+  return left;
+};
+const SecsLeft: React.FC<{ ms: number }> = ({ ms }) => <span className={`osd-text text-2xl leading-none ${ms < 3000 ? 'text-neon-red' : 'text-white'}`}>{Math.ceil(ms / 1000)}<Sec /></span>;
+
+/** Shake It Like a Polaroid: tap as fast as you can; the photo develops as you shake. */
+const Polaroid: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
+  const [phase, setPhase] = useSaved<'ready' | 'shaking' | 'done'>('phase', 'ready');
+  const [shakes, setShakes] = useSaved('shakes', 0);
+  const count = useRef(shakes);
+  const pointsFor = (n: number) => Math.min(V.polaroidMax, Math.floor(n / V.polaroidShakesPerStep) * V.polaroidPoints);
+  const left = useCountdown(phase === 'shaking', V.polaroidSeconds * 1000, () => { setShakes(count.current); setPhase('done'); soundService.playMilestone(); });
+  const shake = () => {
+    if (phase === 'done') return;
+    if (phase === 'ready') setPhase('shaking');
+    count.current += 1; setShakes(count.current); soundService.playTileClick(); buzz(8);
+  };
+  const pts = pointsFor(shakes);
+  const developed = Math.min(1, pts / V.polaroidMax);
+  return (
+    <>
+      <p className="text-slate-200 text-sm">{phase === 'ready' ? `Tap the photo as fast as you can. You have ${V.polaroidSeconds} seconds once you start.` : phase === 'shaking' ? 'Shake it! Shake it!' : `Developed! ${shakes} shakes.`}</p>
+      <button type="button" onPointerDown={e => { e.preventDefault(); shake(); }} disabled={phase === 'done'} aria-label="Shake the Polaroid"
+        className={`select-none touch-none bg-white rounded-sm p-2 pb-8 w-44 shadow-xl ${phase === 'shaking' ? 'animate-[wiggle_0.15s_ease-in-out_infinite]' : ''}`} style={{ transform: phase === 'shaking' ? `rotate(${(shakes % 2 ? 4 : -4)}deg)` : undefined }}>
+        <div className="w-40 h-40 bg-gradient-to-br from-slate-800 to-slate-900 grid place-items-center overflow-hidden">
+          <span className="text-7xl transition-opacity" style={{ opacity: developed }} aria-hidden="true">🤩</span>
+        </div>
+      </button>
+      <div className="w-full flex justify-between items-baseline">
+        <span className="osd-text text-xl text-neon-yellow">+{pts}</span>
+        {phase !== 'done' ? <SecsLeft ms={left} /> : <span className="osd-text text-lg text-slate-400">{shakes} SHAKES</span>}
+      </div>
+      {phase === 'done' && <ArcadeButton color="green" className="w-full" onClick={() => onResolve({ points: pts, headline: pts ? `+${pts} POINTS` : 'UNDERDEVELOPED', detail: `${shakes} shakes developed the photo. ${pts ? 'Picture perfect!' : 'Shake it harder next time.'}`, tone: pts ? 'win' : 'neutral' })}>{pts ? `Take +${pts}` : 'Continue'}</ArcadeButton>}
+    </>
+  );
+};
+
+/** Duck Hunt: ducks cross the sky; tap to shoot. The flight plan is saved, so a resume can't redeal it. */
+const DUCK_FLIGHT_MS = 2400;
+const DuckHunt: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
+  const [phase, setPhase] = useSaved<'ready' | 'flying' | 'done'>('phase', 'ready');
+  const [hits, setHits] = useSaved<number[]>('hits', []);
+  const [ducks] = useSaved('ducks', () => Array.from({ length: Math.floor((V.duckSeconds * 1000 - DUCK_FLIGHT_MS) / 750) + 1 }, (_, i) => ({ at: i * 750, y: 8 + Math.random() * 64, ltr: Math.random() < 0.5 })));
+  const [now, setNow] = useState(0);
+  const startRef = useRef(0);
+  useEffect(() => {
+    if (phase !== 'flying') return;
+    startRef.current = performance.now();
+    const t = setInterval(() => setNow(performance.now() - startRef.current), 33);
+    return () => clearInterval(t);
+  }, [phase]);
+  const left = useCountdown(phase === 'flying', V.duckSeconds * 1000, () => { setPhase('done'); soundService.playMilestone(); });
+  const shoot = (i: number) => { if (phase !== 'flying' || hits.includes(i)) return; setHits([...hits, i]); soundService.playValidWord(); buzz(20); };
+  const pts = hits.length * V.duckPoints;
+  return (
+    <>
+      <p className="text-slate-200 text-sm">{phase === 'ready' ? `Ducks fly for ${V.duckSeconds} seconds. Tap them to shoot, +${V.duckPoints} each.` : phase === 'flying' ? 'Pull!' : hits.length ? `${hits.length} ${hits.length === 1 ? 'duck' : 'ducks'} down!` : 'The dog is laughing at you. 🐕'}</p>
+      <div className="relative w-full h-56 rounded-xl overflow-hidden ring-2 ring-neon-cyan/50 bg-gradient-to-b from-sky-500 to-sky-300">
+        <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-b from-green-600 to-green-800" />
+        {phase === 'flying' && ducks.map((d, i) => {
+          const t = (now - d.at) / DUCK_FLIGHT_MS;
+          if (t < 0 || t > 1) return null;
+          const x = d.ltr ? t * 110 - 10 : 100 - t * 110;
+          const shot = hits.includes(i);
+          return (
+            <button key={i} type="button" onPointerDown={e => { e.preventDefault(); shoot(i); }} aria-label={`Duck ${i + 1}`}
+              className="absolute text-4xl leading-none select-none touch-none p-1" style={{ left: `${x}%`, top: `${shot ? d.y + t * 60 : d.y + Math.sin(t * 12) * 4}%`, transform: `scaleX(${d.ltr ? -1 : 1})`, opacity: shot ? 0.5 : 1 }}>
+              {shot ? '💥' : '🦆'}
+            </button>
+          );
+        })}
+        {phase === 'ready' && <div className="absolute inset-0 grid place-items-center text-6xl" aria-hidden="true">🔫</div>}
+      </div>
+      <div className="w-full flex justify-between items-baseline"><span className="osd-text text-xl text-neon-yellow">{hits.length} × {V.duckPoints} = +{pts}</span>{phase === 'flying' && <SecsLeft ms={left} />}</div>
+      {phase === 'ready' && <ArcadeButton color="cyan" className="w-full" onClick={() => { soundService.playPowerUp(); setPhase('flying'); }}>🦆 Pull!</ArcadeButton>}
+      {phase === 'done' && <ArcadeButton color="green" className="w-full" onClick={() => onResolve({ points: pts, headline: pts ? `+${pts} POINTS` : 'NO DUCKS', detail: `You shot ${hits.length} of ${ducks.length} ducks.`, tone: pts ? 'win' : 'neutral' })}>{pts ? `Take +${pts}` : 'Continue'}</ArcadeButton>}
+    </>
+  );
+};
+
+/** Scrooge's Money Bin: coins rain down; tap to catch, 1 Credit each (capped). */
+const COIN_FALL_MS = 1800;
+const MoneyBin: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
+  const [phase, setPhase] = useSaved<'ready' | 'raining' | 'done'>('phase', 'ready');
+  const [caught, setCaught] = useSaved<number[]>('caught', []);
+  const [coins] = useSaved('coins', () => Array.from({ length: Math.floor((V.moneyBinSeconds * 1000 - COIN_FALL_MS) / 500) + 1 }, (_, i) => ({ at: i * 500, x: 5 + Math.random() * 80 })));
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    if (phase !== 'raining') return;
+    const start = performance.now();
+    const t = setInterval(() => setNow(performance.now() - start), 33);
+    return () => clearInterval(t);
+  }, [phase]);
+  const left = useCountdown(phase === 'raining', V.moneyBinSeconds * 1000, () => { setPhase('done'); soundService.playMilestone(); });
+  const credits = Math.min(V.moneyBinMaxCredits, caught.length);
+  const grab = (i: number) => { if (phase !== 'raining' || caught.includes(i)) return; setCaught([...caught, i]); soundService.playTileClick(); buzz(12); };
+  return (
+    <>
+      <p className="text-slate-200 text-sm">{phase === 'ready' ? `Coins rain down for ${V.moneyBinSeconds} seconds. Tap to catch them: 1 Credit each, up to ${V.moneyBinMaxCredits}.` : phase === 'raining' ? 'Dive in!' : `You caught ${caught.length} ${caught.length === 1 ? 'coin' : 'coins'}.`}</p>
+      <div className="relative w-full h-56 rounded-xl overflow-hidden ring-2 ring-neon-yellow/60 bg-gradient-to-b from-emerald-900 to-crt-950">
+        {phase === 'raining' && coins.map((c, i) => {
+          const t = (now - c.at) / COIN_FALL_MS;
+          if (t < 0 || t > 1 || caught.includes(i)) return null;
+          return <button key={i} type="button" onPointerDown={e => { e.preventDefault(); grab(i); }} aria-label={`Coin ${i + 1}`} className="absolute text-4xl leading-none select-none touch-none p-1" style={{ left: `${c.x}%`, top: `${t * 100 - 12}%` }}>🪙</button>;
+        })}
+        {phase === 'ready' && <div className="absolute inset-0 grid place-items-center text-6xl" aria-hidden="true">🎩</div>}
+      </div>
+      <div className="w-full flex justify-between items-baseline"><span className="osd-text text-xl text-neon-yellow">🪙 {credits}{caught.length > V.moneyBinMaxCredits ? ' (MAX)' : ''}</span>{phase === 'raining' && <SecsLeft ms={left} />}</div>
+      {phase === 'ready' && <ArcadeButton color="yellow" className="w-full" onClick={() => { soundService.playPowerUp(); setPhase('raining'); }}>🎩 Dive in!</ArcadeButton>}
+      {phase === 'done' && <ArcadeButton color="green" className="w-full" onClick={() => onResolve({ credits, headline: credits ? `+${credits} CREDITS` : 'THE BIN STAYS SHUT', detail: credits ? `Swimming in money! Spend them in the Vibez Shop.` : 'Not a single coin. Next time!', tone: credits ? 'win' : 'neutral' })}>{credits ? `Take 🪙 ${credits}` : 'Continue'}</ArcadeButton>}
+    </>
+  );
+};
+
+/** Wario: three money bags. Bigger bags cost more seconds, taken off the clock right away. */
+const WarioBags: React.FC<{ onResolve: (r: GambleResult) => void; extra?: Record<string, unknown> }> = ({ onResolve, extra }) => {
+  const clock = Number(extra?.clock ?? 999);
+  return (
+    <>
+      <p className="text-slate-200 text-sm">WAH! Pick a bag. The seconds come off your clock right now.</p>
+      <div className="grid grid-cols-3 gap-2 w-full">
+        {V.warioBags.map(({ points, seconds }, i) => {
+          const tooMuch = seconds >= clock;
+          return (
+            <button key={points} type="button" disabled={tooMuch} aria-label={`Bag ${i + 1}: plus ${points} points for minus ${seconds} seconds${tooMuch ? ', not enough time' : ''}`}
+              onClick={() => { soundService.playPowerUp(); onResolve({ points, seconds: -seconds, headline: `+${points} POINTS`, detail: `Wario takes ${seconds} seconds off your clock. Money, money, money!`, tone: 'win' }); }}
+              className={`rounded-xl py-3 ring-2 flex flex-col items-center gap-1 ${tooMuch ? 'opacity-40 ring-white/10' : 'ring-neon-yellow/70 bg-crt-950 hover:brightness-125'}`}>
+              <span className="leading-none" style={{ fontSize: `${2 + i * 0.6}rem` }} aria-hidden="true">💰</span>
+              <span className="osd-text text-lg text-neon-green leading-none">+{points}</span>
+              <span className="osd-text text-base text-neon-red leading-none">-{seconds}<Sec /></span>
+            </button>
+          );
+        })}
+      </div>
+      {V.warioBags.some(b => b.seconds >= clock) && <p className="text-xs text-slate-400">Greyed bags would cost more time than you have.</p>}
+    </>
+  );
+};
+
+/** Mission: Impossible: a secret mission for your next few words. Accepting arms it; declining ends it. */
+const Mission: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
+  const [id] = useSaved('mission', () => MISSIONS[Math.floor(Math.random() * MISSIONS.length)].id);
+  const m = missionById(id) ?? MISSIONS[0];
+  return (
+    <>
+      <div className="w-full rounded-lg bg-[#e9dfc4] text-crt-900 p-3 text-left font-mono text-sm shadow-inner">
+        <p className="font-bold tracking-widest">TOP SECRET · IMF</p>
+        <p className="mt-1">Your mission, should you choose to accept it:</p>
+        <p className="mt-1 font-bold text-base">{m.text}</p>
+        <p className="mt-1">within your next {V.missionWords} words. Reward: +{V.missionPrize} points.</p>
+        <p className="mt-1 italic">This card will self-destruct.</p>
+      </div>
+      <div className="grid grid-cols-2 gap-2 w-full">
+        <ArcadeButton color="slate" variant="outline" onClick={() => onResolve({ headline: 'MISSION DECLINED', detail: 'The tape self-destructs. Nothing lost.', tone: 'neutral' })}>Decline</ArcadeButton>
+        <ArcadeButton color="green" onClick={() => onResolve({ headline: 'MISSION ACCEPTED', detail: `${m.text} within your next ${V.missionWords} words for +${V.missionPrize}. Good luck.`, tone: 'neutral', arm: { value: { mission: m.id, words: V.missionWords }, description: `Mission: ${m.text.toLowerCase()} within ${V.missionWords} words for +${V.missionPrize}.` } })}>Accept</ArcadeButton>
+      </div>
+    </>
+  );
+};
+
 const GAMES: Record<string, React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[]; extra?: Record<string, unknown> }>> = {
   letsMakeADeal: Doors, dealOrNoDeal: Deal, noWhammies: Whammies, minesweeper: Mines,
   priceIsRight: PriceIsRight, psychicFriends: PsychicCall, draftDay: DraftDay, cardSharks: CardSharks, plinko: Plinko,
   hotTubTimeMachine: HotTub, luckyCharms: LuckyCharms, wildcard: Wildcard,
+  shakeItLikeAPolaroid: Polaroid, duckHunt: DuckHunt, scroogeSwipe: MoneyBin, warioWarp: WarioBags, missionImpossible: Mission,
 };
 
 /** The interactive part of a gamble PowerPlay. */

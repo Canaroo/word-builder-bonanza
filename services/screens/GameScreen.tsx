@@ -23,7 +23,7 @@ import { showToast } from '../toast';
 import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
-import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, charmLengthPoints, charmLengthBoostFor, charmMultiplierPoints, itemMultiplierIn, prizeFor, prizeScaleFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, charmTimeAt, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, rivalRateFor, redrumReverse } from '../rules';
+import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, charmLengthPoints, charmLengthBoostFor, charmMultiplierPoints, itemMultiplierIn, prizeFor, prizeScaleFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, charmTimeAt, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, rivalRateFor, redrumReverse , missionById } from '../rules';
 import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES, GEM_INTRO_SHOWS, QUACK_ATTACK } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
@@ -318,7 +318,7 @@ export const maxStrikesFor = (gs: (Pick<GameState, 'charmUses'> & Partial<Pick<G
 };
 
 // Multi-word PowerPlays: activePowerPlays[id] = { words } counts down one valid word at a time.
-const WORD_COUNTDOWN_POWER_PLAYS = ['konamiCode', 'bigHeadMode', 'ludicrousSpeed', 'letterUpgrade', 'polish', 'comboBreaker', 'redrum', 'over9000', 'quackAttack'];
+const WORD_COUNTDOWN_POWER_PLAYS = ['konamiCode', 'bigHeadMode', 'letterUpgrade', 'polish', 'comboBreaker', 'redrum', 'over9000', 'quackAttack'];
 
 // Time bank (config/gameplay.ts): the clock never resets between words. A Golden Round runs on
 // its own short clock; the bank is set aside when it starts and given back when it ends.
@@ -714,7 +714,16 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         // playMs: real time the clock has run this run (usage stats). Kept outside gameState so a tick doesn't touch it.
         case 'TICK_TIMER': return { ...state, time: state.time - 1, playMs: (state.playMs ?? 0) + (action.ms ?? 1000), quizMs: (state.quizMs ?? 0) + (action.ms ?? 1000) };
         // ❄️ A frozen clock: the freeze counts down instead of the bank.
-        case 'TICK_FREEZE': return { ...state, quizMs: (state.quizMs ?? 0) + 1000, gameState: { ...state.gameState, freezeLeft: Math.max(0, (state.gameState.freezeLeft ?? 0) - 1) } };
+        case 'TICK_FREEZE': {
+            const freezeLeft = Math.max(0, (state.gameState.freezeLeft ?? 0) - 1);
+            let gs = { ...state.gameState, freezeLeft };
+            // Ludicrous Speed (v7.55.0): the sprint ends when its frozen seconds run out.
+            if (freezeLeft === 0 && gs.activePowerPlays.ludicrousSpeed === true) {
+                const { ludicrousSpeed: _done, ...rest } = gs.activePowerPlays;
+                gs = { ...gs, activePowerPlays: rest, activeBuffs: gs.activeBuffs.filter(b => b.id !== 'ludicrousSpeed'), lastPowerPlayResult: { message: '🚀 Ludicrous Speed is over. Back to normal speed!', scoreChange: 0 } };
+            }
+            return { ...state, quizMs: (state.quizMs ?? 0) + 1000, gameState: gs };
+        }
         case 'ADD_TIME': return {...state, time: clampTime(state.time + action.payload, bankMax(state.gameState)) };
         case 'SET_TIME': return { ...state, time: action.payload };
         case 'UPDATE_GAME_STATE': return { ...state, gameState: { ...state.gameState, ...action.payload } };
@@ -1837,22 +1846,10 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     newGameState.lastPowerPlayResult = { message: `⚡ ${powerPlay.icon} ${powerPlay.name} fired!${swappedOut}`, scoreChange: 0 };
                 }
                 
-                // Mission: Impossible (fires on pick, v7.28.9): the seconds come now, the promise follows.
-                if (powerPlay.id === 'missionImpossible') {
-                    const V = POWER_PLAY_VALUES;
-                    const gained = powerPlaySeconds(V.missionImpossibleSeconds);
-                    const time = clampTime(state.time + gained, bankMax(newGameState));
-                    newGameState.lastPowerPlayResult = { message: `🕵️ Mission accepted: +${gained}s. Your next ${V.missionImpossibleWords} words need ${V.missionImpossibleLetters}+ letters.${swappedOut}`, scoreChange: 0 };
-                    return {
-                        ...state, time, timeGain: { seconds: gained, key: Date.now() }, gameState: newGameState, isPaused: true,
-                        modalContent: (outcome(powerPlay, `MISSION ACCEPTED: +${gained}s`, `Now keep your promise: your next ${V.missionImpossibleWords} words must have ${V.missionImpossibleLetters}+ letters. A shorter word costs ${V.missionImpossiblePenalty} seconds.`, 'neutral')),
-                    };
-                }
-
                 // The Price Is Right (v7.36.5): the bid card opens as the offer closes, before any tiles move.
                 // v7.36.6: the bid card takes the offer's place directly. Queued behind the offer, it was
                 // skipped: closing the offer saw an empty queue and started the next round.
-                if (powerPlay.id === 'priceIsRight' || powerPlay.id === 'psychicFriends') {
+                if (powerPlay.id === 'priceIsRight' || powerPlay.id === 'psychicFriends' || powerPlay.id === 'missionImpossible') {
                     newGameState.lastPowerPlayResult = null;
                     return {
                         ...state,
@@ -3802,8 +3799,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           newState.activePowerPlays = stillActive;
           newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'comboBreaker');
       }
-      if (newState.activePowerPlays.ludicrousSpeed) {
+      // Ludicrous Speed armed before v7.55.0 (3 words, each costing seconds): settle it the old way.
+      const oldLudicrous = newState.activePowerPlays.ludicrousSpeed as { words?: number } | true | undefined;
+      if (oldLudicrous && oldLudicrous !== true) {
           newState.ludicrousTimeCost = (newState.ludicrousTimeCost ?? 0) + POWER_PLAY_VALUES.ludicrousSpeedCost;
+          if ((oldLudicrous.words ?? 1) > 1) newState.activePowerPlays = { ...newState.activePowerPlays, ludicrousSpeed: { words: (oldLudicrous.words ?? 1) - 1 } };
+          else { const { ludicrousSpeed: _old, ...rest } = newState.activePowerPlays; newState.activePowerPlays = rest; newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'ludicrousSpeed'); }
       }
 
       // --- Heisenberg PowerPlay ---
@@ -4336,21 +4337,30 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // Daily Double and Pop Quiz, Hotshot (v7.25) settle on this word. Separate from the word's
       // own points, so a locked word still settles the bet.
       // Mission: Impossible: each 5+ letter word counts down the promise; a shorter one breaks it.
-      const mission = newState.activePowerPlays.missionImpossible as { words: number } | undefined;
+      // Mission: Impossible (v7.55.0): pull off the dealt mission within a few words for the prize.
+      // Paid outside the word; failing costs nothing. A promise armed by the old version just ends.
+      const mission = newState.activePowerPlays.missionImpossible as { words: number; mission?: string } | undefined;
       if (mission) {
-          const V = POWER_PLAY_VALUES;
-          const kept = word.length >= V.missionImpossibleLetters;
-          const left = mission.words - 1;
-          if (kept && left > 0) {
-              newState.activePowerPlays = { ...newState.activePowerPlays, missionImpossible: { words: left } };
-              showMessage(`🕵️ ${word.toUpperCase()} counts. ${left} more ${left === 1 ? 'word' : 'words'} of ${V.missionImpossibleLetters}+ letters to go.`, 2500);
-          } else {
+          const m = missionById(mission.mission);
+          const dropMission = () => {
               const { missionImpossible: _m, ...rest } = newState.activePowerPlays;
               newState.activePowerPlays = rest;
               newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'missionImpossible');
-              if (!kept) newState.ludicrousTimeCost = (newState.ludicrousTimeCost ?? 0) + V.missionImpossiblePenalty;
-              eventLogQueue.push({ type: 'event', id: `pp-mission-${now}`, name: 'Mission: Impossible', icon: '🕵️', description: kept ? 'Mission complete: both words had 5+ letters.' : `${word.toUpperCase()} has only ${word.length} letters: mission failed, -${V.missionImpossiblePenalty}s.`, scoreChange: 0, cumulativeScore: runningScore });
-              modalQueue.push(outcome(ppById('missionImpossible'), kept ? 'MISSION COMPLETE' : `MISSION FAILED: -${V.missionImpossiblePenalty}s`, kept ? `Both words had ${V.missionImpossibleLetters}+ letters. You keep the time. This message will self-destruct.` : `${word.toUpperCase()} has only ${word.length} letters (you promised ${V.missionImpossibleLetters}+). The clock loses ${V.missionImpossiblePenalty} seconds next round.`, kept ? 'win' : 'lose'));
+          };
+          if (!m) dropMission();
+          else if (m.test(word.toUpperCase())) {
+              dropMission();
+              const paid = prizeFor(POWER_PLAY_VALUES.missionPrize, prizeLevel);
+              runningScore += paid;
+              eventLogQueue.push({ type: 'event', id: `pp-mission-${now}`, name: 'Mission: Impossible', icon: '🕵️', description: `Mission complete with ${word.toUpperCase()}: +${paid}.`, scoreChange: paid, cumulativeScore: runningScore });
+              modalQueue.push(outcome(ppById('missionImpossible'), `MISSION COMPLETE: +${paid}`, `${word.toUpperCase()} did it: ${m.text.toLowerCase()}. This message will self-destruct.`, 'win'));
+          } else if (mission.words > 1) {
+              newState.activePowerPlays = { ...newState.activePowerPlays, missionImpossible: { ...mission, words: mission.words - 1 } };
+              showMessage(`🕵️ Not yet. ${mission.words - 1} ${mission.words - 1 === 1 ? 'word' : 'words'} left: ${m.text.toLowerCase()}.`, 2500);
+          } else {
+              dropMission();
+              eventLogQueue.push({ type: 'event', id: `pp-mission-${now}`, name: 'Mission: Impossible', icon: '🕵️', description: `Mission failed: ${m.text.toLowerCase()}. Nothing lost.`, scoreChange: 0, cumulativeScore: runningScore });
+              modalQueue.push(outcome(ppById('missionImpossible'), 'MISSION FAILED', `The mission was: ${m.text.toLowerCase()}. No harm done. This message will self-destruct.`, 'neutral'));
           }
       }
       const daily = newState.activePowerPlays.dailyDouble as { wager: number } | undefined;
@@ -5593,6 +5603,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         } });
         // Draft Day: the picked pack joins the hand.
         if (r.draft) dispatch({ type: 'DRAFT_TILES', payload: { letters: r.draft } });
+        // Scrooge's Money Bin (v7.55.0): caught coins are Credits, paid outside the run.
+        if (r.credits) onLexCoinChange(r.credits, `🎩 Money Bin: +${r.credits}`);
         // WILDCARD: the free tile joins the hand.
         if (r.tile) dispatch({ type: 'ADD_FREE_TILE', payload: { letter: r.tile } });
         // Lucky Charms: the charm from the box goes on (bumping the picked one when slots are full).
@@ -5738,7 +5750,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             soundService.playPowerUp();
             // WILDCARD's card says up front whether a shield would take its strike.
             const shielded = powerPlay.id === 'wildcard' && !!(gameState.activePowerPlays.strikeShield || gameState.activePowerPlays.plotArmor);
-            dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gamble', title: powerPlay.name, data: { id: powerPlay.id, icon: powerPlay.icon, ...(shielded ? { shielded } : {}) } } });
+            // Wario's bags (v7.55.0) grey out any that would cost more seconds than the clock has.
+            const clock = powerPlay.id === 'warioWarp' ? { clock: Math.floor(time) } : {};
+            dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gamble', title: powerPlay.name, data: { id: powerPlay.id, icon: powerPlay.icon, ...(shielded ? { shielded } : {}), ...clock } } });
             return;
         }
         if (powerPlay.id === 'neuralyzer') {
