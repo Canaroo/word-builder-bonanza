@@ -278,6 +278,9 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   repeated the rule, and thought Magneto was broken (its mechanics were right). Misses now read
   "too short: 3 letters, needs 4+", "shared T with CAT" or "used E", in the toast and the log.
   A new rule with more than one part should get a `missReason`.
+  **Ivan Drago (v7.54.2):** BEAT YOUR LAST: SCORE OR LENGTH (a word scores more than the last one,
+  or has more letters), 5 hits (was score only, 4 hits, won 1 of 12). The owner kept the four 100%
+  early bosses (Cobra Commander, Mojo Jojo, Oogie Boogie, King Hippo) as warm-ups on purpose.
   **Magneto fairness check (v7.53.3):** the rule and the dimmed tiles agree in every path: both read
   the last *valid* word from the log (invalid words don't change it; a Golden Round word counts as
   the last word but isn't a fight word; a Game Genie word is checked like any other), and leftover
@@ -418,7 +421,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   real tape offers ended in a keep), so the confirmation also guards that case.
   **Power word hint** (`services/powerWordHint.ts`): when the tiles in play can spell a ready power
   word, a chip above the hand says so (icon and length on tap, never the word), once per level
-  (`gameState.powerHint`), not in Golden Rounds.
+  (`gameState.powerHint`), not in Golden Rounds. v7.54.2: the tap also gives the word's first letter
+  (`first` on the hint): 88 hints had led to 3 plays.
   Stats: new events `continue_offer` and `pw_hint`, extras `mystery` (pp_offer) and `hinted`
   (power_word). They need the rules in `docs/LEADERBOARD.md` pasted into the Firebase console.
 - **Mechanics borrowed from other games, batch one (v7.42.0).** Values in `LAST_WORDS`,

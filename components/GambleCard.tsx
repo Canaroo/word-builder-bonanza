@@ -368,7 +368,7 @@ const PriceIsRight: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onRe
         </button>
       ))}
     </div>
-    <p className="text-slate-400 text-sm">The score preview above the Submit button shows what a word is worth.</p>
+    <p className="text-slate-400 text-sm">Tip: long words, multiplier tiles and your charms all add up. A typical word scores 15 to 40.</p>
   </>
 );
 

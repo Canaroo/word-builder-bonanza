@@ -202,10 +202,12 @@ export const BOSSES: Boss[] = [
   },
   {
     id: 'ivanDrago', name: 'Ivan Drago', icon: '🏋️', tier: 'late', source: 'Rocky IV',
-    hitsToWin: HARD_RULE_HITS,
-    rule: 'BEAT YOUR LAST SCORE', description: 'Every word must score more points than your last word.',
+    // v7.54.2: score higher OR go longer (it was 1 win in 12 on score alone, needing 4 hits).
+    hitsToWin: 5,
+    rule: 'BEAT YOUR LAST: SCORE OR LENGTH', description: 'Every word must beat your last word: score more points than it, or have more letters than it.',
     taunt: 'I must break you. Every word must hit harder than the last.',
-    check: (word, tiles, ctx) => ctx.score > ctx.lastScore,
+    check: (word, tiles, ctx) => ctx.score > ctx.lastScore || word.length > ctx.last.length,
+    missReason: (word, tiles, ctx) => `${ctx.score} points (needed over ${ctx.lastScore}) and ${word.length} letters (needed over ${ctx.last.length})`,
   },
   {
     id: 'predator', name: 'The Predator', icon: '🎯', tier: 'late', source: 'Predator',
