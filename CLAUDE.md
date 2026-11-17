@@ -158,6 +158,20 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   word runs for a player hunting it. QUA x3 on the way earns Greatest Hits GOLD.
   Once a run (v7.54.1, the owner's call): `quackDone` starts false in `createInitialGameState()` and is
   never cleared in a run; a 5th or later QUA never re-arms or resets the x4 (browser-checked).
+- **Six low-pick PowerPlays reworked (v7.55.0, the owner's call; ids kept)**: each was picked about 1
+  time in 25 (Polaroid 2%, Ludicrous Speed, Mission: Impossible, Duck Hunt, Money Bin 4%, Wario 8%).
+  Values in `POWER_PLAY_VALUES`; cards in `GambleCard.tsx` (useSaved keeps the deal, so a quit can't
+  reroll). **Shake It Like a Polaroid**: tap for 5 s, +25 per 5 shakes (max +300). **Duck Hunt**: a
+  10 s shooting gallery, +50 a duck (flight plan saved). **Scrooge's Money Bin**: coins fall for 8 s,
+  1 Credit a catch (max 6; `credits` on the gamble result, paid outside the run); no longer instant.
+  **Wario Warp**: three bags, +300/-5 s, +600/-10 s, +900/-15 s, the seconds taken at once; bags that
+  cost the whole clock are greyed out (`clock` in the card's data). **Mission: Impossible**: fires on
+  pick; a dossier card deals one of `MISSIONS` (`services/rules.ts`: a J/K/Q/X/Z word, 6+ letters,
+  ends in ING, same first and last letter, 3+ vowels, a double letter); Accept arms it for 3 words,
+  +400 if pulled off (paid outside the word), nothing lost if not; no longer a time card.
+  **Ludicrous Speed**: a 15 s sprint, the clock frozen (`freezeLeft`, like SNOW) and every word x2;
+  it ends in `TICK_FREEZE`; a chip shows "🚀 LUDICROUS SPEED · x2 · 14sec". Point prizes grow with
+  the level. Old armed states from saves settle the old way or just end.
 - **Multi-word PowerPlays (v7.28)** settle in `completeSubmission` and pay outside the word, with
   a progress chip above the hand (`components/PowerPlayTrackers.tsx`): Tamagotchi (pot), Time
   Capsule (buried word), Smell Ya Later! (rival race), Winner Winner Chicken Dinner (each valid word

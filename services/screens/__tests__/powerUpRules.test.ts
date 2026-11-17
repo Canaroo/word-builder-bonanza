@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, PRIZE_POWER_PLAY_IDS } from '../../../data/powerPlays';
 import { GAMBLE_CARD_IDS } from '../../../components/GambleCard';
-import { wildcardIndex, ITEM_MULTIPLIER_LINES } from '../../rules';
+import { wildcardIndex, ITEM_MULTIPLIER_LINES, MISSIONS, missionById } from '../../rules';
 import { COSMETICS } from '../../../data/cosmetics';
 import { CHARMS_LIST } from '../../../data/charms';
 import { SECRET_BONUSES } from '../../../data/secretBonuses';
@@ -181,9 +181,9 @@ describe('new PowerPlay scoring', () => {
         roundType: 'normal', activeCharms: [], activePowerPlays, letterMultipliers: {}, wordMultipliersByLetter: {}, powerStarResidualActive: false,
     }) as unknown as GameState;
 
-    test('Konami Code x2, Ludicrous Speed x3, Combo Breaker x3 on 4+ letters', () => {
+    test('Konami Code x2, Ludicrous Speed x2 (v7.55.0), Combo Breaker x3 on 4+ letters', () => {
         expect(calculateScore('cat', tiles('CAT'), state({ konamiCode: { words: 3 } })).totalScore).toBe(6);
-        expect(calculateScore('cat', tiles('CAT'), state({ ludicrousSpeed: { words: 3 } })).totalScore).toBe(9);
+        expect(calculateScore('cat', tiles('CAT'), state({ ludicrousSpeed: true })).totalScore).toBe(6);
         // 6 letters: length x2 + Combo Breaker x3 = x5
         expect(calculateScore('carton', tiles('CARTON'), state({ comboBreaker: { words: 3 } })).totalScore).toBe(30);
         // 4 letters qualifies: length x1.25 + Combo Breaker x3 = x4.25
@@ -783,13 +783,21 @@ describe('v7.25 gamble PowerPlays', () => {
 });
 
 describe('Mission: Impossible', () => {
-    test('its text reads the deal from config, and +20s beats Time Boost', () => {
+    test('v7.55.0: a secret mission within a few words for a prize; failing costs nothing', () => {
         const d = pp('missionImpossible').description;
-        expect(d).toContain(`+${POWER_PLAY_VALUES.missionImpossibleSeconds} seconds`);
-        expect(d).toContain(`${POWER_PLAY_VALUES.missionImpossibleLetters}+ letters`);
-        expect(d).toContain(`-${POWER_PLAY_VALUES.missionImpossiblePenalty} seconds`);
-        expect(POWER_PLAY_VALUES.missionImpossibleSeconds).toBeGreaterThan(TIME_BONUS.timeBoost);
-        expect(POWER_PLAY_VALUES.missionImpossiblePenalty).toBeGreaterThan(0);
+        expect(d).toContain(`within your next ${POWER_PLAY_VALUES.missionWords} words for +${POWER_PLAY_VALUES.missionPrize}`);
+        expect(d).toContain('Fail and nothing is lost');
+        expect(PRIZE_POWER_PLAY_IDS.has('missionImpossible')).toBe(true);
+    });
+    test('each mission tests what it says', () => {
+        const t = (id: string, w: string) => missionById(id)!.test(w);
+        expect(t('rare', 'JOKE')).toBe(true); expect(t('rare', 'TONE')).toBe(false);
+        expect(t('long', 'GARDEN')).toBe(true); expect(t('long', 'GARDE')).toBe(false);
+        expect(t('ing', 'SING')).toBe(true); expect(t('ing', 'ING')).toBe(false);
+        expect(t('bookends', 'TOAST')).toBe(true); expect(t('bookends', 'TOASTS')).toBe(false);
+        expect(t('vowels', 'AUDIO')).toBe(true); expect(t('vowels', 'TONE')).toBe(false);
+        expect(t('double', 'BOOK')).toBe(true); expect(t('double', 'BAKE')).toBe(false);
+        expect(MISSIONS).toHaveLength(6);
     });
 });
 

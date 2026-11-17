@@ -43,42 +43,19 @@ describe('charm changes', () => {
 });
 
 describe('reworked PowerPlays (v7.29.1)', () => {
-    // Uses the reducer directly: CHOOSE_POWER_PLAY for the Money Bin, the tile-pick step for the Zapper.
-    test("Scrooge's Money Bin fires on pick and costs nothing", async () => {
-        const { gameReducer, screenInitialState } = await import('../GameScreen');
+    // v7.55.0: reworked again into arcade cards (picked about 1 time in 25).
+    test("Money Bin, Duck Hunt and Wario are pocket arcade cards now", async () => {
         const { INSTANT_POWER_PLAY_IDS } = await import('../../../data/powerPlays');
+        const { GAMBLE_CARD_IDS } = await import('../../../components/GambleCard');
         const { POWER_PLAY_VALUES: V } = await import('../../../config/gameplay');
-        expect(INSTANT_POWER_PLAY_IDS.has('scroogeSwipe')).toBe(true);
-        const s = { ...screenInitialState, isLoading: false, gameState: { ...screenInitialState.gameState, score: 700, powerPlayOffer: [pp('scroogeSwipe')] } };
-        const next = gameReducer(s, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('scroogeSwipe'), allOffered: [pp('scroogeSwipe')] } });
-        expect(next.gameState.score).toBe(700);
-        expect(next.gameState.activePowerPlays.scroogeSwipe).toBe(true);
-        expect(pp('scroogeSwipe').description).toContain(`${V.moneyBinScore}+ points, earn ${V.moneyBinCredits} Credits`);
-    });
-
-    test('Duck Hunt shoots a tile and lands a new one worth triple', async () => {
-        const { gameReducer, screenInitialState } = await import('../GameScreen');
-        const gameUtils = await import('../../gameUtils');
-        const { POWER_PLAY_VALUES: V } = await import('../../../config/gameplay');
-        const hand: any[] = 'QZEATRSN'.split('').map(l => ({ ...gameUtils.createTile(l), multiplier: 1 }));
-        while (hand.length < 10) hand.push(null);
-        const s = {
-            ...screenInitialState, isLoading: false, hand, tileBag: gameUtils.createTileBag(),
-            tileForSelection: { tile: hand[0], originalIndex: 0 },
-            gameState: { ...screenInitialState.gameState, availablePowerPlays: [pp('duckHunt')] },
-        };
-        const next = gameReducer(s, { type: 'COMPLETE_POWER_PLAY_ACTIVATION', payload: { powerPlay: pp('duckHunt') } });
-        const landed = next.hand[0]!;
-        expect(landed.id).not.toBe(hand[0].id);
-        expect(landed.tempPoints).toBe(landed.points * V.zapperMultiplier);
-        expect(next.modalContent?.type).toBe('outcome');
-        expect(next.gameState.availablePowerPlays).toHaveLength(0);
-    });
-
-    test('Wario Warp pays more for the same time', async () => {
-        const { POWER_PLAY_VALUES: V } = await import('../../../config/gameplay');
-        expect(V.warioWarpPoints).toBe(300);
-        expect(pp('warioWarp').description).toContain(`+${V.warioWarpPoints} points now`);
-        expect(pp('warioWarp').description).toContain(`you lose ${V.warioWarpSeconds} seconds off your clock`); // v7.52.1: said plainly
+        for (const id of ['scroogeSwipe', 'duckHunt', 'warioWarp', 'shakeItLikeAPolaroid']) {
+            expect(GAMBLE_CARD_IDS, id).toContain(id);
+            expect(INSTANT_POWER_PLAY_IDS.has(id), id).toBe(false);
+        }
+        expect(pp('scroogeSwipe').description).toContain(`1 Credit each (up to ${V.moneyBinMaxCredits})`);
+        expect(pp('duckHunt').description).toContain(`+${V.duckPoints} a duck`);
+        expect(pp('duckHunt').effectType).toBe('immediate'); // no tile pick any more
+        expect(pp('warioWarp').description).toContain('+300 points for -5 seconds, +600 points for -10 seconds, +900 points for -15 seconds');
+        expect(pp('shakeItLikeAPolaroid').description).toContain(`up to +${V.polaroidMax}`);
     });
 });

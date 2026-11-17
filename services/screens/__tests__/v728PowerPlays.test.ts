@@ -277,14 +277,14 @@ describe('gamble cheese fixes (v7.28.9)', () => {
         expect(pp('chickenDinner').description).toContain('each valid word deals you a card');
     });
 
-    test('Mission: Impossible fires on pick: time now, the promise armed', () => {
+    test('Mission: Impossible fires on pick: its mission card opens in the offer\'s place (v7.55.0)', () => {
         expect(INSTANT_POWER_PLAY_IDS.has('missionImpossible')).toBe(true);
         const s = start({ powerPlayOffer: [pp('missionImpossible')] }, 30);
         const next = gameReducer(s, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('missionImpossible'), allOffered: [pp('missionImpossible')] } });
-        expect(next.time).toBeGreaterThan(30);
-        expect(next.gameState.activePowerPlays.missionImpossible).toEqual({ words: V.missionImpossibleWords });
+        expect(next.time).toBe(30); // no time any more
+        expect(next.gameState.activePowerPlays.missionImpossible).toBeUndefined(); // armed only when accepted
         expect(next.gameState.availablePowerPlays.some(p => p.id === 'missionImpossible')).toBe(false);
-        expect(next.modalContent?.type).toBe('outcome'); // in the offer's place, so the next round can't wipe it (v7.39.2)
+        expect(next.modalContent).toMatchObject({ type: 'gamble', data: { id: 'missionImpossible' } }); // in the offer's place (v7.39.2)
         expect(pp('missionImpossible').description).toMatch(/^Starts the moment you pick it/);
     });
 

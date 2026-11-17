@@ -907,7 +907,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       {gameState && gameState.roundType !== 'golden' && ((gameState.freezeLeft ?? 0) > 0 || (gameState.slowWords ?? 0) > 0) && (
         <div className="flex-shrink-0 rounded-lg px-3 py-1 text-center bg-cyan-500/20 ring-1 ring-cyan-300/60" role="status">
           <span className="osd-text text-lg leading-none text-cyan-100">
-            {(gameState.freezeLeft ?? 0) > 0 ? withSec(`❄️ CLOCK FROZEN · ${gameState.freezeLeft}s`) : `🦥 SLOW MOTION · ${gameState.slowWords} ${gameState.slowWords === 1 ? 'WORD' : 'WORDS'} LEFT`}
+            {(gameState.freezeLeft ?? 0) > 0 ? withSec(gameState.activePowerPlays?.ludicrousSpeed === true ? `🚀 LUDICROUS SPEED · x${POWER_PLAY_VALUES.ludicrousSpeedMultiplier} · ${gameState.freezeLeft}s` : `❄️ CLOCK FROZEN · ${gameState.freezeLeft}s`) : `🦥 SLOW MOTION · ${gameState.slowWords} ${gameState.slowWords === 1 ? 'WORD' : 'WORDS'} LEFT`}
           </span>
         </div>
       )}

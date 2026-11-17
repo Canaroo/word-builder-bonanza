@@ -215,8 +215,21 @@ export const POWER_PLAY_VALUES = {
   schruteBucksWords: 5,          // Schrute Bucks (v7.36.7, a beet farm): your next this many valid words...
   schruteBucksPerLetter: 25,     // ...earn this many bucks per B, E or T, paid as points after the last one
   schruteBucksLetters: 'BET',
-  ludicrousSpeedMultiplier: 3,   // Ludicrous Speed: next 3 words score this...
-  ludicrousSpeedCost: 4,         // ...and each costs this many seconds (was 8)
+  // v7.55.0 reworks (ids kept; each was picked about 1 time in 25). Point prizes grow with the level.
+  ludicrousSpeedMultiplier: 2,   // Ludicrous Speed: for ludicrousSeconds the clock freezes and words score this
+  ludicrousSeconds: 15,
+  ludicrousSpeedCost: 4,         // (old version; kept for saves armed before v7.55.0)
+  polaroidSeconds: 5,            // Shake It Like a Polaroid: tap to shake for this long...
+  polaroidShakesPerStep: 5,      // ...every this many shakes...
+  polaroidPoints: 25,            // ...pays this, up to polaroidMax
+  polaroidMax: 300,
+  duckSeconds: 10,               // Duck Hunt: ducks fly for this long; each one shot pays duckPoints
+  duckPoints: 50,
+  moneyBinSeconds: 8,            // Scrooge's Money Bin: coins fall for this long; 1 Credit a catch, up to moneyBinMaxCredits
+  moneyBinMaxCredits: 6,
+  warioBags: [{ points: 300, seconds: 5 }, { points: 600, seconds: 10 }, { points: 900, seconds: 15 }],
+  missionWords: 3,               // Mission: Impossible: pull off the mission within this many words for missionPrize
+  missionPrize: 400,
   moreThanMeetsMultiplier: 3,    // More Than Meets the Eye: the first word using the new combo tile scores this
   shakeTileMultiplier: 2,        // Shake It Like a Polaroid: one redrawn tile is this word multiplier
   shapeshifterPoints: 10,        // Shapeshifter's Tongue: the chosen letter's tile is worth this

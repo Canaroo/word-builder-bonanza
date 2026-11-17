@@ -45,7 +45,7 @@ const letterBoost = (id: 'letterUpgrade' | 'polish', words: number) => (gameStat
  * aren't here: they test speed rather than hand out time. */
 export const TIME_CARD_IDS = new Set([
   'timeBoost', 'timeTurner', 'saveByTheBell', 'happyPlace', 'deepFreeze', 'groundhogsDay', 'continueScreen',
-  'hotTubTimeMachine', 'missionImpossible', 'leafOnTheWind', 'lifeFindsAWay', 'rewind', 'neosChoice',
+  'hotTubTimeMachine', 'leafOnTheWind', 'lifeFindsAWay', 'rewind', 'neosChoice',
   'multiverseOfSadness', 'jackass',
 ]);
 
@@ -56,7 +56,7 @@ export const INSTANT_POWER_PLAY_IDS = new Set([
   'deepFreeze', 'groundhogsDay', 'lifeFindsAWay', 'wildcardWake', 'continueScreen',
   // Timed or blind challenges, and Daily Double's bet, start on the fresh hand, so a player can't
   // wait for (or build) the right word before they begin.
-  'popQuizHotshot', 'smellYaLater', 'birdBox', 'dailyDouble', 'missionImpossible', 'scroogeSwipe',
+  'popQuizHotshot', 'smellYaLater', 'birdBox', 'dailyDouble', 'missionImpossible',
   // The Price Is Right (v7.36.5): the bid comes first, on the fresh hand. Held in the pocket, a
   // player could build a word, read its score, and only then bid.
   'priceIsRight',
@@ -215,13 +215,14 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'ludicrousSpeed',
     name: 'Ludicrous Speed',
-    description: `Your next 3 words each score x${POWER_PLAY_VALUES.ludicrousSpeedMultiplier}, but each one costs ${POWER_PLAY_VALUES.ludicrousSpeedCost} seconds.`,
+    description: `Go to Ludicrous Speed: for ${POWER_PLAY_VALUES.ludicrousSeconds} seconds your clock freezes and every word scores x${POWER_PLAY_VALUES.ludicrousSpeedMultiplier}. Play as many as you can!`,
     flavorText: 'They’ve gone to plaid!',
     icon: '🚀',
     subtheme: 'score',
-    effectType: 'next_word',
+    effectType: 'immediate',
     durationTag: 'LIMITED',
-    activate: arm('ludicrousSpeed', { words: 3 }),
+    // v7.55.0: a frozen-clock sprint (it ends when the freeze runs out: TICK_FREEZE).
+    activate: (gameState: GameState): Partial<GameState> => ({ ...arm('ludicrousSpeed')(gameState), freezeLeft: Math.max(gameState.freezeLeft ?? 0, POWER_PLAY_VALUES.ludicrousSeconds) }),
   },
   {
     id: 'gadgetHands',
@@ -804,14 +805,13 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'duckHunt',
     name: 'Duck Hunt',
-    description: `Pick a tile to shoot. It's replaced by a new random tile worth ${POWER_PLAY_VALUES.zapperMultiplier}x its points for your next word.`,
+    description: `Grab the Zapper: ducks fly across the screen for ${POWER_PLAY_VALUES.duckSeconds} seconds. Tap to shoot them, +${POWER_PLAY_VALUES.duckPoints} a duck.`,
     flavorText: 'Grab the Zapper. Don’t let the dog laugh.',
     icon: '🦆',
-    subtheme: 'utility',
-    effectType: 'selection',
-    selectionType: 'custom',
-    durationTag: 'LIMITED',
-    activate: (gameState) => ({...gameState}) // Handled in GameScreen
+    subtheme: 'score',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // A gamble card (v7.55.0: a shooting gallery)
   },
   {
     id: 'thwomped',
@@ -844,7 +844,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'warioWarp',
     name: 'Wario Warp',
-    description: `Gain +${POWER_PLAY_VALUES.warioWarpPoints} points now. The catch: you lose ${POWER_PLAY_VALUES.warioWarpSeconds} seconds off your clock when your next hand is dealt.`,
+    description: `WAH! Pick one of Wario's money bags: ${POWER_PLAY_VALUES.warioBags.map(b => `+${b.points} points for -${b.seconds} seconds`).join(', ')}. The seconds come off your clock right away.`,
     flavorText: 'Classic Wario — future problems, present profits.',
     icon: '💰',
     subtheme: 'score',
@@ -973,13 +973,13 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'scroogeSwipe', 
     name: 'Scrooge’s Money Bin', 
-    description: `Starts the moment you pick it: dive into the Money Bin. If your next word scores ${POWER_PLAY_VALUES.moneyBinScore}+ points, earn ${POWER_PLAY_VALUES.moneyBinCredits} Credits (spend them in the Vibez Shop). No downside.`, 
+    description: `Dive into the Money Bin: coins rain down for ${POWER_PLAY_VALUES.moneyBinSeconds} seconds. Tap to catch them, 1 Credit each (up to ${POWER_PLAY_VALUES.moneyBinMaxCredits}) to spend in the Vibez Shop.`, 
     flavorText: 'Some say fortune favors the bold. Others say it favors the rich duck in a top hat.',
     icon: '🎩',
     subtheme: 'utility',
     effectType: 'immediate',
     durationTag: 'ONE_TIME',
-    activate: arm('scroogeSwipe'), // fires on pick; settles on the next word (completeSubmission)
+    activate: () => ({}), // A gamble card (v7.55.0: catch the coins)
   },
   { 
     id: 'wordionaire', 
@@ -1077,13 +1077,13 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'shakeItLikeAPolaroid',
     name: 'Shake It Like a Polaroid',
-    description: `Keep your vowels and redraw every consonant. One new tile comes in as a ${POWER_PLAY_VALUES.shakeTileMultiplier}x word tile.`,
+    description: `Shake it! Tap the Polaroid as fast as you can for ${POWER_PLAY_VALUES.polaroidSeconds} seconds. Every ${POWER_PLAY_VALUES.polaroidShakesPerStep} shakes develop +${POWER_PLAY_VALUES.polaroidPoints} points (up to +${POWER_PLAY_VALUES.polaroidMax}).`,
     flavorText: 'Shake it, shake it, shake it…',
     icon: '📸',
-    subtheme: 'rack',
+    subtheme: 'score',
     effectType: 'immediate',
     durationTag: 'ONE_TIME',
-    activate: () => ({}), // Handled in GameScreen (redraws the consonants)
+    activate: () => ({}), // A gamble card (v7.55.0: tap to shake)
   },
   {
     id: 'continueScreen',
@@ -1239,19 +1239,13 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'missionImpossible',
     name: 'Mission: Impossible',
-    description: `Starts the moment you pick it: +${POWER_PLAY_VALUES.missionImpossibleSeconds} seconds now, if you promise your next ${POWER_PLAY_VALUES.missionImpossibleWords} words will have ${POWER_PLAY_VALUES.missionImpossibleLetters}+ letters. A shorter word breaks the promise: -${POWER_PLAY_VALUES.missionImpossiblePenalty} seconds.`,
+    description: `Starts the moment you pick it: you're handed a secret mission (like a word with a J, K, Q, X or Z, or a word ending in ING). Pull it off within your next ${POWER_PLAY_VALUES.missionWords} words for +${POWER_PLAY_VALUES.missionPrize}. Fail and nothing is lost.`,
     flavorText: 'Your mission, should you choose to accept it...',
     icon: '🕵️',
-    subtheme: 'timer',
+    subtheme: 'score',
     effectType: 'immediate',
     durationTag: 'LIMITED',
-    activate: (gameState: GameState): Partial<GameState> => {
-      // Fires on pick (INSTANT_POWER_PLAY_IDS); the seconds are added in CHOOSE_POWER_PLAY.
-      const V = POWER_PLAY_VALUES;
-      const armed = arm('missionImpossible', { words: V.missionImpossibleWords })(gameState);
-      const description = `Mission: your next ${V.missionImpossibleWords} words need ${V.missionImpossibleLetters}+ letters. A shorter word costs ${V.missionImpossiblePenalty} seconds.`;
-      return { ...armed, activeBuffs: armed.activeBuffs!.map(b => (b.id === 'missionImpossible' ? { ...b, description } : b)) };
-    }
+    activate: () => ({}), // Fires on pick: the mission card (v7.55.0), settled in completeSubmission
   },
 
   // --- v7.28: new kinds of play (betting on yourself, payouts later, rivals, blind play, boss and charm boosts) ---
@@ -1418,4 +1412,5 @@ export const PRIZE_POWER_PLAY_IDS: ReadonlySet<string> = new Set([
   'letsMakeADeal', 'dealOrNoDeal', 'noWhammies', 'minesweeper', 'cardSharks', 'plinko', 'chickenDinner',
   'fluncleIsProud', 'actClear', 'priceIsRight', 'tamagotchi', 'smellYaLater', 'popQuizHotshot',
   'withGreatPower', 'gumpLuck', 'warioWarp', 'thanosGift', 'wildcard', 'psychicFriends',
+  'shakeItLikeAPolaroid', 'duckHunt', 'missionImpossible',
 ]);

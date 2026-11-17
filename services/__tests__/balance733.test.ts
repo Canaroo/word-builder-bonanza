@@ -299,7 +299,7 @@ describe('v7.35 reworks', () => {
     });
 
     test('Ludicrous Speed and Extreme Makeover read their numbers from config', () => {
-        expect(pp('ludicrousSpeed').description).toContain(`${POWER_PLAY_VALUES.ludicrousSpeedCost} seconds`);
+        expect(pp('ludicrousSpeed').description).toContain(`for ${POWER_PLAY_VALUES.ludicrousSeconds} seconds your clock freezes and every word scores x${POWER_PLAY_VALUES.ludicrousSpeedMultiplier}`); // v7.55.0
         expect(pp('polish').name).toBe('Extreme Makeover');
         expect(pp('polish').description).toContain(`next ${POWER_PLAY_VALUES.boostWords} words`);
         const boosted = pp('polish').activate(gs(), { letter: 'S' });

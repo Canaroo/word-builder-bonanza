@@ -520,3 +520,17 @@ export const rivalRateFor = (score: number, playMs: number): number => {
 /** REDRUM: the word spelled backward (lowercase) when it's long enough to count, else null. */
 export const redrumReverse = (word: string): string | null =>
     word.length >= POWER_PLAY_VALUES.redrumLetters ? word.split('').reverse().join('').toLowerCase() : null;
+
+/**
+ * Mission: Impossible (v7.55.0): the missions a card can deal. Pull one off within
+ * POWER_PLAY_VALUES.missionWords words for missionPrize; failing costs nothing.
+ */
+export const MISSIONS: { id: string; text: string; test: (word: string) => boolean }[] = [
+    { id: 'rare', text: 'Play a word with a J, K, Q, X or Z', test: w => /[JKQXZ]/.test(w) },
+    { id: 'long', text: 'Play a word of 6 or more letters', test: w => w.length >= 6 },
+    { id: 'ing', text: 'Play a word that ends in ING', test: w => w.endsWith('ING') && w.length > 3 },
+    { id: 'bookends', text: 'Play a word that starts and ends with the same letter', test: w => w.length >= 3 && w[0] === w[w.length - 1] },
+    { id: 'vowels', text: 'Play a word with 3 or more vowels', test: w => [...w].filter(c => 'AEIOU'.includes(c)).length >= 3 },
+    { id: 'double', text: 'Play a word with a double letter (like BOOK or BELL)', test: w => /(.)\1/.test(w) },
+];
+export const missionById = (id: string | undefined) => MISSIONS.find(m => m.id === id);
