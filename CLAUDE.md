@@ -383,6 +383,13 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   **Mystery Tape** (`MYSTERY_TAPE`, `dealMysteryTape`): 1 PowerPlay offer in 4 has a face-down last
   card hiding a low-pick pocket PowerPlay; taking it pays +150 (a prize, `prizeFor`) and a reveal
   card takes the offer's place. The pool has no instant, bet or time cards; refresh it from stats.
+  **Swap confirmation (v7.53.2, the owner's ask):** holding a PowerPlay, tapping any other offer
+  card (the Mystery Tape too) opens a "SWAP IT OUT?" step inside the offer (`confirming` in
+  `PowerPlayOffer`, `OfferModals.tsx`): what you hold, what replaces it (instant ones say they fire
+  now; the tape shows its points), ✋ Keep mine (back to the offer) or 🔄 Swap. With nothing held, a
+  tap still takes the card at once. The owner reported the Keep button missing on offers with a
+  Mystery Tape; it couldn't be reproduced (it shows at 360x640, 390x844 and 412x760, and 11 of 103
+  real tape offers ended in a keep), so the confirmation also guards that case.
   **Power word hint** (`services/powerWordHint.ts`): when the tiles in play can spell a ready power
   word, a chip above the hand says so (icon and length on tap, never the word), once per level
   (`gameState.powerHint`), not in Golden Rounds.

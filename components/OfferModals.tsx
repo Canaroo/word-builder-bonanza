@@ -8,6 +8,7 @@ import DurationBadge from '../ui/DurationBadge';
 import { charmUpgradePreview, charmUpgradePercentPreview } from '../services/rules';
 import { storage, STORAGE_KEYS } from '../services/storage';
 import { playerKey } from '../services/players';
+import { soundService } from '../services/soundService';
 import ArcadeButton from './ArcadeButton';
 import CharmTimeNote from './CharmTimeNote';
 import { CHARMS_LIST } from '../data/charms';
@@ -18,7 +19,7 @@ import { setsWith, setProgress, setBonusFor, completedSets } from '../data/charm
 const Overlay: React.FC<{ tone: 'green' | 'purple'; children: React.ReactNode }> = ({ tone, children }) => (
   <div className="absolute inset-0 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center z-50 p-3 animate-fade-in">
     <div
-      className={`bg-crt-900 border-2 rounded-2xl p-4 w-full max-w-md flex flex-col modal-max-h bonus-insert ${
+      className={`relative bg-crt-900 border-2 rounded-2xl p-4 w-full max-w-md flex flex-col modal-max-h bonus-insert ${
         tone === 'green' ? 'border-neon-green shadow-[0_0_18px_rgba(61,255,140,0.35)]' : 'border-neon-purple shadow-[0_0_18px_rgba(180,92,255,0.4)]'
       }`}
       role="dialog"
@@ -95,8 +96,34 @@ export const PowerPlayOffer: React.FC<{
   mysteryId?: string | null;
   onChoose: (powerPlay: PowerPlay) => void;
   onKeep: () => void;
-}> = ({ title, reason, offered, held, level, prizeScale = 1, copyTarget = null, mysteryId = null, onChoose, onKeep }) => (
+}> = ({ title, reason, offered, held, level, prizeScale = 1, copyTarget = null, mysteryId = null, onChoose, onKeep }) => {
+  // v7.53.2: holding a PowerPlay, a tap on another card asks first, so a stray tap (or a tempting
+  // Mystery Tape) never swaps out what you're holding without a clear "Keep mine" right there.
+  const [confirming, setConfirming] = React.useState<PowerPlay | null>(null);
+  const choose = (pp: PowerPlay) => { if (held && held.id !== pp.id) { soundService.playUIClick(); setConfirming(pp); } else onChoose(pp); };
+  return (
   <Overlay tone="green">
+    {confirming && held && (
+      <div className="absolute inset-0 z-10 rounded-2xl bg-crt-900 flex flex-col items-center justify-center gap-3 p-5 text-center animate-fade-in" role="alertdialog" aria-modal="true" aria-label={`Swap out ${held.name}?`}>
+        <p className="osd-text text-lg tracking-[0.2em] text-neon-yellow">SWAP IT OUT?</p>
+        <div className="w-full rounded-xl ring-1 ring-neon-yellow/50 bg-neon-yellow/10 p-3">
+          <p className="text-sm text-slate-300">You're holding</p>
+          <p className="font-display text-lg text-white leading-tight">{held.icon} {held.name}</p>
+        </div>
+        <p className="text-2xl leading-none" aria-hidden="true">⬇️</p>
+        <div className="w-full rounded-xl ring-1 ring-neon-green/60 bg-neon-green/10 p-3">
+          <p className="text-sm text-slate-300">It will be replaced by</p>
+          {confirming.id === mysteryId
+            ? <p className="font-display text-lg text-neon-pink leading-tight">📼 A Mystery Tape <span className="block font-sans text-sm text-slate-200 normal-case">+{prizeFor(MYSTERY_TAPE.points, level ?? 1)} points now, and a face-down PowerPlay</span></p>
+            : <p className="font-display text-lg text-white leading-tight">{confirming.icon} {confirming.name}{INSTANT_POWER_PLAY_IDS.has(confirming.id) && <span className="block font-sans text-sm text-neon-cyan normal-case">⚡ Instant: it fires right away</span>}</p>}
+        </div>
+        <p className="text-sm text-slate-400">{held.name} will be gone for good.</p>
+        <div className="w-full grid grid-cols-2 gap-2">
+          <ArcadeButton color="yellow" variant="outline" onClick={() => { soundService.playUIClick(); setConfirming(null); }}>✋ Keep mine</ArcadeButton>
+          <ArcadeButton color="green" onClick={() => { const pp = confirming; setConfirming(null); onChoose(pp); }}>🔄 Swap</ArcadeButton>
+        </div>
+      </div>
+    )}
     <h2 className="font-display text-2xl text-neon-green text-center leading-none">{title}</h2>
     {reason && <p className="osd-text text-lg text-slate-300 text-center leading-tight mt-1">{reason}</p>}
 
@@ -118,7 +145,7 @@ export const PowerPlayOffer: React.FC<{
           // Face down: nothing about the real PowerPlay shows until it's taken.
           const points = prizeFor(MYSTERY_TAPE.points, level ?? 1);
           return (
-            <button key="mystery-tape" type="button" onClick={() => onChoose(pp)} aria-label={`Mystery Tape: a face-down PowerPlay, plus ${points} points now`}
+            <button key="mystery-tape" type="button" onClick={() => choose(pp)} aria-label={`Mystery Tape: a face-down PowerPlay, plus ${points} points now`}
               className="w-full text-left rounded-xl p-2.5 ring-2 ring-neon-pink bg-[repeating-linear-gradient(135deg,rgba(255,79,163,0.14)_0_10px,rgba(10,8,30,0.6)_10px_20px)] shadow-[0_0_14px_rgba(255,79,163,0.4)] hover:brightness-110 focus-visible:ring-white outline-none">
               <div className="flex items-start gap-2">
                 <span className="text-2xl leading-none mt-0.5" aria-hidden="true">📼</span>
@@ -151,7 +178,7 @@ export const PowerPlayOffer: React.FC<{
           : <span className="text-slate-400">👯 NOTHING TO COPY YET: USE A POWERPLAY FIRST</span>;
         const lines = [copyNote, prizeNote, swapNote].filter(Boolean);
         const note = lines.length ? <>{lines.map((l, i) => <React.Fragment key={i}>{i > 0 && <br />}{l}</React.Fragment>)}</> : null;
-        return <ItemCard key={pp.id} item={pp} tag={tag} note={note} onClick={() => onChoose(pp)} />;
+        return <ItemCard key={pp.id} item={pp} tag={tag} note={note} onClick={() => choose(pp)} />;
       })}
     </div>
 
@@ -161,7 +188,8 @@ export const PowerPlayOffer: React.FC<{
       </ArcadeButton>
     )}
   </Overlay>
-);
+  );
+};
 
 // --- Charms -----------------------------------------------------------------------
 
