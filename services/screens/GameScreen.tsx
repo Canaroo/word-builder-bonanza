@@ -3235,7 +3235,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       const info = powerWordInfo(powerHint.effect);
       dispatch({ type: 'SET_MODAL_CONTENT', payload: {
           type: 'info', title: `⚡ Power word in your hand`,
-          content: `Power words are secret words that set off an effect instead of a bonus. One of them can be spelled from your tiles right now: it has ${powerHint.length} letters.\n\n${powerHint.icon} ${info.does}\n\nFind it and play it. You get one hint like this per level.`,
+          content: `Power words are secret words that set off an effect instead of a bonus. One of them can be spelled from your tiles right now.\n\n🔤 It has ${powerHint.length} letters and starts with ${powerHint.first}.\n\n${powerHint.icon} ${info.does}\n\nFind it and play it. You get one hint like this per level.`,
       } });
   }, [powerHint]);
 

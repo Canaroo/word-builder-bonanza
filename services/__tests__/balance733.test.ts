@@ -56,8 +56,9 @@ describe('boss balance (v7.33)', () => {
     const ctx = { last: '', score: 0, lastScore: 0 };
     const follows = (id: string, word: string, last = '') => bossById(id)!.check(word, [] as Tile[], { ...ctx, last });
 
-    test('the hardest rules need 4 hits, the rest 6', () => {
-        for (const id of ['ivanDrago', 'bigBoss', 'cruella', 'jafar']) expect(bossHitsToWin(null, bossById(id)), id).toBe(4);
+    test('the hardest rules need 4 hits, Drago 5 (v7.54.2), the rest 6', () => {
+        for (const id of ['bigBoss', 'cruella', 'jafar']) expect(bossHitsToWin(null, bossById(id)), id).toBe(4);
+        expect(bossHitsToWin(null, bossById('ivanDrago'))).toBe(5);
         expect(bossHitsToWin(null, bossById('theNoid'))).toBe(BOSS.hitsToWin);
         expect(bossHitsToWin(null)).toBe(BOSS.hitsToWin);
         expect(BOSSES.filter(b => b.hitsToWin).length).toBe(4);
@@ -65,17 +66,18 @@ describe('boss balance (v7.33)', () => {
 
     test('Little Mac still takes one hit off', () => {
         const mac = { activeCharms: [{ id: 'littleMac' }] };
-        expect(bossHitsToWin(mac, bossById('ivanDrago'))).toBe(3);
+        expect(bossHitsToWin(mac, bossById('ivanDrago'))).toBe(4);
         expect(bossHitsToWin(mac, bossById('ursula'))).toBe(BOSS.hitsToWin - 1);
     });
 
     test('"so close" sits the same gap below the badge', () => {
         expect(bossCloseHits(bossById('theNoid'))).toBe(BOSS.closeHits);
-        expect(bossCloseHits(bossById('ivanDrago'))).toBe(2);
+        expect(bossCloseHits(bossById('ivanDrago'))).toBe(3);
+        expect(bossCloseHits(bossById('jafar'))).toBe(2);
     });
 
     test('a 4-hit boss: 4 hits win, 2-3 are close, fewer escape', () => {
-        const drago = bossById('ivanDrago')!;
+        const drago = bossById('jafar')!;
         const play = (hits: boolean[]) => {
             let round: BossRound | null = { id: drago.id, number: 4, wordsLeft: BOSS.words, hits: 0 };
             let outcome: string | null = null;

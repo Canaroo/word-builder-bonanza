@@ -53,8 +53,12 @@ describe('the boss roster', () => {
         expect(follows('kingHippo', 'CAT', undefined, { score: 7 })).toBe(false);
         expect(follows('sephiroth', 'CAT', undefined, { score: 10 })).toBe(true);
         expect(follows('predator', 'CAT', undefined, { score: 11 })).toBe(false);
-        expect(follows('ivanDrago', 'CAT', undefined, { score: 20, lastScore: 19 })).toBe(true);
-        expect(follows('ivanDrago', 'CAT', undefined, { score: 19, lastScore: 19 })).toBe(false);
+        // v7.54.2: Drago takes a higher score OR a longer word than the last one.
+        expect(follows('ivanDrago', 'CAT', undefined, { last: 'DOGS', score: 20, lastScore: 19 })).toBe(true);
+        expect(follows('ivanDrago', 'CAT', undefined, { last: 'DOGS', score: 19, lastScore: 19 })).toBe(false);
+        expect(follows('ivanDrago', 'CATS', undefined, { last: 'DOG', score: 10, lastScore: 19 })).toBe(true);
+        expect(follows('ivanDrago', 'CAT', undefined, { last: 'DOG', score: 19, lastScore: 19 })).toBe(false);
+        expect(bossById('ivanDrago')!.missReason!('CAT', [], { last: 'DOG', score: 19, lastScore: 19 })).toBe('19 points (needed over 19) and 3 letters (needed over 3)');
     });
 
     test('Magneto: no letter from your last word; its letters are dimmed', () => {
