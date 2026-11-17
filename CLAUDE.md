@@ -156,6 +156,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   "QUA · QUA · QUA · QUACK!", "Ducks fly together!". One Q per 100-tile bag, so it's a long-run
   jackpot: simulated about 0% of 59-word runs, 4% of 180 and 18% of 292 by chance, 86-87% of 180+
   word runs for a player hunting it. QUA x3 on the way earns Greatest Hits GOLD.
+  Once a run (v7.54.1, the owner's call): `quackDone` starts false in `createInitialGameState()` and is
+  never cleared in a run; a 5th or later QUA never re-arms or resets the x4 (browser-checked).
 - **Multi-word PowerPlays (v7.28)** settle in `completeSubmission` and pay outside the word, with
   a progress chip above the hand (`components/PowerPlayTrackers.tsx`): Tamagotchi (pot), Time
   Capsule (buried word), Smell Ya Later! (rival race), Winner Winner Chicken Dinner (each valid word

@@ -934,6 +934,9 @@ describe('Quack Attack (v7.54.0)', () => {
         expect(quack.totalScore).toBeGreaterThanOrEqual(plain.totalScore * 3);
         expect(ITEM_MULTIPLIER_LINES).toContain('🦆 Quack Attack');
     });
+    test('once a run: every new run starts with it unused', () => {
+        expect(screenInitialState.gameState!.quackDone).toBe(false);
+    });
     test('the Quack Pack badge is a run reward, never sold', () => {
         const badge = COSMETICS.find(c => c.id === QUACK_ATTACK.badgeId)!;
         expect(badge).toMatchObject({ kind: 'badge', icon: '🦆', earnedBy: 'quack' });
