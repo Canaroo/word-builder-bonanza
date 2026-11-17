@@ -13,7 +13,7 @@ import EventLogDisplay from '../../components/EventLogDisplay';
 import { MILESTONES_LIST } from '../../data/milestones';
 import DurationBadge from '../../ui/DurationBadge';
 import { RACK_SIZE, HAND_SIZE } from '../../constants';
-import { GAMEPLAY, CHARM_SLOTS, CHARM_UPGRADE, TIME_BONUS, BOSS, CHARM_BONUS } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_SLOTS, CHARM_UPGRADE, TIME_BONUS, BOSS, CHARM_BONUS, GEM_TILES } from '../../config/gameplay';
 import { bossById } from '../../data/bosses';
 import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor, bossHitsToWin, prizeScaleFor } from '../rules';
 import LevelBadge from '../../components/LevelBadge';
@@ -35,7 +35,7 @@ import CharmTimeNote from '../../components/CharmTimeNote';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
-  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'bones' | 'skill-intro' | 'croc' | 'greatest-hit';
+  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -335,6 +335,28 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         </div>
                     </div>
                 );
+
+            case 'gem-intro': {
+                const mult = Number(data?.multiplier) || 3;
+                return (
+                    <div className="absolute inset-0 bg-crt-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-3 animate-fade-in" role="dialog" aria-modal="true" aria-label="How gem tiles work">
+                        <div className="bg-crt-900 border-4 border-cyan-300 shadow-[0_0_28px_rgba(103,232,249,0.5)] rounded-2xl px-4 py-5 max-w-md w-full flex flex-col items-center text-center gap-3 level-stage-in">
+                            <p className="osd-text text-lg tracking-[0.3em] text-cyan-300">LONG WORD REWARD</p>
+                            <h2 className="font-display text-3xl text-white leading-none">💎 GEM TILE</h2>
+                            <div className="w-20 h-20 my-2">
+                                <TileComponent tile={{ id: 'gem-intro', letter: data?.letter ?? 'A', points: data?.points ?? 1, multiplier: mult, isGem: true }} onClick={() => {}} packTileClass={tileClass} />
+                            </div>
+                            <ol className="text-left text-slate-200 leading-snug space-y-1.5 list-decimal pl-5">
+                                <li>Your long word earned a gem: your <strong className="text-white">{data?.letter ?? 'A'}</strong> is now a <strong className="text-cyan-300">x{mult} word tile</strong>.</li>
+                                <li>Use it in your <strong className="text-white">very next word</strong> and the whole word scores <strong className="text-neon-yellow">x{mult}</strong>, charm points included.</li>
+                                <li>It only lasts <strong className="text-white">this hand</strong>. If your next word skips it, it's gone.</li>
+                            </ol>
+                            <p className="text-sm text-slate-400">6-letter words earn x{GEM_TILES[6]}, 7 letters x{GEM_TILES[7]}, 8 or more x{GEM_TILES[8]}.</p>
+                            <ArcadeButton color="cyan" className="w-full" onClick={handleCloseModal}>Got it</ArcadeButton>
+                        </div>
+                    </div>
+                );
+            }
 
             case 'bones':
                 return <BonesCard key={data?.bone?.id} bone={data.bone} heldCharmIds={(gameState?.activeCharms ?? []).map(c => c.id)} onDone={w => handleBonesDone?.(w)} />;

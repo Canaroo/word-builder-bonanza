@@ -24,7 +24,7 @@ import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
 import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, charmLengthPoints, charmLengthBoostFor, charmMultiplierPoints, itemMultiplierIn, prizeFor, prizeScaleFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, charmTimeAt, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, rivalRateFor, redrumReverse } from '../rules';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES, GEM_INTRO_SHOWS } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
 import { currentStreak, powerWordBonusFor, recordBossBadge, earnCosmetic } from '../progression';
@@ -3212,6 +3212,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
       }
   }, [gameState, isLoading, isPaused, skillShotOpen, hand, buildRow, hintLevel]);
+
+  // Gem Tiles (v7.53.1): the first couple of times a player gets a gem, a card explains it. It waits
+  // for any open pop-up and for the Skill Shot card (both can arrive on the same hand).
+  const gemIntroSeen = useRef<string>('');
+  useEffect(() => {
+      if (!gameState || isLoading || isPaused || state.modalContent || (state.resumeCountdown ?? 0) > 0) return;
+      if (skillShotOpen && gameState.skillShot?.level !== hintLevel) return;
+      const gem = (hand ?? []).find((t): t is Tile => !!t && !!t.isGem);
+      if (!gem || gemIntroSeen.current === gem.id) return;
+      gemIntroSeen.current = gem.id;
+      const shown = Number(storage.getJSON<number>(playerKey(STORAGE_KEYS.gemTips), 0)) || 0;
+      if (shown >= GEM_INTRO_SHOWS) return;
+      storage.setJSON(playerKey(STORAGE_KEYS.gemTips), shown + 1);
+      dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gem-intro', title: 'Gem Tile', data: { letter: gem.letter, points: gem.points, multiplier: gem.multiplier ?? 3 } } });
+  }, [gameState, isLoading, isPaused, state.modalContent, state.resumeCountdown, hand, skillShotOpen, hintLevel]);
 
   const handlePowerHintInfo = useCallback(() => {
       if (!powerHint) return;

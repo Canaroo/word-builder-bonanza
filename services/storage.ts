@@ -29,6 +29,7 @@ export const STORAGE_KEYS = {
     gatePasswordsSeen: 'wordNerdGatePasswordsSeen',
     /** Per player: how many times the Skill Shot intro card has been shown (it shows twice). */
     skillShotTips: 'wordNerdSkillShotTips',
+    gemTips: 'wordNerdGemTips',
     /** Per player: the game day the Play button last offered the Daily Challenge (it asks once a day). */
     dailyChooserDay: 'wordNerdDailyChooserDay',
     musicOwned: 'wordNerdMusicOwned',

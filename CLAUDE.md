@@ -409,6 +409,9 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   **Gem Tiles** (`pendingGem`, `Tile.isGem`): a 6 / 7 / 8+ letter word turns one plain tile of the
   next hand into a x3 / x4 / x5 word tile (`START_NEXT_ROUND`). It scores as a "Tile Multiplier"
   line, so it covers charm points like other tile multipliers.
+  The first two times a player gets a gem (per player, `gemTips`, `GEM_INTRO_SHOWS`), a `gem-intro`
+  card explains it (v7.53.1): what it multiplies, that it only lasts this hand, and the x3/x4/x5
+  lengths. It waits for any open pop-up and for the Skill Shot card on the same hand.
 - **Borrowed mechanics, batch two (v7.43.0).** Values in `FORK`, `HOLD_SLOT`, `GRUDGE`.
   **Fork in the Road** (`components/ForkCard.tsx`, `gameState.route`): at levels 4, 7 and 11 a
   card after the level-up makes the player pick Easy Street (clock 10% slower) or the Danger Zone
