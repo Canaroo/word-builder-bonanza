@@ -13,7 +13,7 @@ import EventLogDisplay from '../../components/EventLogDisplay';
 import { MILESTONES_LIST } from '../../data/milestones';
 import DurationBadge from '../../ui/DurationBadge';
 import { RACK_SIZE, HAND_SIZE } from '../../constants';
-import { GAMEPLAY, CHARM_SLOTS, CHARM_UPGRADE, TIME_BONUS, BOSS, CHARM_BONUS, GEM_TILES } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_SLOTS, CHARM_UPGRADE, TIME_BONUS, BOSS, CHARM_BONUS, GEM_TILES, QUACK_ATTACK } from '../../config/gameplay';
 import { bossById } from '../../data/bosses';
 import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor, bossHitsToWin, prizeScaleFor } from '../rules';
 import LevelBadge from '../../components/LevelBadge';
@@ -35,7 +35,7 @@ import CharmTimeNote from '../../components/CharmTimeNote';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
-  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit';
+  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -360,6 +360,23 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
             case 'bones':
                 return <BonesCard key={data?.bone?.id} bone={data.bone} heldCharmIds={(gameState?.activeCharms ?? []).map(c => c.id)} onDone={w => handleBonesDone?.(w)} />;
+
+            case 'quack':
+                return (
+                    <div className="absolute inset-0 bg-crt-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Quack Attack">
+                        <div className="bg-crt-900 border-4 border-neon-yellow shadow-[0_0_32px_rgba(255,230,0,0.45)] rounded-2xl px-5 py-6 max-w-md w-full flex flex-col items-center text-center gap-3 level-stage-in">
+                            <p className="osd-text text-lg tracking-[0.3em] text-neon-yellow">QUA · QUA · QUA · QUACK!</p>
+                            <div className="flex gap-1 text-5xl leading-none" aria-hidden="true">
+                                {[0, 1, 2, 3].map(i => <span key={i} className="inline-block animate-bounce" style={{ animationDelay: `${i * 0.12}s` }}>🦆</span>)}
+                            </div>
+                            <h2 className="font-display text-3xl text-white leading-none">QUACK ATTACK!</h2>
+                            <p className="text-slate-200 leading-snug">You played <strong className="text-white">QUA</strong> four times this run. The flock flies with you: your <strong className="text-white">next {QUACK_ATTACK.words} words</strong> score <strong className="text-neon-yellow">x{QUACK_ATTACK.multiplier}</strong>, charm points too.</p>
+                            {data?.badgeNew && <p className="osd-text text-lg text-neon-cyan leading-tight">🦆 QUACK PACK BADGE EARNED!</p>}
+                            <p className="text-sm text-slate-400 italic">"Ducks fly together!"</p>
+                            <ArcadeButton color="yellow" className="w-full" onClick={handleCloseModal}>Quack on</ArcadeButton>
+                        </div>
+                    </div>
+                );
 
             case 'greatest-hit':
                 return <GreatestHitCard word={String(data?.word ?? '')} plays={Number(data?.plays) || 0} letters={Number(data?.letters) || 3} next={data?.next ?? null} onDone={handleCloseModal} />;

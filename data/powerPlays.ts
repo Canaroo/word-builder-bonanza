@@ -60,6 +60,8 @@ export const INSTANT_POWER_PLAY_IDS = new Set([
   // The Price Is Right (v7.36.5): the bid comes first, on the fresh hand. Held in the pocket, a
   // player could build a word, read its score, and only then bid.
   'priceIsRight',
+  // Psychic Friends Network (v7.54.0): the call comes first, on the fresh hand, like a bid.
+  'psychicFriends',
 ]);
 
 export const POWER_PLAYS_LIST: PowerPlay[] = [
@@ -1399,13 +1401,13 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'psychicFriends',
     name: 'Psychic Friends Network',
-    description: `See the next ${POWER_PLAY_VALUES.psychicTiles} tiles in the bag for your next ${POWER_PLAY_VALUES.psychicWords} words, so you know what's coming. (Shuffles and the game's hand balancing can still change it.)`,
+    description: `Starts the moment you pick it: call your next word's length before you build it. ${POWER_PLAY_VALUES.psychicCalls.map(c => `${c.letters}${c.orMore ? '+' : ''} letters +${c.prize}`).join(', ')}. Call it right and the psychic pays; a wrong call costs nothing.`,
     flavorText: 'Call now! Your psychic friend is waiting.',
     icon: '🔮',
-    subtheme: 'rack',
-    effectType: 'passive',
-    durationTag: 'LIMITED',
-    activate: arm('psychicFriends', { words: POWER_PLAY_VALUES.psychicWords }),
+    subtheme: 'score',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (fires on pick: the call card, v7.54.0)
   },
 ];
 
@@ -1415,5 +1417,5 @@ export const PRIZE_POWER_PLAY_IDS: ReadonlySet<string> = new Set([
   'schruteBucks',
   'letsMakeADeal', 'dealOrNoDeal', 'noWhammies', 'minesweeper', 'cardSharks', 'plinko', 'chickenDinner',
   'fluncleIsProud', 'actClear', 'priceIsRight', 'tamagotchi', 'smellYaLater', 'popQuizHotshot',
-  'withGreatPower', 'gumpLuck', 'warioWarp', 'thanosGift', 'wildcard',
+  'withGreatPower', 'gumpLuck', 'warioWarp', 'thanosGift', 'wildcard', 'psychicFriends',
 ]);

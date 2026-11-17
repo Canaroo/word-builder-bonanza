@@ -159,7 +159,7 @@ export const ITEM_MULTIPLIER_LINES = [
     'Tile Multiplier', 'Super Tile', 'Red Wedding', 'Konami Code', 'Ludicrous Speed', 'Combo Breaker',
     "Let's Get Ready to Rumble!", '🌶️ Spice It Up', 'Nuclear Option', 'Extreme Makeover', "Cassie's Clue",
     'Tetris Touch', 'Wordionaire: Double Down', 'Pinky and the Brain', 'Jackass', 'Bird Box',
-    "Let's Get Dangerous", 'Space Invader (Win)', 'REDRUM', 'More Than Meets the Eye',
+    "Let's Get Dangerous", 'Space Invader (Win)', 'REDRUM', 'More Than Meets the Eye', '🦆 Quack Attack',
 ] as const;
 
 /** The combined item multiplier on a word (x2 and x3 make x5, like word multipliers do); 1 when there is none. */

@@ -140,6 +140,22 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   chip above the tiles once a word has 2 plays ("TEA 2/3 · ONE MORE FOR GOLD +500", the closest
   word only), a score line, an event log entry and a How to Play section. Not the WALL-E charm
   (which used to be named Recycler: reusing letters from the last word).
+- **Psychic Friends Network, reworked (v7.54.0)** (id `psychicFriends` kept; `PsychicCall` in
+  `GambleCard.tsx`, `psychicCalls` in `POWER_PLAY_VALUES`): the old tile peek was picked 16% of the
+  time and used 3 times ever. Now it fires on pick like The Price Is Right (`INSTANT_POWER_PLAY_IDS`,
+  `CARD_ON_PICK`, a prize card, out of the Mystery Tape pool): call your next word's length, 3 +50,
+  4 +100, 5 +250, 6 +500, 7+ +1,500 (prizes grow with the level; a wrong call costs nothing).
+  Prizes follow how often an 8-tile hand can spell each length (99 / 94 / 72 / 41 / 10%), so each
+  call is worth about 50-200 on average. Settled on the next word in `completeSubmission`, paid
+  outside the word; a chip shows the call; a Sliders undo keeps a settled call (`settledBets`).
+- **Quack Attack (v7.54.0)** (`QUACK_ATTACK` in `config/gameplay.ts`, the owner's idea): playing QUA a
+  fourth time in a run (`gameState.quackDone`, counted from the log) arms `quackAttack` for the next
+  4 words: x4 each (a "🦆 Quack Attack" line, in `ITEM_MULTIPLIER_LINES` so it covers charm points;
+  counted down in `WORD_COUNTDOWN_POWER_PLAYS`; armed after that word's own countdown), and earns the
+  🦆 Quack Pack badge for good (`b_quackPack`, `earnedBy: 'quack'`). The Mighty Ducks flavor:
+  "QUA · QUA · QUA · QUACK!", "Ducks fly together!". One Q per 100-tile bag, so it's a long-run
+  jackpot: simulated about 0% of 59-word runs, 4% of 180 and 18% of 292 by chance, 86-87% of 180+
+  word runs for a player hunting it. QUA x3 on the way earns Greatest Hits GOLD.
 - **Multi-word PowerPlays (v7.28)** settle in `completeSubmission` and pay outside the word, with
   a progress chip above the hand (`components/PowerPlayTrackers.tsx`): Tamagotchi (pot), Time
   Capsule (buried word), Smell Ya Later! (rival race), Winner Winner Chicken Dinner (each valid word

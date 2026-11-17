@@ -222,8 +222,13 @@ export const POWER_PLAY_VALUES = {
   shapeshifterPoints: 10,        // Shapeshifter's Tongue: the chosen letter's tile is worth this
   hookshotMultiplier: 3,         // Hookshot: the twin tile is worth this many times its points
   boostWords: 3,                 // Extreme Makeover (Polish): words it lasts (was 5; multipliers now cover charm points)
-  psychicWords: 8,               // Psychic Friends Network: see the next tiles for this many words
-  psychicTiles: 6,
+  // Psychic Friends Network (v7.54.0, reworked: the tile peek was used 3 times ever): call your next
+  // word's length. Prizes follow how often an 8-tile hand can spell it (3: 99%, 4: 94%, 5: 72%,
+  // 6: 41%, 7+: 10%), so every call is worth roughly 50-200 on average. No cost for a miss.
+  psychicCalls: [
+    { letters: 3, prize: 50 }, { letters: 4, prize: 100 }, { letters: 5, prize: 250 },
+    { letters: 6, prize: 500 }, { letters: 7, prize: 1500, orMore: true },
+  ] as { letters: number; prize: number; orMore?: boolean }[],
 };
 
 // Seconds from the time PowerPlays and charms (before the bonus-time rules above).
@@ -477,7 +482,7 @@ export const MYSTERY_TAPE = {
   points: 150,
   pool: [
     'cassiesClue', 'carmenSandiego', 'yoshisWildRide', 'tetrisTouch', 'letterUpgrade', 'schruteBucks',
-    'neuralyzer', 'psychicFriends', 'captainPlanet', 'whoYouGonnaCall', 'buyAVowel', 'moreThanMeets',
+    'neuralyzer', 'captainPlanet', 'whoYouGonnaCall', 'buyAVowel', 'moreThanMeets',
     'withGreatPower', 'cowabunga', 'warioWarp', 'shapeshiftersTongue', 'hookshot', 'shakeItLikeAPolaroid',
     'ludicrousSpeed', 'duckHunt', 'actClear', 'echoesOfThePast', 'holdOntoYourButts', 'upsideDown',
     'rescueDrop', 'luckyCharms',
@@ -566,3 +571,12 @@ export const GREATEST_HITS = {
   /** The tracker chip shows a word once it has this many plays toward its record. */
   chipFrom: 2,
 } as const;
+
+/**
+ * Quack Attack (v7.54.0, the owner's idea): playing QUA a fourth time in one run. QUA-QUA-QUA-QUACK!
+ * Your next 4 words score x4 (charm points too), and the 🦆 Quack Pack badge is yours for good.
+ * The bag has one Q per 100 tiles, so it's a long-run jackpot: simulated, about 0% of 59-word runs,
+ * 4% of 180-word and 18% of 292-word runs by chance, and 86-87% of 180+ word runs for a player
+ * who keeps Q, U and A until they meet.
+ */
+export const QUACK_ATTACK = { word: 'QUA', plays: 4, multiplier: 4, words: 4, badgeId: 'b_quackPack' } as const;

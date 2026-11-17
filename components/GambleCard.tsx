@@ -372,6 +372,30 @@ const PriceIsRight: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onRe
   </>
 );
 
+/**
+ * Psychic Friends Network (v7.54.0): call your next word's length. The call settles on that word;
+ * prizes follow how often a hand can spell each length (POWER_PLAY_VALUES.psychicCalls).
+ */
+const PsychicCall: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => (
+  <>
+    <p className="text-slate-200">"I'm seeing... a word. How many letters will it have?"</p>
+    <div className="grid grid-cols-2 gap-2 w-full">
+      {V.psychicCalls.map(({ letters, prize, orMore }) => {
+        const label = `${letters}${orMore ? '+' : ''}`;
+        return (
+          <button key={letters} type="button" aria-label={`Call ${label} letters: win ${prize}`}
+            onClick={() => onResolve({ headline: `YOU CALLED ${label} LETTERS`, detail: `If your next word has ${orMore ? `${letters} or more` : `exactly ${letters}`} letters, you win +${prize}. A wrong call costs nothing.`, tone: 'neutral', arm: { value: { letters, prize, orMore: !!orMore }, description: `Called ${label} letters: if your next word has ${orMore ? `${letters} or more` : `exactly ${letters}`}, win +${prize}.` } })}
+            className={`rounded-xl bg-crt-950 ring-2 ring-neon-purple/70 py-3 hover:brightness-125 ${orMore ? 'col-span-2' : ''}`}>
+            <span className="block font-display text-3xl text-white leading-none">{label} <span className="text-lg">LETTERS</span></span>
+            <span className="block osd-text text-lg text-neon-green leading-none mt-1">WIN +{prize}</span>
+          </button>
+        );
+      })}
+    </div>
+    <p className="text-slate-400 text-sm">Long words are harder to find in a hand, so they pay more.</p>
+  </>
+);
+
 /** Draft Day (v7.28): three face-up packs; the pick replaces the lowest-value tiles in the hand. */
 const DraftDay: React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[] }> = ({ onResolve, hand }) => {
   const [packs] = useSaved('packs', () => {
@@ -911,7 +935,7 @@ const Wildcard: React.FC<{ onResolve: (r: GambleResult) => void; extra?: Record<
 
 const GAMES: Record<string, React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[]; extra?: Record<string, unknown> }>> = {
   letsMakeADeal: Doors, dealOrNoDeal: Deal, noWhammies: Whammies, minesweeper: Mines,
-  priceIsRight: PriceIsRight, draftDay: DraftDay, cardSharks: CardSharks, plinko: Plinko,
+  priceIsRight: PriceIsRight, psychicFriends: PsychicCall, draftDay: DraftDay, cardSharks: CardSharks, plinko: Plinko,
   hotTubTimeMachine: HotTub, luckyCharms: LuckyCharms, wildcard: Wildcard,
 };
 

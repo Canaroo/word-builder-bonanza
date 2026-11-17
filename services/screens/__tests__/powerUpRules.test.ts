@@ -7,10 +7,11 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, PRIZE_POWER_PLAY_IDS } from '../../../data/powerPlays';
 import { GAMBLE_CARD_IDS } from '../../../components/GambleCard';
-import { wildcardIndex } from '../../rules';
+import { wildcardIndex, ITEM_MULTIPLIER_LINES } from '../../rules';
+import { COSMETICS } from '../../../data/cosmetics';
 import { CHARMS_LIST } from '../../../data/charms';
 import { SECRET_BONUSES } from '../../../data/secretBonuses';
-import { GREATEST_HITS, CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, CHARM_BONUS } from '../../../config/gameplay';
+import { QUACK_ATTACK, MYSTERY_TAPE, GREATEST_HITS, CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, CHARM_BONUS } from '../../../config/gameplay';
 import { calculateScore } from '../../gameUtils';
 import * as gameUtils from '../../gameUtils';
 import { RACK_SIZE } from '../../../constants';
@@ -903,5 +904,39 @@ describe('Greatest Hits (v7.52.0)', () => {
         expect(hitInProgress([w('TEA'), w('TEA')], [3])).toBeNull();
         expect(nextHit([3])?.title).toBe('PLATINUM');
         expect(ordinal(3)).toBe('3rd'); expect(ordinal(4)).toBe('4th'); expect(ordinal(22)).toBe('22nd');
+    });
+});
+
+describe('Psychic Friends Network: Call It! (v7.54.0)', () => {
+    test('fires on pick, pays a prize that grows with level, and lists every call', () => {
+        const p = pp('psychicFriends');
+        expect(INSTANT_POWER_PLAY_IDS.has('psychicFriends')).toBe(true);
+        expect(PRIZE_POWER_PLAY_IDS.has('psychicFriends')).toBe(true);
+        expect(GAMBLE_CARD_IDS).toContain('psychicFriends');
+        expect(p.description).toContain('3 letters +50, 4 letters +100, 5 letters +250, 6 letters +500, 7+ letters +1500');
+        expect(MYSTERY_TAPE.pool).not.toContain('psychicFriends'); // a bet never hides in a Mystery Tape
+    });
+    test('the old tile peek is gone: arming from the pocket no longer sets a word countdown', () => {
+        const s = start({ availablePowerPlays: [pp('psychicFriends')] });
+        const next = gameReducer(s, { type: 'ACTIVATE_POWER_PLAY', payload: pp('psychicFriends') });
+        expect(next.gameState!.activePowerPlays.psychicFriends).not.toEqual({ words: 8 });
+    });
+});
+
+describe('Quack Attack (v7.54.0)', () => {
+    test('QUA four times; the next 4 words score x4, charm points included', () => {
+        expect(QUACK_ATTACK).toMatchObject({ word: 'QUA', plays: 4, multiplier: 4, words: 4 });
+        const gs = { ...start({}).gameState!, activePowerPlays: { quackAttack: { words: 4 } } } as GameState;
+        const tiles = ['C', 'A', 'T'].map(l => gameUtils.createTile(l));
+        const plain = calculateScore('CAT', tiles, { ...gs, activePowerPlays: {} } as GameState);
+        const quack = calculateScore('CAT', tiles, gs);
+        expect(quack.bonuses.some(b => b.name === '🦆 Quack Attack' && b.description === 'x4 Word Score')).toBe(true);
+        expect(quack.totalScore).toBeGreaterThanOrEqual(plain.totalScore * 3);
+        expect(ITEM_MULTIPLIER_LINES).toContain('🦆 Quack Attack');
+    });
+    test('the Quack Pack badge is a run reward, never sold', () => {
+        const badge = COSMETICS.find(c => c.id === QUACK_ATTACK.badgeId)!;
+        expect(badge).toMatchObject({ kind: 'badge', icon: '🦆', earnedBy: 'quack' });
+        expect(badge.cost).toBeUndefined();
     });
 });
