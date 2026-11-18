@@ -1,7 +1,7 @@
 import { hotTubIndex, wildcardIndex, MISSIONS, missionById } from '../services/rules';
 import { Sec } from './Seconds';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import ArcadeButton from './ArcadeButton';
+import ArcadeButton, { NamedLabel } from './ArcadeButton';
 import { POWER_PLAY_VALUES as V } from '../config/gameplay';
 import { doorsForRound, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, WHAMMY_BOARD, whammySpin, whammySquareFor, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout } from '../services/rules';
 import { createTile, createTileBag, shuffleArray } from '../services/gameUtils';
@@ -813,7 +813,7 @@ const LuckyCharms: React.FC<{ onResolve: (r: GambleResult) => void; extra?: Reco
         </div>
       )}
       {phase === 'box' && <ArcadeButton color="green" className="w-full" onClick={() => { soundService.playPowerUp(); setPhase('shaking'); }}>🍀 Shake the Box</ArcadeButton>}
-      {phase === 'out' && flipped && <ArcadeButton color="purple" className="w-full" onClick={take}>Equip {charm.icon} {charm.name}</ArcadeButton>}
+      {phase === 'out' && flipped && <ArcadeButton color="purple" className="w-full" onClick={take}><NamedLabel action="Equip" icon={charm.icon} name={charm.name} /></ArcadeButton>}
     </>
   );
 };
@@ -1030,12 +1030,25 @@ const DuckHunt: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolv
   );
 };
 
-/** Scrooge's Money Bin: coins rain down; tap to catch, 1 Credit each (capped). */
-const COIN_FALL_MS = 1800;
+/**
+ * Scrooge's Money Bin (v7.55.1): coins rain down, worth 1, 2 or 3 seconds of clock; the faster a
+ * coin falls, the more it's worth. Tap to catch, capped at moneyBinMaxSeconds. The rain is saved,
+ * so a resume can't redeal it.
+ */
 const MoneyBin: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
   const [phase, setPhase] = useSaved<'ready' | 'raining' | 'done'>('phase', 'ready');
-  const [caught, setCaught] = useSaved<number[]>('caught', []);
-  const [coins] = useSaved('coins', () => Array.from({ length: Math.floor((V.moneyBinSeconds * 1000 - COIN_FALL_MS) / 500) + 1 }, (_, i) => ({ at: i * 500, x: 5 + Math.random() * 80 })));
+  const [caught, setCaught] = useSaved<number[]>('caughtSec', []);
+  const [coins] = useSaved('coinsSec', () => {
+    const out: { at: number; x: number; seconds: number; fallMs: number }[] = [];
+    const total = V.moneyBinCoins.reduce((a, c) => a + c.weight, 0);
+    for (let at = 0; ; at += 450) {
+      let r = Math.random() * total, kind = V.moneyBinCoins[0];
+      for (const c of V.moneyBinCoins) { if (r < c.weight) { kind = c; break; } r -= c.weight; }
+      if (at + kind.fallMs > V.moneyBinSeconds * 1000) { if (at + V.moneyBinCoins[V.moneyBinCoins.length - 1].fallMs > V.moneyBinSeconds * 1000) break; continue; }
+      out.push({ at, x: 5 + Math.random() * 80, seconds: kind.seconds, fallMs: kind.fallMs });
+    }
+    return out;
+  });
   const [now, setNow] = useState(0);
   useEffect(() => {
     if (phase !== 'raining') return;
@@ -1044,22 +1057,33 @@ const MoneyBin: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolv
     return () => clearInterval(t);
   }, [phase]);
   const left = useCountdown(phase === 'raining', V.moneyBinSeconds * 1000, () => { setPhase('done'); soundService.playMilestone(); });
-  const credits = Math.min(V.moneyBinMaxCredits, caught.length);
+  const raw = caught.reduce((a, i) => a + (coins[i]?.seconds ?? 0), 0);
+  const seconds = Math.min(V.moneyBinMaxSeconds, raw);
   const grab = (i: number) => { if (phase !== 'raining' || caught.includes(i)) return; setCaught([...caught, i]); soundService.playTileClick(); buzz(12); };
+  const look = (s: number) => s >= 3 ? 'text-5xl drop-shadow-[0_0_8px_rgba(103,232,249,0.9)]' : s === 2 ? 'text-4xl drop-shadow-[0_0_6px_rgba(255,230,0,0.8)]' : 'text-3xl';
   return (
     <>
-      <p className="text-slate-200 text-sm">{phase === 'ready' ? `Coins rain down for ${V.moneyBinSeconds} seconds. Tap to catch them: 1 Credit each, up to ${V.moneyBinMaxCredits}.` : phase === 'raining' ? 'Dive in!' : `You caught ${caught.length} ${caught.length === 1 ? 'coin' : 'coins'}.`}</p>
+      <p className="text-slate-200 text-sm">{phase === 'ready' ? `Coins rain down for ${V.moneyBinSeconds} seconds. Each one is worth clock time: the faster it falls, the more it's worth. Catch up to +${V.moneyBinMaxSeconds} seconds!` : phase === 'raining' ? 'Dive in!' : `You caught ${caught.length} ${caught.length === 1 ? 'coin' : 'coins'}.`}</p>
+      <div className="w-full flex justify-center gap-3 osd-text text-base text-slate-300" aria-hidden="true">
+        {V.moneyBinCoins.map(c => <span key={c.seconds}>{c.seconds >= 3 ? '💎' : '🪙'} +{c.seconds}<Sec /></span>)}
+      </div>
       <div className="relative w-full h-56 rounded-xl overflow-hidden ring-2 ring-neon-yellow/60 bg-gradient-to-b from-emerald-900 to-crt-950">
         {phase === 'raining' && coins.map((c, i) => {
-          const t = (now - c.at) / COIN_FALL_MS;
+          const t = (now - c.at) / c.fallMs;
           if (t < 0 || t > 1 || caught.includes(i)) return null;
-          return <button key={i} type="button" onPointerDown={e => { e.preventDefault(); grab(i); }} aria-label={`Coin ${i + 1}`} className="absolute text-4xl leading-none select-none touch-none p-1" style={{ left: `${c.x}%`, top: `${t * 100 - 12}%` }}>🪙</button>;
+          return (
+            <button key={i} type="button" onPointerDown={e => { e.preventDefault(); grab(i); }} aria-label={`Coin worth ${c.seconds} seconds`}
+              className={`absolute leading-none select-none touch-none p-1 flex flex-col items-center ${look(c.seconds)}`} style={{ left: `${c.x}%`, top: `${t * 100 - 14}%` }}>
+              <span>{c.seconds >= 3 ? '💎' : '🪙'}</span>
+              <span className="osd-text text-xs text-white leading-none">+{c.seconds}</span>
+            </button>
+          );
         })}
         {phase === 'ready' && <div className="absolute inset-0 grid place-items-center text-6xl" aria-hidden="true">🎩</div>}
       </div>
-      <div className="w-full flex justify-between items-baseline"><span className="osd-text text-xl text-neon-yellow">🪙 {credits}{caught.length > V.moneyBinMaxCredits ? ' (MAX)' : ''}</span>{phase === 'raining' && <SecsLeft ms={left} />}</div>
+      <div className="w-full flex justify-between items-baseline"><span className="osd-text text-xl text-neon-green">⏱️ +{seconds}<Sec />{raw > V.moneyBinMaxSeconds ? ' (MAX)' : ''}</span>{phase === 'raining' && <SecsLeft ms={left} />}</div>
       {phase === 'ready' && <ArcadeButton color="yellow" className="w-full" onClick={() => { soundService.playPowerUp(); setPhase('raining'); }}>🎩 Dive in!</ArcadeButton>}
-      {phase === 'done' && <ArcadeButton color="green" className="w-full" onClick={() => onResolve({ credits, headline: credits ? `+${credits} CREDITS` : 'THE BIN STAYS SHUT', detail: credits ? `Swimming in money! Spend them in the Vibez Shop.` : 'Not a single coin. Next time!', tone: credits ? 'win' : 'neutral' })}>{credits ? `Take 🪙 ${credits}` : 'Continue'}</ArcadeButton>}
+      {phase === 'done' && <ArcadeButton color="green" className="w-full" onClick={() => onResolve({ seconds, headline: seconds ? `+${seconds} SECONDS` : 'THE BIN STAYS SHUT', detail: seconds ? `Swimming in time! ${caught.length} ${caught.length === 1 ? 'coin' : 'coins'} added to your clock.` : 'Not a single coin. Next time!', tone: seconds ? 'win' : 'neutral' })}>{seconds ? `Take +${seconds}s` : 'Continue'}</ArcadeButton>}
     </>
   );
 };

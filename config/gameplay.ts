@@ -225,8 +225,13 @@ export const POWER_PLAY_VALUES = {
   polaroidMax: 300,
   duckSeconds: 10,               // Duck Hunt: ducks fly for this long; each one shot pays duckPoints
   duckPoints: 50,
-  moneyBinSeconds: 8,            // Scrooge's Money Bin: coins fall for this long; 1 Credit a catch, up to moneyBinMaxCredits
-  moneyBinMaxCredits: 6,
+  // Scrooge's Money Bin (v7.55.1, the owner's call: Credits came too easily elsewhere to matter):
+  // coins rain for moneyBinSeconds, worth 1, 2 or 3 seconds each; the faster a coin falls, the more
+  // it's worth. About 22 seconds fall in all; a catch is capped at moneyBinMaxSeconds.
+  moneyBinSeconds: 8,
+  moneyBinCoins: [{ seconds: 1, fallMs: 2400, weight: 0.5 }, { seconds: 2, fallMs: 1700, weight: 0.3 }, { seconds: 3, fallMs: 1100, weight: 0.2 }],
+  moneyBinMaxSeconds: 15,
+  moneyBinMaxCredits: 6, // (the v7.55.0 Credits version; unused)
   warioBags: [{ points: 300, seconds: 5 }, { points: 600, seconds: 10 }, { points: 900, seconds: 15 }],
   missionWords: 3,               // Mission: Impossible: pull off the mission within this many words for missionPrize
   missionPrize: 400,

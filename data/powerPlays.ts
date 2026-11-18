@@ -45,7 +45,7 @@ const letterBoost = (id: 'letterUpgrade' | 'polish', words: number) => (gameStat
  * aren't here: they test speed rather than hand out time. */
 export const TIME_CARD_IDS = new Set([
   'timeBoost', 'timeTurner', 'saveByTheBell', 'happyPlace', 'deepFreeze', 'groundhogsDay', 'continueScreen',
-  'hotTubTimeMachine', 'leafOnTheWind', 'lifeFindsAWay', 'rewind', 'neosChoice',
+  'hotTubTimeMachine', 'scroogeSwipe', 'leafOnTheWind', 'lifeFindsAWay', 'rewind', 'neosChoice',
   'multiverseOfSadness', 'jackass',
 ]);
 
@@ -973,13 +973,13 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'scroogeSwipe', 
     name: 'Scrooge’s Money Bin', 
-    description: `Dive into the Money Bin: coins rain down for ${POWER_PLAY_VALUES.moneyBinSeconds} seconds. Tap to catch them, 1 Credit each (up to ${POWER_PLAY_VALUES.moneyBinMaxCredits}) to spend in the Vibez Shop.`, 
+    description: `Dive into the Money Bin: coins rain down for ${POWER_PLAY_VALUES.moneyBinSeconds} seconds, each worth ${POWER_PLAY_VALUES.moneyBinCoins.map(c => c.seconds).join(', ').replace(/, (\d+)$/, ' or $1')} seconds of clock (the faster they fall, the more they're worth). Tap to catch them, up to +${POWER_PLAY_VALUES.moneyBinMaxSeconds} seconds.`, 
     flavorText: 'Some say fortune favors the bold. Others say it favors the rich duck in a top hat.',
     icon: '🎩',
     subtheme: 'utility',
     effectType: 'immediate',
     durationTag: 'ONE_TIME',
-    activate: () => ({}), // A gamble card (v7.55.0: catch the coins)
+    activate: () => ({}), // A gamble card (v7.55.1: catch coins worth seconds)
   },
   { 
     id: 'wordionaire', 
