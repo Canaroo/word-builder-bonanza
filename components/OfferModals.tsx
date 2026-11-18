@@ -9,7 +9,7 @@ import { charmUpgradePreview, charmUpgradePercentPreview } from '../services/rul
 import { storage, STORAGE_KEYS } from '../services/storage';
 import { playerKey } from '../services/players';
 import { soundService } from '../services/soundService';
-import ArcadeButton from './ArcadeButton';
+import ArcadeButton, { NamedLabel } from './ArcadeButton';
 import CharmTimeNote from './CharmTimeNote';
 import { CHARMS_LIST } from '../data/charms';
 import { setsWith, setProgress, setBonusFor, completedSets } from '../data/charmSets';
@@ -184,7 +184,7 @@ export const PowerPlayOffer: React.FC<{
 
     {held && (
       <ArcadeButton color="yellow" variant="outline" className="w-full mt-3" onClick={onKeep}>
-        ✋ Keep {held.icon} {held.name}
+        <NamedLabel action="✋ Keep" icon={held.icon} name={held.name} />
       </ArcadeButton>
     )}
   </Overlay>
@@ -318,7 +318,7 @@ export const CharmOffer: React.FC<{
           })}
         </div>
         <ArcadeButton color="yellow" className="w-full mt-3" disabled={!target} onClick={() => target && upgrade(target.id)}>
-          {target ? `Upgrade ${target.icon} ${target.name}` : 'Pick one to upgrade'}
+          {target ? <NamedLabel action="Upgrade" icon={target.icon} name={target.name} /> : 'Pick one to upgrade'}
         </ArcadeButton>
         <button type="button" onClick={() => { setUpgrading(false); setUpId(null); }} className="osd-text text-lg text-slate-400 hover:text-white mt-2">
           ◀ BACK TO THE OFFER

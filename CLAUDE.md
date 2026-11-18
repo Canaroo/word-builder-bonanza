@@ -162,8 +162,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   time in 25 (Polaroid 2%, Ludicrous Speed, Mission: Impossible, Duck Hunt, Money Bin 4%, Wario 8%).
   Values in `POWER_PLAY_VALUES`; cards in `GambleCard.tsx` (useSaved keeps the deal, so a quit can't
   reroll). **Shake It Like a Polaroid**: tap for 5 s, +25 per 5 shakes (max +300). **Duck Hunt**: a
-  10 s shooting gallery, +50 a duck (flight plan saved). **Scrooge's Money Bin**: coins fall for 8 s,
-  1 Credit a catch (max 6; `credits` on the gamble result, paid outside the run); no longer instant.
+  10 s shooting gallery, +50 a duck (flight plan saved). **Scrooge's Money Bin**: coins fall for 8 s;
+  v7.55.1 (the owner's call: 6 Credits didn't move anyone) made them clock time: 1 / 2 / 3 seconds
+  each (the faster a coin falls, the more it's worth; 50 / 30 / 20% of coins), about 22 s on offer,
+  capped at +15 s (`moneyBinCoins`, `moneyBinMaxSeconds`); a time card now (`TIME_CARD_IDS`).
   **Wario Warp**: three bags, +300/-5 s, +600/-10 s, +900/-15 s, the seconds taken at once; bags that
   cost the whole clock are greyed out (`clock` in the card's data). **Mission: Impossible**: fires on
   pick; a dossier card deals one of `MISSIONS` (`services/rules.ts`: a J/K/Q/X/Z word, 6+ letters,
@@ -275,6 +277,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   `withSec()` on a string (`components/Seconds.tsx`): a small lowercase "sec" in the plain font.
   `ArcadeButton`, the message bar, plain card titles, outcome headlines and level-up rows run their
   text through it already; decade names ("'90s Throwback") are left alone. Plain body text is fine.
+- **Long names on buttons** (v7.55.1): `ArcadeButton` never wraps, so "Keep 🗺️ Where in the World is
+  Carmen Sandiego?" ran off the card. Buttons now clip (`max-w-full overflow-hidden`), and labels with
+  an item name use `NamedLabel` (`components/ArcadeButton.tsx`): the action word stays, the name ends
+  in "…". Use it for any button that shows a PowerPlay, charm or track name.
 - **Shuffle** is press-and-hold (450 ms), adds +5 s, and never pauses the clock.
 - **Tiles** act on touch-down (pointerdown), not click.
 - **Combo Breaker:** next 3 words, each 4+ letter word scores x3, a shorter word scores 0 and ends

@@ -60,7 +60,7 @@ const ArcadeButton = React.forwardRef<HTMLButtonElement, ArcadeButtonProps>(({ c
         type="button"
         {...props}
         style={style}
-        className={`font-display uppercase tracking-wide flex items-center justify-center gap-2 select-none whitespace-nowrap transition-colors active:translate-y-px disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-white ${look} ${className}`}
+        className={`font-display uppercase tracking-wide flex items-center justify-center gap-2 select-none whitespace-nowrap max-w-full overflow-hidden transition-colors active:translate-y-px disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-white ${look} ${className}`}
       >
         {withSecChildren(children)}
       </button>
@@ -72,7 +72,7 @@ const ArcadeButton = React.forwardRef<HTMLButtonElement, ArcadeButtonProps>(({ c
       type="button"
       {...props}
       style={{ ['--btn-edge' as string]: edge, ...style }}
-      className={`arcade-btn font-display uppercase tracking-wide rounded-xl flex items-center justify-center gap-2 select-none whitespace-nowrap disabled:cursor-not-allowed disabled:from-crt-700 disabled:to-crt-700 disabled:text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-crt-900 ${face} ${SIZES[size]} ${className}`}
+      className={`arcade-btn font-display uppercase tracking-wide rounded-xl flex items-center justify-center gap-2 select-none whitespace-nowrap max-w-full overflow-hidden disabled:cursor-not-allowed disabled:from-crt-700 disabled:to-crt-700 disabled:text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-crt-900 ${face} ${SIZES[size]} ${className}`}
     >
       {withSecChildren(children)}
     </button>
@@ -81,3 +81,14 @@ const ArcadeButton = React.forwardRef<HTMLButtonElement, ArcadeButtonProps>(({ c
 ArcadeButton.displayName = 'ArcadeButton';
 
 export default ArcadeButton;
+
+/**
+ * A button label with an item name that may be long ("Keep 🗺️ Where in the World Is Carmen
+ * Sandiego?"): the action word always shows, and the name shortens with "…" to fit (v7.55.1).
+ */
+export const NamedLabel: React.FC<{ action: string; icon?: string; name: string }> = ({ action, icon, name }) => (
+  <>
+    <span className="shrink-0">{action}</span>
+    <span className="min-w-0 truncate" title={name}>{icon ? `${icon} ` : ''}{name}</span>
+  </>
+);
