@@ -3,7 +3,7 @@
 import { MINI_GAME_VALUES as M, GATES as G } from '../config/gameplay';
 import type { MiniGameId } from '../types';
 
-export interface MiniGameInfo { name: string; icon: string; rules: string; prize: string }
+export interface MiniGameInfo { name: string; icon: string; rules: string; prize: string; /** A quip on the intro card (v7.56). */ flavor?: string }
 
 export const MINI_GAMES: Record<MiniGameId, MiniGameInfo> = {
   pong: {
@@ -96,6 +96,37 @@ export const MINI_GAMES: Record<MiniGameId, MiniGameInfo> = {
     name: 'Find the Lady', icon: '🃏',
     rules: `Watch the queen, then pick her out after the shuffle. ${M.monte.rounds} rounds, each one faster.`,
     prize: `+${M.monte.perFind} a find · all ${M.monte.rounds} +${M.monte.allBonus} more`,
+  },
+  // v7.56.0
+  lure: {
+    name: "Gone Fishin'", icon: '🎣',
+    rules: `${M.lure.casts} casts. Wait for the bobber to dip, then tap fast. The quicker the tap, the bigger the fish. Tap too soon and it swims off.`,
+    prize: `Whopper +${M.lure.whopper} · keeper +${M.lure.keeper} · minnow +${M.lure.minnow} · ${M.lure.casts} whoppers +${M.lure.allWhoppers} more`,
+    flavor: "We're gonna need a bigger boat.",
+  },
+  dial: {
+    name: 'Safecracker', icon: '🔓',
+    rules: `Turn the dial. The light glows near a number and clicks right on it; tap SET there. Find all ${M.dial.numbers} in ${M.dial.seconds} seconds.`,
+    prize: `+${M.dial.perNumber} a number · cracked +${M.dial.cracked} more`,
+    flavor: 'I love it when a plan comes together.',
+  },
+  wire: {
+    name: 'Cut the Wire', icon: '💣',
+    rules: `${M.wire.bombs} bombs, ${M.wire.seconds} seconds each. Read the manual and cut the one wire it means. The bombs get trickier.`,
+    prize: `+${M.wire.perBomb} a bomb · all ${M.wire.bombs} +${M.wire.allBonus} more`,
+    flavor: 'Red wire or blue wire? MacGyver would know.',
+  },
+  nest: {
+    name: 'Egg Drop', icon: '🥚',
+    rules: `Slide the nest to catch falling eggs for ${M.nest.seconds} seconds. Grab the golden ones, dodge the rotten ones.`,
+    prize: `+${M.nest.perEgg} an egg · golden +${M.nest.golden} · rotten -${M.nest.rotten}`,
+    flavor: 'Eggs-cellent.',
+  },
+  leap: {
+    name: 'Road Hop', icon: '🐸',
+    rules: `Tap HOP to cross ${M.leap.lanes} lanes of traffic in ${M.leap.seconds} seconds. Get hit and you're back on the curb.`,
+    prize: `+${M.leap.perLane} a lane · across +${M.leap.home} more`,
+    flavor: "It's not easy being green.",
   },
   ladder: {
     name: 'The Word Ladder', icon: '🪜',

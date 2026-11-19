@@ -6,12 +6,13 @@ import { MINI_GAME_VALUES as M, GATES } from '../../config/gameplay';
 import { GATE_PASSWORDS, GATE_ANAGRAMS, gatePassword, scramble, giveaway, BIG_ONE_WORDS, LADDER_FALLBACK } from '../../data/gates';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopShot, hoopsPrize, goalPrize, golfStroke, golfPrize, ringTossPoints, riffPrize, strikerSwing, strikerPrize, pitStopPrize, coasterRide, coasterPrize, sealPrize, montePrize } from '../miniGameRules';
+import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopShot, hoopsPrize, goalPrize, golfStroke, golfPrize, ringTossPoints, riffPrize, strikerSwing, strikerPrize, pitStopPrize, coasterRide, coasterPrize, sealPrize, montePrize,
+  lureCatch, lurePrize, dialDistance, dialCombo, dialPrize, wireBomb, wirePrize, eggKind, eggPoints, leapPrize, leapHit, LEAP_FROG } from '../miniGameRules';
 
 describe('arcade words', () => {
-  test('seventeen words open a mini-game, pay no flat points, and every game has a word', () => {
+  test('twenty-two words open a mini-game, pay no flat points, and every game has a word', () => {
     const arcade = SECRET_BONUSES.filter(b => b.miniGame);
-    expect(arcade.map(b => b.word).sort()).toEqual(['BOWL', 'CLAW', 'DART', 'DEAL', 'DICE', 'GAME', 'GOAL', 'LANE', 'MOLE', 'NAIL', 'NET', 'NOTE', 'RIDE', 'RING', 'SEAL', 'TEE', 'TIRE']);
+    expect(arcade.map(b => b.word).sort()).toEqual(['BOWL', 'CLAW', 'DART', 'DEAL', 'DIAL', 'DICE', 'GAME', 'GOAL', 'LANE', 'LEAP', 'LURE', 'MOLE', 'NAIL', 'NEST', 'NET', 'NOTE', 'RIDE', 'RING', 'SEAL', 'TEE', 'TIRE', 'WIRE']);
     for (const b of arcade) expect(b.points ?? 0).toBe(0);
     // Every arcade game has a word (LANE shares Bowling with BOWL); the two gate games open by score instead.
     const games = new Set(arcade.map(b => b.miniGame));
@@ -41,6 +42,71 @@ describe('arcade words', () => {
     for (const max of [3 * V.ringToss.ringer, riffPrize(4), strikerPrize(['bell', 'bell', 'bell']), 300, coasterPrize(['clean', 'clean', 'clean']), sealPrize(10), montePrize(3)]) {
       expect(max).toBeGreaterThanOrEqual(300); expect(max).toBeLessThanOrEqual(600);
     }
+  });
+});
+
+describe('v7.56 arcade games', () => {
+  const seeded = (seed: number) => { let n = seed; return () => (n = (n * 1664525 + 1013904223) >>> 0) / 4294967296; };
+  test('Gone Fishin: the quicker the tap, the bigger the fish; too soon or too late pays nothing', () => {
+    expect([lureCatch(-50), lureCatch(200), lureCatch(500), lureCatch(800), lureCatch(1500)]).toEqual(['early', 'whopper', 'keeper', 'minnow', 'gone']);
+    expect(lurePrize(['whopper', 'whopper', 'whopper'])).toBe(3 * M.lure.whopper + M.lure.allWhoppers);
+    expect(lurePrize(['whopper', 'keeper', 'early'])).toBe(M.lure.whopper + M.lure.keeper);
+  });
+  test('Safecracker: the dial wraps, combos are spread out, the prize counts numbers found', () => {
+    expect(dialDistance(39, 1, 40)).toBe(2);
+    expect(dialDistance(10, 10, 40)).toBe(0);
+    for (let i = 0; i < 200; i++) {
+      const c = dialCombo(seeded(i));
+      expect(c).toHaveLength(M.dial.numbers);
+      for (let a = 0; a < c.length; a++) for (let b = a + 1; b < c.length; b++) expect(dialDistance(c[a], c[b])).toBeGreaterThanOrEqual(6);
+    }
+    expect([dialPrize(0), dialPrize(2), dialPrize(3)]).toEqual([0, 2 * M.dial.perNumber, 3 * M.dial.perNumber + M.dial.cracked]);
+  });
+  test('Cut the Wire: every manual line points at exactly the wire it says', () => {
+    const nth = ['first', 'second', 'third', 'fourth'];
+    // An independent reader of the manual: works out which wire a line means.
+    const read = (wires: string[], text: string): number => {
+      const W = wires.map(w => w.toUpperCase());
+      let m;
+      if ((m = text.match(/^Cut the (\w+) wire\.$/)) && W.includes(m[1])) return W.indexOf(m[1]);
+      if ((m = text.match(/^Cut the (\w+) wire from the left\.$/))) return nth.indexOf(m[1]);
+      if ((m = text.match(/^Cut the (\w+) wire from the right\.$/))) return 3 - nth.indexOf(m[1]);
+      if ((m = text.match(/^Cut the wire just left of (\w+)\.$/))) return W.indexOf(m[1]) - 1;
+      if ((m = text.match(/^Cut the wire just right of (\w+)\.$/))) return W.indexOf(m[1]) + 1;
+      if ((m = text.match(/^Don't cut (\w+), (\w+) or (\w+)\.$/))) { const no = [m[1], m[2], m[3]]; const left = W.map((w, i) => (no.includes(w) ? -1 : i)).filter(i => i >= 0); return left.length === 1 ? left[0] : -9; }
+      if ((m = text.match(/^If there's a (\w+) wire, cut it\. If not, cut the (first|last) wire\.$/))) return W.includes(m[1]) ? W.indexOf(m[1]) : m[2] === 'first' ? 0 : 3;
+      return -9;
+    };
+    const kinds = new Set<string>();
+    for (let round = 0; round < 3; round++) for (let i = 0; i < 400; i++) {
+      const b = wireBomb(round, seeded(round * 1000 + i));
+      expect(new Set(b.wires).size).toBe(4);
+      expect(read(b.wires, b.text), `${b.wires.join(',')}: ${b.text}`).toBe(b.answer);
+      kinds.add(b.text.replace(/[A-Z]{3,}|first|second|third|fourth|last/g, 'X'));
+    }
+    // Seven templates show up across the three bombs ("if there's a" covers both the present and the missing color).
+    expect(kinds.size).toBe(7);
+    expect([wirePrize(0), wirePrize(2), wirePrize(3)]).toEqual([0, 2 * M.wire.perBomb, 3 * M.wire.perBomb + M.wire.allBonus]);
+  });
+  test('Egg Drop: eggs, golden eggs and rotten eggs pay what the card says', () => {
+    expect(eggKind(0)).toBe('golden');
+    expect(eggKind(M.nest.goldenChance + 0.01)).toBe('rotten');
+    expect(eggKind(0.99)).toBe('egg');
+    expect([eggPoints('egg'), eggPoints('golden'), eggPoints('rotten')]).toEqual([M.nest.perEgg, M.nest.golden, -M.nest.rotten]);
+  });
+  test('Road Hop: lanes reached plus the across bonus; a car hits only when it overlaps the frog', () => {
+    expect([leapPrize(0, false), leapPrize(3, false), leapPrize(M.leap.lanes, true)]).toEqual([0, 3 * M.leap.perLane, M.leap.lanes * M.leap.perLane + M.leap.home]);
+    expect(leapHit(LEAP_FROG.x - 5, 14)).toBe(true);
+    expect(leapHit(LEAP_FROG.x + LEAP_FROG.half + 1, 14)).toBe(false);
+    expect(leapHit(LEAP_FROG.x - LEAP_FROG.half - 15, 14)).toBe(false);
+  });
+  test('the new games top out like the old ones (about 400-460)', () => {
+    for (const max of [lurePrize(['whopper', 'whopper', 'whopper']), dialPrize(M.dial.numbers), wirePrize(M.wire.bombs), leapPrize(M.leap.lanes, true)]) {
+      expect(max).toBeGreaterThanOrEqual(400); expect(max).toBeLessThanOrEqual(500);
+    }
+  });
+  test('each new game has a quip on its intro card', () => {
+    for (const id of ['lure', 'dial', 'wire', 'nest', 'leap'] as const) expect(MINI_GAMES[id].flavor, id).toBeTruthy();
   });
 });
 

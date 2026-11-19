@@ -529,6 +529,12 @@ export const MINI_GAME_VALUES = {
   coaster: { rides: 3, clean: 120, wobbly: 60, allClean: 100 },    // RIDE: release in the green to clear the loop
   seal: { seconds: 10, perSecond: 25, fullBonus: 100 },            // SEAL: keep the ball on the nose
   monte: { rounds: 3, perFind: 100, allBonus: 100 },               // DEAL: find the queen, 3 rounds
+  // v7.56.0: five more words, each a new kind of play (reaction, feel, logic, catching, dodging).
+  lure: { casts: 3, whopperMs: 400, keeperMs: 650, minnowMs: 1000, whopper: 120, keeper: 70, minnow: 30, allWhoppers: 100, waitMs: [1300, 3600] }, // LURE: tap when the bobber dips
+  dial: { seconds: 20, numbers: 3, size: 40, glow: 3, perNumber: 100, cracked: 150 }, // DIAL: find the combination by feel
+  wire: { bombs: 3, seconds: 8, perBomb: 100, allBonus: 150 },     // WIRE: follow the manual, cut the right wire
+  nest: { seconds: 10, perEgg: 20, golden: 100, rotten: 20, goldenChance: 0.07, rottenChance: 0.16, spawnMs: [420, 650] }, // NEST: catch the eggs
+  leap: { seconds: 15, lanes: 5, perLane: 60, home: 150 },         // LEAP: hop across five lanes of traffic
 } as const;
 
 /**
