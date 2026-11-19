@@ -447,8 +447,8 @@ export const whammySquareFor = (result: number | 'whammy', rand: () => number = 
 /** Daily Double: the wager, a share of the score kept between a floor and a cap, and never more
  * than the score itself (v7.28.8: at a low score the floor made it a free bet). */
 export const dailyDoubleWager = (score: number): number => {
-    const { dailyDoublePercent, dailyDoubleMin, dailyDoubleMax } = POWER_PLAY_VALUES;
-    return Math.max(0, Math.min(score, dailyDoubleMax, Math.max(dailyDoubleMin, Math.round(score * dailyDoublePercent / 100))));
+    // v7.58.0: a flat bet (was 10% of the score, 100-500), never more than you have.
+    return Math.max(0, Math.min(score, POWER_PLAY_VALUES.dailyDoubleBet));
 };
 const shuffle = <T,>(list: T[], rand: () => number): T[] => {
     const out = [...list];

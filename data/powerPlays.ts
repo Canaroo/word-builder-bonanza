@@ -445,7 +445,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'schruteBucks', 
     name: 'Schrute Bucks', 
-    description: `Start a beet farm: for your next ${POWER_PLAY_VALUES.schruteBucksWords} words, every ${POWER_PLAY_VALUES.schruteBucksLetters.split('').join(', ').replace(/, (\w)$/, ' or $1')} you play earns ${POWER_PLAY_VALUES.schruteBucksPerLetter} Schrute Bucks. After the last word, your bucks pay out as points.`,
+    description: `Start a beet farm: for your next ${POWER_PLAY_VALUES.schruteBucksWords} words, every ${POWER_PLAY_VALUES.schruteBucksLetters.split('').join(', ').replace(/, (\w)$/, ' or $1')} you play pays ${POWER_PLAY_VALUES.schruteBucksPerLetter} points, right away.`,
     flavorText: 'Bears. Beets. Battlestar Galactica.',
     icon: '💵',
     subtheme: 'score',
@@ -1211,7 +1211,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'dailyDouble',
     name: 'Daily Double',
-    description: `Starts the moment you pick it: wager ${POWER_PLAY_VALUES.dailyDoublePercent}% of your score (${POWER_PLAY_VALUES.dailyDoubleMin}-${POWER_PLAY_VALUES.dailyDoubleMax}, never more than you have). If your next word has ${POWER_PLAY_VALUES.dailyDoubleLetters}+ letters, win twice the wager. If not, lose it.`,
+    description: `Starts the moment you pick it: bet ${POWER_PLAY_VALUES.dailyDoubleBet}. If your next word has ${POWER_PLAY_VALUES.dailyDoubleLetters}+ letters, win +${POWER_PLAY_VALUES.dailyDoubleWin}. If not, lose the ${POWER_PLAY_VALUES.dailyDoubleBet}.`,
     flavorText: "Let's make it a true Daily Double.",
     icon: '❓',
     subtheme: 'score',
@@ -1221,7 +1221,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
       // Fires on pick (INSTANT_POWER_PLAY_IDS): the wager is set from the score right then.
       const wager = dailyDoubleWager(gameState.score);
       const armed = arm('dailyDouble', { wager })(gameState);
-      const description = `Wager ${wager}: if your next word has ${POWER_PLAY_VALUES.dailyDoubleLetters}+ letters, win ${wager * 2}. If not, lose ${wager}.`;
+      const description = `Bet ${wager}: if your next word has ${POWER_PLAY_VALUES.dailyDoubleLetters}+ letters, win +${prizeFor(POWER_PLAY_VALUES.dailyDoubleWin, levelFor(gameState.log.filter(e => e.type === 'word' && e.status === 'valid').length))}. If not, lose ${wager}.`;
       return { ...armed, activeBuffs: armed.activeBuffs!.map(b => (b.id === 'dailyDouble' ? { ...b, description } : b)) };
     },
   },
@@ -1285,7 +1285,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'redrum',
     name: 'REDRUM',
-    description: `Your next ${POWER_PLAY_VALUES.redrumWords} words: a ${POWER_PLAY_VALUES.redrumLetters}+ letter word that is also a word backward (STAR/RATS, LIVE/EVIL, LEVEL) scores x${POWER_PLAY_VALUES.redrumMultiplier}.`,
+    description: `Your next word scores x${POWER_PLAY_VALUES.redrumBase}. If it's ${POWER_PLAY_VALUES.redrumLetters}+ letters and also a word backward (STAR/RATS, LIVE/EVIL, LEVEL), x${POWER_PLAY_VALUES.redrumMultiplier}.`,
     flavorText: 'Redrum. Redrum.',
     icon: '🪞',
     subtheme: 'score',
@@ -1409,6 +1409,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
  * A new PowerPlay with a point prize goes here and pays through prizeFor(). */
 export const PRIZE_POWER_PLAY_IDS: ReadonlySet<string> = new Set([
   'schruteBucks',
+  'dailyDouble', // v7.58.0: the win is a flat prize now
   'letsMakeADeal', 'dealOrNoDeal', 'noWhammies', 'minesweeper', 'cardSharks', 'plinko', 'chickenDinner',
   'fluncleIsProud', 'actClear', 'priceIsRight', 'tamagotchi', 'smellYaLater', 'popQuizHotshot',
   'withGreatPower', 'gumpLuck', 'warioWarp', 'thanosGift', 'wildcard', 'psychicFriends',

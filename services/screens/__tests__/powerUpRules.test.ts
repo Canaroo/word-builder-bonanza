@@ -334,12 +334,12 @@ describe('v6.13 additions', () => {
         expect(has(calculateScore('dog', tilesFor('DOG'), gs(charms)), 'Sick Combo')).toBe(false);
     });
 
-    test('Mixtape: pays 40, 60, 80... up to 120 for chained words', () => {
+    test('Mixtape (v7.58): a flat +75 for starting with the last letter of the previous word', () => {
         const at = (links: number, word: string) => calculateScore(word.toLowerCase(), tilesFor(word), gs({ activeCharms: [charm('mixtape')], mixtapeChain: { next: 'T', links } }));
-        expect(at(0, 'TOP').bonuses.find(b => b.name.startsWith('Mixtape'))?.description).toBe('+40 pts');
-        expect(at(2, 'TOP').bonuses.find(b => b.name.startsWith('Mixtape'))?.description).toBe('+80 pts');
-        expect(at(9, 'TOP').bonuses.find(b => b.name.startsWith('Mixtape'))?.description).toBe('+120 pts');
+        expect(at(0, 'TOP').bonuses.find(b => b.name === 'Mixtape')?.description).toBe(`+${CHARM_BONUS.mixtape} pts (picks up the T)`);
+        expect(at(9, 'TOP').bonuses.find(b => b.name === 'Mixtape')?.description).toBe(`+${CHARM_BONUS.mixtape} pts (picks up the T)`);
         expect(has(at(3, 'CAT'), 'Mixtape')).toBe(false);
+        expect(CHARMS_LIST.find(c => c.id === 'mixtape')!.description).not.toMatch(/chain|link/i);
     });
 
     test('Mixtape chain resets on a strike', () => {
@@ -523,10 +523,11 @@ describe('v7.16 charms', () => {
         expect(has(score('conjunctionJunction', 'TRAIN'), 'Conjunction Junction')).toBe(false);
     });
 
-    test('Vote for Pedro: only 1-point tiles', () => {
-        expect(has(score('voteForPedro', 'TRAIN'), 'Vote for Pedro')).toBe(true);
+    test("Average Joe's (was Vote for Pedro, id kept): only 1-point tiles", () => {
+        expect(CHARMS_LIST.find(c => c.id === 'voteForPedro')!.name).toBe("Average Joe's");
+        expect(has(score('voteForPedro', 'TRAIN'), "Average Joe's")).toBe(true);
         const withP = [{ id: 'p', letter: 'P', points: 3 }, ...tilesFor('INT')] as Tile[];
-        expect(has(score('voteForPedro', 'PINT', withP), 'Vote for Pedro')).toBe(false);
+        expect(has(score('voteForPedro', 'PINT', withP), "Average Joe's")).toBe(false);
     });
 
     test('Form Voltron: a combo tile in the word', () => {
@@ -549,8 +550,8 @@ describe('v7.16 charms', () => {
         expect(without.time).toBe(30 - GAMEPLAY.timeBank.invalidPenalty);
     });
 
-    test('Cross the Road: a strike breaks the streak; equipping starts fresh', () => {
-        expect(gameReducer(start({ frogStreak: 2 }), { type: 'ADD_STRIKE' }).gameState.frogStreak).toBe(0);
+    test('Cross the Road (v7.58): a strike no longer sends the frog back; equipping starts fresh', () => {
+        expect(gameReducer(start({ frogStreak: 2 }), { type: 'ADD_STRIKE' }).gameState.frogStreak).toBe(2);
         const s = start({ frogStreak: 2 });
         expect(gameReducer(s, { type: 'CHOOSE_CHARM', payload: { charm: charm('crossTheRoad'), hand: s.hand, allOffered: [charm('crossTheRoad')] } }).gameState.frogStreak).toBe(0);
     });
@@ -565,8 +566,8 @@ describe('v7.17 balance pass', () => {
     test('Conjunction Junction, Vote for Pedro and LUNA skip 3-letter words', () => {
         expect(bonus('conjunctionJunction', 'ACE', 'Conjunction')).toBeUndefined();
         expect(bonus('conjunctionJunction', 'BEST', 'Conjunction')).toBe(`+${CHARM_BONUS.conjunctionJunction} pts`);
-        expect(bonus('voteForPedro', 'TEA', 'Vote for Pedro')).toBeUndefined();
-        expect(bonus('voteForPedro', 'TRAIN', 'Vote for Pedro')).toBe(`+${CHARM_BONUS.voteForPedro} pts`);
+        expect(bonus('voteForPedro', 'TEA', "Average Joe's")).toBeUndefined();
+        expect(bonus('voteForPedro', 'TRAIN', "Average Joe's")).toBe(`+${CHARM_BONUS.voteForPedro} pts`);
         expect(bonus('luna', 'AGE', 'LUNA')).toBeUndefined();
         expect(bonus('luna', 'AREA', 'LUNA')).toBe(`+${CHARM_BONUS.luna} pts`);
     });
@@ -584,9 +585,20 @@ describe('v7.17 balance pass', () => {
         expect(bonus('silentKiller', 'GYM', 'Silent Killer')).toBeUndefined(); // too short since v7.35
         expect(bonus('silentKiller', 'HEAD', 'Silent Killer')).toBeUndefined();
         expect(bonus('silentKiller', 'GEM', 'Silent Killer')).toBeUndefined();
-        expect(bonus('italianRestaurantEnding', 'ITALIAN', 'Italian')).toBe(`+${CHARM_BONUS.italianRestaurant} pts`);
+        // v7.58: ends in A, I or O (it was AN).
+        expect(bonus('italianRestaurantEnding', 'PASTA', 'Italian')).toBe(`+${CHARM_BONUS.italianRestaurant} pts`);
+        expect(bonus('italianRestaurantEnding', 'RADIO', 'Italian')).toBe(`+${CHARM_BONUS.italianRestaurant} pts`);
+        expect(bonus('italianRestaurantEnding', 'ITALIAN', 'Italian')).toBeUndefined();
         expect(bonus('cleverGirl', 'TRAP', 'Clever Girl')).toBe(`+${CHARM_BONUS.cleverGirl} pts`);
-        expect(bonus('cleverGirl', 'TOT', 'Clever Girl')).toBeUndefined();
+        // v7.58: a word that starts with a RAPTOR letter (R, A, P, T or O).
+        expect(bonus('cleverGirl', 'OAK', 'Clever Girl')).toBe(`+${CHARM_BONUS.cleverGirl} pts`);
+        expect(bonus('cleverGirl', 'DOG', 'Clever Girl')).toBeUndefined();
+        expect(bonus('cleverGirl', 'SPORT', 'Clever Girl')).toBeUndefined();
+        // Why? Because Chuck Norris. (v7.58): Y words score x2 (it used to turn a random tile 2x).
+        const chuck = (w: string) => calculateScore(w.toLowerCase(), tilesFor(w), gs({ activeCharms: [charm('chuckNorrisWhy')] }));
+        expect(chuck('PLAY').bonuses.find(b => b.name.startsWith('Why?'))?.description).toBe(`x${CHARM_BONUS.chuckNorrisMultiplier} Score`);
+        expect(chuck('PLAY').totalScore).toBeGreaterThan(calculateScore('play', tilesFor('PLAY'), gs()).totalScore);
+        expect(chuck('PLAN').bonuses.some(b => b.name.startsWith('Why?'))).toBe(false);
         expect(bonus('radioactiveSpiderBite', 'RED', 'Radioactive')).toBe(`+${CHARM_BONUS.radioactiveAll} pts`);
         expect(bonus('radioactiveSpiderBite', 'DOE', 'Radioactive')).toBe(`+${CHARM_BONUS.radioactive} pts`);
         expect(bonus('radioactiveSpiderBite', 'DOG', 'Radioactive')).toBeUndefined();
@@ -742,12 +754,12 @@ describe('v7.25 gamble PowerPlays', () => {
         expect(hotTubSeconds(0.99)).toBe(hotTub[2].seconds);
         expect(dealCases.reduce((a, b) => a + b, 0) / dealCases.length).toBe(425);
     });
-    test('Daily Double wagers 10% of the score, between 100 and 500', () => {
+    test('Daily Double bets a flat 200, never more than the score (v7.58)', () => {
         expect(dailyDoubleWager(0)).toBe(0); // never more than the score (v7.28.8)
         expect(dailyDoubleWager(60)).toBe(60);
-        expect(dailyDoubleWager(500)).toBe(100);
-        expect(dailyDoubleWager(3000)).toBe(300);
-        expect(dailyDoubleWager(99999)).toBe(500);
+        expect(dailyDoubleWager(500)).toBe(POWER_PLAY_VALUES.dailyDoubleBet);
+        expect(dailyDoubleWager(99999)).toBe(POWER_PLAY_VALUES.dailyDoubleBet);
+        expect(PRIZE_POWER_PLAY_IDS.has('dailyDouble')).toBe(true);
     });
     test('push your luck: doors, Minesweeper and Deal or No Deal', () => {
         // Each round of doors: its two prizes and a Zonk (0), shuffled.

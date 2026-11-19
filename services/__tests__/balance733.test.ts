@@ -345,7 +345,7 @@ describe('multipliers cover charm points (v7.35)', () => {
 
     test('renamed charms pay under their new names, so upgrades and boosts still find them', () => {
         const source = (readFileSync('services/gameUtils.ts', 'utf8') + readFileSync('services/screens/GameScreen.tsx', 'utf8'));
-        for (const old of ['Vowel Lover', 'S-Tier Scorer', "name: `Finisher", 'name: "Momentum"', 'Strike Shield', 'Rescue Drop', "name: 'Polish'"]) {
+        for (const old of ['Vowel Lover', 'S-Tier Scorer', "name: `Finisher", 'name: "Momentum"', 'Strike Shield', 'Rescue Drop', "name: 'Polish'", 'Vote for Pedro']) {
             expect(source.split('\n').filter(l => !l.trim().startsWith('//')).some(l => /name:|message:|title:|showMessage/.test(l) && l.includes(old)), old).toBe(false);
         }
     });

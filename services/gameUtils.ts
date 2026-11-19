@@ -69,8 +69,8 @@ export const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 /** Mixtape charm payout for this link number (1 = first chained word). */
-export const mixtapeBonus = (link: number): number =>
-    Math.min(CHARM_BONUS.mixtapeMax, CHARM_BONUS.mixtapeBase + CHARM_BONUS.mixtapeStep * (link - 1));
+/** Mixtape (v7.58.0): a flat bonus for starting with the last letter of the previous word. */
+export const mixtapeBonus = (): number => CHARM_BONUS.mixtape;
 
 export const createTileBag = (): string[] => {
   const bag: string[] = [];
@@ -530,6 +530,12 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         bonuses.push({ name: 'S Club Party', description: 'x2 Word Score', source: 'word' });
     }
 
+    // Charm: Why? Because Chuck Norris. (v7.58.0: a word ending in Y scores x2; it used to turn a random tile 2x)
+    if (gameState.activeCharms.some(c => c.id === 'chuckNorrisWhy') && wordUpper.endsWith('Y')) {
+        wordMultipliers.push(CHARM_BONUS.chuckNorrisMultiplier);
+        bonuses.push({ name: 'Why? Because Chuck Norris.', description: `x${CHARM_BONUS.chuckNorrisMultiplier} Score`, source: 'word' });
+    }
+
     // Charm: Battle of Wits
     if (gameState.activeCharms.some(c => c.id === 'battleOfWits') && word.length > 1 && wordUpper[0] === wordUpper[wordUpper.length - 1]) {
         wordMultipliers.push(4);
@@ -776,12 +782,12 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         }
     }
 
-    // Charm: Mixtape (each word starts with the last letter of the one before)
+    // Charm: Mixtape (v7.58.0: start with the last letter of your previous word, a flat +75)
     const chain = gameState.mixtapeChain;
     if (gameState.activeCharms.some(c => c.id === 'mixtape') && chain?.next && wordUpper.startsWith(chain.next)) {
-        const bonus = mixtapeBonus(chain.links + 1);
+        const bonus = mixtapeBonus();
         flatBonus += bonus;
-        bonuses.push({ name: `Mixtape (link ${chain.links + 1})`, description: `+${bonus} pts`, source: 'game' });
+        bonuses.push({ name: 'Mixtape', description: `+${bonus} pts (picks up the ${chain.next})`, source: 'game' });
     }
 
     // Charm: Rubik's Cube (6+ letters, no repeated letter)
@@ -829,12 +835,12 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     if (hasCharm('aTeam') && wordUpper.startsWith('A')) flat('A-Team', CHARM_BONUS.aTeam);
     const longEnough = lettersInWord.length >= CHARM_BONUS.chaseMinLetters;
     if (hasCharm('conjunctionJunction') && longEnough && lettersInWord.every((l, i) => i === 0 || l >= lettersInWord[i - 1])) flat('Conjunction Junction', CHARM_BONUS.conjunctionJunction);
-    if (hasCharm('voteForPedro') && longEnough && tiles.every(t => t.points === 1 && !t.isCombo)) flat('Vote for Pedro', CHARM_BONUS.voteForPedro);
+    if (hasCharm('voteForPedro') && longEnough && tiles.every(t => t.points === 1 && !t.isCombo)) flat("Average Joe's", CHARM_BONUS.voteForPedro);
     if (hasCharm('formVoltron') && tiles.some(t => t.isCombo)) flat('Form Voltron', CHARM_BONUS.formVoltron);
     if (hasCharm('silentKiller') && longEnough && lettersInWord.filter(l => VOWELS.has(l)).length <= CHARM_BONUS.silentKillerMaxVowels) flat('Silent Killer', CHARM_BONUS.silentKiller);
     if (hasCharm('starPower') && lettersInWord.includes('S') && lettersInWord.includes('T')) flat('Star Power', CHARM_BONUS.starPower);
-    if (hasCharm('italianRestaurantEnding') && wordUpper.endsWith('AN')) flat('Italian Restaurant Ending', CHARM_BONUS.italianRestaurant);
-    if (hasCharm('cleverGirl') && new Set(lettersInWord.filter(l => 'RAPTO'.includes(l))).size >= CHARM_BONUS.cleverGirlLetters) flat('Clever Girl', CHARM_BONUS.cleverGirl);
+    if (hasCharm('italianRestaurantEnding') && /[AIO]$/.test(wordUpper)) flat('Italian Restaurant Ending', CHARM_BONUS.italianRestaurant);
+    if (hasCharm('cleverGirl') && 'RAPTO'.includes(wordUpper[0])) flat('Clever Girl', CHARM_BONUS.cleverGirl);
     if (hasCharm('radioactiveSpiderBite')) {
         const spider = ['D', 'E', 'R'].filter(l => lettersInWord.includes(l)).length;
         if (spider >= 2) flat('Radioactive Spider Bite', spider === 3 ? CHARM_BONUS.radioactiveAll : CHARM_BONUS.radioactive);

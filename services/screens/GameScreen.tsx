@@ -804,7 +804,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 isPaused: true,
                 modalContent: outcome(powerPlay, `STRIKE TAKEN: +${gained}s`, `That's gonna leave a mark. Your next word scores x${POWER_PLAY_VALUES.jackassMultiplier}.${runAway ? '\n\nYour Tamagotchi got scared and ran away.' : ''}`, 'neutral'),
                 gameState: {
-                    ...gameState, strikes: gameState.strikes + 1, consecutiveSuccesses: 0, consecutiveValidWords: 0, perfectChainProgress: 0, mixtapeChain: null, frogStreak: 0,
+                    ...gameState, strikes: gameState.strikes + 1, consecutiveSuccesses: 0, consecutiveValidWords: 0, perfectChainProgress: 0, mixtapeChain: null,
                     activePowerPlays: { ...stillActive, jackass: true },
                     activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== 'jackass' && b.id !== 'tamagotchi'), { ...powerPlay, description: `Your next word scores x${POWER_PLAY_VALUES.jackassMultiplier}.` }],
                     log: [...gameState.log, entry],
@@ -1101,7 +1101,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
           let newTileBag = state.tileBag;
           
           const survivorWords = gameState.survivorWords; // unused since v7.35 (Survivor pays per strike carried)
-          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, mixtapeChain: null, survivorWords, frogStreak: 0 };
+          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, mixtapeChain: null, survivorWords };
           
           if ((actuallyGotAStrike || strikeBlockedByShield) && action.payload?.source === 'invalid_word') {
               // An invalid word costs time from the bank (not with the I'm Always Here charm).
@@ -3872,15 +3872,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // We Were on a Break! is scored in calculateScore; any valid word uses it up.
       newState.breakReady = false;
 
-      // REDRUM (v7.28): a long enough word that's also a word backward scores extra.
+      // REDRUM (v7.58.0): the next word scores x2, or x5 if it's also a word backward (STAR/RATS).
       if (wordScored && newState.activePowerPlays.redrum) {
           const reversed = redrumReverse(word);
-          if (reversed && (await dictionaryService.lookupWord(reversed)).isValid) {
-              const mult = POWER_PLAY_VALUES.redrumMultiplier;
-              scoreResult = addWordMultiplier(scoreResult, mult);
-              scoreResult.bonuses.push({ name: `REDRUM (${reversed.toUpperCase()})`, description: `x${mult} Score`, source: 'word' });
-              showMessage(`🪞 ${word.toUpperCase()} backward is ${reversed.toUpperCase()}! x${mult}.`, 2500);
-          }
+          const mirror = !!reversed && (await dictionaryService.lookupWord(reversed)).isValid;
+          const mult = mirror ? POWER_PLAY_VALUES.redrumMultiplier : POWER_PLAY_VALUES.redrumBase;
+          scoreResult = addWordMultiplier(scoreResult, mult);
+          scoreResult.bonuses.push({ name: `REDRUM${mirror ? ` (${reversed!.toUpperCase()})` : ''}`, description: `x${mult} Score`, source: 'word' });
+          showMessage(mirror ? `🪞 ${word.toUpperCase()} backward is ${reversed!.toUpperCase()}! x${mult}.` : `🪞 REDRUM: x${mult}. (A word that's also a word backward would have been x${POWER_PLAY_VALUES.redrumMultiplier}.)`, 2800);
       }
 
       // --- 4. STATEFUL & RANDOM BONUSES on top of word score ---
@@ -4110,9 +4109,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
       }
       
-      // Cross the Road: count 5+ letter words in a row; the 3rd pays and the count starts over.
-      if (newState.activeCharms.some(c => c.id === 'crossTheRoad')) {
-          const streak = word.length >= CHARM_BONUS.crossTheRoadLetters ? (newState.frogStreak ?? 0) + 1 : 0;
+      // Cross the Road (v7.58.0): every 3rd word of 5+ letters pays, in a row or not (a short word or
+      // a strike no longer sends the frog back).
+      if (newState.activeCharms.some(c => c.id === 'crossTheRoad') && word.length >= CHARM_BONUS.crossTheRoadLetters) {
+          const streak = (newState.frogStreak ?? 0) + 1;
           if (streak >= CHARM_BONUS.crossTheRoadWords) {
               scoreResult.totalScore += CHARM_BONUS.crossTheRoad;
               scoreResult.bonuses.push({ name: 'Cross the Road', description: `+${CHARM_BONUS.crossTheRoad} pts` });
@@ -4269,24 +4269,26 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               modalQueue.push(outcome(tama, 'IT RAN AWAY', `${word.toUpperCase()} was too small a meal (${V28.tamagotchiLetters}+ letters keeps it fed). It took its pot of ${tamagotchiPot(pet.feeds)} with it.`, 'lose'));
           }
       }
-      // Schrute Bucks (v7.36.7): a beet farm. Each B, E or T in the next words earns bucks; after the
-      // last word the pot pays out as points (a prize, so it grows with the level).
+      // Schrute Bucks (v7.58.0): a beet farm. Each B, E or T in the next words pays right away, with
+      // that word (a prize, so it grows with the level). It used to bank the bucks until the last word.
       const farm = newState.activePowerPlays.schruteBucks as { words: number; pot: number } | undefined;
       if (farm && typeof farm === 'object') {
           const farmPP = ppById('schruteBucks');
           const letters = word.toUpperCase().split('').filter(ch => V28.schruteBucksLetters.includes(ch)).length;
-          const earned = letters * V28.schruteBucksPerLetter;
-          const pot = farm.pot + earned;
+          const paid = prizeFor(letters * V28.schruteBucksPerLetter, prizeLevel);
+          const pot = farm.pot + paid;
           const left = farm.words - 1;
+          if (paid) {
+              runningScore += paid;
+              scoreResult.bonuses.push({ name: `💵 Schrute Bucks (${letters} × B/E/T)`, description: `+${paid} pts` });
+              eventLogQueue.push({ type: 'event', id: `pp-schruteBucks-${now}`, name: farmPP.name, icon: farmPP.icon, description: `${word.toUpperCase()}: ${letters} B/E/T paid ${paid}.`, scoreChange: paid, cumulativeScore: runningScore });
+          }
           if (left > 0) {
-              setPP('schruteBucks', { words: left, pot }, `Beet farm: ${pot} Schrute Bucks so far. ${left} ${left === 1 ? 'word' : 'words'} to go; every B, E or T earns ${V28.schruteBucksPerLetter}.`);
-              showMessage(earned ? `💵 +${earned} Schrute Bucks (${letters} × ${V28.schruteBucksLetters.split('').join('/')}) · ${pot} banked` : `💵 No B, E or T. ${pot} bucks banked`, 2200);
+              setPP('schruteBucks', { words: left, pot }, `Beet farm: every B, E or T pays ${V28.schruteBucksPerLetter} for ${left} more ${left === 1 ? 'word' : 'words'}. ${pot} so far.`);
+              showMessage(paid ? `💵 +${paid} Schrute Bucks (${letters} × B/E/T) · ${left} ${left === 1 ? 'word' : 'words'} left` : `💵 No B, E or T in that one. ${left} ${left === 1 ? 'word' : 'words'} left`, 2200);
           } else {
               dropPP('schruteBucks');
-              const paid = prizeFor(pot, prizeLevel);
-              runningScore += paid;
-              eventLogQueue.push({ type: 'event', id: `pp-schruteBucks-${now}`, name: farmPP.name, icon: farmPP.icon, description: `Beet harvest: ${pot} Schrute Bucks paid ${paid} points.`, scoreChange: paid, cumulativeScore: runningScore });
-              modalQueue.push(outcome(farmPP, paid ? `BEET HARVEST: +${paid}` : 'A FAILED HARVEST', paid ? `Your farm banked ${pot} Schrute Bucks over ${V28.schruteBucksWords} words.${paid !== pot ? ` Level ${prizeLevel} prize boost: ${pot} → ${paid}.` : ''} Bears. Beets. Battlestar Galactica.` : `No B, E or T in ${V28.schruteBucksWords} words. Dwight is disappointed.`, paid ? 'win' : 'lose'));
+              showMessage(pot ? `💵 Beet season's over: +${pot} in all. Bears. Beets. Battlestar Galactica.` : `💵 No B, E or T in ${V28.schruteBucksWords} words. Dwight is disappointed.`, 3000);
           }
       }
       // Smell Ya Later!: your words' points against the rival's points per second.
@@ -4373,10 +4375,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'dailyDouble' && b.id !== 'popQuizHotshot');
           if (daily) {
               const won = word.length >= V.dailyDoubleLetters;
-              const change = won ? daily.wager * 2 : -Math.min(daily.wager, runningScore);
+              // v7.58.0: a win pays the flat prize (grows with the level); a loss costs the bet.
+              const change = won ? prizeFor(V.dailyDoubleWin, prizeLevel) : -Math.min(daily.wager, runningScore);
               runningScore += change;
               eventLogQueue.push({ type: 'event', id: `pp-dailyDouble-${now}`, name: 'Daily Double', icon: '❓', description: won ? `${word.toUpperCase()} has ${word.length} letters: won ${change}.` : `${word.toUpperCase()} is under ${V.dailyDoubleLetters} letters: lost the wager.`, scoreChange: change, cumulativeScore: runningScore });
-              modalQueue.push(outcome(ppById('dailyDouble'), won ? `CORRECT! +${change} POINTS` : `WRONG! ${change} POINTS`, won ? `${word.toUpperCase()} has ${word.length} letters. Your ${daily.wager} wager pays double.` : `${word.toUpperCase()} has only ${word.length} letters (you needed ${V.dailyDoubleLetters}+). You lose your ${daily.wager} wager.`, won ? 'win' : 'lose'));
+              modalQueue.push(outcome(ppById('dailyDouble'), won ? `CORRECT! +${change} POINTS` : `WRONG! ${change} POINTS`, won ? `${word.toUpperCase()} has ${word.length} letters. Your ${daily.wager} bet wins ${change}.` : `${word.toUpperCase()} has only ${word.length} letters (you needed ${V.dailyDoubleLetters}+). You lose your ${daily.wager} bet.`, won ? 'win' : 'lose'));
           }
           if (quiz) {
               // Real seconds since the quiz started (older saves without startMs fall back to the clock).
@@ -5058,8 +5061,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                   !newState.activeBuffs.some(ab => ab.id === pp.id) &&
                   !newState.availablePowerPlays.some(held => held.id === pp.id) &&
                   !(newState.oncePerRunTaken ?? []).includes(pp.id) &&
-                  // Daily Double needs a score to wager (the wager is never more than the score).
-                  !(pp.id === 'dailyDouble' && newState.score < POWER_PLAY_VALUES.dailyDoubleMin) &&
+                  // Daily Double needs a score to bet (the bet is never more than the score).
+                  !(pp.id === 'dailyDouble' && newState.score < POWER_PLAY_VALUES.dailyDoubleBet) &&
                   !newState.powerPlayCooldowns[pp.id]
               );
               const { offeredItems: offeredPowerPlays, offerDetails, mysteryId } = dealMysteryTape(limitTimeCards(
@@ -5228,24 +5231,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
 
       let finalHand = preChuckHand;
-      if (newState.activeCharms.some(c => c.id === 'chuckNorrisWhy') && word.toUpperCase().endsWith('Y')) {
-          const handTilesWithIndices = finalHand
-              .map((tile, index) => ({ tile, index }))
-              .filter((item): item is { tile: Tile, index: number } => item.tile !== null);
-          
-          if (handTilesWithIndices.length > 0) {
-              const randomItem = handTilesWithIndices[Math.floor(Math.random() * handTilesWithIndices.length)];
-              const tileToUpgrade = randomItem.tile;
-              
-              const newHandCopy = [...finalHand];
-              newHandCopy[randomItem.index] = { ...tileToUpgrade, multiplier: 2 };
-              finalHand = newHandCopy;
-              
-              showMessage(`🥋 Roundhouse kick! A '${tileToUpgrade.letter}' tile is now 2x!`, 2500);
-              soundService.playPowerUp();
-          }
-      }
-
+      // Why? Because Chuck Norris. scores x2 on Y words in calculateScore since v7.58.0 (it used to turn a random tile 2x here).
       trackMission({ type: 'word', word, score: wordLogEntry.score, comboFilled, goldenStarted: newState.consecutiveValidWords + 1 >= newState.goldenRoundThreshold });
 
       // --- 9. GOLDEN ROUND TRIGGER LOGIC ---
@@ -5898,13 +5884,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             // v7.36.7: a beet farm over the next words (it used to be a smaller Gift From Thanos).
             soundService.playPowerUp();
             const V = POWER_PLAY_VALUES;
-            const buff = { ...powerPlay, description: `Beet farm: every B, E or T in your next ${V.schruteBucksWords} words earns ${V.schruteBucksPerLetter} Schrute Bucks.` };
+            const buff = { ...powerPlay, description: `Beet farm: every B, E or T in your next ${V.schruteBucksWords} words pays ${V.schruteBucksPerLetter} points, with each word.` };
             dispatch({ type: 'UPDATE_GAME_STATE', payload: {
                 activePowerPlays: { ...gameState.activePowerPlays, schruteBucks: { words: V.schruteBucksWords, pot: 0 } },
                 activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== powerPlay.id), buff],
                 availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
             }});
-            showMessage(`💵 Beet farm open! Every B, E or T in your next ${V.schruteBucksWords} words earns ${V.schruteBucksPerLetter} bucks.`, 3200);
+            showMessage(`💵 Beet farm open! Every B, E or T in your next ${V.schruteBucksWords} words pays ${V.schruteBucksPerLetter}.`, 3200);
             return;
         }
 

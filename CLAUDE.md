@@ -185,6 +185,23 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   **Ludicrous Speed**: a 15 s sprint, the clock frozen (`freezeLeft`, like SNOW) and every word x2;
   it ends in `TICK_FREEZE`; a chip shows "🚀 LUDICROUS SPEED · x2 · 14sec". Point prizes grow with
   the level. Old armed states from saves settle the old way or just end.
+- **Nine underused, overcomplicated items simplified (v7.58.0, the owner's call; ids kept).** From the
+  200-run stats (Oct 29 - Nov 18): an average card is picked about 26% of the times it's offered;
+  these were 0-12%, with long or fiddly rules. Names were checked against the new rules: only Vote
+  for Pedro changed. **Mixtape** (0 of 20): start a word with the last letter of your previous word,
+  a flat +75 (was a chain, +40 rising to +120, reset by a break). **Italian Restaurant Ending**
+  (Billy Joel set): words ending in A, I or O, +50 (was ending in AN, +100: 0.4% of words).
+  **Why? Because Chuck Norris.**: Y words score x2 (`chuckNorrisMultiplier`; was a random tile
+  turned 2x). **Clever Girl** (Dino DNA set): words starting with a RAPTOR letter (R, A, P, T, O),
+  +30 (was 3 of those letters anywhere, +60). **Cross the Road**: every 3rd word of 5+ letters
+  pays +150, in a row or not; short words and strikes no longer reset it. **Average Joe's** (was
+  Vote for Pedro; Dodgeball, 🤾, "If you can dodge a wrench..."): 4+ letters, every tile worth 1
+  point, +75 (was +50). **REDRUM**: the next word x2, x5 if it's also a word backward (was x4 on
+  reversible words only, over 3 words; used 0 times). **Daily Double**: bet a flat 200
+  (`dailyDoubleBet`, never more than the score); a 5+ letter next word wins +400 (`dailyDoubleWin`,
+  a prize now, grows with the level), else lose the 200 (was 10% of the score, 100-500, "win twice
+  the wager"). **Schrute Bucks**: each B, E or T in the next 5 words pays 25 right away, as a score
+  line on that word (a prize; was banked until the last word). Browser-checked at 390x844.
 - **Multi-word PowerPlays (v7.28)** settle in `completeSubmission` and pay outside the word, with
   a progress chip above the hand (`components/PowerPlayTrackers.tsx`): Tamagotchi (pot), Time
   Capsule (buried word), Smell Ya Later! (rival race), Winner Winner Chicken Dinner (each valid word

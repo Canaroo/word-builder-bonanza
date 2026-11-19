@@ -233,8 +233,8 @@ describe('Daily Double cheese fixes (v7.28.8)', () => {
         const s = start({ score: 3000, powerPlayOffer: [pp('dailyDouble')] });
         const next = gameReducer(s, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('dailyDouble'), allOffered: [pp('dailyDouble')] } });
         expect(next.gameState.availablePowerPlays.some(p => p.id === 'dailyDouble')).toBe(false);
-        expect(next.gameState.activePowerPlays.dailyDouble).toEqual({ wager: 300 });
-        expect(next.gameState.activeBuffs.find(b => b.id === 'dailyDouble')?.description).toContain('Wager 300');
+        expect(next.gameState.activePowerPlays.dailyDouble).toEqual({ wager: V.dailyDoubleBet });
+        expect(next.gameState.activeBuffs.find(b => b.id === 'dailyDouble')?.description).toContain(`Bet ${V.dailyDoubleBet}`);
         expect(pp('dailyDouble').description).toMatch(/^Starts the moment you pick it/);
     });
 
