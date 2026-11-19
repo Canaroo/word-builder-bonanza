@@ -275,8 +275,8 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'italianRestaurantEnding',
     name: 'Italian Restaurant Ending',
-    description: `Words ending in AN (like ITALIAN) earn +${CHARM_BONUS.italianRestaurant} points.`,
-    flavorText: 'A toast to Brenda and Eddie — and a perfect vowel-heavy ending.',
+    description: `Words that end like Italian, in A, I or O (PASTA, ZITI, RADIO), earn +${CHARM_BONUS.italianRestaurant} points.`,
+    flavorText: 'A bottle of red, a bottle of white… and a word that ends in a vowel.',
     icon: '🍝',
     subtheme: 'utility',
     effectType: 'passive',
@@ -561,7 +561,7 @@ export const CHARMS_LIST: Charm[] = [
   { 
     id: 'cleverGirl', 
     name: 'Clever Girl', 
-    description: `Words with at least ${CHARM_BONUS.cleverGirlLetters} different letters from RAPTOR (R, A, P, T, O) earn +${CHARM_BONUS.cleverGirl} points.`,
+    description: `Words that start with a RAPTOR letter (R, A, P, T or O) earn +${CHARM_BONUS.cleverGirl} points.`,
     flavorText: 'They’ve figured out how to open doors… and score bonuses.',
     icon: '🦖',
     subtheme: 'game',
@@ -605,7 +605,7 @@ export const CHARMS_LIST: Charm[] = [
   { 
     id: 'chuckNorrisWhy', 
     name: 'Why? Because Chuck Norris.', 
-    description: 'If you create a word ending in Y, a random tile in your rack transforms into a 2x word score tile.', 
+    description: `Words ending in Y score x${CHARM_BONUS.chuckNorrisMultiplier}.`,
     flavorText: 'Chuck Norris doesn’t ask why. Chuck Norris decides why.',
     icon: '🥋',
     subtheme: 'tile',
@@ -660,7 +660,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'mixtape',
     name: 'Mixtape',
-    description: `Chain words: start each with the last letter of the one before (CAT → TOP → PAN). Each link earns +${CHARM_BONUS.mixtapeBase}, then ${CHARM_BONUS.mixtapeStep} more per link (up to +${CHARM_BONUS.mixtapeMax}). Breaking the chain or an invalid word starts it over.`,
+    description: `Start a word with the last letter of your previous word (CAT → TOP) for +${CHARM_BONUS.mixtape} points.`,
     flavorText: 'Side A flows right into Side B.',
     icon: '💿',
     subtheme: 'score',
@@ -895,7 +895,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'crossTheRoad',
     name: 'Cross the Road',
-    description: `${CHARM_BONUS.crossTheRoadWords} words in a row of ${CHARM_BONUS.crossTheRoadLetters}+ letters: +${CHARM_BONUS.crossTheRoad} points (then the count starts over).`,
+    description: `Every ${CHARM_BONUS.crossTheRoadWords === 3 ? '3rd' : `${CHARM_BONUS.crossTheRoadWords}th`} word of ${CHARM_BONUS.crossTheRoadLetters}+ letters gets you across: +${CHARM_BONUS.crossTheRoad} points. Shorter words don't send you back.`,
     flavorText: 'Why did the frog cross the road?',
     icon: '🐸',
     subtheme: 'score',
@@ -927,10 +927,10 @@ export const CHARMS_LIST: Charm[] = [
   },
   {
     id: 'voteForPedro',
-    name: 'Vote for Pedro',
-    description: `Words of ${CHARM_BONUS.chaseMinLetters}+ letters using only 1-point tiles (E, A, I, O, N, R, T, L, S, U) earn +${CHARM_BONUS.voteForPedro} points.`,
-    flavorText: 'Gosh!',
-    icon: '🕺',
+    name: "Average Joe's",
+    description: `Words of ${CHARM_BONUS.chaseMinLetters}+ letters where every tile is worth 1 point earn +${CHARM_BONUS.voteForPedro} points. Underdogs win.`,
+    flavorText: 'If you can dodge a wrench, you can dodge a ball.',
+    icon: '🤾',
     subtheme: 'score',
     effectType: 'triggered',
     durationTag: 'PERSISTENT',

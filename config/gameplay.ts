@@ -150,10 +150,12 @@ export const POWER_PLAY_VALUES = {
     { kind: 'tile', chance: 0.3 },
     { kind: 'strike', chance: 0.1 },
   ] as { kind: 'time' | 'points' | 'tile' | 'strike'; seconds?: number; points?: number; chance: number }[],
-  dailyDoublePercent: 10,                        // wager this share of your score...
-  dailyDoubleMin: 100,
-  dailyDoubleMax: 500,
-  dailyDoubleLetters: 5,                         // ...on your next word having this many letters (win 2x the wager)
+  // Daily Double (v7.58.0: a flat bet, was 10% of the score with limits): bet this much (never more
+  // than you have) that your next word has dailyDoubleLetters+ letters; a win pays dailyDoubleWin (a
+  // prize, grows with the level). About 72% of hands can spell 5+ letters: worth about +230 a play.
+  dailyDoubleBet: 200,
+  dailyDoubleWin: 400,
+  dailyDoubleLetters: 5,
   popQuizSeconds: 5,                             // Pop Quiz, Hotshot: play your next word this fast...
   popQuizPoints: 300,                            // ...for this
   popQuizBonusSeconds: 5,                        // ...and this
@@ -178,11 +180,13 @@ export const POWER_PLAY_VALUES = {
   // Time Capsule: the next word scores 0 now and comes back this many times over, this many words later.
   timeCapsuleMultiplier: 4,
   timeCapsuleWords: 4,
-  // REDRUM: words of this many letters that are also a word backward (STAR/RATS) score x this.
-  // 4+ letter reversible words show up in about 56% of random hands.
-  redrumWords: 3,
+  // REDRUM (v7.58.0): the next word scores x redrumBase, or x redrumMultiplier if it's redrumLetters+
+  // letters and also a word backward (STAR/RATS). It was x4 on reversible words only (2.2% of words)
+  // over 3 words, and was used 0 times in 33 offers.
+  redrumWords: 1,
   redrumLetters: 4,
-  redrumMultiplier: 4,
+  redrumBase: 2,
+  redrumMultiplier: 5,
   jackassMultiplier: 3,          // Jackass: take a strike for time (TIME_BONUS.jackass) and this on the next word
   hadoukenHits: 2,               // Hadouken!: this many boss-rule misses count as hits
   over9000Words: 3,              // It's Over 9000!: charm points pay double for this many words
@@ -213,7 +217,7 @@ export const POWER_PLAY_VALUES = {
   thanosGiftPoints: 500,         // Gift From Thanos: this now; your next word of thanosGiftLetters+ letters scores 0
   thanosGiftLetters: 4,          // (v7.36.7: was 400 and any next word, so a throwaway 3-letter word paid for it)
   schruteBucksWords: 5,          // Schrute Bucks (v7.36.7, a beet farm): your next this many valid words...
-  schruteBucksPerLetter: 25,     // ...earn this many bucks per B, E or T, paid as points after the last one
+  schruteBucksPerLetter: 25,     // ...earn this many points per B, E or T, paid with each word (v7.58: was banked until the last word)
   schruteBucksLetters: 'BET',
   // v7.55.0 reworks (ids kept; each was picked about 1 time in 25). Point prizes grow with the level.
   ludicrousSpeedMultiplier: 2,   // Ludicrous Speed: for ludicrousSeconds the clock freezes and words score this
@@ -309,9 +313,7 @@ export const CHARM_BONUS = {
   totallyClueless: 30,
   totallyCluelessBelow: 15,
   perfectlyBalanced: 75,  // words with as many vowels as consonants
-  mixtapeBase: 40,         // first link in a Mixtape chain
-  mixtapeStep: 20,         // each further link pays this much more
-  mixtapeMax: 120,
+  mixtape: 75,             // v7.58: a word starting with the last letter of your previous word (was a chain, 40 → 120)
   rubiksCube: 60,          // rubiksCubeLetters+ letters, no repeated letter (v7.35: was 6+ letters for 150; 5+ fires on about half of 5-letter play)
   rubiksCubeLetters: 5,
   sickCombo: 50,           // word longer than your last one
@@ -324,8 +326,7 @@ export const CHARM_BONUS = {
   sacredHeart: 75,         // a J or a D (for JD)
   trueLove: 60,            // an L or a V...
   trueLoveBoth: 200,       // ...or both
-  cleverGirl: 60,
-  cleverGirlLetters: 3,    // different R/A/P/T/O letters a word needs
+  cleverGirl: 30,          // v7.58: words starting with a RAPTOR letter (R, A, P, T, O), 26% of words (was 3 of them anywhere, +60)
   starPower: 125,          // both S and T
   radioactive: 40,         // two of D, E, R...
   radioactiveAll: 120,     // ...or all three
@@ -336,7 +337,8 @@ export const CHARM_BONUS = {
   goldenTicket: 250,
   goldenTicketChance: 0.1,
   finisher: 15,            // added to the last tile's points
-  italianRestaurant: 100,  // words ending in AN
+  italianRestaurant: 50,   // v7.58: words ending in A, I or O (68% of hands can make one; was ending in AN, 0.4% of words, +100)
+  chuckNorrisMultiplier: 2, // v7.58: words ending in Y score this much (was: a random tile turned 2x)
   fluxCapacitor: 88,       // every fluxCapacitorEvery-th word
   fluxCapacitorEvery: 8,
   philsosophyWin: 100,
@@ -360,12 +362,12 @@ export const CHARM_BONUS = {
   goldenGirlsPercent: 50,  // Golden Round words
   noteStreak: 75,          // when the Word Combo fills
   boxersPercent: 50,       // words while one strike from game over
-  crossTheRoad: 150,       // crossTheRoadWords words in a row of crossTheRoadLetters+ letters
+  crossTheRoad: 150,       // v7.58: every crossTheRoadWords-th word of crossTheRoadLetters+ letters, in a row or not
   crossTheRoadWords: 3,
   crossTheRoadLetters: 5,
   aTeam: 75,               // words starting with A
   conjunctionJunction: 90, // letters in alphabetical order
-  voteForPedro: 50,        // only 1-point tiles
+  voteForPedro: 75,        // Average Joe's (id kept): 4+ letters, every tile worth 1 point (v7.58: was +50)
   formVoltron: 75,         // uses a combo tile
   titansPerCharm: 4,       // per charm equipped, every word
   // v7.18 charms. Trade-offs first: they cost points (or safety) and give time back.
