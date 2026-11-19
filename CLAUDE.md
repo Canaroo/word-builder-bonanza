@@ -48,7 +48,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | PowerPlays / charms (101 / 103) | `data/powerPlays.ts`, `data/charms.ts` |
 | Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
 | Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Fork, Hold Slot, Grudge Match, Bones | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `FORK`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`; cards in `components/` (`LastWordsCard`, `ForkCard`, `BonesCard`) |
-| Secret bonuses (115 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
+| Secret bonuses (120 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
 | Hidden desktop pages | `/?stats` and `/?bonuses` (tabs: `&tab=words`, `scores`, `counts`, `charms`, `powerPlays`) render full-width outside the phone frame (`showToolPage` in `App.tsx`) |
 | Bosses (24) and Boss Badges | `data/bosses.ts` (villains, rules), `BOSS` in `config/gameplay.ts` (timing, rewards); badges in the profile (`recordBossBadge`) |
 | Cosmetics, streak milestones, themes, missions | `data/cosmetics.ts`, `data/packs.ts`, `data/missions.ts` |
@@ -387,6 +387,17 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   green), SEAL Balance Act (10 s), DEAL Find the Lady (3 rounds). Top prizes 300-460; values in
   `MINI_GAME_VALUES`, scoring in `services/miniGameRules.ts`. DEAL isn't high-or-low on purpose:
   the Card Sharks PowerPlay already is.
+- **Five more arcade words (v7.56.0)**, each a new kind of play rather than another timing meter
+  (the owner's ask; quips on the intro card via `flavor` in `data/miniGames.ts`): LURE 🎣 Gone
+  Fishin' (tap when the bobber dips: under 0.4 s a whopper +120, 0.65 s a keeper +70, 1 s a minnow
+  +30, too soon spooks it; 3 whoppers +100), DIAL 🔓 Safecracker (a 40-number dial glows within 3 and
+  clicks on the number; find 3 in 20 s, +100 each, +150 cracked), WIRE 💣 Cut the Wire (3 bombs, 8 s
+  each, a manual line that gets trickier: `wireBomb` in `services/miniGameRules.ts`; a test reads
+  every line back independently; +100 a bomb, +150 all), NEST 🥚 Egg Drop (drag the nest for 10 s:
+  +20 an egg, golden +100, rotten -20) and LEAP 🐸 Road Hop (hop 5 lanes of traffic in 15 s, +60 a
+  lane, +150 across; a hit sends you back to the curb). Tops of about 450, like the others; values
+  in `MINI_GAME_VALUES`. Words chosen as common 4-letter words that a hand can spell 1.1-2.0% of the
+  time (the 1.4-3.7% words were taken). Browser-checked at 390x844: all five play and pay.
 - **Score gates (v7.39.0):** the first word at or past a gate opens a one-time event (`GATES` in
   `config/gameplay.ts`, `gatesPassed` on the run). 10,000: the Password Gate, unscramble a 6-letter
   password (`data/gates.ts`, 80 words, none a secret bonus word) in 20 s; the scored Daily Run

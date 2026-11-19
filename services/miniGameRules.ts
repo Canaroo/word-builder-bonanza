@@ -88,3 +88,76 @@ export const sealPrize = (seconds: number): number =>
 
 /** Find the Lady: the prize for this many finds. */
 export const montePrize = (finds: number): number => finds * M.monte.perFind + (finds >= M.monte.rounds ? M.monte.allBonus : 0);
+
+// --- v7.56.0 arcade games ---
+
+/** Gone Fishin' (LURE): what a tap `ms` after the bobber dipped catches (a tap before the dip spooks it). */
+export type LureCatch = 'whopper' | 'keeper' | 'minnow' | 'gone' | 'early';
+export const lureCatch = (ms: number): LureCatch =>
+    ms < 0 ? 'early' : ms <= M.lure.whopperMs ? 'whopper' : ms <= M.lure.keeperMs ? 'keeper' : ms <= M.lure.minnowMs ? 'minnow' : 'gone';
+export const lurePoints = (c: LureCatch): number => (c === 'whopper' ? M.lure.whopper : c === 'keeper' ? M.lure.keeper : c === 'minnow' ? M.lure.minnow : 0);
+export const lurePrize = (catches: LureCatch[]): number =>
+    catches.reduce((sum, c) => sum + lurePoints(c), 0)
+    + (catches.length === M.lure.casts && catches.every(c => c === 'whopper') ? M.lure.allWhoppers : 0);
+
+/** Safecracker (DIAL): how far apart two numbers are on a dial of `size` (it wraps: 39 is next to 0). */
+export const dialDistance = (a: number, b: number, size: number = M.dial.size): number => {
+    const d = Math.abs(((a % size) + size) % size - (((b % size) + size) % size));
+    return Math.min(d, size - d);
+};
+/** A combination of distinct numbers, each at least 6 apart so the glow never points at two at once. */
+export const dialCombo = (rand: () => number = Math.random): number[] => {
+    const combo: number[] = [];
+    while (combo.length < M.dial.numbers) {
+        const n = Math.floor(rand() * M.dial.size);
+        if (combo.every(c => dialDistance(c, n) >= 6)) combo.push(n);
+    }
+    return combo;
+};
+export const dialPrize = (found: number): number => found * M.dial.perNumber + (found >= M.dial.numbers ? M.dial.cracked : 0);
+
+/** Cut the Wire (WIRE): a bomb's four wires and the manual's one-line rule, harder each bomb. */
+export const WIRE_COLORS = ['red', 'blue', 'green', 'yellow', 'white'] as const;
+export type WireColor = typeof WIRE_COLORS[number];
+export interface WireBomb { wires: WireColor[]; text: string; answer: number }
+const NTH = ['first', 'second', 'third', 'fourth'];
+const up = (c: string) => c.toUpperCase();
+export const wireBomb = (round: number, rand: () => number = Math.random): WireBomb => {
+    const pool = [...WIRE_COLORS];
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    const wires = pool.slice(0, 4) as WireColor[];
+    const missing = pool[4] as WireColor;
+    const pick = <T,>(xs: T[]): T => xs[Math.floor(rand() * xs.length)];
+    const kinds = round <= 0 ? ['color', 'fromLeft'] : round === 1 ? ['leftOf', 'rightOf', 'fromRight'] : ['notThese', 'ifThere', 'ifNot'];
+    const kind = pick(kinds);
+    if (kind === 'color') { const a = Math.floor(rand() * 4); return { wires, text: `Cut the ${up(wires[a])} wire.`, answer: a }; }
+    if (kind === 'fromLeft') { const a = Math.floor(rand() * 4); return { wires, text: `Cut the ${NTH[a]} wire from the left.`, answer: a }; }
+    if (kind === 'fromRight') { const a = Math.floor(rand() * 4); return { wires, text: `Cut the ${NTH[3 - a]} wire from the right.`, answer: a }; }
+    if (kind === 'leftOf') { const a = Math.floor(rand() * 3); return { wires, text: `Cut the wire just left of ${up(wires[a + 1])}.`, answer: a }; }
+    if (kind === 'rightOf') { const a = 1 + Math.floor(rand() * 3); return { wires, text: `Cut the wire just right of ${up(wires[a - 1])}.`, answer: a }; }
+    if (kind === 'notThese') {
+        const a = Math.floor(rand() * 4);
+        const others = wires.filter((_, i) => i !== a).map(up);
+        return { wires, text: `Don't cut ${others[0]}, ${others[1]} or ${others[2]}.`, answer: a };
+    }
+    // ifThere: the named color is on the bomb, so cut it. ifNot: it's the missing color, so the fallback applies.
+    const last = rand() < 0.5;
+    if (kind === 'ifThere') {
+        const a = Math.floor(rand() * 4);
+        return { wires, text: `If there's a ${up(wires[a])} wire, cut it. If not, cut the ${last ? 'last' : 'first'} wire.`, answer: a };
+    }
+    return { wires, text: `If there's a ${up(missing)} wire, cut it. If not, cut the ${last ? 'last' : 'first'} wire.`, answer: last ? 3 : 0 };
+};
+export const wirePrize = (defused: number): number => defused * M.wire.perBomb + (defused >= M.wire.bombs ? M.wire.allBonus : 0);
+
+/** Egg Drop (NEST): what an egg is worth when it lands in the nest. */
+export type EggKind = 'egg' | 'golden' | 'rotten';
+export const eggPoints = (k: EggKind): number => (k === 'golden' ? M.nest.golden : k === 'rotten' ? -M.nest.rotten : M.nest.perEgg);
+export const eggKind = (r: number): EggKind => (r < M.nest.goldenChance ? 'golden' : r < M.nest.goldenChance + M.nest.rottenChance ? 'rotten' : 'egg');
+
+/** Road Hop (LEAP): the prize for the furthest lane reached, plus the bonus for making it across. */
+export const leapPrize = (best: number, home: boolean): number =>
+    Math.min(best, M.leap.lanes) * M.leap.perLane + (home ? M.leap.home : 0);
+/** Road Hop: does a car spanning [carX, carX + carW] (percent of the road) hit the frog at the middle? */
+export const LEAP_FROG = { x: 50, half: 4.5 };
+export const leapHit = (carX: number, carW: number): boolean => carX < LEAP_FROG.x + LEAP_FROG.half && carX + carW > LEAP_FROG.x - LEAP_FROG.half;

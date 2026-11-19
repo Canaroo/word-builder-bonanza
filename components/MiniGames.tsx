@@ -8,7 +8,9 @@ import { dictionaryService } from '../services/dictionaryService';
 import { calculateScore } from '../services/gameUtils';
 import { TILE_DISTRIBUTION } from '../constants';
 import { soundService } from '../services/soundService';
-import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopShot, hoopsPrize, goalPrize, golfStroke, golfPrize, GOLF_CUP, ringTossPoints, riffPrize, strikerSwing, strikerPrize, pitStopPrize, coasterRide, coasterPrize, sealPrize, montePrize } from '../services/miniGameRules';
+import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopShot, hoopsPrize, goalPrize, golfStroke, golfPrize, GOLF_CUP, ringTossPoints, riffPrize, strikerSwing, strikerPrize, pitStopPrize, coasterRide, coasterPrize, sealPrize, montePrize,
+  lureCatch, lurePrize, dialDistance, dialCombo, dialPrize, wireBomb, wirePrize, eggKind, eggPoints, leapPrize, leapHit, LEAP_FROG } from '../services/miniGameRules';
+import type { LureCatch, WireBomb, WireColor, EggKind } from '../services/miniGameRules';
 
 // Arcade mini-games (v7.38.0). Spelling an arcade word (GAME, MOLE, CLAW, DART, GOAL, DICE, BOWL,
 // TEE, NET) opens this card: an intro with Play or Skip, the game, then the result, which pays
@@ -1236,8 +1238,421 @@ const BigOne: React.FC<GameProps> = ({ finish, extra }) => {
   );
 };
 
+// --- v7.56.0 arcade games ------------------------------------------------------------------------
+
+// LURE: Gone Fishin'. Cast, wait for the dip, tap fast.
+const CATCH_ART: Record<LureCatch, { icon: string; label: string }> = {
+  whopper: { icon: '🦈', label: 'WHOPPER!' }, keeper: { icon: '🐟', label: 'A KEEPER' }, minnow: { icon: '🦐', label: 'A MINNOW' },
+  gone: { icon: '💨', label: 'IT GOT AWAY' }, early: { icon: '🫧', label: 'TOO SOON!' },
+};
+const CATCH_NAME: Record<LureCatch, string> = { whopper: 'whopper', keeper: 'keeper', minnow: 'minnow', gone: 'got away', early: 'too soon' };
+const Lure: React.FC<{ finish: Finish }> = ({ finish }) => {
+  const L = M.lure;
+  const [state, setState] = useSaved<{ catches: LureCatch[] }>('lure', { catches: [] });
+  const [phase, setPhase] = useState<'ready' | 'wait' | 'bite' | 'result'>('ready');
+  const [last, setLast] = useState<LureCatch | null>(null);
+  const dipAt = useRef(0);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const ended = useRef(false);
+  const clear = () => { timers.current.forEach(clearTimeout); timers.current = []; };
+  useEffect(() => clear, []);
+  const land = (c: LureCatch) => {
+    clear();
+    setLast(c); setPhase('result');
+    if (c === 'whopper' || c === 'keeper') { soundService.playMilestone(); buzz([20, 30, 20]); } else if (c === 'minnow') { tick(); buzz(15); } else { soundService.playInvalidWord(); buzz(60); }
+    const catches = [...state.catches, c];
+    setState({ catches });
+    timers.current.push(setTimeout(() => {
+      if (catches.length >= L.casts) {
+        ended.current = true;
+        const pts = lurePrize(catches);
+        const fish = catches.filter(x => x === 'whopper' || x === 'keeper' || x === 'minnow').length;
+        finish({ points: pts, headline: catches.every(x => x === 'whopper') ? `BIGGER BOAT! +${pts}` : pts ? `${fish} FISH: +${pts}` : 'NOT A BITE', detail: catches.map(x => `${CATCH_ART[x].icon} ${CATCH_NAME[x]}`).join(' · ') });
+      } else setPhase('ready');
+    }, 1300));
+  };
+  const cast = () => {
+    if (phase !== 'ready' || ended.current) return;
+    tick(); setPhase('wait'); setLast(null);
+    const wait = L.waitMs[0] + Math.random() * (L.waitMs[1] - L.waitMs[0]);
+    timers.current.push(setTimeout(() => {
+      dipAt.current = performance.now(); setPhase('bite'); buzz(25);
+      timers.current.push(setTimeout(() => land('gone'), L.minnowMs + 40));
+    }, wait));
+  };
+  const reel = () => {
+    if (phase === 'wait') land('early');
+    else if (phase === 'bite') land(lureCatch(performance.now() - dipAt.current));
+  };
+  const cast_n = Math.min(state.catches.length + (phase === 'result' ? 0 : 1), L.casts);
+  return (
+    <>
+      <p className="font-display text-xl text-neon-yellow">Cast {cast_n} of {L.casts} · +{lurePrize(state.catches)}</p>
+      <button type="button" onPointerDown={e => { e.preventDefault(); if (phase === 'ready') cast(); else reel(); }} disabled={phase === 'result'}
+        aria-label={phase === 'ready' ? 'Cast your line' : phase === 'bite' ? 'Reel it in now' : 'Wait for the bite'}
+        className="relative w-full max-w-[19rem] h-48 rounded-xl overflow-hidden ring-1 ring-white/15 bg-gradient-to-b from-[#123b5c] via-[#0b2a44] to-[#05182b] select-none touch-none">
+        <div className="absolute inset-x-0 top-[42%] h-0.5 bg-neon-cyan/40" aria-hidden="true" />
+        {(phase === 'wait' || phase === 'bite') && (
+          <>
+            <div className="absolute left-1/2 top-0 w-px bg-white/50 transition-[height] duration-150" style={{ height: phase === 'bite' ? '58%' : '42%' }} aria-hidden="true" />
+            <span className={`absolute left-1/2 -translate-x-1/2 -translate-y-1/2 text-3xl leading-none transition-[top] duration-100 ${phase === 'wait' ? 'animate-pulse' : ''}`} style={{ top: phase === 'bite' ? '58%' : '42%' }} aria-hidden="true">🔴</span>
+            {phase === 'bite' && <span className="absolute left-1/2 top-[44%] -translate-x-1/2 text-2xl animate-bounce-in-up" aria-hidden="true">💦</span>}
+          </>
+        )}
+        {phase === 'result' && last && (
+          <span className="absolute inset-0 grid place-items-center animate-bounce-in-up" aria-hidden="true"><span className="text-6xl">{CATCH_ART[last].icon}</span></span>
+        )}
+        {phase === 'ready' && <span className="absolute inset-0 grid place-items-center text-5xl" aria-hidden="true">🎣</span>}
+      </button>
+      <p className={`osd-text text-xl min-h-[1.75rem] ${phase === 'bite' ? 'text-neon-green animate-pulse' : 'text-slate-300'}`} aria-live="polite">
+        {phase === 'ready' ? 'TAP TO CAST' : phase === 'wait' ? 'WAIT FOR IT…' : phase === 'bite' ? 'TAP NOW!' : last ? CATCH_ART[last].label : ''}
+      </p>
+    </>
+  );
+};
+
+// DIAL: Safecracker. Turn the dial; the light glows near a number and clicks on it.
+const Dial: React.FC<{ finish: Finish }> = ({ finish }) => {
+  const D = M.dial;
+  const [state, setState] = useSaved('dial', () => ({ combo: dialCombo(), found: 0, left: D.seconds * 1000 }));
+  const [num, setNum] = useState(0);
+  const [flash, setFlash] = useState<'hit' | 'miss' | null>(null);
+  const [, setFrame] = useState(0);
+  const rot = useRef(0); // degrees
+  const drag = useRef<{ angle: number } | null>(null);
+  const live = useRef(state);
+  const lock = useRef(0);
+  const ended = useRef(false);
+  const lastNum = useRef(0);
+  const step = 360 / D.size;
+  const end = (s: typeof state) => {
+    if (ended.current) return;
+    ended.current = true;
+    const pts = dialPrize(s.found);
+    finish({ points: pts, headline: s.found >= D.numbers ? `SAFE CRACKED! +${pts}` : s.found ? `${s.found} OF ${D.numbers}: +${pts}` : 'STILL LOCKED', detail: s.found >= D.numbers ? `The combination was ${s.combo.join('-')}.` : `The combination was ${s.combo.join('-')}. You found ${s.found}.` });
+  };
+  useEffect(() => {
+    let last = performance.now(), saveIn = 1000;
+    const timer = setInterval(() => {
+      const now = performance.now(), dt = now - last; last = now;
+      const s = live.current;
+      if (ended.current) return;
+      s.left = Math.max(0, s.left - dt); saveIn -= dt;
+      if (saveIn <= 0) { saveIn = 1000; setState({ ...s }); }
+      setFrame(f => f + 1); // redraw the countdown
+      if (s.left <= 0) { setState({ ...s }); end(s); }
+    }, 100);
+    return () => clearInterval(timer);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const target = live.current.combo[Math.min(live.current.found, D.numbers - 1)];
+  const setRotation = (deg: number) => {
+    rot.current = deg;
+    const n = ((Math.round(deg / step) % D.size) + D.size) % D.size;
+    if (n !== lastNum.current) {
+      lastNum.current = n; setNum(n);
+      if (dialDistance(n, target) === 0) { soundService.playMilestone(); buzz([12, 20, 12]); } else tick();
+    }
+  };
+  const angleOf = (e: React.PointerEvent) => {
+    const r = (e.currentTarget as Element).getBoundingClientRect();
+    return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)) * 180 / Math.PI;
+  };
+  const onDown = (e: React.PointerEvent) => { e.preventDefault(); (e.currentTarget as Element).setPointerCapture?.(e.pointerId); drag.current = { angle: angleOf(e) }; };
+  const onMove = (e: React.PointerEvent) => {
+    if (!drag.current || ended.current) return;
+    const a = angleOf(e);
+    let d = a - drag.current.angle; if (d > 180) d -= 360; if (d < -180) d += 360;
+    drag.current.angle = a;
+    setRotation(rot.current - d); // the dial follows your finger
+  };
+  const nudge = (dir: number) => { if (!ended.current) setRotation(Math.round(rot.current / step) * step + dir * step); };
+  const set = () => {
+    if (ended.current || performance.now() < lock.current) return;
+    const s = live.current;
+    if (dialDistance(num, target) === 0) {
+      s.found += 1; setState({ ...s }); setFlash('hit'); soundService.playPowerUp(); buzz([20, 40, 20]);
+      setTimeout(() => setFlash(null), 500);
+      if (s.found >= D.numbers) end(s);
+    } else {
+      lock.current = performance.now() + 600; setFlash('miss'); soundService.playInvalidWord(); buzz(50);
+      setTimeout(() => setFlash(null), 500);
+    }
+  };
+  const dist = dialDistance(num, target);
+  const glow = dist <= D.glow ? (D.glow + 1 - dist) / (D.glow + 1) : 0;
+  const s = live.current;
+  return (
+    <>
+      <div className="w-full flex justify-between items-baseline text-xl"><span className="font-display text-neon-yellow">{s.found} / {D.numbers} found</span><Secs ms={s.left} warnBelow={5000} /></div>
+      <TimeBar ms={s.left} total={D.seconds * 1000} warnBelow={5000} />
+      <div className="flex items-center gap-3">
+        {Array.from({ length: D.numbers }, (_, i) => (
+          <span key={i} className={`font-display text-2xl w-12 text-center rounded-md py-1 ring-1 ${i < s.found ? 'text-neon-green ring-neon-green bg-neon-green/10' : 'text-slate-500 ring-white/15'}`}>{i < s.found ? s.combo[i] : '??'}</span>
+        ))}
+      </div>
+      <div className="relative" aria-hidden="true">
+        <span className="absolute left-1/2 -top-1 -translate-x-1/2 text-neon-yellow text-xl leading-none">▼</span>
+      </div>
+      <div className="relative w-52 h-52 select-none touch-none" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}
+        role="slider" aria-label="Safe dial" aria-valuemin={0} aria-valuemax={D.size - 1} aria-valuenow={num}>
+        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-slate-500 to-slate-800 ring-4 ring-slate-900 shadow-inner" style={{ transform: `rotate(${-rot.current}deg)` }}>
+          {Array.from({ length: D.size }, (_, i) => (
+            <span key={i} className="absolute left-1/2 top-0 h-1/2 origin-bottom" style={{ transform: `translateX(-50%) rotate(${i * step}deg)` }}>
+              <span className={`block mx-auto ${i % 5 === 0 ? 'w-0.5 h-3 bg-white' : 'w-px h-2 bg-white/60'}`} />
+              {i % 10 === 0 && <span className="block text-[0.6rem] text-white font-display mt-0.5 -translate-x-[1px]">{i}</span>}
+            </span>
+          ))}
+        </div>
+        <div className="absolute inset-[30%] rounded-full grid place-items-center ring-2 ring-slate-900 transition-[background-color,box-shadow] duration-100"
+          style={{ backgroundColor: flash === 'miss' ? '#7f1d1d' : `rgba(61, 255, 122, ${0.12 + glow * 0.75})`, boxShadow: glow ? `0 0 ${8 + glow * 24}px rgba(61,255,122,${glow})` : 'none' }}>
+          <span className="font-display text-2xl text-white tabular-nums">{num}</span>
+        </div>
+      </div>
+      <p className="osd-text text-lg text-slate-300 min-h-[1.5rem]" aria-live="polite">{flash === 'hit' ? 'CLICK! GOT ONE' : flash === 'miss' ? 'NOT THERE' : dist === 0 ? '* CLICK *' : glow ? 'GETTING WARM…' : 'DRAG TO TURN THE DIAL'}</p>
+      <div className="w-full grid grid-cols-[1fr_2fr_1fr] gap-2">
+        <button type="button" aria-label="Turn down one" onPointerDown={e => { e.preventDefault(); nudge(-1); }} className="rounded-xl py-3 bg-crt-800 ring-2 ring-neon-cyan text-neon-cyan font-display text-2xl select-none touch-none active:scale-95">◀</button>
+        <ArcadeButton color="green" onClick={set}>🔓 SET</ArcadeButton>
+        <button type="button" aria-label="Turn up one" onPointerDown={e => { e.preventDefault(); nudge(1); }} className="rounded-xl py-3 bg-crt-800 ring-2 ring-neon-cyan text-neon-cyan font-display text-2xl select-none touch-none active:scale-95">▶</button>
+      </div>
+    </>
+  );
+};
+
+// WIRE: Cut the Wire. Read the manual, cut the one it means.
+const WIRE_HEX: Record<WireColor, string> = { red: '#ff4d4d', blue: '#3d8bff', green: '#3dff7a', yellow: '#ffe27a', white: '#f1f5f9' };
+const Wire: React.FC<{ finish: Finish }> = ({ finish }) => {
+  const W = M.wire;
+  const [state, setState] = useSaved<{ round: number; defused: number; bomb: WireBomb }>('wire', () => ({ round: 0, defused: 0, bomb: wireBomb(0) }));
+  const [left, setLeft] = useState(W.seconds * 1000);
+  const [cut, setCut] = useState<number | null>(null);
+  const [outcome, setOutcome] = useState<'defused' | 'boom' | null>(null);
+  const ended = useRef(false);
+  const resolved = useRef(false);
+  const resolve = (i: number | null) => {
+    if (resolved.current || ended.current) return;
+    resolved.current = true;
+    const ok = i === state.bomb.answer;
+    setCut(i); setOutcome(ok ? 'defused' : 'boom');
+    if (ok) { soundService.playMilestone(); buzz([20, 40, 20]); } else { soundService.playInvalidWord(); buzz([80, 40, 120]); }
+    const defused = state.defused + (ok ? 1 : 0), round = state.round + 1;
+    setTimeout(() => {
+      if (round >= W.bombs) {
+        ended.current = true;
+        setState({ round, defused, bomb: state.bomb });
+        const pts = wirePrize(defused);
+        finish({ points: pts, headline: defused >= W.bombs ? `ALL CLEAR! +${pts}` : pts ? `${defused} OF ${W.bombs} DEFUSED: +${pts}` : 'KA-BOOM', detail: defused >= W.bombs ? 'Three bombs, three clean snips. Cool under pressure.' : `You defused ${defused} of ${W.bombs} bombs.` });
+        return;
+      }
+      setState({ round, defused, bomb: wireBomb(round) });
+    }, 1300);
+  };
+  useEffect(() => {
+    if (ended.current) return;
+    resolved.current = false; setCut(null); setOutcome(null); setLeft(W.seconds * 1000);
+    const start = performance.now();
+    const t = setInterval(() => {
+      const l = Math.max(0, W.seconds * 1000 - (performance.now() - start));
+      setLeft(l);
+      if (l <= 0) { clearInterval(t); resolve(null); }
+    }, 100);
+    return () => clearInterval(t);
+  }, [state.round]); // eslint-disable-line react-hooks/exhaustive-deps
+  const b = state.bomb;
+  return (
+    <>
+      <div className="w-full flex justify-between items-baseline text-xl"><span className="font-display text-neon-yellow">Bomb {Math.min(state.round + 1, W.bombs)} of {W.bombs} · {state.defused} defused</span><Secs ms={outcome ? 0 : left} warnBelow={3000} /></div>
+      <div className="w-full rounded-lg bg-[#f5ecd2] text-crt-900 px-3 py-2 text-left shadow ring-1 ring-black/20">
+        <p className="text-[0.65rem] font-bold tracking-widest opacity-60">📖 BOMB MANUAL, PAGE {state.round + 1}</p>
+        <p className="font-semibold text-lg leading-snug">{b.text}</p>
+      </div>
+      <div className={`relative w-full max-w-[19rem] rounded-xl bg-crt-950 ring-2 px-3 pt-3 pb-2 ${outcome === 'boom' ? 'ring-neon-red animate-pulse' : outcome === 'defused' ? 'ring-neon-green' : 'ring-white/15'}`}>
+        <div className="flex justify-center mb-2"><span className="font-digital text-3xl text-neon-red tabular-nums bg-black px-2 rounded">{outcome === 'defused' ? '-- --' : `0:0${Math.ceil(left / 1000)}`}</span></div>
+        <div className="grid grid-cols-4 gap-2">
+          {b.wires.map((c, i) => (
+            <button key={i} type="button" disabled={!!outcome} onPointerDown={e => { e.preventDefault(); if (!outcome) { tick(); resolve(i); } }} aria-label={`Cut the ${c} wire (wire ${i + 1})`}
+              className="flex flex-col items-center gap-1 select-none touch-none">
+              <span className="relative w-3 h-28 rounded-full" style={{ backgroundColor: WIRE_HEX[c], boxShadow: `0 0 8px ${WIRE_HEX[c]}66` }}>
+                {cut === i && <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-4 bg-crt-950" />}
+              </span>
+              <span className="text-[0.65rem] font-bold tracking-wide text-slate-300 uppercase">{c}</span>
+            </button>
+          ))}
+        </div>
+        {outcome === 'boom' && <span className="absolute inset-0 grid place-items-center text-7xl animate-bounce-in-up" aria-hidden="true">💥</span>}
+      </div>
+      <p className="osd-text text-lg min-h-[1.5rem] text-slate-300" aria-live="polite">{outcome === 'defused' ? '✂️ DEFUSED!' : outcome === 'boom' ? (cut === null ? 'OUT OF TIME. BOOM!' : `WRONG WIRE. It was ${b.wires[b.answer].toUpperCase()}.`) : 'TAP A WIRE TO CUT IT'}</p>
+    </>
+  );
+};
+
+// NEST: Egg Drop. Slide the nest under the falling eggs.
+const EGG_ICON: Record<EggKind, string> = { egg: '🥚', golden: '🥚', rotten: '🤢' };
+const Nest: React.FC<{ finish: Finish }> = ({ finish }) => {
+  const N = M.nest;
+  const [progress, setProgress] = useSaved('nest', { left: N.seconds * 1000, score: 0, eggs: 0, golden: 0, rotten: 0 });
+  const live = useRef(progress);
+  const nestX = useRef(50);
+  const eggs = useRef<{ id: number; x: number; y: number; vy: number; kind: EggKind }[]>([]);
+  const pops = useRef<{ id: number; x: number; text: string; until: number }[]>([]);
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const [, setFrame] = useState(0);
+  const ended = useRef(false);
+  useEffect(() => {
+    let raf = 0, last = performance.now(), nextSpawn = 300, saveIn = 1000, nextId = 1;
+    const loop = (now: number) => {
+      const dt = Math.min(50, now - last); last = now;
+      const s = live.current;
+      if (ended.current) return;
+      s.left = Math.max(0, s.left - dt); nextSpawn -= dt; saveIn -= dt;
+      const pace = 1 + (1 - s.left / (N.seconds * 1000)) * 0.6; // eggs fall faster as the clock runs down
+      if (nextSpawn <= 0 && s.left > 600) {
+        eggs.current.push({ id: nextId++, x: 8 + Math.random() * 84, y: -6, vy: (38 + Math.random() * 18) * pace, kind: eggKind(Math.random()) });
+        nextSpawn = N.spawnMs[0] + Math.random() * (N.spawnMs[1] - N.spawnMs[0]);
+      }
+      const keep: typeof eggs.current = [];
+      for (const e of eggs.current) {
+        e.y += e.vy * dt / 1000;
+        if (e.y >= 84 && e.y <= 94 && Math.abs(e.x - nestX.current) <= 12) {
+          const pts = eggPoints(e.kind);
+          s.score = Math.max(0, s.score + pts);
+          if (e.kind === 'golden') s.golden += 1; else if (e.kind === 'rotten') s.rotten += 1; else s.eggs += 1;
+          pops.current.push({ id: e.id, x: e.x, text: pts > 0 ? `+${pts}` : `${pts}`, until: now + 600 });
+          if (e.kind === 'rotten') { soundService.playInvalidWord(); buzz(50); } else if (e.kind === 'golden') { soundService.playMilestone(); buzz([15, 25, 15]); } else { tick(); buzz(8); }
+          continue;
+        }
+        if (e.y < 104) keep.push(e);
+      }
+      eggs.current = keep;
+      pops.current = pops.current.filter(p => p.until > now);
+      if (saveIn <= 0) { saveIn = 1000; setProgress({ ...s }); }
+      setFrame(f => f + 1);
+      if (s.left <= 0) {
+        ended.current = true; setProgress({ ...s });
+        const n = s.eggs + s.golden;
+        finish({ points: s.score, headline: s.score ? `${n} ${n === 1 ? 'EGG' : 'EGGS'}: +${s.score}` : 'SCRAMBLED', detail: `${s.eggs} ${s.eggs === 1 ? 'egg' : 'eggs'}${s.golden ? `, ${s.golden} golden` : ''}${s.rotten ? `, ${s.rotten} rotten` : ''} in ${N.seconds} seconds.` });
+        return;
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const steer = (e: React.PointerEvent) => {
+    const r = fieldRef.current?.getBoundingClientRect();
+    if (!r) return;
+    nestX.current = Math.max(10, Math.min(90, ((e.clientX - r.left) / r.width) * 100));
+  };
+  const s = live.current;
+  return (
+    <>
+      <div className="w-full flex justify-between items-baseline text-xl"><span className="font-display text-neon-yellow">+{s.score}</span><Secs ms={s.left} warnBelow={3000} /></div>
+      <TimeBar ms={s.left} total={N.seconds * 1000} warnBelow={3000} />
+      <div ref={fieldRef} className="relative w-full max-w-[19rem] h-64 rounded-xl overflow-hidden ring-1 ring-white/15 bg-gradient-to-b from-[#1a2b55] to-[#0b1630] select-none touch-none"
+        onPointerDown={e => { e.preventDefault(); (e.currentTarget as Element).setPointerCapture?.(e.pointerId); steer(e); }} onPointerMove={steer}
+        role="application" aria-label="Egg Drop: drag left and right to move the nest">
+        {eggs.current.map(e => (
+          <span key={e.id} className="absolute text-2xl leading-none -translate-x-1/2" aria-hidden="true"
+            style={{ left: `${e.x}%`, top: `${e.y}%`, filter: e.kind === 'golden' ? 'sepia(1) saturate(5) hue-rotate(5deg) drop-shadow(0 0 6px #ffd84d)' : undefined }}>{EGG_ICON[e.kind]}</span>
+        ))}
+        {pops.current.map(p => (
+          <span key={`p${p.id}`} className={`absolute -translate-x-1/2 font-display text-lg ${p.text.startsWith('-') ? 'text-neon-red' : 'text-neon-yellow'}`} style={{ left: `${p.x}%`, top: `${60 + (p.id % 3) * 6}%` }} aria-hidden="true">{p.text}</span>
+        ))}
+        <div className="absolute bottom-2 -translate-x-1/2 w-[24%] h-6 rounded-b-full bg-gradient-to-b from-[#a0703c] to-[#5c3a1a] ring-2 ring-[#3b2410] shadow-[0_-3px_0_#c08a4a_inset]" style={{ left: `${nestX.current}%` }} aria-hidden="true" />
+      </div>
+      <p className="osd-text text-lg text-slate-300">DRAG TO MOVE THE NEST</p>
+    </>
+  );
+};
+
+// LEAP: Road Hop. Hop across five lanes of traffic.
+const LEAP_CARS = ['🚗', '🚕', '🚙', '🚌', '🚚'];
+const leapLanes = () => Array.from({ length: M.leap.lanes }, (_, i) => {
+  const dir = i % 2 === 0 ? -1 : 1;
+  const speed = 20 + i * 4 + Math.random() * 6; // percent of the road per second
+  const w = i === 3 ? 20 : 14;
+  const offset = Math.random() * 50;
+  return { dir, speed, w, icon: LEAP_CARS[i], cars: [offset, offset + 50] };
+});
+const Leap: React.FC<{ finish: Finish }> = ({ finish }) => {
+  const P = M.leap;
+  const [progress, setProgress] = useSaved('leap', { left: P.seconds * 1000, best: 0, splats: 0 });
+  const live = useRef(progress);
+  const lanes = useRef(leapLanes());
+  const frog = useRef(0); // 0 is the curb, 1-5 the lanes, lanes + 1 the far side
+  const splatUntil = useRef(0);
+  const [, setFrame] = useState(0);
+  const ended = useRef(false);
+  const end = (home: boolean) => {
+    if (ended.current) return;
+    ended.current = true;
+    const s = live.current;
+    setProgress({ ...s });
+    const pts = leapPrize(s.best, home);
+    finish({ points: pts, headline: home ? `MADE IT ACROSS! +${pts}` : pts ? `${s.best} ${s.best === 1 ? 'LANE' : 'LANES'}: +${pts}` : 'STUCK ON THE CURB', detail: home ? `All ${P.lanes} lanes${s.splats ? ` after ${s.splats} ${s.splats === 1 ? 'splat' : 'splats'}` : ' without a scratch'}. Ribbit!` : `Your best was lane ${s.best} of ${P.lanes}.` });
+  };
+  useEffect(() => {
+    let raf = 0, last = performance.now(), saveIn = 1000;
+    const loop = (now: number) => {
+      const dt = Math.min(50, now - last) / 1000; last = now;
+      if (ended.current) return;
+      const s = live.current;
+      s.left = Math.max(0, s.left - dt * 1000); saveIn -= dt * 1000;
+      for (const l of lanes.current) l.cars = l.cars.map(x => { let n = x + l.dir * l.speed * dt; if (n > 100) n -= 100 + l.w; if (n < -l.w) n += 100 + l.w; return n; });
+      const f = frog.current;
+      if (f >= 1 && f <= P.lanes && now > splatUntil.current) {
+        const l = lanes.current[f - 1];
+        if (l.cars.some(x => leapHit(x, l.w))) {
+          frog.current = 0; splatUntil.current = now + 500; s.splats += 1;
+          soundService.playInvalidWord(); buzz([60, 30, 60]);
+        }
+      }
+      if (saveIn <= 0) { saveIn = 1000; setProgress({ ...s }); }
+      setFrame(x => x + 1);
+      if (s.left <= 0) { end(false); return; }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const hop = () => {
+    if (ended.current || performance.now() < splatUntil.current) return;
+    frog.current += 1; tick(); buzz(6);
+    const s = live.current;
+    if (frog.current <= P.lanes && frog.current > s.best) s.best = frog.current;
+    if (frog.current > P.lanes) { s.best = P.lanes; soundService.playMilestone(); buzz([20, 40, 20]); end(true); }
+  };
+  const s = live.current;
+  const splat = performance.now() < splatUntil.current;
+  const rows = Array.from({ length: P.lanes + 2 }, (_, i) => P.lanes + 1 - i); // top (far side) to bottom (curb)
+  return (
+    <>
+      <div className="w-full flex justify-between items-baseline text-xl"><span className="font-display text-neon-yellow">Lane {s.best}/{P.lanes} · +{leapPrize(s.best, false)}</span><Secs ms={s.left} warnBelow={4000} /></div>
+      <TimeBar ms={s.left} total={P.seconds * 1000} warnBelow={4000} />
+      <div className="relative w-full max-w-[19rem] rounded-xl overflow-hidden ring-1 ring-white/15" aria-label={`Road Hop: you are ${frog.current === 0 ? 'on the curb' : `in lane ${frog.current} of ${P.lanes}`}`}>
+        {rows.map(r => {
+          const lane = r >= 1 && r <= P.lanes ? lanes.current[r - 1] : null;
+          return (
+            <div key={r} className={`relative h-9 overflow-hidden ${r === P.lanes + 1 ? 'bg-[#1f5130]' : r === 0 ? 'bg-[#4b4f5c]' : 'bg-[#22252d]'} ${lane && r < P.lanes ? 'border-t border-dashed border-white/20' : ''}`}>
+              {r === P.lanes + 1 && <span className="absolute inset-0 grid place-items-center osd-text text-sm text-neon-green/80">🏁 THE OTHER SIDE</span>}
+              {lane?.cars.map((x, k) => (
+                <span key={k} className="absolute top-1/2 -translate-y-1/2 text-2xl leading-none text-center" style={{ left: `${x}%`, width: `${lane.w}%`, transform: `translateY(-50%) ${lane.dir > 0 ? 'scaleX(-1)' : ''}` }} aria-hidden="true">{lane.icon}</span>
+              ))}
+              {frog.current === r && (
+                <span className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-2xl leading-none z-10" style={{ left: `${LEAP_FROG.x}%` }} aria-hidden="true">{splat ? '💥' : '🐸'}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <button type="button" onPointerDown={e => { e.preventDefault(); hop(); }} aria-label="Hop forward"
+        className="w-full rounded-xl py-4 bg-neon-green/15 ring-2 ring-neon-green text-neon-green font-display text-2xl select-none touch-none active:scale-95">⬆ HOP</button>
+    </>
+  );
+};
+
 const GAMES: Record<MiniGameId, React.FC<GameProps>> = { pong: Pong, mole: Mole, claw: Claw, darts: Darts, goal: Goal, dice: Dice, bowl: Bowl, golf: Golf, hoops: Hoops, password: Password, bonusStage: BonusStage,
   ringToss: RingToss, riff: Riff, striker: Striker, pitStop: PitStop, coaster: Coaster, seal: Seal, monte: Monte,
+  lure: Lure, dial: Dial, wire: Wire, nest: Nest, leap: Leap,
   ladder: Ladder, bigOne: BigOne };
 
 /** The arcade card: intro (Play or Skip), the game, then the result. */
@@ -1273,6 +1688,7 @@ const MiniGameFrame: React.FC<{ info: typeof MINI_GAMES[MiniGameId]; title: stri
             {!gate && <p className="osd-text text-base text-slate-400 leading-none">{title}</p>}
             <div className="text-6xl leading-none" aria-hidden="true">{info.icon}</div>
             <p className="font-display text-2xl text-white leading-tight">{info.name}</p>
+            {info.flavor && <p className="text-slate-400 italic leading-snug">“{info.flavor}”</p>}
             <p className="text-slate-200 leading-snug">{info.rules}</p>
             <p className="osd-text text-lg text-neon-yellow leading-tight">{info.prize}</p>
             <ArcadeButton color="cyan" size="lg" className="w-full" onClick={() => { soundService.playPowerUp(); setPhase('play'); }}>▶ Play</ArcadeButton>
