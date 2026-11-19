@@ -604,3 +604,11 @@ export const GREATEST_HITS = {
  * who keeps Q, U and A until they meet.
  */
 export const QUACK_ATTACK = { word: 'QUA', plays: 4, multiplier: 4, words: 4, badgeId: 'b_quackPack' } as const;
+
+/**
+ * Blue Steel (v7.57.0, the owner's idea, Zoolander): playing ZOO a fourth time in a run makes the
+ * next valid word score x5 on its whole score (tiles, charms, every bonus line, the Danger Zone),
+ * once a run, and earns the Ridiculously Good-Looking badge for good. One Z per 100-tile bag, so,
+ * like Quack Attack, it's a long-run jackpot.
+ */
+export const BLUE_STEEL = { word: 'ZOO', plays: 4, multiplier: 5, badgeId: 'b_blueSteel' } as const;

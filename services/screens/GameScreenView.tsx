@@ -13,7 +13,7 @@ import EventLogDisplay from '../../components/EventLogDisplay';
 import { MILESTONES_LIST } from '../../data/milestones';
 import DurationBadge from '../../ui/DurationBadge';
 import { RACK_SIZE, HAND_SIZE } from '../../constants';
-import { GAMEPLAY, CHARM_SLOTS, CHARM_UPGRADE, TIME_BONUS, BOSS, CHARM_BONUS, GEM_TILES, QUACK_ATTACK } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_SLOTS, CHARM_UPGRADE, TIME_BONUS, BOSS, CHARM_BONUS, GEM_TILES, QUACK_ATTACK, BLUE_STEEL } from '../../config/gameplay';
 import { bossById } from '../../data/bosses';
 import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor, bossHitsToWin, prizeScaleFor } from '../rules';
 import LevelBadge from '../../components/LevelBadge';
@@ -35,7 +35,7 @@ import CharmTimeNote from '../../components/CharmTimeNote';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
-  type: 'milestone' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack';
+  type: 'milestone' | 'blue-steel' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -360,6 +360,22 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
             case 'bones':
                 return <BonesCard key={data?.bone?.id} bone={data.bone} heldCharmIds={(gameState?.activeCharms ?? []).map(c => c.id)} onDone={w => handleBonesDone?.(w)} />;
+
+            case 'blue-steel':
+                return (
+                    <div className="absolute inset-0 bg-crt-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Blue Steel">
+                        <div className="bg-crt-900 border-4 border-neon-cyan shadow-[0_0_36px_rgba(61,180,255,0.55)] rounded-2xl px-5 py-6 max-w-md w-full flex flex-col items-center text-center gap-3 level-stage-in">
+                            <p className="osd-text text-lg tracking-[0.25em] text-neon-cyan">ZOO · ZOO · ZOO · ZOO</p>
+                            <div className="text-7xl leading-none animate-pulse" aria-hidden="true" style={{ filter: 'drop-shadow(0 0 14px rgba(61,160,255,0.9))' }}>😗</div>
+                            <h2 className="font-display text-4xl leading-none text-transparent bg-clip-text bg-gradient-to-b from-white to-sky-400">BLUE STEEL</h2>
+                            <p className="text-slate-200 leading-snug">You played <strong className="text-white">ZOO</strong> four times this run. Hit your look: your <strong className="text-white">next word</strong> scores <strong className="text-neon-cyan">x{BLUE_STEEL.multiplier}</strong> on its whole score, tiles, charms and every bonus.</p>
+                            <p className="text-sm text-slate-400">Make it a big one. Once a run.</p>
+                            {data?.badgeNew && <p className="osd-text text-lg text-neon-yellow leading-tight">💙 RIDICULOUSLY GOOD-LOOKING BADGE EARNED!</p>}
+                            <p className="text-sm text-slate-400 italic">"Really, really ridiculously good-looking."</p>
+                            <ArcadeButton color="cyan" className="w-full" onClick={handleCloseModal}>Strike the pose</ArcadeButton>
+                        </div>
+                    </div>
+                );
 
             case 'quack':
                 return (

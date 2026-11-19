@@ -24,7 +24,7 @@ import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
 import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, charmLengthPoints, charmLengthBoostFor, charmMultiplierPoints, itemMultiplierIn, prizeFor, prizeScaleFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, charmTimeAt, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, rivalRateFor, redrumReverse , missionById } from '../rules';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES, GEM_INTRO_SHOWS, QUACK_ATTACK } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES, GEM_INTRO_SHOWS, QUACK_ATTACK, BLUE_STEEL } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
 import { currentStreak, powerWordBonusFor, recordBossBadge, earnCosmetic } from '../progression';
@@ -72,6 +72,7 @@ const BUILD_ROW_SIZE = 8;
 export const createInitialGameState = (): GameState => ({
   skillShot: null, // a run never inherits a lit tile or a streak
   quackDone: false, // Quack Attack: once a run (v7.54.1)
+  blueSteelDone: false, // Blue Steel: once a run (v7.57.0)
   score: 0,
   log: [],
   longestWord: '',
@@ -318,7 +319,7 @@ export const maxStrikesFor = (gs: (Pick<GameState, 'charmUses'> & Partial<Pick<G
 };
 
 // Multi-word PowerPlays: activePowerPlays[id] = { words } counts down one valid word at a time.
-const WORD_COUNTDOWN_POWER_PLAYS = ['konamiCode', 'bigHeadMode', 'letterUpgrade', 'polish', 'comboBreaker', 'redrum', 'over9000', 'quackAttack'];
+const WORD_COUNTDOWN_POWER_PLAYS = ['konamiCode', 'bigHeadMode', 'letterUpgrade', 'polish', 'comboBreaker', 'redrum', 'over9000', 'quackAttack', 'blueSteel'];
 
 // Time bank (config/gameplay.ts): the clock never resets between words. A Golden Round runs on
 // its own short clock; the bank is set aside when it starts and given back when it ends.
@@ -466,7 +467,7 @@ const levelUpModal = (wordsBefore: number, gs?: GameState): ModalContent | null 
  * stuck in the old round: v7.19.0's level-up card was, so a word whose only pop-up was a
  * level-up lost its word time, and Groundhog's Day saw a word "already played" and didn't fire.
  */
-export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork', 'bones', 'croc', 'greatest-hit', 'quack'];
+export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['blue-steel', 'milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork', 'bones', 'croc', 'greatest-hit', 'quack'];
 
 /**
  * A chance PowerPlay's result (a roll, a coin flip, a random tile): a centered card that waits
@@ -4656,6 +4657,17 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           scoreResult.bonuses.push({ name: '🔥 Danger Zone', description: `+${extra} pts (x${FORK.danger.points})` });
       }
 
+      // Blue Steel (v7.57.0): the word after ZOO's fourth play scores x5 on everything it earned
+      // above (tiles, charms, bonus lines, the Danger Zone). 0 means 0 still holds; the separate
+      // rewards below (Greatest Hits, milestones) aren't multiplied. Counted down with the word.
+      if (newState.activePowerPlays.blueSteel && !wordLocked && runningScore > oldScore) {
+          const extra = Math.round((runningScore - oldScore) * (BLUE_STEEL.multiplier - 1));
+          runningScore += extra;
+          scoreResult.bonuses.push({ name: '💙 Blue Steel', description: `+${extra.toLocaleString()} pts (x${BLUE_STEEL.multiplier} whole word)` });
+          eventLogQueue.push({ type: 'event', id: `bluesteel-pay-${Date.now()}`, name: 'Blue Steel', icon: '💙', description: `${word.toUpperCase()} scored x${BLUE_STEEL.multiplier}.`, scoreChange: extra, cumulativeScore: runningScore });
+          showToast(`💙 BLUE STEEL! x${BLUE_STEEL.multiplier}: +${extra.toLocaleString()}`, 3000);
+      }
+
       // --- 6. Aggregate Score and Check Aggregate Bonuses ---
       const turnScorePreMilestone = runningScore - oldScore;
 
@@ -4668,6 +4680,17 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           const badgeNew = earnCosmetic(QUACK_ATTACK.badgeId);
           eventLogQueue.push({ type: 'event', id: `quack-${Date.now()}`, name: 'Quack Attack!', icon: '🦆', description: `QUA played ${QUACK_ATTACK.plays} times: the next ${QUACK_ATTACK.words} words score x${QUACK_ATTACK.multiplier}.${badgeNew ? ' Earned the 🦆 Quack Pack badge.' : ''}`, scoreChange: 0, cumulativeScore: runningScore });
           modalQueue.push({ type: 'quack', title: 'Quack Attack!', data: { badgeNew } });
+      }
+
+      // Blue Steel (v7.57.0): ZOO's fourth play this run. The x5 lands on the next valid word (armed
+      // after this word's countdowns, below), and the badge is earned for good.
+      let blueSteelStarts = false;
+      if (word.toUpperCase() === BLUE_STEEL.word && !newState.blueSteelDone && (playCounts(newState.log).get(BLUE_STEEL.word) ?? 0) + 1 >= BLUE_STEEL.plays) {
+          blueSteelStarts = true;
+          newState.blueSteelDone = true;
+          const badgeNew = earnCosmetic(BLUE_STEEL.badgeId);
+          eventLogQueue.push({ type: 'event', id: `bluesteel-${Date.now()}`, name: 'Blue Steel!', icon: '💙', description: `ZOO played ${BLUE_STEEL.plays} times: your next word scores x${BLUE_STEEL.multiplier}, everything included.${badgeNew ? ' Earned the 💙 Ridiculously Good-Looking badge.' : ''}`, scoreChange: 0, cumulativeScore: runningScore });
+          modalQueue.push({ type: 'blue-steel', title: 'Blue Steel!', data: { badgeNew } });
       }
 
       // Greatest Hits (v7.52.0): an N-letter word played N times this run goes GOLD, PLATINUM...
@@ -5311,6 +5334,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (quackStarts) {
           newState.activePowerPlays = { ...newState.activePowerPlays, quackAttack: { words: QUACK_ATTACK.words } };
           consumedBuffs = [...consumedBuffs.filter(b => b.id !== 'quackAttack'), { id: 'quackAttack', name: 'Quack Attack', icon: '🦆', description: `Your next ${QUACK_ATTACK.words} words score x${QUACK_ATTACK.multiplier}, charm points too.`, flavorText: 'Ducks fly together!', subtheme: 'score', effectType: 'next_word', durationTag: 'LIMITED', activate: () => ({}) } as any];
+      }
+      if (blueSteelStarts) {
+          newState.activePowerPlays = { ...newState.activePowerPlays, blueSteel: { words: 1 } };
+          consumedBuffs = [...consumedBuffs.filter(b => b.id !== 'blueSteel'), { id: 'blueSteel', name: 'Blue Steel', icon: '💙', description: `Your next word scores x${BLUE_STEEL.multiplier} on its whole score: tiles, charms and every bonus.`, flavorText: 'Really, really ridiculously good-looking.', subtheme: 'score', effectType: 'next_word', durationTag: 'ONE_TIME', activate: () => ({}) } as any];
       }
       newState.activeBuffs = consumedBuffs;
 

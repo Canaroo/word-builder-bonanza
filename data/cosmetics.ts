@@ -19,13 +19,14 @@ export interface Cosmetic {
   /** Earned at this streak length instead of bought. */
   streakDay?: number;
   /** Earned in a run instead of bought (v7.49): '70k' = reaching the 70,000 gate. */
-  earnedBy?: '70k' | 'quack';
+  earnedBy?: '70k' | 'quack' | 'zoo';
 }
 
 export const COSMETICS: Cosmetic[] = [
   // --- Earned in a run (v7.49) ---
   { id: 'b_seventyKClub', kind: 'badge', icon: '💎', name: '70K Club', earnedBy: '70k', style: 'legend', flavor: 'Seventy thousand points. Frame it.' },
   { id: 'b_quackPack', kind: 'badge', icon: '🦆', name: 'Quack Pack', earnedBy: 'quack', style: 'gold', flavor: 'QUA, four times, one run. Ducks fly together!' },
+  { id: 'b_blueSteel', kind: 'badge', icon: '💙', name: 'Ridiculously Good-Looking', earnedBy: 'zoo', style: 'gold', flavor: 'ZOO, four times, one run. Blue Steel.' },
   // --- Shop badges ---
   { id: 'b_joystick', kind: 'badge', icon: '🕹️', name: 'Joystick', cost: 20, flavor: 'Every legend starts by grabbing the stick.' },
   { id: 'b_floppy', kind: 'badge', icon: '💾', name: 'Floppy Disk', cost: 30, flavor: '1.44 MB of pure attitude.' },
