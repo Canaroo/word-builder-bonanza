@@ -11,7 +11,7 @@ import { wildcardIndex, ITEM_MULTIPLIER_LINES, MISSIONS, missionById } from '../
 import { COSMETICS } from '../../../data/cosmetics';
 import { CHARMS_LIST } from '../../../data/charms';
 import { SECRET_BONUSES } from '../../../data/secretBonuses';
-import { QUACK_ATTACK, MYSTERY_TAPE, GREATEST_HITS, CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, CHARM_BONUS } from '../../../config/gameplay';
+import { QUACK_ATTACK, BLUE_STEEL, MYSTERY_TAPE, GREATEST_HITS, CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, CHARM_BONUS } from '../../../config/gameplay';
 import { calculateScore } from '../../gameUtils';
 import * as gameUtils from '../../gameUtils';
 import { RACK_SIZE } from '../../../constants';
@@ -928,6 +928,20 @@ describe('Psychic Friends Network: Call It! (v7.54.0)', () => {
         const s = start({ availablePowerPlays: [pp('psychicFriends')] });
         const next = gameReducer(s, { type: 'ACTIVATE_POWER_PLAY', payload: pp('psychicFriends') });
         expect(next.gameState!.activePowerPlays.psychicFriends).not.toEqual({ words: 8 });
+    });
+});
+
+describe('Blue Steel (v7.57.0)', () => {
+    test('ZOO four times arms x5 on the next word, once a run', () => {
+        expect(BLUE_STEEL).toMatchObject({ word: 'ZOO', plays: 4, multiplier: 5 });
+        expect(screenInitialState.gameState!.blueSteelDone).toBe(false);
+        expect(POST_WORD_MODALS).toContain('blue-steel');
+    });
+    test('the badge is a run reward, never sold', () => {
+        const badge = COSMETICS.find(c => c.id === BLUE_STEEL.badgeId)!;
+        expect(badge).toMatchObject({ kind: 'badge', icon: '💙', earnedBy: 'zoo' });
+        expect(badge.cost).toBeUndefined();
+        expect(badge.id).toMatch(/^b_[A-Za-z]+$/);
     });
 });
 

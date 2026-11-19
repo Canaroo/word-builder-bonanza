@@ -329,6 +329,8 @@ export interface GameState {
   hitsClaimed?: number[];
   /** Quack Attack (v7.54.0): QUA's fourth play already paid this run. */
   quackDone?: boolean;
+  /** Blue Steel (v7.57): ZOO's fourth play has armed or used the x5, once a run. */
+  blueSteelDone?: boolean;
   /** Last Words (v7.42): the parting-word card has been shown this run. */
   lastWordsDone?: boolean;
   /** Head Start: seconds added to this run's starting clock (shown until the first word). */

@@ -158,6 +158,17 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   word runs for a player hunting it. QUA x3 on the way earns Greatest Hits GOLD.
   Once a run (v7.54.1, the owner's call): `quackDone` starts false in `createInitialGameState()` and is
   never cleared in a run; a 5th or later QUA never re-arms or resets the x4 (browser-checked).
+- **Blue Steel (v7.57.0)** (`BLUE_STEEL` in `config/gameplay.ts`, the owner's idea, Zoolander): playing
+  ZOO a fourth time in a run (`gameState.blueSteelDone`, counted from the log, once a run) arms
+  `blueSteel` (`{ words: 1 }`, in `WORD_COUNTDOWN_POWER_PLAYS`, armed after that word's countdown):
+  the next valid word scores x5 on everything it earned (tiles, charms, bonus lines, the Danger
+  Zone), paid in `completeSubmission` right after the Danger Zone as a "💙 Blue Steel" line. 0 means
+  0 holds; secrets, milestones and Greatest Hits come after and aren't multiplied. Card
+  `blue-steel` ("ZOO · ZOO · ZOO · ZOO", "Really, really ridiculously good-looking.", Strike the
+  pose), a buffs-tray chip until it's used, and the 💙 Ridiculously Good-Looking badge for good
+  (`b_blueSteel`, `earnedBy: 'zoo'`). Like Quack Attack it needs the bag's one Z, so it's a
+  long-run jackpot; ZOO x3 on the way earns Greatest Hits GOLD. Browser-checked: TERN with a charm
+  went 50 → 250, a 5th ZOO arms nothing.
 - **Six low-pick PowerPlays reworked (v7.55.0, the owner's call; ids kept)**: each was picked about 1
   time in 25 (Polaroid 2%, Ludicrous Speed, Mission: Impossible, Duck Hunt, Money Bin 4%, Wario 8%).
   Values in `POWER_PLAY_VALUES`; cards in `GambleCard.tsx` (useSaved keeps the deal, so a quit can't
