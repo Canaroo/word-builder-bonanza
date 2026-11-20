@@ -33,7 +33,7 @@ import {leaderboardService} from './services/leaderboardService';
 import { recordRunForHeadStart } from './services/headStart';
 import { recordBossResult } from './services/grudges';
 import { postBones, worthLeaving } from './services/bones';
-import { sendStat } from './services/stats';
+import { sendStat, runEndExtras } from './services/stats';
 import { levelFor } from './services/rules';
 import { switchToPlayer, currentPlayer } from './services/players';
 import type { TabId } from './components/BottomTabs';
@@ -314,6 +314,7 @@ const App: React.FC = () => {
       secs: Math.round((gameState.playMs ?? 0) / 1000),
       tWords: gameState.timeLedger?.words ?? 0, tItems: gameState.timeLedger?.powerUps ?? 0, tShuffles: gameState.timeLedger?.shuffles ?? 0,
       upgrades: (gameState.charmUpgrades ?? []).length,
+      ...runEndExtras(gameState as any),
     });
     // A scored Daily Run posts to the day's board, then pays Credits (more for a top-10 finish).
     if (daily) {

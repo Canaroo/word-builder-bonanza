@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { fetchStats, summarize, type StoredStat } from '../services/stats';
+import { fetchStats, summarize, median, type StoredStat } from '../services/stats';
 import { BOSSES } from '../data/bosses';
 import { MISSION_TEMPLATES } from '../data/missions';
 import { BOSS, POWER_WORD_EFFECTS } from '../config/gameplay';
@@ -164,6 +164,17 @@ const StatsPage: React.FC = () => {
                 return [`${p.icon} ${p.word}`, x.fired, x.repeats, detail];
               })
             } empty="No power words played yet." />
+          </Section>
+
+          <Section title="Mid-run features (v7.62+)" note="Fork picks and cool-offs (Followed = picks that matched the card's advice, when it gave one). Golden Rounds played or missed. Score Gates played or skipped, with median points. Run extras come from run_end.">
+            <Table head={['Feature', 'Count', 'Detail']} rows={[
+              ['🛣️ Fork: Easy / Danger', `${s.forks.easy} / ${s.forks.danger}`, `${s.forks.bail} cooled off · followed advice ${pct(s.forks.followed, s.forks.advised)}`],
+              ['🌟 Golden Rounds', `${s.golden.played} played · ${s.golden.missed} missed`, `Golden Tile ${pct(s.golden.tile, s.golden.played)} · median ${median(s.golden.points)} pts`],
+              ...Object.entries(s.gates).sort(([a], [b]) => Number(a) - Number(b)).map(([g, x]) =>
+                [`🚪 ${Number(g).toLocaleString()} gate`, `${x.played} played · ${x.skipped} skipped`, `median ${median(x.points)} pts`]),
+              ['📼 Tape PowerPlays used', s.tapeUses, ''],
+              ['Runs reporting extras', s.runExtras.reported, s.runExtras.reported ? `per run: ${(s.runExtras.golden / s.runExtras.reported).toFixed(1)} Golden · ${(s.runExtras.skill / s.runExtras.reported).toFixed(1)} Skill Shots · ${(s.runExtras.gems / s.runExtras.reported).toFixed(1)} gems · ${(s.runExtras.bails / s.runExtras.reported).toFixed(2)} cool-offs · Last Words median ${median(s.runExtras.lastWords)}` : ''],
+            ]} />
           </Section>
 
           <Section title="By day">

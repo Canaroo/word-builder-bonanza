@@ -200,7 +200,7 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         ".write": "!data.exists()",
         ".validate": "newData.hasChildren(['type','timestamp'])",
 
-        "type": { ".validate": "newData.isString() && newData.val().matches(/^(boss_start|boss_end|mission_shown|mission_done|run_end|power_word|charm_offer|pp_offer|pp_use|continue_offer|pw_hint|bones)$/)" },
+        "type": { ".validate": "newData.isString() && newData.val().matches(/^(boss_start|boss_end|mission_shown|mission_done|run_end|power_word|charm_offer|pp_offer|pp_use|continue_offer|pw_hint|bones|fork|golden|gate)$/)" },
         "timestamp": { ".validate": "newData.isNumber() && newData.val() > now - 5 * 60 * 1000 && newData.val() < now + 5 * 60 * 1000" },
 
         // Bosses
@@ -246,6 +246,23 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         "hinted":  { ".validate": "newData.isBoolean()" },
         // v7.33: the equipped charm upgraded instead of a pick (charm_offer with picked '')
         "upgraded": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,32}$/)" },
+        // v7.61.1: fork (choice, level, clock, advice), golden (level, score, tile, ok), gate (gate,
+        // result, points), pp_use extra tape, run_end extras golden/route/bails/skill/gems/lastWords
+        "choice":    { ".validate": "newData.isString() && newData.val().matches(/^(easy|danger|bail)$/)" },
+        "clock":     { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999" },
+        "advice":    { ".validate": "newData.isString() && newData.val().matches(/^(easy|danger|either)$/)" },
+        "tile":      { ".validate": "newData.isBoolean()" },
+        "ok":        { ".validate": "newData.isBoolean()" },
+        "gate":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" },
+        "result":    { ".validate": "newData.isString() && newData.val().matches(/^(played|skip)$/)" },
+        "points":    { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" },
+        "tape":      { ".validate": "newData.isBoolean()" },
+        "golden":    { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999" },
+        "route":     { ".validate": "newData.isString() && newData.val().matches(/^(easy|danger)$/)" },
+        "bails":     { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99" },
+        "skill":     { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999" },
+        "gems":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
+        "lastWords": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" },
 
         "$other": { ".validate": false }
       }
@@ -274,6 +291,14 @@ Firebase rules allow `//` comments, so paste the block as-is.
 | `pw_hint` | `power`, `level` | v7.41: the power word hint chip appears (a `power_word` played while it shows carries the extra `hinted`) |
 | `pp_use` | `pp`, `level` | A PowerPlay is used (an instant one counts when picked) |
 | `power_word` | `power`, `repeat`, `seconds`, `strike` | A power word fires (slot payout, freeze, cloned or REWIND seconds; `strike`: HEAL removed one, or RINGS found a shield already up) |
+| `fork` | `choice` (`easy`, `danger` or `bail`), `level`, `clock`, `advice` | v7.61.1: a Fork route is picked (`advice`: the route the card marked, `either` for a close call), or the player cools off from the Danger Zone (`bail`) |
+| `golden` | `level`, `score`, `tile`, `ok` | v7.61.1: a Golden Round ends (`ok` false: its clock ran out or the word was invalid; `tile`: the Golden Tile was used) |
+| `gate` | `gate`, `result` (`played` or `skip`), `points` | v7.61.1: a Score Gate event ends |
+
+v7.61.1 extras: `pp_use` carries `tape` when the PowerPlay came out of a Mystery Tape; `run_end`
+carries `golden` (Golden Rounds), `route` (the last Fork pick), `bails`, `skill` (Skill Shots hit),
+`gems` (6+ letter words) and `lastWords` (points). The three new event types are dropped until the
+rules above are published; the extras fall back like the v7.33 ones.
 
 The v7.33 extras are sent with the event; if the database rejects them (rules not updated yet),
 the event is sent again without them, so an upgrade then counts as a pass and a run has no cause.

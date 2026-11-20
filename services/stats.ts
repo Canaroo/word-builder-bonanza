@@ -21,7 +21,11 @@ export type StatEvent =
     | { type: 'pw_hint'; power: PowerWordEffect; level: number }
     // Bones (v7.44): a fallen player's hand was found; taken = a charm was won from it.
     | { type: 'bones'; taken: boolean; level: number }
-    | { type: 'power_word'; power: PowerWordEffect; repeat: boolean; seconds: number; strike: boolean };
+    | { type: 'power_word'; power: PowerWordEffect; repeat: boolean; seconds: number; strike: boolean }
+    // v7.61.1 (docs/FEATURE_REVIEW.md): the Fork pick (or a cool-off), each Golden Round, each Score Gate.
+    | { type: 'fork'; choice: 'easy' | 'danger' | 'bail'; level: number; clock: number; advice?: 'easy' | 'danger' | 'either' }
+    | { type: 'golden'; level: number; score: number; tile: boolean; ok: boolean }
+    | { type: 'gate'; gate: number; result: 'played' | 'skip'; points: number };
 
 export type StoredStat = StatEvent & StatExtras & { timestamp: number };
 
@@ -57,7 +61,36 @@ export interface StatExtras {
     hinted?: boolean;
     /** pp_offer (v7.41): the PowerPlay hidden in that offer's Mystery Tape. */
     mystery?: string;
+    /** pp_use (v7.61.1): the PowerPlay came out of a Mystery Tape. */
+    tape?: boolean;
+    /** run_end (v7.61.1): Golden Rounds, the last Fork route, cool-offs, Skill Shot hits, gems earned, Last Words points. */
+    golden?: number;
+    route?: 'easy' | 'danger';
+    bails?: number;
+    skill?: number;
+    gems?: number;
+    lastWords?: number;
 }
+
+/**
+ * run_end extras (v7.61.1), read from the run's log so nothing extra is kept in the run state.
+ * Gems are counted as 6+ letter words (each earns one).
+ */
+export const runEndExtras = (gs: {
+    log: { type: string; status?: string; word?: string; name?: string; scoreChange?: number; bonuses?: { name: string }[] }[];
+    timeLedger?: { goldenRounds?: number }; route?: { choice: 'easy' | 'danger' } | null;
+}): StatExtras => {
+    const words = gs.log.filter(e => e.type === 'word' && e.status === 'valid');
+    const events = gs.log.filter(e => e.type === 'event');
+    return {
+        golden: gs.timeLedger?.goldenRounds ?? 0,
+        ...(gs.route ? { route: gs.route.choice } : {}),
+        bails: events.filter(e => e.name === 'Cooled off').length,
+        skill: words.filter(e => (e.bonuses ?? []).some(b => b.name === '🎯 Skill Shot')).length,
+        gems: words.filter(e => (e.word ?? '').length >= 6).length,
+        lastWords: events.filter(e => e.name === 'Last Words').reduce((sum, e) => sum + (e.scoreChange ?? 0), 0),
+    };
+};
 
 /** Sends one event. Never throws; a lost event is fine. */
 export const sendStat = (event: StatEvent, extras?: StatExtras): void => {
@@ -106,9 +139,18 @@ export interface StatsSummary {
     passes: { charm: number; powerPlay: number };
     /** Charm offers answered with an upgrade. */
     upgrades: number;
+    /** v7.61.1: Fork picks (and cool-offs), with how often the pick matched the card's advice. */
+    forks: { easy: number; danger: number; bail: number; followed: number; advised: number };
+    /** v7.61.1: Golden Rounds played (ok) or missed, Golden Tile use, points. */
+    golden: { played: number; missed: number; tile: number; points: number[] };
+    /** v7.61.1: Score Gates by gate score: played, skipped, points paid. */
+    gates: Record<number, { played: number; skipped: number; points: number[] }>;
+    /** v7.61.1: tape PowerPlays used; per-run extras from run_end. */
+    tapeUses: number;
+    runExtras: { reported: number; golden: number; bails: number; skill: number; gems: number; lastWords: number[] };
 }
 
-const median = (xs: number[]) => {
+export const median = (xs: number[]) => {
     if (!xs.length) return 0;
     const s = [...xs].sort((a, b) => a - b);
     const m = Math.floor(s.length / 2);
@@ -119,6 +161,8 @@ const dayOf = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 /** Turns raw events into the tables on the stats page. */
 export const summarize = (events: StoredStat[]): StatsSummary => {
     const out: StatsSummary = { runs: { count: 0, avgScore: 0, medianScore: 0, avgWords: 0, reachedLevel: {} }, bosses: {}, bossNumbers: {}, missions: {}, powerWords: {}, days: {}, charms: {}, powerPlays: {}, passes: { charm: 0, powerPlay: 0 }, upgrades: 0,
+        forks: { easy: 0, danger: 0, bail: 0, followed: 0, advised: 0 }, golden: { played: 0, missed: 0, tile: 0, points: [] }, gates: {}, tapeUses: 0,
+        runExtras: { reported: 0, golden: 0, bails: 0, skill: 0, gems: 0, lastWords: [] },
         endings: { reported: 0, clock: 0, strikes: 0, medianMinutes: 0, timeWords: 0, timeItems: 0, timeShuffles: 0 } };
     const charm = (id: string) => (out.charms[id] ??= { offered: 0, picked: 0, upgraded: 0, endRuns: 0, avgEndScore: 0 });
     const runSecs: number[] = [];
@@ -138,6 +182,10 @@ export const summarize = (events: StoredStat[]): StatsSummary => {
                 if (typeof e.secs === 'number') runSecs.push(e.secs);
                 out.endings.timeWords += e.tWords ?? 0; out.endings.timeItems += e.tItems ?? 0; out.endings.timeShuffles += e.tShuffles ?? 0;
             }
+            if (typeof e.golden === 'number') {
+                const x = out.runExtras;
+                x.reported++; x.golden += e.golden; x.bails += e.bails ?? 0; x.skill += e.skill ?? 0; x.gems += e.gems ?? 0; x.lastWords.push(e.lastWords ?? 0);
+            }
         } else if (e.type === 'charm_offer' || e.type === 'pp_offer') {
             const get = e.type === 'charm_offer' ? charm : pp;
             for (const id of ids(e.offered)) get(id).offered++;
@@ -146,6 +194,15 @@ export const summarize = (events: StoredStat[]): StatsSummary => {
             else out.passes[e.type === 'charm_offer' ? 'charm' : 'powerPlay']++;
         } else if (e.type === 'pp_use') {
             pp(e.pp).used++;
+            if (e.tape) out.tapeUses++;
+        } else if (e.type === 'fork') {
+            out.forks[e.choice]++;
+            if (e.choice !== 'bail' && e.advice && e.advice !== 'either') { out.forks.advised++; if (e.advice === e.choice) out.forks.followed++; }
+        } else if (e.type === 'golden') {
+            if (e.ok) { out.golden.played++; out.golden.points.push(e.score); if (e.tile) out.golden.tile++; } else out.golden.missed++;
+        } else if (e.type === 'gate') {
+            const g = (out.gates[e.gate] ??= { played: 0, skipped: 0, points: [] });
+            if (e.result === 'skip') g.skipped++; else { g.played++; g.points.push(e.points); }
         } else if (e.type === 'boss_start' || e.type === 'boss_end') {
             const b = (out.bosses[e.boss] ??= { reached: 0, won: 0, close: 0, escaped: 0, avgHits: 0 });
             const n = (out.bossNumbers[e.number] ??= { reached: 0, won: 0 });

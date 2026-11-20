@@ -37,7 +37,7 @@ import { pickBone, refreshBones, markLooted, type Bone } from '../bones';
 import { currentPlayer } from '../players';
 import { BONES } from '../../config/gameplay';
 import { FORK, HOLD_SLOT, GRUDGE, SKILL_SHOT } from '../../config/gameplay';
-import { gemMultiplierFor, skillShotPoints } from '../rules';
+import { gemMultiplierFor, skillShotPoints, forkAdvice } from '../rules';
 import { findPowerWordHint, powerWordHintStands } from '../powerWordHint';
 import { BOSSES, bossById, pickBoss } from '../../data/bosses';
 import { sendStat } from '../stats';
@@ -701,7 +701,7 @@ function logPowerPlayUse(state: GameScreenState, next: GameScreenState, action: 
     const used = usedPowerPlay(state, next, action);
     if (!used) return next;
     // Anonymous usage stat (fire-and-forget; off in dev, so a dev double-render never double-counts).
-    sendStat({ type: 'pp_use', pp: used.id, level: runLevel(next.gameState) });
+    sendStat({ type: 'pp_use', pp: used.id, level: runLevel(next.gameState) }, state.gameState?.tapeBonusId === used.id ? { tape: true } : undefined);
     // Multiplicity copies the last PowerPlay used (not itself, a once-per-run one or a pick-and-fire one).
     const copyable = used.id !== 'multiplicity' && !used.oncePerRun && !INSTANT_POWER_PLAY_IDS.has(used.id);
     const gs = copyable ? { ...next.gameState, lastPowerPlayUsed: used.id } : next.gameState;
@@ -3138,6 +3138,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   /** Ends a Golden Round without a scoring word (invalid word or its clock ran out). */
   const endGoldenRound = useCallback((message: string) => {
     soundService.playInvalidWord();
+    sendStat({ type: 'golden', level: levelFor(totalWords), score: 0, tile: false, ok: false });
     showMessage(message, 3000);
 
     const updatedGameState = {
@@ -3151,7 +3152,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     // Dispatch the state update first so resetRound deals a normal hand and restores the time bank.
     dispatch({ type: 'UPDATE_GAME_STATE', payload: updatedGameState });
     resetRound(updatedGameState, hand, buildRow, tileBag);
-  }, [gameState, hand, buildRow, tileBag, resetRound, showMessage]);
+  }, [gameState, hand, buildRow, tileBag, resetRound, showMessage, totalWords]);
 
   const maxStrikes = useMemo(() => maxStrikesFor(gameState), [gameState?.charmUses, gameState?.activeCharms]);
 
@@ -3321,6 +3322,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   const handleForkPick = (choice: 'easy' | 'danger') => {
     if (state.modalContent?.type !== 'fork') return;
     const level = Number(state.modalContent.data?.level) || levelFor(totalWords);
+    const forkClock = Number(state.modalContent.data?.clock) || 0;
+    sendStat({ type: 'fork', choice, level, clock: forkClock, advice: forkAdvice(state.modalContent.data?.delta ?? null, forkClock) });
     dispatch({ type: 'UPDATE_GAME_STATE', payload: {
         route: { choice, level },
         log: [...gameState.log, {
@@ -3337,6 +3340,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     if (gameState?.route?.choice !== 'danger') return;
     const level = levelFor(totalWords);
     const next = (FORK.levels as readonly number[]).find(l => l > level);
+    sendStat({ type: 'fork', choice: 'bail', level, clock: Math.round(time) });
     dispatch({ type: 'UPDATE_GAME_STATE', payload: {
         route: { choice: 'easy', level, bailed: true },
         log: [...gameState.log, {
@@ -3807,6 +3811,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 scoreResult = { ...scoreResult, totalScore: scoreResult.totalScore + extra, bonuses: [...scoreResult.bonuses, { name: '🔥 Danger Zone', description: `+${extra} pts (x${FORK.danger.points})` }] };
             }
             const turnScore = scoreResult.totalScore;
+            sendStat({ type: 'golden', level: levelFor(totalWords + 1), score: turnScore, tile: usedGoldenTile, ok: true });
             
             newState.score += turnScore;
             
@@ -5677,6 +5682,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     const handleResolveMiniGame = (r: { points: number; headline: string; detail: string } | null) => {
         const data = state.modalContent?.data as { id?: MiniGameId; gate?: number } | undefined;
         const info = data?.id ? MINI_GAMES[data.id] : undefined;
+        if (data?.gate) sendStat({ type: 'gate', gate: data.gate, result: r ? 'played' : 'skip', points: Math.max(0, Math.round(r?.points ?? 0)) });
         if (!r || !info) { handleCloseModal(); return; }
         dispatch({ type: 'APPLY_MINIGAME', payload: { name: info.name, icon: info.icon, points: r.points, headline: r.headline, detail: r.detail, flat: !!data?.gate } });
     };
