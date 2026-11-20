@@ -159,7 +159,7 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   (`shineBright`): gems one step bigger plus a x2 gem from 5 letters (`SHINE_BRIGHT_GEMS`,
   `gemMultiplierFor(length, shineBright)`; the gem card lists them). **🛩️ I Feel the Need… for
   Speed** (`needForSpeed`; v7.66.0 made it a speed streak, see the Fork note): was Danger Zone x1.75 (the Fork
-  card and chip); offered from level 4 only. **🗝️ Are You the Keymaster?** (`keymaster`): Score
+  card and chip); no level gate now (the level-4 gate belonged to the old Danger Zone version). **🗝️ Are You the Keymaster?** (`keymaster`): Score
   Gates pay +50% (`APPLY_MINIGAME` with `flat`; the outcome card shows "🗝️ Keymaster +50%: 1,000 →
   1,500"); offered from 5,000 points and while a gate is left. **🔀 Freaky Friday**
   (`freakyFriday`): a 4+ letter anagram of an earlier word this run scores x3
@@ -194,6 +194,21 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   HIT and STAND, the 16-card deck dealt up front and saved. It was a card per word with a chip to
   stand (picked 5 of 26 offers, used 4 times); the old per-word game and `BLACKJACK_STAND` still
   settle saved runs. Simulated: about +142 a hand on average, paying in about half of hands.
+- **How offers are drawn (`getOffer` in `services/gameUtils.ts`; checked v7.67.2, the owner's ask).**
+  Pool: everything not held or active, not shown in the last 3 words (`charmCooldowns`,
+  `powerPlayCooldowns`), not a taken once-per-run PowerPlay, and not one that can't work yet
+  (Keymaster under 5,000 or no gate left, Daily Double under 200, Phoenix Down once a run and never
+  on the scored Daily, Mr. Glass when it would end the run, a finished Snitch or Gotta Catch). No
+  level gates (the owner's call). Each item starts at weight 1, then per run: a never-shown boost,
+  recency and last-3-offers penalties, a scarcity boost; one slot goes to a never-shown item; at
+  most `OFFER_MAX_PER_SUBTHEME` (2) cards of one kind. Then the nudges: one time card at most
+  (`limitTimeCards`, redrawn from its own `'time-swap'` stream), Mystery Tape, set pieces. The
+  Daily ranks by `dailyRank` instead. **v7.67.2 fixes** (81,000 simulated offers): the seed was
+  `runSeed + offer number`, and this Lehmer generator turns neighbouring seeds into nearly the same
+  draws, starving a few items (5th Grader, Jenga, Extreme Makeover at a third of their share); it's
+  mixed with `dailyRank` now. And "one of each kind" made the 48 score PowerPlays / 42 score charms
+  show about 40% less often each. Rarest vs most common PowerPlay went from 4.6x to 1.7x (charms
+  3.4x → 1.6x); what's left is the nudges, on purpose. Tests in `offerFairness.test.ts`.
 - **Feature tracking (v7.61.1):** `fork` (choice incl. `bail`, level, clock, advice), `golden`
   (level, score, tile, ok), `gate` (gate, played/skip, points) events; `pp_use` extra `tape`;
   `run_end` extras from `runEndExtras()` (golden, route, bails, skill, gems, lastWords). Shown in a

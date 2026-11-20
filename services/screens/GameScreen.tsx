@@ -5289,7 +5289,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               const { offeredItems: offeredPowerPlays, offerDetails, mysteryId } = dealMysteryTape(limitTimeCards(
                   gameUtils.getOffer(powerPlaysToOfferFrom, 3, newState) as { offeredItems: PowerPlay[]; offerDetails: { id: string; score: number }[] },
                   powerPlaysToOfferFrom,
-                  (pool, n) => gameUtils.getOffer(pool, n, newState) as { offeredItems: PowerPlay[]; offerDetails: { id: string; score: number }[] }),
+                  (pool, n) => gameUtils.getOffer(pool, n, newState, 'time-swap') as { offeredItems: PowerPlay[]; offerDetails: { id: string; score: number }[] }),
                   powerPlaysToOfferFrom, newState);
               newState.mysteryTapeId = offeredPowerPlays.length > 0 ? mysteryId : null;
 
