@@ -69,6 +69,14 @@ reword anything.
   the "aha" afterward. `message` is only a fallback, but it's required, so give it a one-liner too.
 - **Descriptions** say exactly what happens with real numbers. They're player-facing, so read
   numbers from config in template strings rather than hard-coding them (see section 5).
+- **Clear AND funny (the owner's rule, v7.66.3).** Every player-facing line (descriptions, power
+  word text, card copy, results) must be understood in one read *and* keep the game's pop-culture
+  voice. Write like a person talking: what happens to *you*, one idea per sentence, no jargon
+  ("clones", "speed step", "arms", "consumes"). Then keep the fun: open with a nod to the reference
+  and let the joke live in the name, the flavor text or a short lead-in ("It's dangerous to go
+  alone: your PowerPlay meter fills up, so you pick a PowerPlay right now."). Never trade the
+  reference away for clarity, and never let a joke hide the rule. Test: could a 12-year-old read
+  it once and say what it does? Would a fan smile at it?
 
 ## 4. Balance guardrails
 

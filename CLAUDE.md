@@ -61,6 +61,13 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 Descriptions read their numbers from config in template strings, so text always matches the rules.
 Keep it that way.
 
+**Writing rule (the owner's, v7.66.3): clear AND funny.** Every player-facing line (charm and
+PowerPlay descriptions, power words, cards, results) must make sense in one read and keep the
+80s-2010s pop-culture voice. Say what happens to the player in plain words (no jargon like "clones",
+"arms", "speed step"), one idea per sentence, and keep the reference: in the name, the flavor text,
+or a short lead-in ("Heroes never die: one of your strikes disappears."). Clarity never costs the
+joke, and the joke never hides the rule. Details in the add-game-content skill, section 3.
+
 ## Content and dictionary changes
 
 Use the **add-game-content** skill (`.claude/skills/add-game-content/`) for new bonus words,
@@ -644,10 +651,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   offer). They fire on submit and can fire again once per level; other secrets are once per run.
   New ones should be harder to spell than the existing ones (they can be abused). Values in
   `POWER_WORD_EFFECTS`; player-facing text in `powerWordInfo()` (`services/rules.ts`).
-  **v7.66.2 (the owner: "talk like a human"):** every `does` line says what happens to the player in
-  plain words, e.g. TWIN: "Bonus time: you get the seconds your best word earned all over again (a
-  longer best word means more time). It also adds one step to your Word Combo." Write any new
-  explanation that way: no jargon like "clones" or "speed step", one idea per sentence.
+  **v7.66.2-3 (the owner: "talk like a human", then "but don't lose the flavor"):** every `does`
+  line opens with a nod to its reference and then says plainly what happens, e.g. SWORD: "It's
+  dangerous to go alone: your PowerPlay meter fills up, so you pick a PowerPlay right now."; TWIN:
+  "Double trouble: you get the seconds your best word earned all over again...".
 - **App updates (v7.63.0, `services/appUpdate.ts`):** an installed Android app resumes instead of
   relaunching, and the browser only checked for a new service worker on a fresh launch, so the
   owner had to open and close the app several times. The service worker is now `registerType:

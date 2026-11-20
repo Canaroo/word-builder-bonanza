@@ -390,19 +390,20 @@ export const levelUpInfo = (level: number, gs?: WithCharms): LevelUpInfo => {
 /** v7.61.0: `prize` is the short reward the hint chip shows (so a player knows why to stop and look). */
 export const powerWordInfo = (effect: PowerWordEffect): { prize: string; label: string; does: string; again: string } => {
     const E = POWER_WORD_EFFECTS;
-    // v7.66.2 (the owner: "talk like a human"): each line says what happens to you, in plain words.
+    // v7.66.3 (the owner): clear AND funny. Each line opens with a nod to its reference, then says
+    // plainly what happens to you (v7.66.2 made them plain but dropped some of the jokes).
     const slot = E.slot.map(p => `+${p.seconds}`);
     const info = {
-        slot: { prize: 'UP TO +10 SEC', label: 'SLOT MACHINE', does: `Spins a slot machine for bonus time: ${slot.slice(0, -1).join(', ')} or ${slot[slot.length - 1]} seconds (the big one is rare).` },
-        freeze: { prize: 'FROZEN CLOCK', label: 'FREEZE', does: `Your clock stops for ${E.freezeSeconds} seconds at the start of your next turn. Free thinking time.` },
-        heal: { prize: 'REMOVE A STRIKE', label: 'HEAL', does: `Takes away one of your strikes. No strikes? You get +${E.healFallbackPoints} points instead.` },
-        slow: { prize: 'HALF-SPEED CLOCK', label: 'SLOW MOTION', does: `Your clock ticks at half speed for your next ${E.slowWords} words.` },
-        twin: { prize: 'BONUS TIME', label: 'CLONE', does: 'Bonus time: you get the seconds your best word earned all over again (a longer best word means more time). It also adds one step to your Word Combo.' },
-        shield: { prize: 'STRIKE SHIELD', label: 'RING SHIELD', does: 'Your next strike doesn\'t count: one mistake is free.' },
-        rewind: { prize: 'SLOWER CLOCK', label: 'REWIND', does: `Your clock goes back to last level's slower speed until the next level. (On level 1: +${E.rewindLevelOneSeconds} seconds instead.)` },
-        sword: { prize: 'FREE POWERPLAY', label: 'TAKE THIS', does: 'Fills your PowerPlay meter, so you pick a PowerPlay right now.' },
-        spice: { prize: 'NEXT WORD x3', label: 'SPICE IT UP', does: `Your next word scores triple (x${E.spiceMultiplier}).` },
-        cake: { prize: 'FREE CHARM', label: 'CAKE', does: 'You pick a new charm right now.' },
+        slot: { prize: 'UP TO +10 SEC', label: 'SLOT MACHINE', does: `Danny Ocean's slot machine: spin for bonus time, ${slot.slice(0, -1).join(', ')} or ${slot[slot.length - 1]} seconds. The house rarely pays the big one.` },
+        freeze: { prize: 'FROZEN CLOCK', label: 'FREEZE', does: `Let it go: your clock stops for ${E.freezeSeconds} seconds at the start of your next turn. Free thinking time.` },
+        heal: { prize: 'REMOVE A STRIKE', label: 'HEAL', does: `Heroes never die: one of your strikes disappears. No strikes? You get +${E.healFallbackPoints} points instead.` },
+        slow: { prize: 'HALF-SPEED CLOCK', label: 'SLOW MOTION', does: `Your clock moves like a DMV sloth: half speed for your next ${E.slowWords} words.` },
+        twin: { prize: 'BONUS TIME', label: 'CLONE', does: "Double trouble: you get the seconds your best word earned all over again (a longer best word means more time). It also adds one step to your Word Combo." },
+        shield: { prize: 'STRIKE SHIELD', label: 'RING SHIELD', does: "Like Sonic's rings: your next strike doesn't count, so one mistake is free." },
+        rewind: { prize: 'SLOWER CLOCK', label: 'REWIND', does: `Rewind the tape: your clock goes back to last level's slower speed until the next level. (On level 1: +${E.rewindLevelOneSeconds} seconds instead.)` },
+        sword: { prize: 'FREE POWERPLAY', label: 'TAKE THIS', does: "It's dangerous to go alone: your PowerPlay meter fills up, so you pick a PowerPlay right now." },
+        spice: { prize: 'NEXT WORD x3', label: 'SPICE IT UP', does: `Spice up your life: your next word scores triple (x${E.spiceMultiplier}).` },
+        cake: { prize: 'FREE CHARM', label: 'CAKE', does: 'The cake is real this time: you pick a new charm right now.' },
     }[effect];
     return { ...info, again: 'Works once per level: play it again on a later level to use it again.' };
 };
