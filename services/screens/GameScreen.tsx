@@ -37,7 +37,7 @@ import { pickBone, refreshBones, markLooted, type Bone } from '../bones';
 import { currentPlayer } from '../players';
 import { BONES } from '../../config/gameplay';
 import { FORK, HOLD_SLOT, GRUDGE, SKILL_SHOT } from '../../config/gameplay';
-import { gemMultiplierFor, skillShotPoints, forkAdvice } from '../rules';
+import { gemMultiplierFor, skillShotPoints, forkAdvice, dangerPointsFor, freakyFridayMatch, jengaPot } from '../rules';
 import { findPowerWordHint, powerWordHintStands } from '../powerWordHint';
 import { BOSSES, bossById, pickBoss } from '../../data/bosses';
 import { sendStat } from '../stats';
@@ -282,6 +282,7 @@ type GameAction =
     | { type: 'NEURALYZE', payload: { powerPlay: PowerPlay } }
     | { type: 'JACKASS', payload: { powerPlay: PowerPlay } }
     | { type: 'BLACKJACK_STAND' }
+    | { type: 'JENGA_CASH' }
     | { type: 'RETURN_BUILD_ROW' }
     | { type: 'SET_GAMBLE_STATE', payload: { key: string; value: unknown } }
     | { type: 'DRAFT_TILES', payload: { letters: string[] } }
@@ -802,8 +803,11 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             const { name, icon, points: listed, headline, detail, flat } = action.payload;
             const level = runLevel(gameState);
             // Gates pay exactly what their card says (flat); arcade games are prizes that grow with the level.
-            const points = flat ? listed : prizeFor(listed, level);
+            // Are You the Keymaster? (v7.62.0): Score Gate events pay keymasterPercent more.
+            const keymaster = flat && listed > 0 && gameState.activeCharms.some(c => c.id === 'keymaster');
+            const points = flat ? (keymaster ? Math.round(listed * (1 + CHARM_BONUS.keymasterPercent / 100)) : listed) : prizeFor(listed, level);
             const boosted = points !== listed;
+            const boostNote = keymaster ? `🗝️ Keymaster +${CHARM_BONUS.keymasterPercent}%: ${listed.toLocaleString()} → ${points.toLocaleString()} points.` : `⬆ Level ${level} prize boost: ${listed} → ${points} points.`;
             const score = gameState.score + points;
             const entry: EventLogEntry = { type: 'event', id: `mg-${name}-${Date.now()}`, name, icon, description: headline, scoreChange: points, cumulativeScore: score };
             return {
@@ -811,8 +815,8 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 isPaused: true,
                 modalContent: {
                     type: 'outcome', title: name,
-                    content: boosted ? `${detail}\n\n⬆ Level ${level} prize boost: ${listed} → ${points} points.` : detail,
-                    data: { icon, headline: boosted ? headline.replace(`+${listed}`, `+${points}`) : headline, tone: points > 0 ? 'win' : 'lose' },
+                    content: boosted ? `${detail}\n\n${boostNote}` : detail,
+                    data: { icon, headline: boosted ? headline.replace(`+${listed.toLocaleString()}`, `+${points.toLocaleString()}`).replace(`+${listed}`, `+${points}`) : headline, tone: points > 0 ? 'win' : 'lose' },
                 },
                 gameState: { ...gameState, score, log: [...gameState.log, entry] },
             };
@@ -862,6 +866,21 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
                     powerPlayUses: { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 },
                 },
+            };
+        }
+        // Jenga! (v7.62.0): cash out the tower.
+        case 'JENGA_CASH': {
+            const tower = gameState.activePowerPlays.jenga as { blocks: number } | undefined;
+            if (!tower) return state;
+            const powerPlay = ppById('jenga');
+            const points = prizeFor(jengaPot(tower.blocks), runLevel(gameState));
+            const score = gameState.score + points;
+            const { jenga: _done, ...rest } = gameState.activePowerPlays;
+            const entry: EventLogEntry = { type: 'event', id: `pp-jenga-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon, description: tower.blocks ? `Cashed out ${tower.blocks} blocks: +${points}.` : 'Walked away before the first block.', scoreChange: points, cumulativeScore: score };
+            return {
+                ...state, isPaused: true,
+                modalContent: outcome(powerPlay, points ? `CASHED OUT +${points.toLocaleString()}` : 'NO TOWER YET', points ? `${tower.blocks} ${tower.blocks === 1 ? 'block' : 'blocks'}, safe and sound.` : 'Play a 4+ letter word first to add a block.', points ? 'win' : 'lose'),
+                gameState: { ...gameState, score, activePowerPlays: rest, activeBuffs: gameState.activeBuffs.filter(b => b.id !== 'jenga'), log: [...gameState.log, entry] },
             };
         }
         // Winner Winner Chicken Dinner (v7.28): stand on the current count.
@@ -1134,6 +1153,14 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
               delete activePowerPlays.tamagotchi;
               activeBuffs = activeBuffs.filter(b => b.id !== 'tamagotchi');
               lastPowerPlayResult = { message: '🥚 The strike scared your Tamagotchi away. Its pot is gone.', scoreChange: 0 };
+          }
+          // Jenga! (v7.62.0): a strike or an invalid word topples the tower; the pot is lost.
+          if ((actuallyGotAStrike || action.payload?.source === 'invalid_word') && activePowerPlays.jenga) {
+              const blocks = (activePowerPlays.jenga as { blocks: number }).blocks ?? 0;
+              activePowerPlays = { ...activePowerPlays };
+              delete activePowerPlays.jenga;
+              activeBuffs = activeBuffs.filter(b => b.id !== 'jenga');
+              lastPowerPlayResult = { message: `🧱 TOPPLED! The ${blocks}-block tower fell and its pot is gone.`, scoreChange: 0 };
           }
           if (activePowerPlays.sonicSpeed) {
               delete activePowerPlays.sonicSpeed;
@@ -3328,7 +3355,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         route: { choice, level },
         log: [...gameState.log, {
             type: 'event', id: `fork-${level}-${Date.now()}`, name: choice === 'danger' ? 'Danger Zone' : 'Easy Street', icon: choice === 'danger' ? '🔥' : '🌴',
-            description: choice === 'danger' ? `Level ${level} fork: clock ${Math.round((FORK.danger.clock - 1) * 100)}% faster, every word x${FORK.danger.points}.` : `Level ${level} fork: clock ${Math.round((1 - FORK.easy.clock) * 100)}% slower, normal points.`,
+            description: choice === 'danger' ? `Level ${level} fork: clock ${Math.round((FORK.danger.clock - 1) * 100)}% faster, every word x${dangerPointsFor(gameState)}.` : `Level ${level} fork: clock ${Math.round((1 - FORK.easy.clock) * 100)}% slower, normal points.`,
             scoreChange: 0, cumulativeScore: gameState.score,
         } as EventLogEntry],
     } });
@@ -3807,8 +3834,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             }
             if (levelUpModal(totalWords, newState)) payLevelUp(scoreResult);
             if (newState.route?.choice === 'danger' && scoreResult.totalScore > 0) {
-                const extra = Math.round(scoreResult.totalScore * (FORK.danger.points - 1));
-                scoreResult = { ...scoreResult, totalScore: scoreResult.totalScore + extra, bonuses: [...scoreResult.bonuses, { name: '🔥 Danger Zone', description: `+${extra} pts (x${FORK.danger.points})` }] };
+                const dz = dangerPointsFor(newState);
+                const extra = Math.round(scoreResult.totalScore * (dz - 1));
+                scoreResult = { ...scoreResult, totalScore: scoreResult.totalScore + extra, bonuses: [...scoreResult.bonuses, { name: '🔥 Danger Zone', description: `+${extra} pts (x${dz}${dz !== FORK.danger.points ? ', I Feel the Need… for Speed' : ''})` }] };
             }
             const turnScore = scoreResult.totalScore;
             sendStat({ type: 'golden', level: levelFor(totalWords + 1), score: turnScore, tile: usedGoldenTile, ok: true });
@@ -4431,6 +4459,52 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
       }
 
+      // Inception (v7.62.0): every everyday word hiding inside this one pays (a prize, outside the word).
+      const dream = newState.activePowerPlays.inception as { words: number } | undefined;
+      if (dream) {
+          const dreamPP = ppById('inception');
+          const hidden = await dictionaryService.hiddenWords(word).catch(() => [] as string[]);
+          const paid = prizeFor(hidden.length * POWER_PLAY_VALUES.inceptionPerWord, prizeLevel);
+          const left = (dream.words ?? POWER_PLAY_VALUES.inceptionWords) - 1;
+          if (paid > 0) {
+              runningScore += paid;
+              scoreResult.bonuses.push({ name: `🌀 Inception (${hidden.join(', ')})`, description: `+${paid} pts` });
+              eventLogQueue.push({ type: 'event', id: `pp-inception-${now}`, name: dreamPP.name, icon: dreamPP.icon, description: `${word.toUpperCase()} hid ${hidden.join(', ')}: +${paid}.`, scoreChange: paid, cumulativeScore: runningScore });
+          }
+          const said = paid > 0 ? `🌀 ${word.toUpperCase()} hid ${hidden.join(', ')}: +${paid}` : `🌀 Nothing hiding in ${word.toUpperCase()}`;
+          if (left > 0) {
+              setPP('inception', { words: left }, `Every real word hiding inside your next ${left === 1 ? 'word' : `${left} words`} pays +${prizeFor(POWER_PLAY_VALUES.inceptionPerWord, prizeLevel)}.`);
+              showMessage(`${said} · ${left} ${left === 1 ? 'word' : 'words'} left`, 2400);
+          } else {
+              dropPP('inception');
+              showMessage(`${said}. We need to go deeper… next time.`, 2600);
+          }
+      }
+      // Jenga! (v7.62.0): each valid word of jengaMinLetters+ letters adds a block; a shorter word
+      // topples the tower (strikes and invalid words topple it in ADD_STRIKE). The top block cashes out.
+      const tower = newState.activePowerPlays.jenga as { blocks: number } | undefined;
+      if (tower) {
+          const jengaPP = ppById('jenga');
+          const V = POWER_PLAY_VALUES;
+          if (word.length < V.jengaMinLetters) {
+              dropPP('jenga');
+              eventLogQueue.push({ type: 'event', id: `pp-jenga-${now}`, name: jengaPP.name, icon: jengaPP.icon, description: `${word.toUpperCase()} was under ${V.jengaMinLetters} letters: the tower fell (${tower.blocks} blocks lost).`, scoreChange: 0, cumulativeScore: runningScore });
+              modalQueue.push(outcome(jengaPP, 'TOPPLED!', `${word.toUpperCase()} has under ${V.jengaMinLetters} letters, so the tower of ${tower.blocks} ${tower.blocks === 1 ? 'block' : 'blocks'} came down. The pot of ${prizeFor(jengaPot(tower.blocks), prizeLevel)} is gone.`, 'lose'));
+          } else {
+              const blocks = tower.blocks + 1;
+              const pot = prizeFor(jengaPot(blocks), prizeLevel);
+              if (blocks >= V.jengaBlocks) {
+                  dropPP('jenga');
+                  runningScore += pot;
+                  eventLogQueue.push({ type: 'event', id: `pp-jenga-${now}`, name: jengaPP.name, icon: jengaPP.icon, description: `Topped out at ${blocks} blocks: +${pot}.`, scoreChange: pot, cumulativeScore: runningScore });
+                  modalQueue.push(outcome(jengaPP, `TOPPED OUT! +${pot.toLocaleString()}`, `${blocks} blocks and it never wobbled. The whole tower cashes in.`, 'win'));
+              } else {
+                  setPP('jenga', { blocks }, `Tower: ${blocks} ${blocks === 1 ? 'block' : 'blocks'}, ${pot} in the pot. Hold the 🧱 chip to cash out. A word under ${V.jengaMinLetters} letters, an invalid word or a strike topples it.`);
+                  showMessage(`🧱 Block ${blocks}: pot ${pot} · next block +${prizeFor(V.jengaStep * (blocks + 1), prizeLevel)}`, 2400);
+              }
+          }
+      }
+
       // Daily Double and Pop Quiz, Hotshot (v7.25) settle on this word. Separate from the word's
       // own points, so a locked word still settles the bet.
       // Mission: Impossible: each 5+ letter word counts down the promise; a shorter one breaks it.
@@ -4743,14 +4817,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
 
       // Gem Tiles (v7.42): a long word puts a gem (a word-multiplier tile) in the next hand.
-      const gem = gemMultiplierFor(word.length);
+      const gem = gemMultiplierFor(word.length, newState.activeCharms.some(c => c.id === 'shineBright'));
       if (gem > 0) newState.pendingGem = Math.max(newState.pendingGem ?? 0, gem);
 
       // Fork in the Road (v7.43): the Danger Zone pays more on every word (0 means 0 still holds).
       if (!wordLocked && newState.route?.choice === 'danger' && runningScore > oldScore) {
-          const extra = Math.round((runningScore - oldScore) * (FORK.danger.points - 1));
+          const dz = dangerPointsFor(newState);
+          const extra = Math.round((runningScore - oldScore) * (dz - 1));
           runningScore += extra;
-          scoreResult.bonuses.push({ name: '🔥 Danger Zone', description: `+${extra} pts (x${FORK.danger.points})` });
+          scoreResult.bonuses.push({ name: '🔥 Danger Zone', description: `+${extra} pts (x${dz}${dz !== FORK.danger.points ? ', I Feel the Need… for Speed' : ''})` });
       }
 
       // Blue Steel (v7.57.0): the word after ZOO's fourth play scores x5 on everything it earned
@@ -5196,6 +5271,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               !(c.id === PHOENIX_DOWN.id && (newState.phoenixOffered || (newState.daily && !newState.daily.practice))) &&
               // Mr. Glass takes a strike slot away: never offer it when that would end the run.
               !(c.id === 'mrGlass' && newState.strikes >= maxStrikesFor({ ...newState, activeCharms: [...newState.activeCharms, c] })) &&
+              // v7.62.0: charms that do nothing yet aren't offered until they can work.
+              !(c.id === 'needForSpeed' && levelFor(totalWordsSubmitted) < FORK.levels[0]) &&
+              !(c.id === 'keymaster' && (newState.score < CHARM_BONUS.keymasterFromScore || (newState.gatesPassed ?? []).length >= 4)) &&
               !newState.charmCooldowns[c.id]
           );
           const charmOffer = gameUtils.getOffer(charmsToOfferFrom, 3, newState) as { offeredItems: Charm[]; offerDetails: { id: string; score: number }[] };

@@ -1,7 +1,24 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+
+/** A chip that acts only when held (v7.62.0, Jenga's cash-out), so a stray tap above the tiles can't. */
+const HoldChip: React.FC<{ ms: number; onHold?: () => void; label: string; testId?: string; children: React.ReactNode }> = ({ ms, onHold, label, testId, children }) => {
+  const [holding, setHolding] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stop = () => { if (timer.current) clearTimeout(timer.current); timer.current = null; setHolding(false); };
+  useEffect(() => stop, []);
+  return (
+    <button type="button" data-testid={testId} aria-label={label} onContextMenu={e => e.preventDefault()}
+      onPointerDown={e => { e.preventDefault(); setHolding(true); timer.current = setTimeout(() => { timer.current = null; setHolding(false); onHold?.(); }, ms); }}
+      onPointerUp={stop} onPointerLeave={stop} onPointerCancel={stop}
+      className="relative overflow-hidden flex items-center gap-1 rounded-full bg-neon-yellow/20 ring-1 ring-neon-yellow px-2 py-0.5 text-xs text-white whitespace-nowrap select-none touch-none">
+      {holding && <span className="absolute inset-y-0 left-0 bg-neon-green/40 arm-fill" style={{ animationDuration: `${ms}ms` }} aria-hidden="true" />}
+      <span className="relative flex items-center gap-1">{children}</span>
+    </button>
+  );
+};
 import type { GameState } from '../types';
 import { POWER_PLAY_VALUES as V } from '../config/gameplay';
-import { tamagotchiPot, blackjackPayout } from '../services/rules';
+import { tamagotchiPot, blackjackPayout, jengaPot, prizeFor, levelFor } from '../services/rules';
 import { hitInProgress } from '../services/greatestHits';
 
 // Small chips above the hand for PowerPlays that play out over several words (v7.28): the
@@ -13,7 +30,7 @@ const Chip: React.FC<{ icon: string; label: string; children: React.ReactNode }>
   </span>
 );
 
-const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string[]; quizLeft?: number; raceRival?: number; onStand: () => void }> = ({ gameState, upcomingTiles = [], quizLeft, raceRival, onStand }) => {
+const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string[]; quizLeft?: number; raceRival?: number; onStand: () => void; onJengaCash?: () => void }> = ({ gameState, upcomingTiles = [], quizLeft, raceRival, onStand, onJengaCash }) => {
   const a = (gameState?.activePowerPlays ?? {}) as Record<string, any>;
   const chips: React.ReactNode[] = [];
   // Greatest Hits (v7.52.0): the word closest to its next record, once it has 2 plays.
@@ -54,6 +71,23 @@ const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string
       <button key="dinner" type="button" onClick={onStand} className="flex items-center gap-1 rounded-full bg-neon-yellow/20 ring-1 ring-neon-yellow px-2 py-0.5 text-xs text-white whitespace-nowrap hover:bg-neon-yellow/30" aria-label={`Blackjack count ${a.chickenDinner.total}. Stand${pays ? ` for ${pays}` : ''}`}>
         <span aria-hidden="true">🍗</span>{a.chickenDinner.last ? `${a.chickenDinner.last} → ` : ''}{a.chickenDinner.total}/{V.blackjackTarget} · <strong className="text-neon-yellow">STAND{pays ? ` +${pays}` : ''}</strong>
       </button>);
+  }
+  // Jenga! (v7.62.0): the tower's pot; tap to cash out once there's a block.
+  if (a.jenga) {
+    const level = levelFor((gameState?.log ?? []).filter(e => e.type === 'word' && (e as { status?: string }).status === 'valid').length);
+    const blocks = a.jenga.blocks ?? 0;
+    const pot = prizeFor(jengaPot(blocks), level);
+    const next = prizeFor(V.jengaStep * (blocks + 1), level);
+    chips.push(blocks > 0
+      ? <HoldChip key="jenga" ms={V.jengaHoldMs} onHold={onJengaCash} testId="jenga-chip"
+          label={`Jenga tower: ${blocks} of ${V.jengaBlocks} blocks, ${pot} in the pot. Press and hold to cash out. Next block adds ${next}. A word under ${V.jengaMinLetters} letters, an invalid word or a strike topples it.`}>
+          <span aria-hidden="true">🧱</span>{blocks}/{V.jengaBlocks} · <strong className="text-neon-yellow">HOLD TO CASH +{pot}</strong> · NEXT +{next} · {V.jengaMinLetters}+ LETTERS
+        </HoldChip>
+      : <Chip key="jenga" icon="🧱" label={`Jenga: play a ${V.jengaMinLetters}+ letter word to add the first block, worth ${next}.`}>FIRST BLOCK +{next} · {V.jengaMinLetters}+ LETTERS OR IT FALLS</Chip>);
+  }
+  if (a.inception) {
+    const each = prizeFor(V.inceptionPerWord, levelFor((gameState?.log ?? []).filter(e => e.type === 'word' && (e as { status?: string }).status === 'valid').length));
+    chips.push(<Chip key="inception" icon="🌀" label={`Inception: every real word hiding inside your next ${a.inception.words} words pays ${each}`}>WORDS INSIDE WORDS +{each} EACH · {a.inception.words} LEFT</Chip>);
   }
   if (a.hadouken) chips.push(<Chip key="hadouken" icon="💥" label={`Hadouken: ${a.hadouken.hits} boss hits saved`}>×{a.hadouken.hits}{gameState.boss ? '' : ' · next boss'}</Chip>);
   if (a.priceIsRight) chips.push(<Chip key="price" icon="🏷️" label={`Bid: ${a.priceIsRight.bid} or more for ${a.priceIsRight.prize}, miss and lose ${a.priceIsRight.miss ?? 0}`}>{a.priceIsRight.bid}+ → +{a.priceIsRight.prize}{a.priceIsRight.miss ? ` / -${a.priceIsRight.miss}` : ''}</Chip>);

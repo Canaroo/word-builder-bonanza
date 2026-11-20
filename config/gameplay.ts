@@ -254,6 +254,18 @@ export const POWER_PLAY_VALUES = {
   // Psychic Friends Network (v7.54.0, reworked: the tile peek was used 3 times ever): call your next
   // word's length. Prizes follow how often an 8-tile hand can spell it (3: 99%, 4: 94%, 5: 72%,
   // 6: 41%, 7+: 10%), so every call is worth roughly 50-200 on average. No cost for a miss.
+  // Inception (v7.62.0): for the next inceptionWords words, each everyday word of 3+ letters hiding
+  // inside yours (CARPET: CAR, CARP, PET) pays inceptionPerWord (a prize: grows with the level).
+  // Word-list stats: 79% of 5-letter words hide one (1.3 on average), 6 letters 1.8, 7 letters 2.4.
+  inceptionWords: 3,
+  inceptionPerWord: 50,
+  // Jenga! (v7.62.0): block N pays jengaStep x N into the tower (50, 100, 150...), up to jengaBlocks
+  // blocks (+1,050). Cash out any time from the chip; a word under jengaMinLetters letters, an
+  // invalid word or a strike topples it (the pot is lost). A prize: grows with the level.
+  jengaStep: 50,
+  jengaBlocks: 6,
+  jengaMinLetters: 4,
+  jengaHoldMs: 600,     // hold the 🧱 chip this long to cash out (a stray tap can't)
   psychicCalls: [
     { letters: 3, prize: 50 }, { letters: 4, prize: 100 }, { letters: 5, prize: 250 },
     { letters: 6, prize: 500 }, { letters: 7, prize: 1500, orMore: true },
@@ -398,7 +410,21 @@ export const CHARM_BONUS = {
   sesameLetters: 'RSTLNDCMPBGH',
   hungryHippos: 80,            // a word that uses every vowel in your hand...
   hungryHipposMinVowels: 2,    // ...when the hand has at least this many
+  // v7.62.0 content drop (docs: CLAUDE.md "Content drop v7.62.0").
+  stonksPerLevel: 8,           // Stonks: 4+ letter words earn this x the run level (+40 at 5, +120 at 15)
+  stonksLetters: 4,
+  needForSpeedPoints: 1.75,    // I Feel the Need… for Speed: the Danger Zone pays this instead of FORK.danger.points
+  keymasterPercent: 50,        // Are You the Keymaster?: Score Gate events pay this much more
+  keymasterFromScore: 5000,    // ...and it's only offered from this score (it does nothing before a gate)
+  freakyFridayMultiplier: 3,   // Freaky Friday: an anagram of an earlier word this run scores this
+  freakyFridayLetters: 4,      // ...when it has this many letters or more
 } as const;
+
+/**
+ * Shine Bright Like a Diamond (v7.62.0): gem tiles from long words while it's equipped (letters →
+ * word multiplier). One step above GEM_TILES, plus a x2 gem for 5-letter words.
+ */
+export const SHINE_BRIGHT_GEMS: Record<number, number> = { 5: 2, 6: 4, 7: 5, 8: 6 };
 
 /**
  * Boss rounds (data/bosses.ts): every `everyLevels` levels, the next `words` valid words face a

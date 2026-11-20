@@ -12,7 +12,23 @@ export interface WordIndex {
     size: number;
     has: (word: string) => boolean;
     findPlayable: (letters: readonly string[], options?: FindWordOptions) => string | null;
+    /** v7.62.0 (Inception): everyday words of 3+ letters hiding inside this word, in its letters' order. */
+    hiddenWords: (word: string) => string[];
 }
+
+/** Everyday words of minLength+ letters spelled by consecutive letters of `word` (not the word itself). */
+export const hiddenWordsIn = (word: string, isCommon: (w: string) => boolean, minLength = 3): string[] => {
+    const w = word.toLowerCase();
+    const found = new Set<string>();
+    for (let i = 0; i < w.length; i++) {
+        for (let j = i + minLength; j <= w.length; j++) {
+            if (j - i === w.length) continue;
+            const part = w.slice(i, j);
+            if (isCommon(part)) found.add(part.toUpperCase());
+        }
+    }
+    return [...found];
+};
 
 /** Parses the newline-separated list produced by scripts/build-wordlist.mjs. */
 export const parseWordList = (text: string): string[] =>
@@ -50,9 +66,11 @@ export const createWordIndex = (words: Iterable<string>, commonWords?: Iterable<
         return null;
     };
 
+    const commonSet = commonWords ? new Set(commonByLength.flat()) : set;
     return {
         size: set.size,
         has: (word: string) => set.has(word.toLowerCase()),
         findPlayable,
+        hiddenWords: (word: string) => hiddenWordsIn(word, w => commonSet.has(w)),
     };
 };

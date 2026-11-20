@@ -69,7 +69,7 @@ describe('Skill Shot', () => {
 
 describe('Gem Tiles', () => {
     test('only long words earn a gem, bigger for longer', () => {
-        expect([3, 5, 6, 7, 8, 11].map(gemMultiplierFor)).toEqual([0, 0, GEM_TILES[6], GEM_TILES[7], GEM_TILES[8], GEM_TILES[8]]);
+        expect([3, 5, 6, 7, 8, 11].map(n => gemMultiplierFor(n))).toEqual([0, 0, GEM_TILES[6], GEM_TILES[7], GEM_TILES[8], GEM_TILES[8]]);
     });
     test('a waiting gem lands on one plain tile at the next round, never on a special tile', () => {
         const hand = handOf('TOURSAEP');

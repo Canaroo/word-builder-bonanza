@@ -2,7 +2,7 @@
 import { PowerPlay, GameState, EventLogEntry } from '../types';
 import { labelize } from '../services/durationTags';
 import { TIME_BONUS, POWER_PLAY_VALUES } from '../config/gameplay';
-import { tamagotchiPot, dailyDoubleWager, levelFor, prizeFor } from '../services/rules';
+import { tamagotchiPot, dailyDoubleWager, levelFor, prizeFor, jengaPot } from '../services/rules';
 
 // The 'activate' function is for declaring the state change that should happen upon activation.
 // The actual logic is handled in the GameScreen reducer based on the power play's `effectType` and ID.
@@ -1404,6 +1404,29 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     durationTag: 'ONE_TIME',
     activate: () => ({}), // Handled in GameScreen (fires on pick: the call card, v7.54.0)
   },
+  // --- v7.62.0 content drop ---
+  {
+    id: 'inception',
+    name: 'Inception',
+    description: `For your next ${POWER_PLAY_VALUES.inceptionWords} words, every real word hiding inside yours pays +${POWER_PLAY_VALUES.inceptionPerWord}. CARPET hides CAR, CARP and PET: +${POWER_PLAY_VALUES.inceptionPerWord * 3}. Longer words hide more.`,
+    flavorText: 'We need to go deeper.',
+    icon: '🌀',
+    subtheme: 'score',
+    effectType: 'next_word',
+    durationTag: 'LIMITED',
+    activate: arm('inception', { words: POWER_PLAY_VALUES.inceptionWords }),
+  },
+  {
+    id: 'jenga',
+    name: 'Jenga!',
+    description: `Stack your next words into a tower: block 1 adds +${POWER_PLAY_VALUES.jengaStep}, block 2 +${POWER_PLAY_VALUES.jengaStep * 2}, block 3 +${POWER_PLAY_VALUES.jengaStep * 3}, up to ${POWER_PLAY_VALUES.jengaBlocks} blocks (+${jengaPot(POWER_PLAY_VALUES.jengaBlocks).toLocaleString()} in all). Hold the 🧱 chip to cash out any time. A word under ${POWER_PLAY_VALUES.jengaMinLetters} letters, an invalid word or a strike topples it, and you get nothing.`,
+    flavorText: "Don't pull the bottom one.",
+    icon: '🧱',
+    subtheme: 'score',
+    effectType: 'next_word',
+    durationTag: 'LIMITED',
+    activate: arm('jenga', { blocks: 0 }),
+  },
 ];
 
 /** PowerPlays that pay a flat point prize, which grows with the run level (PRIZE_GROWTH, prizeFor).
@@ -1415,4 +1438,5 @@ export const PRIZE_POWER_PLAY_IDS: ReadonlySet<string> = new Set([
   'fluncleIsProud', 'actClear', 'priceIsRight', 'tamagotchi', 'smellYaLater', 'popQuizHotshot',
   'withGreatPower', 'gumpLuck', 'warioWarp', 'thanosGift', 'wildcard', 'psychicFriends',
   'shakeItLikeAPolaroid', 'duckHunt', 'missionImpossible',
+  'inception', 'jenga', // v7.62.0
 ]);

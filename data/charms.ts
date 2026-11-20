@@ -1,7 +1,7 @@
 import { PHOENIX_DOWN } from '../config/progression';
 import { Charm, GameState, EventLogEntry } from '../types';
 import { labelize } from '../services/durationTags';
-import { BOSS, CHARM_BONUS, CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS } from '../config/gameplay';
+import { BOSS, CHARM_BONUS, CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS, SHINE_BRIGHT_GEMS, GEM_TILES, FORK, GATES } from '../config/gameplay';
 
 // The 'activate' function is for effects that happen immediately upon selection for passive buffs.
 // For selection buffs, it's called after the player makes their choice.
@@ -1156,6 +1156,62 @@ export const CHARMS_LIST: Charm[] = [
     durationTag: 'PERSISTENT',
     activate: createPassiveBuff('hungryHippos'),
   },
+  // --- v7.62.0 content drop ---
+  {
+    id: 'stonks',
+    name: 'Stonks',
+    description: `Words of ${CHARM_BONUS.stonksLetters}+ letters earn +${CHARM_BONUS.stonksPerLevel} points for every level you've reached: +${CHARM_BONUS.stonksPerLevel * 5} at level 5, +${CHARM_BONUS.stonksPerLevel * 10} at level 10, +${CHARM_BONUS.stonksPerLevel * 15} at level 15.`,
+    flavorText: 'Number go up.',
+    icon: '📈',
+    subtheme: 'score',
+    effectType: 'triggered',
+    durationTag: 'PERSISTENT',
+    activate: createPassiveBuff('stonks'),
+  },
+  {
+    id: 'shineBright',
+    name: 'Shine Bright Like a Diamond',
+    description: `Bigger gem tiles from long words: 5 letters now earn a x${SHINE_BRIGHT_GEMS[5]} gem, 6 letters x${SHINE_BRIGHT_GEMS[6]}, 7 letters x${SHINE_BRIGHT_GEMS[7]}, 8 or more x${SHINE_BRIGHT_GEMS[8]} (normally x${GEM_TILES[6]}, x${GEM_TILES[7]}, x${GEM_TILES[8]} from 6 letters).`,
+    flavorText: 'Shine bright like a diamond.',
+    icon: '💍',
+    subtheme: 'score',
+    effectType: 'passive',
+    durationTag: 'PERSISTENT',
+    activate: createPassiveBuff('shineBright'),
+  },
+  {
+    id: 'needForSpeed',
+    name: 'I Feel the Need… for Speed',
+    description: `In the Danger Zone (pick it at a Fork in the Road, levels ${FORK.levels.join(', ')}), every word scores x${CHARM_BONUS.needForSpeedPoints} instead of x${FORK.danger.points}. Does nothing on Easy Street.`,
+    flavorText: 'I feel the need… the need for speed!',
+    icon: '🛩️',
+    subtheme: 'score',
+    effectType: 'triggered',
+    durationTag: 'PERSISTENT',
+    activate: createPassiveBuff('needForSpeed'),
+  },
+  {
+    id: 'keymaster',
+    name: 'Are You the Keymaster?',
+    description: `Score Gate events pay ${CHARM_BONUS.keymasterPercent}% more: the ${GATES.password.score.toLocaleString()} Password Gate up to +${(GATES.password.solve * (1 + CHARM_BONUS.keymasterPercent / 100)).toLocaleString()}, the ${GATES.bigOne.score.toLocaleString()} Big One up to +${(GATES.bigOne.prizes[8] * (1 + CHARM_BONUS.keymasterPercent / 100)).toLocaleString()}.`,
+    flavorText: 'There is no Dana, only Zuul.',
+    icon: '🗝️',
+    subtheme: 'score',
+    effectType: 'triggered',
+    durationTag: 'PERSISTENT',
+    activate: createPassiveBuff('keymaster'),
+  },
+  {
+    id: 'freakyFriday',
+    name: 'Freaky Friday',
+    description: `Play an anagram of a word you already played this run (STAR, later RATS or ARTS) and it scores x${CHARM_BONUS.freakyFridayMultiplier}. ${CHARM_BONUS.freakyFridayLetters}+ letters.`,
+    flavorText: 'We switched letters!',
+    icon: '🔀',
+    subtheme: 'score',
+    effectType: 'triggered',
+    durationTag: 'PERSISTENT',
+    activate: createPassiveBuff('freakyFriday'),
+  },
 ];
 
 /**
@@ -1175,6 +1231,7 @@ export const UPGRADABLE_CHARM_IDS: ReadonlySet<string> = new Set([
   'theOpposite', 'eagle', 'doubleDragon', 'noteStreak', 'downToYourBoxers', 'crossTheRoad', 'aTeam',
   'conjunctionJunction', 'voteForPedro', 'formVoltron', 'titansGo', 'mrGlass', 'honeyIShrunkTheKids',
   'myPrecious', 'hitTheFlagpole', 'supermarketSweep', 'sesameStreet', 'hungryHippos', 'recycler',
+  'stonks', // v7.62.0: pays points under its own name
 ]);
 
 /** One-off and level-up payouts: the long-word boost (CHARM_LENGTH_BOOST) skips them, so a lucky

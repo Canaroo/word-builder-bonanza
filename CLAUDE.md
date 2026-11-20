@@ -45,7 +45,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | Scoring | `services/gameUtils.ts` `calculateScore` |
 | Game state, reducer, turn logic | `services/screens/GameScreen.tsx` (large) |
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
-| PowerPlays / charms (101 / 103) | `data/powerPlays.ts`, `data/charms.ts` |
+| PowerPlays / charms (103 / 108) | `data/powerPlays.ts`, `data/charms.ts` |
 | Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
 | Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Fork, Hold Slot, Grudge Match, Bones | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `FORK`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`; cards in `components/` (`LastWordsCard`, `ForkCard`, `BonesCard`) |
 | Secret bonuses (120 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
@@ -143,6 +143,24 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
 - **REDRUM text (v7.61.3, the owner's ask; same effect):** "Your next word scores x2, guaranteed. If
   it's a 4+ letter word that's also a word spelled backward, like STAR (RATS) or LIVE (EVIL), it
   scores x5 instead."
+- **Content drop v7.62.0 (5 charms, 2 PowerPlays; the owner picked all from a proposal):**
+  **📈 Stonks** (`stonks`): 4+ letter words earn +8 x the run level (`stonksPoints`), aimed at the
+  52-62% of late charm offers that were passed; upgradable. **💍 Shine Bright Like a Diamond**
+  (`shineBright`): gems one step bigger plus a x2 gem from 5 letters (`SHINE_BRIGHT_GEMS`,
+  `gemMultiplierFor(length, shineBright)`; the gem card lists them). **🛩️ I Feel the Need… for
+  Speed** (`needForSpeed`): Danger Zone x1.75 instead of x1.5 (`dangerPointsFor`, also on the Fork
+  card and chip); offered from level 4 only. **🗝️ Are You the Keymaster?** (`keymaster`): Score
+  Gates pay +50% (`APPLY_MINIGAME` with `flat`; the outcome card shows "🗝️ Keymaster +50%: 1,000 →
+  1,500"); offered from 5,000 points and while a gate is left. **🔀 Freaky Friday**
+  (`freakyFriday`): a 4+ letter anagram of an earlier word this run scores x3
+  (`freakyFridayMatch`); simulated: a player hunting it lands about 1.4 in 60 words, 9.5 in 180
+  (casual 0.1-0.5). **🌀 Inception** (`inception`, prize): 3 words, each everyday word hiding inside
+  pays +50 (`dictionaryService.hiddenWords`, a `hidden` worker request, `hiddenWordsIn` in
+  `services/wordIndex.ts`); 79% of 5-letter words hide one. **🧱 Jenga!** (`jenga`, prize): blocks
+  pay 50, 100, 150... up to 6 (+1,050, `jengaPot`); hold the 🧱 chip `jengaHoldMs` to cash out
+  (`JENGA_CASH`); a word under 4 letters (`completeSubmission`), an invalid word or a strike
+  (`ADD_STRIKE`) topples it. Browser-checked with playtest.mjs (updated for the Play chooser, the
+  tap guard and autosave; it now blocks Firebase).
 - **Feature tracking (v7.61.1):** `fork` (choice incl. `bail`, level, clock, advice), `golden`
   (level, score, tile, ok), `gate` (gate, played/skip, points) events; `pp_use` extra `tape`;
   `run_end` extras from `runEndExtras()` (golden, route, bails, skill, gems, lastWords). Shown in a

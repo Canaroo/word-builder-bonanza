@@ -3,7 +3,7 @@ import { CHARM_BONUS, CHARM_SLOTS, POWER_PLAY_VALUES, POWER_WORD_EFFECTS, QUACK_
 import { TILE_DISTRIBUTION, VOWELS, RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, COMBO_TILES, COMBO_TILE_CHANCE, OFFER_RECENCY_WINDOW, OFFER_EXPLORATION_BOOST, OFFER_REPEAT_PENALTY, OFFER_MAX_RECENCY_PENALTY } from '../constants';
 import { dictionaryService } from './dictionaryService';
 import { canBeMadeFromLetters } from './rackMatch';
-import { combineMultipliers, lengthMultiplier, UPSIDE_DOWN_POINTS } from './rules';
+import { combineMultipliers, lengthMultiplier, UPSIDE_DOWN_POINTS, levelFor, stonksPoints, freakyFridayMatch } from './rules';
 
 // A simple seeded pseudo-random number generator for reproducible results.
 class SeededRNG {
@@ -539,6 +539,16 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
         bonuses.push({ name: 'Why? Because Chuck Norris.', description: `x${CHARM_BONUS.chuckNorrisMultiplier} Score`, source: 'word' });
     }
 
+    // Charm: Freaky Friday (v7.62.0): an anagram of a word already played this run.
+    if (gameState.activeCharms.some(c => c.id === 'freakyFriday')) {
+        const earlier = gameState.log.filter(e => e.type === 'word' && e.status === 'valid').map(e => (e as { word: string }).word);
+        const twin = freakyFridayMatch(wordUpper, earlier);
+        if (twin) {
+            wordMultipliers.push(CHARM_BONUS.freakyFridayMultiplier);
+            bonuses.push({ name: `Freaky Friday (${twin.toUpperCase()} → ${wordUpper})`, description: `x${CHARM_BONUS.freakyFridayMultiplier} Score`, source: 'word' });
+        }
+    }
+
     // Charm: Battle of Wits
     if (gameState.activeCharms.some(c => c.id === 'battleOfWits') && word.length > 1 && wordUpper[0] === wordUpper[wordUpper.length - 1]) {
         wordMultipliers.push(4);
@@ -678,6 +688,16 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     if (gameState.activePowerPlays.slimShadyShuffle) {
         flatBonus += 50;
         bonuses.push({ name: 'Slim Shady Shuffle', description: '+50 pts', source: 'game' });
+    }
+
+    // Charm: Stonks (v7.62.0): grows with the run level.
+    if (gameState.activeCharms.some(c => c.id === 'stonks')) {
+        const level = levelFor(gameState.log.filter(e => e.type === 'word' && e.status === 'valid').length);
+        const pts = stonksPoints(word.length, level);
+        if (pts > 0) {
+            flatBonus += pts;
+            bonuses.push({ name: 'Stonks', description: `+${pts} pts (level ${level})`, source: 'game' });
+        }
     }
 
     // Charm: Bullet Time

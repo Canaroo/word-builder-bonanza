@@ -13,7 +13,7 @@ import { Sec } from './Seconds';
 export type Route = 'easy' | 'danger';
 const pct = (factor: number) => Math.round(Math.abs(factor - 1) * 100);
 
-const ForkCard: React.FC<{ level: number; delta?: number | null; clock?: number; onPick: (route: Route) => void }> = ({ level, delta = null, clock = 0, onPick }) => {
+const ForkCard: React.FC<{ level: number; delta?: number | null; clock?: number; points?: number; onPick: (route: Route) => void }> = ({ level, delta = null, clock = 0, points = FORK.danger.points, onPick }) => {
   useEffect(() => { soundService.playPowerUp(); }, []);
   const next = FORK.levels.find(l => l > level);
   // v7.61.4: say how long the pick lasts in words, and what can change before then.
@@ -58,12 +58,12 @@ const ForkCard: React.FC<{ level: number; delta?: number | null; clock?: number;
             <span className="text-xs text-slate-300 leading-snug mt-1">🔒 Locked in until {next ? `level ${next}` : 'the end'}: no switching to Danger.</span>
             {suits('easy')}
           </button>
-          <button type="button" onClick={() => onPick('danger')} aria-label={`Danger Zone: clock ${pct(FORK.danger.clock)}% faster, points times ${FORK.danger.points}. You can cool off to Easy Street any time, with no way back in.${advice === 'danger' ? ' Suits you.' : ''}`}
+          <button type="button" onClick={() => onPick('danger')} aria-label={`Danger Zone: clock ${pct(FORK.danger.clock)}% faster, points times ${points}. You can cool off to Easy Street any time, with no way back in.${advice === 'danger' ? ' Suits you.' : ''}`}
             className={`rounded-xl p-3 ring-2 ring-neon-red bg-neon-red/10 hover:bg-neon-red/20 flex flex-col items-center gap-1 outline-none focus-visible:ring-white ${advice === 'danger' ? 'ring-4 shadow-[0_0_18px_rgba(255,60,60,0.5)]' : ''}`}>
             <span className="text-4xl leading-none" aria-hidden="true">🔥</span>
             <span className="font-display text-base text-neon-red leading-tight">DANGER ZONE</span>
             <span className="osd-text text-lg text-white leading-tight">CLOCK {pct(FORK.danger.clock)}% FASTER</span>
-            <span className="osd-text text-lg text-neon-yellow leading-tight">EVERY WORD x{FORK.danger.points}</span>
+            <span className="osd-text text-lg text-neon-yellow leading-tight">EVERY WORD x{points}{points !== FORK.danger.points ? ' 🛩️' : ''}</span>
             <span className="text-xs text-slate-300 leading-snug mt-1">🌴 Hold the 🔥 chip to escape to Easy Street any time. No way back in.</span>
             {suits('danger')}
           </button>

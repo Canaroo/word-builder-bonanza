@@ -1,5 +1,5 @@
 // Pure gameplay rules. No React, no DOM: easy to test and to tune via config/gameplay.ts.
-import { BOSS, CHARM_BONUS, CHARM_LENGTH_BOOST, CHARM_UPGRADE, GAMEPLAY, PRIZE_GROWTH, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS, GEM_TILES, SKILL_SHOT, FORK, GATES } from '../config/gameplay';
+import { BOSS, CHARM_BONUS, CHARM_LENGTH_BOOST, CHARM_UPGRADE, GAMEPLAY, PRIZE_GROWTH, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS, GEM_TILES, SKILL_SHOT, FORK, GATES, SHINE_BRIGHT_GEMS } from '../config/gameplay';
 import { BossRound, PowerWordEffect, ScoreCalculationResult } from '../types';
 
 const lookupByLength = (table: Record<number, number>, length: number, below: number): number => {
@@ -242,7 +242,32 @@ export const slotPayout = (roll: number) => {
 };
 
 /** Gem Tiles (v7.42): the word multiplier a word of this length earns for the next hand (0: none). */
-export const gemMultiplierFor = (length: number): number => lookupByLength(GEM_TILES, length, 0);
+export const gemMultiplierFor = (length: number, shineBright = false): number =>
+    lookupByLength(shineBright ? SHINE_BRIGHT_GEMS : GEM_TILES, length, 0);
+
+/** Jenga! (v7.62.0): the tower's pot after this many blocks (50 + 100 + 150...). */
+export const jengaPot = (blocks: number): number => {
+    const n = Math.max(0, Math.min(POWER_PLAY_VALUES.jengaBlocks, blocks));
+    return POWER_PLAY_VALUES.jengaStep * n * (n + 1) / 2;
+};
+
+/** Stonks (v7.62.0): what a word of this length earns at this run level. */
+export const stonksPoints = (length: number, level: number): number =>
+    length >= CHARM_BONUS.stonksLetters ? CHARM_BONUS.stonksPerLevel * Math.max(1, level) : 0;
+
+/** Sorted letters: two words are anagrams when these match. */
+export const anagramKey = (word: string): string => word.toUpperCase().split('').sort().join('');
+
+/**
+ * Freaky Friday (v7.62.0): the earlier word this one is an anagram of (a different word with the
+ * same letters, played earlier this run), or null. Only words of freakyFridayLetters+ letters count.
+ */
+export const freakyFridayMatch = (word: string, earlier: readonly string[]): string | null => {
+    const w = word.toUpperCase();
+    if (w.length < CHARM_BONUS.freakyFridayLetters) return null;
+    const key = anagramKey(w);
+    return earlier.map(e => e.toUpperCase()).find(e => e !== w && e.length === w.length && anagramKey(e) === key) ?? null;
+};
 
 /** Skill Shot (v7.42): what a hit pays on this streak (1 = first hit in a row). */
 export const skillShotPoints = (streak: number): number =>
@@ -570,3 +595,7 @@ export const forkWordsLeft = (validWords: number): number | null => {
     const next = (FORK.levels as readonly number[]).find(l => l > level);
     return next == null ? null : Math.max(0, (next - 1) * GAMEPLAY.levels.wordsPerLevel - validWords);
 };
+
+/** The Danger Zone's word multiplier (v7.62.0): x1.5, or more with I Feel the Need… for Speed. */
+export const dangerPointsFor = (gs: { activeCharms?: { id: string }[] } | null | undefined): number =>
+    gs?.activeCharms?.some(c => c.id === 'needForSpeed') ? CHARM_BONUS.needForSpeedPoints : FORK.danger.points;
