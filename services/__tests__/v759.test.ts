@@ -22,3 +22,12 @@ describe('v7.59.0 Fork advice', () => {
     expect(forkAdvice(null, 70)).toBe('danger');
   });
 });
+
+import { nextGateFor } from '../screens/GameScreen';
+describe('v7.60.0 next gate', () => {
+  it('finds the next uncrossed gate above the score', () => {
+    expect(nextGateFor({ score: 500, gatesPassed: [] })).toBe(10000);
+    expect(nextGateFor({ score: 12000, gatesPassed: [10000] })).toBe(30000);
+    expect(nextGateFor({ score: 80000, gatesPassed: [10000, 30000, 50000, 70000] })).toBeNull();
+  });
+});

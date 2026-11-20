@@ -47,7 +47,10 @@ let tileStream: { next: () => number; state: () => number } | null = null;
 export const setTileStream = (stream: { next: () => number; state: () => number } | null): void => {
     tileStream = stream;
     tileRandom = stream ? stream.next : defaultRandom;
-};
+}
+/** A roll from the tile stream (seeded on the Daily Run), for tile picks made outside this file. */
+export const tileRoll = (): number => tileRandom();
+;
 /** The seeded stream's position, saved with a Daily Run so a resume continues the same sequence. */
 export const tileStreamState = (): number | null => (tileStream ? tileStream.state() : null);
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { GAMEPLAY } from '../config/gameplay';
 import { Tile } from '../types';
 
 interface TileProps {
@@ -81,7 +82,7 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
       {isSuperLook && <span className="tile-overlay ring-4 ring-red-400 animate-pulse" aria-hidden="true" />}
       {isGolden && (
         <span className="absolute top-0.5 left-1 z-20 text-[11px] font-extrabold leading-none px-1 py-0.5 rounded-full bg-[#3b2300] text-[#ffd23f] shadow-md" aria-hidden="true">
-          ★6X
+          ★x{GAMEPLAY.goldenRound.tileMultiplier}
         </span>
       )}
       {hintOrder !== undefined && (
