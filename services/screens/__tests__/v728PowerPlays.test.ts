@@ -38,7 +38,7 @@ describe('v7.28 PowerPlays', () => {
         expect(pp('priceIsRight').description).toContain(`+${V.priceIsRightBids[3].prize}`);
         expect(pp('timeCapsule').description).toContain(`x${V.timeCapsuleMultiplier} after ${V.timeCapsuleWords} more words`);
         expect(pp('jackass').description).toContain(`+${TIME_BONUS.jackass} seconds`);
-        expect(pp('chickenDinner').description).toContain('21 pays +400, 19-20 pays +200, 17-18 pays +100');
+        expect(pp('chickenDinner').description).toContain(`+${V.blackjackWin}`); // v7.67.1: a blackjack card
         expect(pp('smellYaLater').description).toContain(`+${V.rivalPrize}`);
     });
 });
@@ -90,7 +90,7 @@ describe('v7.28 scoring', () => {
 
 describe('v7.28 reducer paths', () => {
     test('arming from the pocket stores the right starting state', () => {
-        for (const [id, value] of [['redrum', { words: V.redrumWords }], ['chickenDinner', { total: 0 }], ['hadouken', { hits: V.hadoukenHits }], ['tamagotchi', { feeds: 0 }], ['over9000', { words: V.over9000Words }], ['timeCapsule', true], ['birdBox', true]] as const) {
+        for (const [id, value] of [['redrum', { words: V.redrumWords }], ['hadouken', { hits: V.hadoukenHits }], ['tamagotchi', { feeds: 0 }], ['over9000', { words: V.over9000Words }], ['timeCapsule', true], ['birdBox', true]] as const) {
             const s = start({ availablePowerPlays: [pp(id)] });
             const next = gameReducer(s, { type: 'ACTIVATE_POWER_PLAY', payload: pp(id) });
             expect(next.gameState.activePowerPlays[id], id).toEqual(value);
@@ -223,7 +223,7 @@ describe('random-tile PowerPlays pick from the whole rack (v7.28.1)', () => {
 describe('The Price Is Right: a missed bid costs points (v7.28.3)', () => {
     test('each bid risks half its prize, and the description says so', () => {
         for (const b of V.priceIsRightBids) expect(b.miss).toBe(b.prize / 2);
-        expect(pp('priceIsRight').description).toContain(`Miss and you lose ${V.priceIsRightBids.map(b => b.miss).join(', ')}`);
+        expect(pp('priceIsRight').description).toContain('Fall short and you lose 50, 100, 150 or 225');
     });
 });
 
@@ -274,7 +274,6 @@ describe('gamble cheese fixes (v7.28.9)', () => {
         expect(blackjackCard(0, roll(13))).toEqual({ face: 'K', value: 10 });
         expect(blackjackCard(5, roll(14))).toEqual({ face: 'A', value: 11 });
         expect(blackjackCard(15, roll(14))).toEqual({ face: 'A', value: 1 });
-        expect(pp('chickenDinner').description).toContain('each valid word deals you a card');
     });
 
     test('Mission: Impossible fires on pick: its mission card opens in the offer\'s place (v7.55.0)', () => {
@@ -311,5 +310,52 @@ describe('PowerPlay time pays in full (v7.40.1)', () => {
     test('the 90 s cap still applies', () => {
         const s = gameReducer(level9(85), { type: 'ACTIVATE_POWER_PLAY', payload: pp('timeBoost') } as any);
         expect(s.time).toBe(90);
+    });
+});
+
+describe('Chicken Dinner blackjack card and Gump Luck box (v7.67.1)', () => {
+    test('totals: faces 10, aces 11 or 1', async () => {
+        const { blackjackTotal } = await import('../../rules');
+        expect(blackjackTotal([14, 13])).toBe(21);
+        expect(blackjackTotal([14, 14, 9])).toBe(21);
+        expect(blackjackTotal([10, 9, 5])).toBe(24);
+        expect(blackjackTotal([14, 6, 10])).toBe(17);
+    });
+    test('the deal, hits and the dealer drawing to 17 come from the saved deck', async () => {
+        const { blackjackHands } = await import('../../rules');
+        const deck = [10, 7, 9, 5, 2, 3, 8, 10, 10, 10, 10, 10, 10, 10, 10, 10];
+        expect(blackjackHands(deck, 0, false)).toEqual({ player: [10, 7], dealer: [9, 5] });
+        // One hit takes the 2; standing then lets the dealer draw 3 (17) and stop.
+        expect(blackjackHands(deck, 1, true)).toEqual({ player: [10, 7, 2], dealer: [9, 5, 3] });
+        // A bust means the dealer doesn't draw.
+        expect(blackjackHands([10, 9, 9, 5, 5, 3], 1, true).dealer).toEqual([9, 5]);
+    });
+    test('results and prizes', async () => {
+        const { blackjackResult, blackjackPrize } = await import('../../rules');
+        expect(blackjackResult([14, 13], [10, 9])).toBe('natural');
+        expect(blackjackResult([14, 13], [14, 12])).toBe('push');
+        expect(blackjackResult([10, 9], [10, 8])).toBe('win');
+        expect(blackjackResult([10, 7], [10, 6, 9])).toBe('win'); // dealer busts
+        expect(blackjackResult([10, 7], [10, 7])).toBe('push');
+        expect(blackjackResult([10, 7], [10, 9])).toBe('lose');
+        expect(blackjackResult([10, 9, 5], [10, 7])).toBe('bust');
+        expect(blackjackResult([10, 9], [14, 13])).toBe('lose');
+        expect(blackjackPrize('natural')).toBe(V.blackjackNatural);
+        expect(blackjackPrize('win')).toBe(V.blackjackWin);
+        expect(blackjackPrize('push')).toBe(V.blackjackPush);
+        expect(blackjackPrize('lose')).toBe(0);
+        expect(blackjackPrize('bust')).toBe(0);
+    });
+    test('both open a card from the pocket; Gump Luck rolls 25% each', async () => {
+        const { GAMBLE_CARD_IDS } = await import('../../../components/GambleCard');
+        expect(GAMBLE_CARD_IDS).toContain('chickenDinner');
+        expect(GAMBLE_CARD_IDS).toContain('gumpLuck');
+        const { gumpRoll } = await import('../../rules');
+        expect([0, 0.3, 0.6, 0.9].map(r => gumpRoll(() => r))).toEqual(['time', 'points', 'shuffle', 'empty']);
+    });
+    test('a Gump shuffle from the card adds a shuffle', () => {
+        const s = start({ shuffleCount: 2 });
+        const next = gameReducer(s, { type: 'APPLY_GAMBLE', payload: { powerPlay: pp('gumpLuck'), shuffles: 1, headline: '+1 SHUFFLE', detail: '', tone: 'win' } });
+        expect(next.gameState.shuffleCount).toBe(3);
     });
 });

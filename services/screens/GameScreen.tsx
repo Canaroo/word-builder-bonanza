@@ -280,7 +280,7 @@ type GameAction =
     | { type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: boolean }
     | { type: 'CHARM_PAYOUT', payload: { id: string; points: number; description: string } }
     | { type: 'RESUME_COUNTDOWN_TICK' }
-    | { type: 'APPLY_GAMBLE', payload: { powerPlay: PowerPlay; points?: number; seconds?: number; headline: string; detail: string; tone: 'win' | 'lose' | 'neutral' } }
+    | { type: 'APPLY_GAMBLE', payload: { powerPlay: PowerPlay; points?: number; seconds?: number; shuffles?: number; headline: string; detail: string; tone: 'win' | 'lose' | 'neutral' } }
     | { type: 'NEURALYZE', payload: { powerPlay: PowerPlay } }
     | { type: 'JACKASS', payload: { powerPlay: PowerPlay } }
     | { type: 'BLACKJACK_STAND' }
@@ -825,7 +825,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             };
         }
         case 'APPLY_GAMBLE': {
-            const { powerPlay, points: listed = 0, seconds = 0, tone } = action.payload;
+            const { powerPlay, points: listed = 0, seconds = 0, shuffles = 0, tone } = action.payload;
             // Point prizes grow with the level (PRIZE_GROWTH); the card shows the listed prize, so say what changed.
             const points = prizeFor(listed, runLevel(gameState));
             const boosted = points !== listed;
@@ -842,6 +842,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 modalContent: outcome(powerPlay, headline, detail, tone),
                 gameState: {
                     ...gameState, score, log: [...gameState.log, entry],
+                    ...(shuffles ? { shuffleCount: gameState.shuffleCount + shuffles } : {}),
                     availablePowerPlays: gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id),
                     powerPlayUses: { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 },
                 },
@@ -5799,7 +5800,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     const handleResolveGamble = (r: GambleResult) => {
         const powerPlay = ppById(state.modalContent?.data?.id);
         if (!powerPlay) return;
-        dispatch({ type: 'APPLY_GAMBLE', payload: { powerPlay, points: r.points, seconds: r.seconds, headline: r.headline, detail: r.detail, tone: r.tone } });
+        dispatch({ type: 'APPLY_GAMBLE', payload: { powerPlay, points: r.points, seconds: r.seconds, shuffles: r.shuffles, headline: r.headline, detail: r.detail, tone: r.tone } });
         if (r.strike) dispatch({ type: 'ADD_STRIKE' });
         // The Price Is Right: the bid waits for the next word.
         if (r.arm) dispatch({ type: 'UPDATE_GAME_STATE', payload: {
@@ -5987,45 +5988,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 powerPlayUses: { ...gameState.powerPlayUses, multiplicity: (gameState.powerPlayUses.multiplicity || 0) + 1 },
                 lastPowerPlayResult: { message: `👯 Copied ${last.icon} ${last.name}. It's in your pocket.`, scoreChange: 0 },
             } });
-            return;
-        }
-        if (powerPlay.id === 'gumpLuck') {
-            soundService.playPowerUp();
-            const rand = Math.random();
-            let outcomeMessage = '';
-            let changes: Partial<GameState> = {};
-            let timeChange = 0;
-            const points = prizeFor(POWER_PLAY_VALUES.gumpLuckPoints, runLevel(gameState));
-    
-            if (rand < 0.25) { // bonus seconds
-                timeChange = powerPlaySeconds(TIME_BONUS.rescue);
-                outcomeMessage = `Life is like a box of chocolates... you got ${timeChange} extra seconds!`;
-            } else if (rand < 0.5) { // points
-                changes.score = gameState.score + points;
-                outcomeMessage = `Life is like a box of chocolates... you got a ${points} point bonus!`;
-            } else if (rand < 0.75) { // +1 shuffle
-                changes.shuffleCount = gameState.shuffleCount + 1;
-                outcomeMessage = "Life is like a box of chocolates... you got an extra shuffle!";
-            } else { // a dud
-                outcomeMessage = "Life is like a box of chocolates... this one was empty. Stupid is as stupid does.";
-            }
-    
-            const scoreChange = changes.score ? points : 0;
-            const cumulativeScore = changes.score || (gameState.score + scoreChange);
-            const newLogEntry: EventLogEntry = {
-                type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
-                description: outcomeMessage, icon: '🍫',
-                scoreChange: scoreChange, cumulativeScore: cumulativeScore
-            };
-            changes.log = [...gameState.log, newLogEntry];
-            changes.availablePowerPlays = gameState.availablePowerPlays.filter(p => p.id !== powerPlay.id);
-            changes.powerPlayUses = { ...gameState.powerPlayUses, [powerPlay.id]: (gameState.powerPlayUses[powerPlay.id] || 0) + 1 };
-    
-            dispatch({ type: 'UPDATE_GAME_STATE', payload: changes });
-            if (timeChange > 0) dispatch({ type: 'ADD_TIME', payload: timeChange });
-            
-            const gumpHeadline = timeChange > 0 ? `+${timeChange} SECONDS` : changes.score ? `+${points} POINTS` : changes.shuffleCount ? '+1 SHUFFLE' : 'EMPTY BOX';
-            dispatch({ type: 'SET_MODAL_CONTENT', payload: outcome(powerPlay, gumpHeadline, outcomeMessage, gumpHeadline === 'EMPTY BOX' ? 'lose' : 'win') });
             return;
         }
 

@@ -182,6 +182,18 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   level, the clock dropping under 10 s adds +15 s (charm time, shrinks by level; `ctuLevel`,
   `CTU_RESCUE`, `TIME_BONUS.ctuSafeHouse`); it used to swap in a 4-point tile after a word under 20
   points, which almost never happened past level 3. Browser-checked: 9 s left → +15.
+- **PowerPlay copy pass, batch 2 (v7.67.1, the owner approved):** 28 PowerPlay texts reworded (no
+  "arms right away", "round", "turn", "rack", "Super Tile" or "time bank"; odds said plainly; Smell
+  Ya Later!'s rival is Gary). Groundhog's Day says "Once per run" (it's `oncePerRun`; the old text
+  said "Stacks"). **Gump Luck is a card** (`GumpBox` in `GambleCard.tsx`, `gumpRoll` in
+  `services/rules.ts`): a box of 6 chocolates, tap one to unwrap it; same 25% odds (+10 s, +75 a
+  prize, +1 shuffle via `shuffles` on `GambleResult`/`APPLY_GAMBLE`, empty), rolled when the box
+  opens and saved. **Winner Winner Chicken Dinner is a blackjack card** (`Blackjack`,
+  `blackjackHands`/`blackjackTotal`/`blackjackResult`/`blackjackPrize`, `blackjackWin` 300 /
+  `blackjackNatural` 500 / `blackjackPush` 100, dealer stands on 17): one hand vs. the dealer with
+  HIT and STAND, the 16-card deck dealt up front and saved. It was a card per word with a chip to
+  stand (picked 5 of 26 offers, used 4 times); the old per-word game and `BLACKJACK_STAND` still
+  settle saved runs. Simulated: about +142 a hand on average, paying in about half of hands.
 - **Feature tracking (v7.61.1):** `fork` (choice incl. `bail`, level, clock, advice), `golden`
   (level, score, tile, ok), `gate` (gate, played/skip, points) events; `pp_use` extra `tape`;
   `run_end` extras from `runEndExtras()` (golden, route, bails, skill, gems, lastWords). Shown in a
@@ -290,7 +302,7 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   a progress chip above the hand (`components/PowerPlayTrackers.tsx`): Tamagotchi (pot), Time
   Capsule (buried word), Smell Ya Later! (rival race), Winner Winner Chicken Dinner (each valid word
   deals a random card, tap the chip to stand), Hadouken! (boss hits), The Price Is Right (bid), Psychic Friends Network
-  (next tiles). Jackass takes a strike on purpose (shields don't stop it, never the last strike).
+  (next tiles). Chicken Dinner left this list in v7.67.1 (now a blackjack card). Jackass takes a strike on purpose (shields don't stop it, never the last strike).
 - **Timed, blind and bet PowerPlays fire on pick** (`INSTANT_POWER_PLAY_IDS`): Pop Quiz, Hotshot,
   Smell Ya Later!, Bird Box, Daily Double and Mission: Impossible start on the fresh hand when chosen
   from the offer.

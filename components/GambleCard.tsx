@@ -2,8 +2,8 @@ import { hotTubIndex, wildcardIndex, MISSIONS, missionById } from '../services/r
 import { Sec } from './Seconds';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import ArcadeButton, { NamedLabel } from './ArcadeButton';
-import { POWER_PLAY_VALUES as V } from '../config/gameplay';
-import { doorsForRound, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, WHAMMY_BOARD, whammySpin, whammySquareFor, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout } from '../services/rules';
+import { POWER_PLAY_VALUES as V, TIME_BONUS } from '../config/gameplay';
+import { doorsForRound, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, WHAMMY_BOARD, whammySpin, whammySquareFor, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout, blackjackHands, blackjackTotal, blackjackResult, blackjackPrize, gumpRoll, type GumpPrize } from '../services/rules';
 import { createTile, createTileBag, shuffleArray } from '../services/gameUtils';
 import { timesProblem, type TimesProblem } from '../services/miniGameRules';
 import type { Tile } from '../types';
@@ -25,6 +25,8 @@ export interface GambleResult {
   tile?: string;
   /** Scrooge's Money Bin (v7.55.0): Credits caught (paid outside the run). */
   credits?: number;
+  /** Gump Luck (v7.67.1): extra shuffles. */
+  shuffles?: number;
 }
 
 // A gamble card's board is saved with the run (v7.28.9). Without it, quitting and resuming brought
@@ -1247,12 +1249,114 @@ const FifthGrader: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onRes
   );
 };
 
+/**
+ * Winner Winner Chicken Dinner (v7.67.1, the owner's pick): one hand of blackjack against the dealer,
+ * on the spot. The deck is dealt up front and saved (useSaved), so a quit can't redeal; the dealer
+ * draws to 17. Beat the dealer +300, blackjack +500, a tie +100 (prizes grow with the level).
+ */
+const Blackjack: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
+  const [deck] = useSaved('deck', () => Array.from({ length: V.blackjackDeck }, () => drawCard()));
+  const [hits, setHits] = useSaved('hits', 0);
+  const [stood, setStood] = useSaved('stood', false);
+  const mine = blackjackHands(deck, hits, false).player;
+  const myTotal = blackjackTotal(mine);
+  const over = stood || myTotal >= V.blackjackTarget;
+  const { player, dealer } = blackjackHands(deck, hits, over);
+  const result = over ? blackjackResult(player, dealer) : null;
+  const prize = result ? blackjackPrize(result) : 0;
+  const card = (c: number | null, i: number, fresh: boolean) => (
+    <div key={i} className={`w-12 h-16 rounded-lg flex items-center justify-center font-display text-2xl shadow-md ${c === null ? 'bg-[repeating-linear-gradient(45deg,#ff2d95_0_6px,#7a1250_6px_12px)] ring-2 ring-white/60' : 'bg-white text-slate-900'} ${fresh ? 'level-stage-in' : ''}`}
+      aria-label={c === null ? 'Face-down card' : `Card ${cardFace(c)}`}>{c === null ? '' : cardFace(c)}</div>
+  );
+  const hit = () => { if (over) return; soundService.playTileClick(); setHits(hits + 1); };
+  const stand = () => { if (over) return; soundService.playTileClick(); setStood(true); };
+  const dTotal = blackjackTotal(dealer);
+  const lines: Record<string, { headline: string; detail: string }> = {
+    natural: { headline: `BLACKJACK! +${prize}`, detail: 'Twenty-one with your first two cards. Winner winner, chicken dinner!' },
+    win: { headline: `CHICKEN DINNER! +${prize}`, detail: dTotal > V.blackjackTarget ? `The dealer busted with ${dTotal}. You stood on ${myTotal}.` : `Your ${myTotal} beat the dealer's ${dTotal}.` },
+    push: { headline: `A TIE: +${prize}`, detail: `You both had ${myTotal}. The house gives you a little something.` },
+    lose: { headline: 'THE DEALER WINS', detail: `The dealer's ${dTotal} beat your ${myTotal}. No chicken tonight.` },
+    bust: { headline: `BUST! ${myTotal}`, detail: 'You went over 21. No chicken tonight.' },
+  };
+  return (
+    <>
+      <p className="text-slate-200 text-sm leading-snug">Get closer to 21 than the dealer without going over. J, Q, K count 10; an A counts 11 or 1.</p>
+      <p className="osd-text text-base text-slate-300 leading-none">WIN +{V.blackjackWin} · BLACKJACK +{V.blackjackNatural} · TIE +{V.blackjackPush}</p>
+      <div className="w-full flex flex-col gap-2" aria-live="polite">
+        <div className="flex items-center gap-2">
+          <span className="osd-text text-base text-slate-400 w-16 text-left">DEALER</span>
+          <div className="flex gap-1.5 flex-wrap">{(over ? dealer : [dealer[0], null]).map((c, i) => card(c, i, over && i >= 1))}</div>
+          {over && <span className="font-display text-xl text-white ml-auto">{dTotal}</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="osd-text text-base text-slate-400 w-16 text-left">YOU</span>
+          <div className="flex gap-1.5 flex-wrap">{player.map((c, i) => card(c, i, i >= 2 && i === player.length - 1))}</div>
+          <span className={`font-display text-xl ml-auto ${myTotal > V.blackjackTarget ? 'text-neon-red' : 'text-neon-yellow'}`}>{myTotal}</span>
+        </div>
+      </div>
+      {!over ? (
+        <div className="grid grid-cols-2 gap-2 w-full">
+          <ArcadeButton color="cyan" onClick={hit}>Hit</ArcadeButton>
+          <ArcadeButton color="pink" onClick={stand}>Stand</ArcadeButton>
+        </div>
+      ) : (
+        <>
+          <p className={`font-display text-2xl ${prize ? 'text-neon-green' : 'text-neon-red'}`}>{lines[result!].headline}</p>
+          <ArcadeButton color="green" className="w-full" onClick={() => onResolve({ points: prize, headline: lines[result!].headline, detail: lines[result!].detail, tone: prize ? 'win' : 'lose' })}>{prize ? `Take +${prize}` : 'Continue'}</ArcadeButton>
+        </>
+      )}
+    </>
+  );
+};
+
+/**
+ * Gump Luck (v7.67.1, the owner's ask: something to tap): a box of chocolates. Tap one to unwrap it.
+ * What's inside is rolled when the box opens and saved, so a quit can't reroll it; 25% each.
+ */
+const GUMP_SHOW: Record<GumpPrize, { icon: string; label: React.ReactNode }> = {
+  time: { icon: '⏱️', label: <>+{TIME_BONUS.rescue}<Sec /></> },
+  points: { icon: '💰', label: `+${V.gumpLuckPoints}` },
+  shuffle: { icon: '🔀', label: '+1 SHUFFLE' },
+  empty: { icon: '🫥', label: 'EMPTY' },
+};
+const GumpBox: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
+  const [prize] = useSaved<GumpPrize>('prize', () => gumpRoll());
+  const [picked, setPicked] = useSaved<number | null>('picked', null);
+  const pick = (i: number) => { if (picked !== null) return; soundService.playTileClick(); try { navigator.vibrate?.(15); } catch { /* */ } setPicked(i); };
+  const result: GambleResult =
+    prize === 'time' ? { seconds: TIME_BONUS.rescue, headline: `+${TIME_BONUS.rescue} SECONDS`, detail: 'A clock-shaped chocolate. Tastes like extra time.', tone: 'win' }
+    : prize === 'points' ? { points: V.gumpLuckPoints, headline: `+${V.gumpLuckPoints} POINTS`, detail: 'A gold-foil truffle. Sweet!', tone: 'win' }
+    : prize === 'shuffle' ? { shuffles: 1, headline: '+1 SHUFFLE', detail: 'A nut cluster. Shake things up: you get one more shuffle.', tone: 'win' }
+    : { headline: 'EMPTY WRAPPER', detail: 'Somebody already ate this one. Stupid is as stupid does.', tone: 'lose' };
+  return (
+    <>
+      <p className="text-slate-200 text-sm leading-snug">Pick a chocolate and unwrap it: +{TIME_BONUS.rescue} seconds, +{V.gumpLuckPoints} points, +1 shuffle or an empty wrapper.</p>
+      <div className="grid grid-cols-3 gap-2 w-full max-w-[16rem] rounded-xl bg-[#5a2e1a] ring-4 ring-[#c9a227] p-2.5">
+        {Array.from({ length: V.gumpLuckChocolates }, (_, i) => {
+          const open = picked === i;
+          return (
+            <button key={i} type="button" data-testid="gump-chocolate" disabled={picked !== null} onClick={() => pick(i)}
+              aria-label={open ? `Chocolate ${i + 1}: ${prize}` : `Chocolate ${i + 1}`}
+              className={`aspect-square rounded-full flex flex-col items-center justify-center select-none transition-transform active:scale-90 ${open ? 'bg-crt-950 ring-2 ring-neon-yellow level-stage-in' : picked !== null ? 'bg-[#3b1d10] opacity-40' : 'bg-[radial-gradient(circle_at_35%_30%,#a0522d,#4a2511)] ring-2 ring-[#e8c766]/70 hover:scale-105'}`}>
+              {open ? (<><span className="text-2xl leading-none" aria-hidden="true">{GUMP_SHOW[prize].icon}</span><span className="font-display text-[11px] leading-tight text-white mt-0.5">{GUMP_SHOW[prize].label}</span></>)
+                : <span className="text-2xl leading-none" aria-hidden="true">🍬</span>}
+            </button>
+          );
+        })}
+      </div>
+      {picked === null
+        ? <p className="osd-text text-base text-slate-300">TAP A CHOCOLATE</p>
+        : <ArcadeButton color={prize === 'empty' ? 'pink' : 'green'} className="w-full" onClick={() => onResolve(result)}>{prize === 'empty' ? 'Continue' : 'Take it'}</ArcadeButton>}
+    </>
+  );
+};
+
 const GAMES: Record<string, React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[]; extra?: Record<string, unknown> }>> = {
   letsMakeADeal: Doors, dealOrNoDeal: Deal, noWhammies: Whammies, minesweeper: Mines,
   priceIsRight: PriceIsRight, psychicFriends: PsychicCall, draftDay: DraftDay, cardSharks: CardSharks, plinko: Plinko,
   hotTubTimeMachine: HotTub, luckyCharms: LuckyCharms, wildcard: Wildcard,
   shakeItLikeAPolaroid: Polaroid, duckHunt: DuckHunt, scroogeSwipe: MoneyBin, warioWarp: WarioBags, missionImpossible: Mission,
-  fifthGrader: FifthGrader,
+  fifthGrader: FifthGrader, chickenDinner: Blackjack, gumpLuck: GumpBox,
 };
 
 /** The interactive part of a gamble PowerPlay. */

@@ -125,6 +125,7 @@ export const POWER_PLAY_VALUES = {
   doubleOrNothingWinChance: 0.6, // otherwise the word scores 0
   nuclearOptionMultiplier: 3,    // next word, on top of the fresh hand
   gumpLuckPoints: 75,            // one of Gump Luck's four outcomes
+  gumpLuckChocolates: 6,         // v7.67.1: chocolates in the box (tap one to unwrap it)
   spaceInvaderMultiplier: 3,     // Space Invader: 50% for this...
   spaceInvaderCap: 5,            // ...or the word is capped at this many points
   // v7.25 gambles. Expected values sit near Fluncle's sure +300 so a gamble is worth the risk.
@@ -212,6 +213,14 @@ export const POWER_PLAY_VALUES = {
   // Winner Winner Chicken Dinner: the letters of your words add up. Stand any time; over 21 busts.
   blackjackTarget: 21,
   blackjackPayouts: [{ min: 21, points: 400 }, { min: 19, points: 200 }, { min: 17, points: 100 }],
+  // v7.67.1 (the owner's pick): Chicken Dinner is a hand of blackjack against the dealer, played on
+  // the spot (it was a card a word, stand by tapping a chip: picked 5 of 26 offers, used 4 times).
+  // The old per-word game still settles for saved runs. The dealer stands on 17. Prizes grow with the level.
+  blackjackWin: 300,       // beat the dealer (or the dealer busts)
+  blackjackNatural: 500,   // 21 with your first two cards
+  blackjackPush: 100,      // a tie
+  blackjackDealerStands: 17,
+  blackjackDeck: 16,       // cards dealt up front and saved, so a quit can't redeal
   // Card Sharks: higher or lower on cards 2-14 (A high). The pot after each right call; a tie is a free pass.
   cardSharksLadder: [50, 125, 225, 375, 600],
   // v7.29.1 reworks of PowerPlays nobody picked (stats: 0 picks in 24-35 offers each).
