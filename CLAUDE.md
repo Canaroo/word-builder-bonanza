@@ -112,6 +112,15 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   An open gamble card keeps its board in the pop-up (`useSaved` in `GambleCard.tsx`, action
   `SET_GAMBLE_STATE`), so quitting and resuming restores it instead of redealing. New card games
   use `useSaved` for any state, especially the opening deal.
+- **Golden Round reworked (v7.60.0, `GAMEPLAY.goldenRound`):** the Golden word used to be raw tile
+  points x2 (x6 with the Golden Tile), skipping length, charms and upgrades: a median 108 points,
+  about half a normal word from level 7 on. Now it scores like a normal word (tiles incl. x2 tiles,
+  length, charms from `calculateScore` with `roundType: 'normal'` and no PowerPlays, upgrades,
+  long-word boost), then x2 as a "🌟 Golden Round" line, x4 with the Golden Tile ("🌟 Golden Tile").
+  Browser-checked: PATRONS with Rubik's Cube 572 with the tile (old rules: 132), 286 without. The
+  Golden Tile comes from the tile stream (`tileRoll()` in `gameUtils.ts`, same on the Daily), Golden
+  words open Score Gates (`openGates`), and a missed round no longer raises the next target. The ★
+  GOLDEN box has a bar and turns into "★ N MORE!" with a glow from `chipFrom` words away.
 - **WILDCARD (v7.50.0)** (`wildcard`, `Wildcard` in `GambleCard.tsx`, odds in
   `POWER_PLAY_VALUES.wildcard`): a pocket gamble card. The owner's GIF plays at the top
   (`public/powerplays/wildcard.webp`, v7.50.1: the van "YEEEHAAAAA!" clip from the owner's imgur

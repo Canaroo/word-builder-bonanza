@@ -395,6 +395,32 @@ const bonesModal = (gs: GameState, wordsBefore: number): ModalContent | null => 
     return { type: 'bones', title: `${bone.name} fell here`, data: { bone } };
 };
 
+/**
+ * Score gates (v7.39.0): the first word at or past a gate opens its event, once per run. v7.60.0:
+ * shared by normal and Golden words (a Golden word that crossed a gate used to open it a word late).
+ */
+const GATE_LIST = [['password', GATES.password], ['bonusStage', GATES.bonusStage], ['ladder', GATES.ladder], ['bigOne', GATES.bigOne]] as const;
+const GATE_NAMES = { password: 'the password challenge', bonusStage: 'the bonus stage', ladder: 'the Word Ladder', bigOne: 'the Big One' } as const;
+const openGates = (gs: GameState, modalQueue: ModalContent[], logQueue: EventLogEntry[], now: number): void => {
+    for (const [kind, gate] of GATE_LIST) {
+        if (gs.score >= gate.score && !(gs.gatesPassed ?? []).includes(gate.score)) {
+            gs.gatesPassed = [...(gs.gatesPassed ?? []), gate.score];
+            // The 70K Club badge is earned by reaching the gate (v7.49).
+            const badgeNew = kind === 'bigOne' ? earnCosmetic(GATES.bigOne.badgeId) : false;
+            modalQueue.push({ type: 'minigame', title: `The ${gate.score.toLocaleString()} Gate`, data: {
+                id: kind, gate: gate.score,
+                ...(kind === 'password' ? { password: pickGatePassword(gs.daily) } : {}),
+                ...(kind === 'bigOne' ? { badgeNew } : {}),
+            } });
+            logQueue.push({ type: 'event', id: `gate-${gate.score}-${now}`, name: `The ${gate.score.toLocaleString()} Gate`, icon: '🚪', description: `Crossed the gate: ${GATE_NAMES[kind]}.${badgeNew ? ' Earned the 💎 70K Club badge.' : ''}`, scoreChange: 0, cumulativeScore: gs.score } as EventLogEntry);
+        }
+    }
+};
+
+/** The next score gate this run hasn't crossed (for the marker under the score), or null. */
+export const nextGateFor = (gs: { score: number; gatesPassed?: number[] } | null | undefined): number | null =>
+    gs ? (GATE_LIST.map(([, g]) => g.score).find(s => !(gs.gatesPassed ?? []).includes(s) && s > gs.score) ?? null) : null;
+
 /** Fork in the Road (v7.43): the route card, when this word levels up into a fork level. */
 const forkModal = (wordsBefore: number, gs?: GameState, clock?: number): ModalContent | null => {
     const level = levelFor(wordsBefore + 1);
@@ -3100,7 +3126,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     const updatedGameState = {
         ...gameState,
         roundType: 'normal' as const,
-        goldenRoundThreshold: gameState.goldenRoundThreshold + 5,
+        // v7.60.0: a missed Golden Round doesn't raise the next target (only a played one does).
         goldenTileId: null,
         consecutiveValidWords: 0,
     };
@@ -3738,7 +3764,22 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       // --- A: GOLDEN ROUND SUBMISSION ---
         if (newState.roundType === 'golden') {
-            scoreResult = gameUtils.calculateScore(word, submittedTiles, newState);
+            // v7.60.0: the Golden word scores in full first (tiles, length, charms; no PowerPlay
+            // multipliers, which a Golden word doesn't count down), then the whole word x2, x4 with
+            // the Golden Tile.
+            const G = GAMEPLAY.goldenRound;
+            const full = gameUtils.calculateScore(word, submittedTiles, { ...newState, roundType: 'normal', activePowerPlays: {} });
+            const lines = [...full.bonuses];
+            let pts = full.totalScore;
+            const goldUp = charmUpgradePoints(lines, upgradedCharmNames);
+            if (goldUp > 0) { pts += goldUp; lines.push({ name: '⭐ Charm upgrades', description: `+${goldUp} pts (${CHARM_UPGRADE.percent}% more from upgraded charms)` }); }
+            const goldLong = charmLengthPoints(lines, lengthBoostCharmNames, word.length);
+            if (goldLong > 0) { pts += goldLong; lines.push({ name: '📏 Long word', description: `+${goldLong} pts (charm points +${charmLengthBoostFor(word.length)}% for ${word.length} letters)` }); }
+            const usedGoldenTile = submittedTiles.some(t => t.id === newState.goldenTileId);
+            const goldMult = usedGoldenTile ? G.tileMultiplier : G.multiplier;
+            const goldExtra = Math.round(pts * (goldMult - 1));
+            lines.push({ name: usedGoldenTile ? '🌟 Golden Tile' : '🌟 Golden Round', description: `+${goldExtra} pts (x${goldMult} whole word${usedGoldenTile ? '' : `; the Golden Tile makes it x${G.tileMultiplier}`})` });
+            scoreResult = { ...full, totalScore: Math.round(pts * goldMult), bonuses: lines };
             if (newState.activeCharms.some(c => c.id === 'goldenGirls')) {
                 const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.goldenGirlsPercent / 100);
                 scoreResult = { ...scoreResult, totalScore: scoreResult.totalScore + bonus, bonuses: [...scoreResult.bonuses, { name: 'Thank You for Being a Friend', description: `+${bonus} pts (${CHARM_BONUS.goldenGirlsPercent}%)` }] };
@@ -3757,6 +3798,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 definition: validationDef, status: 'valid', cumulativeScore: newState.score
             };
             newState.log = [...newState.log, wordLogEntry];
+            const goldenGateLog: EventLogEntry[] = [];
+            openGates(newState, modalQueue, goldenGateLog, Date.now());
+            if (goldenGateLog.length) newState.log = [...newState.log, ...goldenGateLog];
             
             newState.roundType = 'normal';
             newState.goldenRoundThreshold += 5;
@@ -4944,20 +4988,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       newState.score = Math.round(runningScore);
 
       // Score gates (v7.39.0): the first word at or past a gate opens its event, once per run.
-      const gateNames = { password: 'the password challenge', bonusStage: 'the bonus stage', ladder: 'the Word Ladder', bigOne: 'the Big One' } as const;
-      for (const [kind, gate] of [['password', GATES.password], ['bonusStage', GATES.bonusStage], ['ladder', GATES.ladder], ['bigOne', GATES.bigOne]] as const) {
-          if (newState.score >= gate.score && !(newState.gatesPassed ?? []).includes(gate.score)) {
-              newState.gatesPassed = [...(newState.gatesPassed ?? []), gate.score];
-              // The 70K Club badge is earned by reaching the gate (v7.49).
-              const badgeNew = kind === 'bigOne' ? earnCosmetic(GATES.bigOne.badgeId) : false;
-              modalQueue.push({ type: 'minigame', title: `The ${gate.score.toLocaleString()} Gate`, data: {
-                  id: kind, gate: gate.score,
-                  ...(kind === 'password' ? { password: pickGatePassword(newState.daily) } : {}),
-                  ...(kind === 'bigOne' ? { badgeNew } : {}),
-              } });
-              eventLogQueue.push({ type: 'event', id: `gate-${gate.score}-${now}`, name: `The ${gate.score.toLocaleString()} Gate`, icon: '🚪', description: `Crossed the gate: ${gateNames[kind]}.${badgeNew ? ' Earned the 💎 70K Club badge.' : ''}`, scoreChange: 0, cumulativeScore: runningScore });
-          }
-      }
+      openGates(newState, modalQueue, eventLogQueue, now);
 
       // --- Handle Coin Award ---
       const turnScore = newState.score - oldScore;
@@ -5271,14 +5302,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           newState = creditTime(newState, 'goldenRounds', 1);
           const handTiles = finalHand.filter((t): t is Tile => t !== null);
           if (handTiles.length > 0) {
-              const randomTile = handTiles[Math.floor(Math.random() * handTiles.length)];
+              // v7.60.0: from the tile stream, so the Daily Challenge deals everyone the same Golden Tile.
+              const randomTile = handTiles[Math.floor(gameUtils.tileRoll() * handTiles.length)];
               newState.goldenTileId = randomTile.id;
           }
           
           modalQueue.push({
               type: 'info',
               title: '🌟 GOLDEN ROUND! 🌟',
-              content: `Your streak has unlocked a Golden Round!\n\n- ${GAMEPLAY.goldenRoundSeconds}-second clock (your time bank waits)\n- No Strikes\n- All tiles are worth 2x points.\n- Use the special Golden Tile for a 6x WORD SCORE multiplier!`
+              data: { golden: true },
+              content: `Your streak unlocked a Golden Round: one word, scored big.\n\n- ${GAMEPLAY.goldenRoundSeconds}-second clock (your time bank waits)\n- No strikes\n- Your word scores in full (charms too), then x${GAMEPLAY.goldenRound.multiplier}\n- Use the glowing ★ Golden Tile and it's x${GAMEPLAY.goldenRound.tileMultiplier}!`
           });
           
           newState.consecutiveValidWords = 0;

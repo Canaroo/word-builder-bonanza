@@ -187,8 +187,9 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
         <Section title="Golden Round" icon="🌟" tone="text-neon-yellow">
           <p>
             Chain enough valid words to unlock a Golden Round: <Key>{GAMEPLAY.goldenRoundSeconds} seconds</Key> on its own
-            clock while your bank waits, all tiles worth <Key>2x</Key>, and a <Key>Golden Tile</Key> worth a{' '}
-            <Key>6x</Key> word score.
+            clock while your bank waits, and no strikes. Your one word scores in full (length, charms and all), then{' '}
+            <Key>x{GAMEPLAY.goldenRound.multiplier}</Key>, or <Key>x{GAMEPLAY.goldenRound.tileMultiplier}</Key> if it uses the
+            glowing <Key>★ Golden Tile</Key>. The ★ GOLDEN box counts your streak; a strike resets it.
           </p>
         </Section>
 

@@ -948,7 +948,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         <div className="golden-banner flex-shrink-0 rounded-lg px-3 py-1.5 text-center" role="status">
           <div className="font-display text-lg leading-none text-crt-900">★ GOLDEN ROUND ★</div>
           <div className="osd-text text-base leading-tight text-crt-900/80">
-            TILES 2X · <span className="text-crt-900 font-bold">★ GOLDEN {goldenLetter ?? 'TILE'} = 6X</span> · NO STRIKES
+            ONE WORD · x{GAMEPLAY.goldenRound.multiplier} · <span className="text-crt-900 font-bold">USE ★ {goldenLetter ?? 'THE GOLDEN TILE'} = x{GAMEPLAY.goldenRound.tileMultiplier}</span> · NO STRIKES
           </div>
         </div>
       )}
@@ -984,10 +984,25 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         return (
           <div className={`grid gap-1.5 w-full flex-shrink-0 ${(gameState?.roundType ?? 'normal') === 'normal' ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {(gameState?.roundType ?? 'normal') === 'normal' && (
-              <div className={cell} aria-label={`Golden Round streak ${gameState?.consecutiveValidWords ?? 0} of ${gameState?.goldenRoundThreshold ?? 11}`}>
-                <span className={label}>★ Golden</span>
-                <span className="font-osd text-lg leading-none text-neon-yellow tabular-nums">{gameState?.consecutiveValidWords ?? 0}/{gameState?.goldenRoundThreshold ?? 11}</span>
-              </div>
+              (() => {
+                // v7.60.0: a bar like the meter beside it, and a countdown once the round is close.
+                const have = gameState?.consecutiveValidWords ?? 0;
+                const need = gameState?.goldenRoundThreshold ?? 11;
+                const left = Math.max(0, need - have);
+                const close = left > 0 && left <= GAMEPLAY.goldenRound.chipFrom;
+                return (
+                  <div className={`${cell} ${close ? '!ring-neon-yellow shadow-glow-yellow' : ''}`} data-testid="golden-streak"
+                    aria-label={`Golden Round streak ${have} of ${need}. ${left} more valid words in a row for a Golden Round; a strike resets it.`}>
+                    <span className={`${label} flex justify-between ${close ? '!text-neon-yellow animate-pulse' : ''}`}>
+                      <span>{close ? `★ ${left} more!` : '★ Golden'}</span>
+                      <span className="text-slate-300 tabular-nums">{have}/{need}</span>
+                    </span>
+                    <div className="h-2 rounded-full bg-crt-600 overflow-hidden">
+                      <div className="h-full rounded-full bg-neon-yellow transition-all duration-500" style={{ width: `${Math.min(100, (have / need) * 100)}%` }} />
+                    </div>
+                  </div>
+                );
+              })()
             )}
             <div className={cell} aria-label={`PowerPlay meter ${letters} of ${needed} letters`}>
               <span className={`${label} flex justify-between`}><span>PowerPlay</span><span className="text-slate-300 tabular-nums">{letters}/{needed}</span></span>

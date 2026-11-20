@@ -77,6 +77,13 @@ export const GAMEPLAY = {
 
   /** The Golden Round's own clock. Running out ends the Golden Round, not the run. */
   goldenRoundSeconds: 30,
+  /**
+   * v7.60.0: the Golden word scores like any word (tiles, length, charms, upgrades, long-word boost),
+   * then the whole word is multiplied: x`multiplier`, or x`tileMultiplier` with the Golden Tile. It
+   * used to be raw tile points x2 (x6 with the tile), no charms or length: a median of 108 points,
+   * about half a normal word from level 7 on (208).
+   */
+  goldenRound: { multiplier: 2, tileMultiplier: 4, chipFrom: 3 },
 
   /** Word score multiplier by length (a smooth curve instead of one jump at 5). */
   lengthMultipliers: { 4: 1.25, 5: 1.5, 6: 2, 7: 2.5, 8: 3 } as Record<number, number>,
