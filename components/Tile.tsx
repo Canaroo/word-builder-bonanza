@@ -60,7 +60,7 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
     ? 'golden-tile'
     : tile.isCombo
     ? 'bg-green-500 text-white'
-    : (tile.isSuper || (hasMultiplier && tile.multiplier === 4)
+    : (tile.isSuper || (hasMultiplier && tile.multiplier === 4 && !tile.isGem)
         ? 'bg-red-600 text-white' 
         : (hasMultiplier
             ? (tile.isGem ? 'bg-gradient-to-br from-cyan-300 to-teal-600 text-crt-900' : 'bg-purple-600 text-white')
@@ -68,7 +68,7 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
                 ? 'bg-amber-400 text-slate-900 animate-pulse' 
                 : packTileClass)));
   
-  const isSuperLook = tile.isSuper || (hasMultiplier && tile.multiplier === 4);
+  const isSuperLook = tile.isSuper || (hasMultiplier && tile.multiplier === 4 && !tile.isGem);
 
 
   return (
@@ -97,17 +97,19 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
       )}
       <span className={`z-10 font-tile font-extrabold leading-none ${tile.letter.length > 2 ? 'text-base' : tile.letter.length > 1 ? 'text-xl' : 'text-[1.7rem]'}`}>{tile.letter}</span>
       <span className="absolute bottom-0.5 right-1 font-osd text-sm leading-none z-10">{tile.tempPoints ?? tile.points}</span>
-      {(tile.isSuper || (hasMultiplier && tile.multiplier === 4)) && (
+      {(tile.isSuper || (hasMultiplier && tile.multiplier === 4 && !tile.isGem)) && (
         <span className="absolute top-0 left-1 text-xs font-extrabold z-10 text-white bg-red-700/80 rounded-full px-1 py-0.5 leading-none shadow-md">
           4X
         </span>
       )}
-      {hasMultiplier && !tile.isSuper && tile.multiplier !== 4 && (
-        <span className={`absolute top-0 right-1 text-xs font-extrabold z-10 text-white rounded-full px-1 py-0.5 leading-none ${tile.isGem ? 'bg-teal-900' : 'bg-purple-700'}`}>
-          {tile.isGem ? '💎' : ''}x{tile.multiplier}
+      {hasMultiplier && !tile.isSuper && (tile.multiplier !== 4 || tile.isGem) && (
+        // v7.66.1: gems use the same small corner pill as x2 tiles (the wider "💎x3" pill covered the
+        // letter), with a tiny 💎 in the other corner. Every gem looks the same, x4 included.
+        <span className={`absolute top-0.5 right-0.5 text-[10px] font-extrabold z-10 text-white rounded-full px-1 py-px leading-none ${tile.isGem ? 'bg-teal-900/90' : 'bg-purple-700'}`}>
+          x{tile.multiplier}
         </span>
       )}
-      {tile.isGem && tile.multiplier === 4 && !tile.isSuper && <span className="absolute top-0 right-1 text-xs z-10 leading-none" aria-hidden="true">💎</span>}
+      {tile.isGem && !tile.isSuper && <span className="absolute top-0.5 left-0.5 text-[10px] z-10 leading-none" aria-hidden="true">💎</span>}
       {skillShot && (
         <>
           <span className="tile-overlay ring-4 ring-neon-pink animate-pulse" aria-hidden="true" />

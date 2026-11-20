@@ -588,6 +588,9 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   card explains it (v7.53.1): what it multiplies, and the x3/x4/x5 lengths. An unused gem stays in
   the hand (leftover tiles are kept and topped up to 8; nothing clears a gem) until it's played, and
   a shuffle trades it away; v7.53.1's card wrongly said it only lasts one hand (fixed in v7.53.3).
+  v7.66.1 (the owner: the label covered the letter): a gem shows a small "x3" corner pill like x2
+  tiles and a tiny 💎 in the other corner (it was a wider "💎x3" pill), and an x4 gem is teal like
+  the others (it used the red 4X super-tile look). Checked at 390 and 360 wide.
   Two gems in one word add (x5 + x5 = x10), like all word-multiplier tiles, so banking one is a
   real but bounded tactic. It waits for any open pop-up and for the Skill Shot card on the same hand.
 - **Borrowed mechanics, batch two (v7.43.0).** Values in `FORK`, `HOLD_SLOT`, `GRUDGE`.
