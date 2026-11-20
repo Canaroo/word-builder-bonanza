@@ -121,6 +121,19 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Golden Tile comes from the tile stream (`tileRoll()` in `gameUtils.ts`, same on the Daily), Golden
   words open Score Gates (`openGates`), and a missed round no longer raises the next target. The ★
   GOLDEN box has a bar and turns into "★ N MORE!" with a glow from `chipFrom` words away.
+- **Clarity batch (v7.61.0, from `docs/FEATURE_REVIEW.md`):**
+  **Charm sets pay as you build** (`setPayFor`, `payingSets`, `leadingSet` in `data/charmSets.ts`;
+  `CHARM_SET_BONUS`): a full set was held in 2 of 56 runs. 2 of a trio now pays +50, the full trio
+  +150 (was 100), a pair +50 when whole. A 🧩 chip above the hand shows the best started set
+  ("📺 2/3 · +50 A WORD · +150 AT 3/3"); offer notes say what a pick starts paying or a drop loses.
+  **Next-gate marker** (`nextGateFor`, `previousGateFor` in `services/rules.ts`): "🚪 10K GATE" with a
+  bar under the score, pink and pulsing within `GATES.markerGlowWithin` points.
+  **Power word hint** says the prize (`prize` in `powerWordInfo`, e.g. "POWER WORD: REMOVE A STRIKE ·
+  TAP"); a tap lights the word's tiles in no order (`powerLit` on `TileComponent`, `word` on the
+  hint, never shown as text); a second tap opens the old info card. It led to 6 plays in 88 hints.
+  **Mystery Tape** pays `points` (75) on take and `usePoints` (100) when the PowerPlay inside is used
+  (`tapeBonusId`, paid by `payTapeUse` in the reducer wrapper; a swap drops it); the pocket button
+  shows "📼+100". 31% of tape PowerPlays were never used against 4% of face-up picks.
 - **WILDCARD (v7.50.0)** (`wildcard`, `Wildcard` in `GambleCard.tsx`, odds in
   `POWER_PLAY_VALUES.wildcard`): a pocket gamble card. The owner's GIF plays at the top
   (`public/powerplays/wildcard.webp`, v7.50.1: the van "YEEEHAAAAA!" clip from the owner's imgur

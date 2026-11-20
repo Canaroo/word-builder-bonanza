@@ -345,6 +345,8 @@ export interface GameState {
   powerHint?: { level: number; id: string } | null;
   /** Mystery Tape: the id of the PowerPlay hidden face down in the current offer (null: none). */
   mysteryTapeId?: string | null;
+  /** v7.61.0: the PowerPlay taken from a Mystery Tape, which pays MYSTERY_TAPE.usePoints when used. */
+  tapeBonusId?: string | null;
   /** Phoenix Down: the charm has appeared in an offer this run (it appears once). */
   phoenixOffered?: boolean;
   /** Phoenix Down: the continue card has been shown this run, and whether it was bought. */

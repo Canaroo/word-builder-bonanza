@@ -27,6 +27,33 @@ export const CHARM_SETS: CharmSet[] = [
 export const setBonusFor = (set: CharmSet): number =>
   set.members.length >= 3 ? CHARM_SET_BONUS.trio : CHARM_SET_BONUS.pair;
 
+/**
+ * What a set pays a word with this many of its charms held (v7.61.0): a pair needs both; a trio
+ * pays `trioPartial` with two and `trio` with all three. 0 otherwise.
+ */
+export const setPayFor = (set: CharmSet, held: number): number =>
+  held >= set.members.length ? setBonusFor(set)
+    : set.members.length >= 3 && held >= 2 ? CHARM_SET_BONUS.trioPartial : 0;
+
+/** Sets that pay with these charms held, and what each pays a word. */
+export const payingSets = (charmIds: readonly string[]): { set: CharmSet; held: number; points: number; complete: boolean }[] =>
+  CHARM_SETS.map(set => {
+    const held = set.members.filter(m => charmIds.includes(m)).length;
+    return { set, held, points: setPayFor(set, held), complete: held === set.members.length };
+  }).filter(s => s.points > 0);
+
+/** The set the player is furthest along (for the chip above the hand), or null with none started. */
+export const leadingSet = (charmIds: readonly string[]) => {
+  let best: { set: CharmSet; held: number; points: number; complete: boolean } | null = null;
+  for (const set of CHARM_SETS) {
+    const held = set.members.filter(m => charmIds.includes(m)).length;
+    if (held === 0) continue;
+    const row = { set, held, points: setPayFor(set, held), complete: held === set.members.length };
+    if (!best || row.points > best.points || (row.points === best.points && held / set.members.length > best.held / best.set.members.length)) best = row;
+  }
+  return best;
+};
+
 /** The sets a charm belongs to (usually one). */
 export const setsWith = (charmId: string): CharmSet[] => CHARM_SETS.filter(s => s.members.includes(charmId));
 

@@ -11,13 +11,15 @@ interface TileProps {
   isGolden?: boolean;
   /** Boss round: 'dim' if the tile would break the rule, 'glow' if the rule needs it. */
   bossHint?: 'dim' | 'glow' | null;
+  /** v7.61.0: part of the hidden power word (lit after tapping the hint chip). */
+  powerLit?: boolean;
   /** Bird Box: the tile is face down (letter and points hidden) but can still be played. */
   faceDown?: boolean;
   /** Skill Shot: this is the level's lit tile, and the points it pays (shown on the tile). */
   skillShot?: number;
 }
 
-const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hintOrder, isGolden, bossHint, faceDown, skillShot }) => {
+const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hintOrder, isGolden, bossHint, faceDown, skillShot, powerLit }) => {
   if (faceDown) {
     return (
       <button
@@ -75,8 +77,8 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
       onClick={handleClick}
       onContextMenu={e => e.preventDefault()}
       disabled={tile.isLocked}
-      className={`tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none ${tileStyle} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed' : ''} ${bossHint === 'dim' ? 'boss-tile-dim' : bossHint === 'glow' ? 'boss-tile-glow' : ''}`}
-      aria-label={`Tile ${tile.letter} with ${tile.tempPoints ?? tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${skillShot ? `, Skill Shot tile: use it in this word for ${skillShot} points` : ''}${tile.isGem ? `, gem x${tile.multiplier}` : ''}${tile.isLocked ? ' (locked for this turn)' : ''}${bossHint === 'dim' ? ', breaks the boss rule' : bossHint === 'glow' ? ', the boss rule needs this tile' : ''}`}
+      className={`tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none ${tileStyle} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed' : ''} ${bossHint === 'dim' ? 'boss-tile-dim' : bossHint === 'glow' || powerLit ? 'boss-tile-glow' : ''}`}
+      aria-label={`Tile ${tile.letter} with ${tile.tempPoints ?? tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${skillShot ? `, Skill Shot tile: use it in this word for ${skillShot} points` : ''}${tile.isGem ? `, gem x${tile.multiplier}` : ''}${tile.isLocked ? ' (locked for this turn)' : ''}${bossHint === 'dim' ? ', breaks the boss rule' : bossHint === 'glow' ? ', the boss rule needs this tile' : ''}${powerLit ? ', part of the hidden power word' : ''}`}
     >
       {/* Rings and glows are overlays: the tile's own box-shadow is its 3D edge. */}
       {isSuperLook && <span className="tile-overlay ring-4 ring-red-400 animate-pulse" aria-hidden="true" />}

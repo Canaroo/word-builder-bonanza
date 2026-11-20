@@ -12,7 +12,7 @@ import { soundService } from '../services/soundService';
 import ArcadeButton, { NamedLabel } from './ArcadeButton';
 import CharmTimeNote from './CharmTimeNote';
 import { CHARMS_LIST } from '../data/charms';
-import { setsWith, setProgress, setBonusFor, completedSets } from '../data/charmSets';
+import { setsWith, setProgress, setBonusFor, setPayFor, payingSets } from '../data/charmSets';
 
 // The two "pick one" screens: PowerPlays (hold one, keep or swap) and Charms (5 slots).
 
@@ -114,7 +114,7 @@ export const PowerPlayOffer: React.FC<{
         <div className="w-full rounded-xl ring-1 ring-neon-green/60 bg-neon-green/10 p-3">
           <p className="text-sm text-slate-300">It will be replaced by</p>
           {confirming.id === mysteryId
-            ? <p className="font-display text-lg text-neon-pink leading-tight">📼 A Mystery Tape <span className="block font-sans text-sm text-slate-200 normal-case">+{prizeFor(MYSTERY_TAPE.points, level ?? 1)} points now, and a face-down PowerPlay</span></p>
+            ? <p className="font-display text-lg text-neon-pink leading-tight">📼 A Mystery Tape <span className="block font-sans text-sm text-slate-200 normal-case">+{prizeFor(MYSTERY_TAPE.points, level ?? 1)} points now, a face-down PowerPlay, and +{prizeFor(MYSTERY_TAPE.usePoints, level ?? 1)} more when you use it</span></p>
             : <p className="font-display text-lg text-white leading-tight">{confirming.icon} {confirming.name}{INSTANT_POWER_PLAY_IDS.has(confirming.id) && <span className="block font-sans text-sm text-neon-cyan normal-case">⚡ Instant: it fires right away</span>}</p>}
         </div>
         <p className="text-sm text-slate-400">{held.name} will be gone for good.</p>
@@ -144,15 +144,16 @@ export const PowerPlayOffer: React.FC<{
         if (pp.id === mysteryId) {
           // Face down: nothing about the real PowerPlay shows until it's taken.
           const points = prizeFor(MYSTERY_TAPE.points, level ?? 1);
+          const usePoints = prizeFor(MYSTERY_TAPE.usePoints, level ?? 1);
           return (
-            <button key="mystery-tape" type="button" onClick={() => choose(pp)} aria-label={`Mystery Tape: a face-down PowerPlay, plus ${points} points now`}
+            <button key="mystery-tape" type="button" onClick={() => choose(pp)} aria-label={`Mystery Tape: a face-down PowerPlay, plus ${points} points now and ${usePoints} more when you use it`}
               className="w-full text-left rounded-xl p-2.5 ring-2 ring-neon-pink bg-[repeating-linear-gradient(135deg,rgba(255,79,163,0.14)_0_10px,rgba(10,8,30,0.6)_10px_20px)] shadow-[0_0_14px_rgba(255,79,163,0.4)] hover:brightness-110 focus-visible:ring-white outline-none">
               <div className="flex items-start gap-2">
                 <span className="text-2xl leading-none mt-0.5" aria-hidden="true">📼</span>
                 <div className="flex-1 min-w-0">
                   <span className="font-display text-sm text-neon-pink leading-tight">MYSTERY TAPE</span>
                   <p className="text-sm text-slate-200 leading-snug mt-0.5">
-                    A face-down PowerPlay. Take it blind and get <span className="text-neon-yellow font-semibold">+{points} points</span> right now, then see what you rented.
+                    A face-down PowerPlay. Take it blind for <span className="text-neon-yellow font-semibold">+{points} now</span>, then <span className="text-neon-yellow font-semibold">+{usePoints} more when you use it</span>.
                   </p>
                   <p className="text-xs text-slate-400 italic mt-0.5">“No label. No case. No refunds.”</p>
                   {held && <p className="osd-text text-base leading-tight mt-1 text-neon-green">🔄 REPLACES {held.icon} {held.name.toUpperCase()}</p>}
@@ -250,13 +251,18 @@ export const SetNote: React.FC<{ charmId: string; after: readonly string[]; drop
       {sets.map(set => {
         const p = setProgress(set, dropping ? [...after, charmId] : after);
         if (dropping) {
-          return p.complete
-            ? <span key={set.id} className="block text-neon-red">🧩 BREAKS {set.icon} {set.name.toUpperCase()}: LOSE +{setBonusFor(set)} A WORD</span>
+          // v7.61.0: what the set pays now against what it would pay without this charm.
+          const now = setPayFor(set, p.held.length), then = setPayFor(set, p.held.length - 1);
+          return now > then
+            ? <span key={set.id} className="block text-neon-red">🧩 {p.complete ? 'BREAKS' : 'WEAKENS'} {set.icon} {set.name.toUpperCase()}: LOSE +{now - then} A WORD</span>
             : null;
         }
+        const pays = setPayFor(set, p.held.length);
         return p.complete
-          ? <span key={set.id} className="block text-neon-green">🧩 COMPLETES {set.icon} {set.name.toUpperCase()}: +{setBonusFor(set)} EVERY WORD</span>
-          : <span key={set.id} className="block text-neon-cyan">🧩 SET {set.icon} {set.name.toUpperCase()} {p.held.length}/{set.members.length} · +{setBonusFor(set)} A WORD WITH {p.missing.map(charmLabel).join(' + ').toUpperCase()}</span>;
+          ? <span key={set.id} className="block text-neon-green">🧩 COMPLETES {set.icon} {set.name.toUpperCase()}: +{pays} EVERY WORD</span>
+          : pays > 0
+            ? <span key={set.id} className="block text-neon-green">🧩 {set.icon} {set.name.toUpperCase()} {p.held.length}/{set.members.length}: +{pays} EVERY WORD NOW · +{setBonusFor(set)} WITH {p.missing.map(charmLabel).join(' + ').toUpperCase()}</span>
+            : <span key={set.id} className="block text-neon-cyan">🧩 SET {set.icon} {set.name.toUpperCase()} {p.held.length}/{set.members.length} · +{setPayFor(set, p.held.length + 1)} A WORD WITH {set.members.length - p.held.length > 1 ? 'ONE MORE OF ' : ''}{p.missing.map(charmLabel).join(' / ').toUpperCase()}</span>;
       })}
     </>
   );
@@ -282,7 +288,7 @@ export const CharmOffer: React.FC<{
   const [upId, setUpId] = useState<string | null>(null);
   const full = equipped.length >= CHARM_SLOTS;
   const equippedIds = equipped.map(c => c.id);
-  const setsHeld = completedSets(equippedIds);
+  const setsHeld = payingSets(equippedIds);
   const canUpgrade = (c: Charm) => UPGRADABLE_CHARM_IDS.has(c.id) && !upgradedIds.includes(c.id);
   const upgradeOpen = full && !!onUpgrade && equipped.some(canUpgrade);
   const upgradable = equipped.filter(canUpgrade);
@@ -377,7 +383,7 @@ export const CharmOffer: React.FC<{
       <div className="mt-2"><SlotRow charms={equipped} upgradedIds={upgradedIds} upgradableIds={upgradeOpen ? upgradable.map(c => c.id) : []} /></div>
       {setsHeld.length > 0 && (
         <p className="osd-text text-lg text-center leading-tight mt-1 text-neon-green">
-          🧩 {setsHeld.map(s => `${s.icon} ${s.name.toUpperCase()} +${setBonusFor(s)}`).join(' · ')} A WORD
+          🧩 {setsHeld.map(s => `${s.set.icon} ${s.set.name.toUpperCase()} +${s.points}`).join(' · ')} A WORD
         </p>
       )}
       <p className={`osd-text text-lg text-center leading-tight mt-1 ${full ? 'text-neon-yellow' : 'text-slate-400'}`}>

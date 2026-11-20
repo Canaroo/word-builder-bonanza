@@ -1,5 +1,5 @@
 // Pure gameplay rules. No React, no DOM: easy to test and to tune via config/gameplay.ts.
-import { BOSS, CHARM_BONUS, CHARM_LENGTH_BOOST, CHARM_UPGRADE, GAMEPLAY, PRIZE_GROWTH, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS, GEM_TILES, SKILL_SHOT, FORK } from '../config/gameplay';
+import { BOSS, CHARM_BONUS, CHARM_LENGTH_BOOST, CHARM_UPGRADE, GAMEPLAY, PRIZE_GROWTH, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS, GEM_TILES, SKILL_SHOT, FORK, GATES } from '../config/gameplay';
 import { BossRound, PowerWordEffect, ScoreCalculationResult } from '../types';
 
 const lookupByLength = (table: Record<number, number>, length: number, below: number): number => {
@@ -362,20 +362,21 @@ export const levelUpInfo = (level: number, gs?: WithCharms): LevelUpInfo => {
 };
 
 /** What a power word does, in plain words, for the reveal, the Collection and the Bonus Vault. */
-export const powerWordInfo = (effect: PowerWordEffect): { label: string; does: string; again: string } => {
+/** v7.61.0: `prize` is the short reward the hint chip shows (so a player knows why to stop and look). */
+export const powerWordInfo = (effect: PowerWordEffect): { prize: string; label: string; does: string; again: string } => {
     const E = POWER_WORD_EFFECTS;
     const slot = E.slot.map(p => `${p.seconds}`).join(', ');
     const info = {
-        slot: { label: 'SLOT MACHINE', does: `Pull a slot machine for bonus time next round: +${slot} seconds.` },
-        freeze: { label: 'FREEZE', does: `The clock won't move for the first ${E.freezeSeconds} seconds of your next round.` },
-        heal: { label: 'HEAL', does: `Removes one strike. With no strikes, +${E.healFallbackPoints} points instead.` },
-        slow: { label: 'SLOW MOTION', does: `The clock runs at half speed for your next ${E.slowWords} words.` },
-        twin: { label: 'CLONE', does: 'Clones your best word: its time next round, plus one step toward your Word Combo.' },
-        shield: { label: 'RING SHIELD', does: 'Blocks your next strike. One shield at a time.' },
-        rewind: { label: 'REWIND', does: `The clock drops back one speed step for the rest of this level (at level 1, +${E.rewindLevelOneSeconds} seconds instead).` },
-        sword: { label: 'TAKE THIS', does: 'Fills your PowerPlay meter, so a PowerPlay offer appears.' },
-        spice: { label: 'SPICE IT UP', does: `Your next word scores x${E.spiceMultiplier}.` },
-        cake: { label: 'CAKE', does: 'A charm offer appears. The cake was real this time.' },
+        slot: { prize: 'UP TO +10 SEC', label: 'SLOT MACHINE', does: `Pull a slot machine for bonus time next round: +${slot} seconds.` },
+        freeze: { prize: 'FROZEN CLOCK', label: 'FREEZE', does: `The clock won't move for the first ${E.freezeSeconds} seconds of your next round.` },
+        heal: { prize: 'REMOVE A STRIKE', label: 'HEAL', does: `Removes one strike. With no strikes, +${E.healFallbackPoints} points instead.` },
+        slow: { prize: 'HALF-SPEED CLOCK', label: 'SLOW MOTION', does: `The clock runs at half speed for your next ${E.slowWords} words.` },
+        twin: { prize: 'CLONE YOUR BEST WORD', label: 'CLONE', does: 'Clones your best word: its time next round, plus one step toward your Word Combo.' },
+        shield: { prize: 'STRIKE SHIELD', label: 'RING SHIELD', does: 'Blocks your next strike. One shield at a time.' },
+        rewind: { prize: 'SLOWER CLOCK', label: 'REWIND', does: `The clock drops back one speed step for the rest of this level (at level 1, +${E.rewindLevelOneSeconds} seconds instead).` },
+        sword: { prize: 'FREE POWERPLAY', label: 'TAKE THIS', does: 'Fills your PowerPlay meter, so a PowerPlay offer appears.' },
+        spice: { prize: 'NEXT WORD x3', label: 'SPICE IT UP', does: `Your next word scores x${E.spiceMultiplier}.` },
+        cake: { prize: 'FREE CHARM', label: 'CAKE', does: 'A charm offer appears. The cake was real this time.' },
     }[effect];
     return { ...info, again: 'Play it again on a later level to use it again (once per level).' };
 };
@@ -545,4 +546,17 @@ export const forkAdvice = (delta: number | null | undefined, clock: number): 'da
     if (delta >= A.gain || (clock >= A.comfy && delta > -A.gain)) return 'danger';
     if (delta < 0 && clock < A.tight) return 'easy';
     return 'either';
+};
+
+/** v7.61.0: the next Score Gate this run hasn't crossed (for the marker under the score), or null. */
+export const nextGateFor = (gs: { score: number; gatesPassed?: number[] } | null | undefined): number | null => {
+    if (!gs) return null;
+    const scores = [GATES.password.score, GATES.bonusStage.score, GATES.ladder.score, GATES.bigOne.score];
+    return scores.find(s => !(gs.gatesPassed ?? []).includes(s) && s > gs.score) ?? null;
+};
+
+/** The gate before `next` (0 for the first), so the marker's bar runs between the two. */
+export const previousGateFor = (next: number): number => {
+    const scores = [0, GATES.password.score, GATES.bonusStage.score, GATES.ladder.score, GATES.bigOne.score];
+    return scores[Math.max(0, scores.indexOf(next) - 1)] ?? 0;
 };
