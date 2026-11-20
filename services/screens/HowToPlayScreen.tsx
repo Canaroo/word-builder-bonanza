@@ -1,7 +1,7 @@
 import { Sec } from '../../components/Seconds';
 import React from 'react';
 import { soundService } from '../soundService';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, HEAD_START, SKILL_SHOT, GEM_TILES, FORK, HOLD_SLOT, GRUDGE, BONES, GATES, GREATEST_HITS } from '../../config/gameplay';
+import { SCRATCH, GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, HEAD_START, SKILL_SHOT, GEM_TILES, HOLD_SLOT, GRUDGE, BONES, GATES, GREATEST_HITS } from '../../config/gameplay';
 import { PHOENIX_DOWN } from '../../config/progression';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import ArcadeButton from '../../components/ArcadeButton';
@@ -62,13 +62,10 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             hand, no rush, scored <Key>x{LAST_WORDS.multiplier}</Key>.
           </p>
           <p>
-            <Key>🛣️ Fork in the Road:</Key> at levels {FORK.levels.join(', ')} you pick a route until the next fork.{' '}
-            <Key>Easy Street</Key> runs the clock {Math.round((1 - FORK.easy.clock) * 100)}% slower.{' '}
-            <Key>Danger Zone</Key> runs it {Math.round((FORK.danger.clock - 1) * 100)}% faster and pays{' '}
-            <Key>x{FORK.danger.points}</Key> on every word. The card shows how your clock did last level and marks
-            the route that suits you. The chip above your tiles counts the words left until the next fork. Changed your mind?{' '}
-            <Key>Hold the 🔥 chip</Key> to cool off to Easy Street; there's no way back in, and Easy Street can't switch up
-            to Danger, until the next fork.
+            <Key>🎟️ Scratch-off ticket:</Key> at levels {SCRATCH.levels.join(', ')} you get a lucky ticket. Scratch a square
+            to win what's under it: points, time, shuffles, a Challenge, a charm or a PowerPlay. Each new scratch replaces
+            the prize you're holding, so bank it when you like it. {SCRATCH.skulls} squares hide a 💀 that wipes it; your
+            first scratch is always safe.
           </p>
           <p>
             <Key>🧲 Hold slot:</Key> hold the <Key>Hold That Thought</Key> charm and a HOLD button appears above your

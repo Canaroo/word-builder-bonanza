@@ -1,7 +1,7 @@
 import { PHOENIX_DOWN } from '../config/progression';
 import { Charm, GameState, EventLogEntry } from '../types';
 import { labelize } from '../services/durationTags';
-import { BOSS, CHARM_BONUS, CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS, SHINE_BRIGHT_GEMS, GEM_TILES, FORK, GATES } from '../config/gameplay';
+import { BOSS, CHARM_BONUS, CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS, SHINE_BRIGHT_GEMS, GEM_TILES, GATES } from '../config/gameplay';
 
 // The 'activate' function is for effects that happen immediately upon selection for passive buffs.
 // For selection buffs, it's called after the player makes their choice.
@@ -1182,7 +1182,8 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'needForSpeed',
     name: 'I Feel the Need… for Speed',
-    description: `In the Danger Zone (pick it at a Fork in the Road, levels ${FORK.levels.join(', ')}), every word scores x${CHARM_BONUS.needForSpeedPoints} instead of x${FORK.danger.points}. Does nothing on Easy Street.`,
+    // v7.66.0: the Danger Zone is gone, so this is a speed streak now.
+    description: `Play ${CHARM_BONUS.speedLetters}+ letter words fast, each within ${CHARM_BONUS.speedSeconds} seconds of the last. From your 2nd fast word in a row: +${CHARM_BONUS.speedStep}, then +${CHARM_BONUS.speedStep * 2}, +${CHARM_BONUS.speedStep * 3}… up to +${CHARM_BONUS.speedMax} a word. A slow or short word starts over.`,
     flavorText: 'I feel the need… the need for speed!',
     icon: '🛩️',
     subtheme: 'score',
@@ -1232,6 +1233,7 @@ export const UPGRADABLE_CHARM_IDS: ReadonlySet<string> = new Set([
   'conjunctionJunction', 'voteForPedro', 'formVoltron', 'titansGo', 'mrGlass', 'honeyIShrunkTheKids',
   'myPrecious', 'hitTheFlagpole', 'supermarketSweep', 'sesameStreet', 'hungryHippos', 'recycler',
   'stonks', // v7.62.0: pays points under its own name
+  'needForSpeed', // v7.66.0: the speed streak pays points under its name
 ]);
 
 /** One-off and level-up payouts: the long-word boost (CHARM_LENGTH_BOOST) skips them, so a lucky

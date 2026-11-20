@@ -1,5 +1,5 @@
 // Pure gameplay rules. No React, no DOM: easy to test and to tune via config/gameplay.ts.
-import { BOSS, CHARM_BONUS, CHARM_LENGTH_BOOST, CHARM_UPGRADE, GAMEPLAY, PRIZE_GROWTH, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS, GEM_TILES, SKILL_SHOT, FORK, GATES, SHINE_BRIGHT_GEMS } from '../config/gameplay';
+import { BOSS, CHARM_BONUS, CHARM_LENGTH_BOOST, CHARM_UPGRADE, GAMEPLAY, PRIZE_GROWTH, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS, GEM_TILES, SKILL_SHOT, GATES, SHINE_BRIGHT_GEMS } from '../config/gameplay';
 import { BossRound, PowerWordEffect, ScoreCalculationResult } from '../types';
 
 const lookupByLength = (table: Record<number, number>, length: number, below: number): number => {
@@ -561,18 +561,6 @@ export const MISSIONS: { id: string; text: string; test: (word: string) => boole
 ];
 export const missionById = (id: string | undefined) => MISSIONS.find(m => m.id === id);
 
-/**
- * Fork in the Road advice (v7.59.0): which route suits the player, from how their clock moved over
- * the level before (delta, seconds) and where it sits now. 'either' when it's a close call.
- */
-export const forkAdvice = (delta: number | null | undefined, clock: number): 'danger' | 'easy' | 'either' => {
-    const A = FORK.advice;
-    if (delta == null) return clock >= A.comfy ? 'danger' : 'either';
-    if (delta >= A.gain || (clock >= A.comfy && delta > -A.gain)) return 'danger';
-    if (delta < 0 && clock < A.tight) return 'easy';
-    return 'either';
-};
-
 /** v7.61.0: the next Score Gate this run hasn't crossed (for the marker under the score), or null. */
 export const nextGateFor = (gs: { score: number; gatesPassed?: number[] } | null | undefined): number | null => {
     if (!gs) return null;
@@ -586,16 +574,14 @@ export const previousGateFor = (next: number): number => {
     return scores[Math.max(0, scores.indexOf(next) - 1)] ?? 0;
 };
 
-/**
- * v7.61.4: valid words left until the next Fork (where the route can change again), or null after
- * the last fork. `validWords` is the run's valid words so far.
- */
-export const forkWordsLeft = (validWords: number): number | null => {
-    const level = levelFor(validWords);
-    const next = (FORK.levels as readonly number[]).find(l => l > level);
-    return next == null ? null : Math.max(0, (next - 1) * GAMEPLAY.levels.wordsPerLevel - validWords);
-};
 
-/** The Danger Zone's word multiplier (v7.62.0): x1.5, or more with I Feel the Need… for Speed. */
-export const dangerPointsFor = (gs: { activeCharms?: { id: string }[] } | null | undefined): number =>
-    gs?.activeCharms?.some(c => c.id === 'needForSpeed') ? CHARM_BONUS.needForSpeedPoints : FORK.danger.points;
+/**
+ * I Feel the Need… for Speed (v7.66.0): the speed streak after this word. A 4+ letter word played
+ * within speedSeconds of the last word extends it; a slower 4+ letter word starts a new one (at 1);
+ * a shorter word ends it (0). Pays from the 2nd word in a row (speedStreakPoints).
+ */
+export const nextSpeedStreak = (streak: number, letters: number, secondsSinceLast: number | null): number =>
+    letters < CHARM_BONUS.speedLetters ? 0 : (streak >= 1 && secondsSinceLast !== null && secondsSinceLast <= CHARM_BONUS.speedSeconds ? streak + 1 : 1);
+/** What the speed streak pays on a word: nothing for the first, then +25, +50... up to speedMax. */
+export const speedStreakPoints = (streak: number): number =>
+    streak >= 2 ? Math.min(CHARM_BONUS.speedMax, CHARM_BONUS.speedStep * (streak - 1)) : 0;

@@ -323,7 +323,10 @@ export interface GameState {
   bonesMet?: string[];
   /** Fork in the Road (v7.43): the route picked at the last fork, and the level it was picked at. */
   route?: { choice: 'easy' | 'danger'; level: number; /** v7.59.0: cooled off from the Danger Zone mid-stretch */ bailed?: boolean } | null;
-  /** v7.59.0: the clock when the current level started, and how it moved over the level before (for the Fork card). */
+  /** I Feel the Need… for Speed (v7.66.0): fast 4+ letter words in a row, and when the last word landed (play ms). */
+  speedStreak?: number;
+  speedLastMs?: number | null;
+  /** v7.59.0 (unused since v7.66.0, the Fork is gone): the clock when the level started. */
   levelClock?: { start: number; delta: number | null } | null;
   /** Hold Slot (v7.43): the tile parked there (survives new hands and shuffles). */
   holdTile?: Tile | null;

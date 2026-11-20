@@ -2,7 +2,7 @@
 // v7.43: Grudge Match, Fork in the Road and the Hold Slot.
 import { describe, test, expect, beforeEach } from 'vitest';
 import { gameReducer, screenInitialState, POST_WORD_MODALS, type GameScreenState } from '../GameScreen';
-import { FORK, GRUDGE, HOLD_SLOT } from '../../../config/gameplay';
+import { SCRATCH, GRUDGE, HOLD_SLOT } from '../../../config/gameplay';
 import { grudgeFor, grudgeTaunt, recordBossResult } from '../../grudges';
 import { BOSSES } from '../../../data/bosses';
 import { CHARMS_LIST } from '../../../data/charms';
@@ -46,14 +46,11 @@ describe('Grudge Match', () => {
     test('double is the multiplier', () => expect(GRUDGE.multiplier).toBe(2));
 });
 
-describe('Fork in the Road', () => {
-    test('forks sit on tier starts, never on a boss level, and the card continues the round', () => {
-        expect([...FORK.levels]).toEqual([4, 7, 11]);
-        for (const l of FORK.levels) expect(l % 3).not.toBe(0);
-        expect(POST_WORD_MODALS).toContain('fork');
-        expect(FORK.danger.clock).toBeGreaterThan(1);
-        expect(FORK.easy.clock).toBeLessThan(1);
-        expect(FORK.danger.points).toBeGreaterThan(FORK.easy.points);
+describe('Scratch-off ticket (v7.66.0, where the Fork was)', () => {
+    test('tickets sit on tier starts, never on a boss level, and the card continues the round', () => {
+        expect([...SCRATCH.levels]).toEqual([4, 7, 11]);
+        for (const l of SCRATCH.levels) expect(l % 3).not.toBe(0);
+        expect(POST_WORD_MODALS).toContain('scratch');
     });
 });
 
