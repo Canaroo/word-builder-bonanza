@@ -70,7 +70,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'letterUpgrade',
     name: 'Pimp My Tile',
-    description: `Pick a letter: its tiles are worth 3x for your next 5 words.`,
+    description: `Pick a letter: every tile of it is worth 3x its points for your next 5 words.`,
     flavorText: 'Yo dawg, I heard you like letters.',
     icon: '🔠',
     subtheme: 'score',
@@ -105,7 +105,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'deepFreeze',
     name: 'Everybody Chill',
-    description: `Arms right away: the first time your clock hits 0, time freezes and you get ${TIME_BONUS.rescue} bonus seconds.`,
+    description: `Works from the moment you take it: the first time your clock hits 0, everybody chills and you get ${TIME_BONUS.rescue} more seconds.`,
     flavorText: "Alright everyone... chill!",
     icon: '🧊',
     subtheme: 'timer',
@@ -117,7 +117,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'groundhogsDay',
     name: 'Groundhog’s Day',
-    description: 'Arms right away: if your clock runs out before you play a word, you replay the round with the same tiles and a fresh clock. Stacks.',
+    description: 'Once per run. Works from the moment you take it: if your clock runs out before you play a word on this hand, you get the same tiles again and a fresh clock.',
     flavorText: 'Same tiles. Same time. One more shot.',
     icon: '🔄',
     subtheme: 'timer',
@@ -182,7 +182,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'whoYouGonnaCall',
     name: 'Who You Gonna Call?',
-    description: 'Bust ALL your strikes. Busting costs 15 seconds from your time bank (it never drops below 5).',
+    description: 'Busts ALL your strikes. It costs 15 seconds off your clock (it never leaves you under 5).',
     flavorText: 'I ain’t afraid of no strikes.',
     icon: '👻',
     subtheme: 'strike',
@@ -194,7 +194,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'lifeFindsAWay',
     name: 'Life Finds a Way',
-    description: 'Arms right away: when a strike would end your run, you survive with one strike to spare and +20 seconds.',
+    description: 'Works from the moment you take it: when a strike would end your run, you survive instead, with one strike to spare and +20 seconds.',
     flavorText: 'Life, uh, finds a way.',
     icon: '🥚',
     subtheme: 'strike',
@@ -334,7 +334,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'plotArmor', 
     name: 'Plot Armor', 
-    description: 'Your next strike costs 150 points instead.',
+    description: 'Your next strike doesn’t count: you lose 150 points instead.',
     flavorText: 'It’s not a fail. It’s... character development.',
     icon: '💸',
     subtheme: 'strike',
@@ -348,7 +348,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'multiverseOfSadness', 
     name: 'In Time',
-    description: `Next word: half points, half becomes bonus time (up to ${TIME_BONUS.multiverseCap}s).`, 
+    description: `Your next word pays in time: it scores half its points, and the other half become seconds on your clock (1 point = 1 second, up to ${TIME_BONUS.multiverseCap}).`, 
     flavorText: 'Time is money. Spend it wisely.',
     icon: '⌚',
     subtheme: 'score',
@@ -458,7 +458,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'redWedding', 
     name: 'Red Wedding', 
-    description: 'Sacrifice 2 random tiles now; your very next word earns 5× its normal score.', 
+    description: 'You lose 2 random tiles now. Your next word scores x5.', 
     flavorText: 'The Lannisters send their regards.',
     icon: '🍷',
     subtheme: 'score',
@@ -475,7 +475,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     {
     id: 'mutationProtocol',
     name: 'Secret of the Ooze',
-    description: 'Your next 2 hands each come with 1 Super Tile (x4 word score).',
+    description: 'Your next 2 hands each come with a x4 word tile.',
     flavorText: 'Go ninja, go ninja, go!',
     icon: '🧬',
     subtheme: 'rack',
@@ -592,7 +592,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'leafOnTheWind', 
     name: 'Leaf on the Wind', 
-    description: 'No timer for your next turn. Plan at your own pace.', 
+    description: 'Your clock stops until you play your next word. Take all the time you need.', 
     flavorText: 'I am a leaf on the wind. Watch how I soar.',
     icon: '🍃',
     subtheme: 'timer',
@@ -609,7 +609,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'yoshisWildRide',
     name: "Yoshi's Wild Ride",
-    description: "Replace up to 3 individual tiles of your choice, no shuffle penalty.",
+    description: "Swap up to 3 tiles of your choice for new ones. It doesn't use a shuffle.",
     flavorText: "Spit out your tiles and swallow new ones!",
     icon: '🍎',
     subtheme: 'rack',
@@ -633,7 +633,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'gumpLuck',
     name: "Gump Luck",
-    description: `Open a chocolate: 25% chance of +${TIME_BONUS.rescue} seconds, +${POWER_PLAY_VALUES.gumpLuckPoints} points, or +1 shuffle. The last 25% is empty.`,
+    description: `Open the box and unwrap a chocolate: +${TIME_BONUS.rescue} seconds, +${POWER_PLAY_VALUES.gumpLuckPoints} points, +1 shuffle or nothing at all, 25% each.`,
     flavorText: "Life is like a box of chocolates. You never know what you're gonna get.",
     icon: '🍫',
     subtheme: 'utility',
@@ -644,7 +644,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'happyPlace',
     name: 'Happy Place',
-    description: 'Refill your time bank all the way to the max, even if you were down to the last gasp.',
+    description: 'Fills your clock all the way to the top, however low it was.',
     flavorText: 'Just tap it in. Give it a little tappy. Tap tap taparoo.',
     icon: '⛳',
     subtheme: 'timer',
@@ -690,7 +690,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'cassiesClue',
     name: 'Cassie’s Clue',
-    description: 'Discard up to 3 tiles to get C, A, and T. If your next word uses all three, it scores 3x.',
+    description: 'Trade up to 3 tiles for a C, an A and a T. If your next word uses all three, it scores x3.',
     flavorText: 'A paw-picked trio to guide your next move.',
     icon: '🐈',
     subtheme: 'rack',
@@ -743,7 +743,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'carmenSandiego',
     name: 'Where in the World is Carmen Sandiego?',
-    description: 'Reveals a possible word that can be played with your current tiles with the starting letter highlighted in red.',
+    description: 'Lights up a word you can play with your tiles, its first letter in red.',
     flavorText: 'You get a clue… sort of.',
     icon: '🗺️',
     subtheme: 'utility',
@@ -754,7 +754,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'morphinTime',
     name: 'It’s Morphin Time!',
-    description: '2 letters are randomly swapped out for a 2x and a 4x tile.',
+    description: 'Two random tiles become a x2 and a x4 word tile.',
     flavorText: 'Your hand gets a radical transformation.',
     icon: '⚡️',
     subtheme: 'rack',
@@ -778,8 +778,8 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'treehouseOfHorror',
     name: 'Treehouse of Horror',
-    description: 'All tile values are randomized for the next 3 turns.',
-    flavorText: 'Things get weird.',
+    description: 'For your next 3 hands, every tile is worth a random number of points.',
+    flavorText: 'Ooh, spooky! Things get weird.',
     icon: '🎃',
     subtheme: 'rack',
     effectType: 'immediate',
@@ -857,7 +857,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'animaniacsMayhem',
     name: 'Animaniacs Mayhem',
-    description: 'Shuffle your hand, but get 2 guaranteed 2X multiplier tiles.',
+    description: 'A fresh hand, with 2 tiles that are x2 word tiles.',
     flavorText: "We're zany to the max!",
     icon: '🌪️',
     subtheme: 'rack',
@@ -885,7 +885,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'tetrisTouch',
     name: 'Tetris Touch',
-    description: 'If your next word has alternating vowels and consonants, it scores 4x.',
+    description: 'If your next word switches between vowels and consonants every letter (like BANANA or TOMATO), it scores x4.',
     flavorText: 'Fit a perfect pattern.',
     icon: '🧩',
     subtheme: 'score',
@@ -902,7 +902,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'saveByTheBell',
     name: 'Saved by the Bell',
-    description: `Adds +${TIME_BONUS.saveByTheBell} seconds to your next 3 turns.`,
+    description: `Your next 3 words each add +${TIME_BONUS.saveByTheBell} seconds.`,
     flavorText: 'Time’s on your side — for now.',
     icon: '🪩',
     subtheme: 'timer',
@@ -919,7 +919,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'blueShellSurprise',
     name: 'Blue Shell Surprise',
-    description: `Next word: ${POWER_PLAY_VALUES.blueShellWinChance * 100}% chance for x${POWER_PLAY_VALUES.blueShellMultiplier} score, ${100 - POWER_PLAY_VALUES.blueShellWinChance * 100}% chance it backfires for -${POWER_PLAY_VALUES.blueShellLoss} points.`,
+    description: `Your next word: ${POWER_PLAY_VALUES.blueShellWinChance * 100}% chance it scores x${POWER_PLAY_VALUES.blueShellMultiplier}, ${100 - POWER_PLAY_VALUES.blueShellWinChance * 100}% chance it backfires and loses ${POWER_PLAY_VALUES.blueShellLoss} points.`,
     flavorText: 'Hit the leader — or yourself.',
     icon: '🔵',
     subtheme: 'score',
@@ -936,7 +936,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'iceIceMaybe',
     name: 'Ice Ice Maybe',
-    description: 'One random tile on your rack becomes a 4X Super Tile for this turn only.',
+    description: 'One random tile becomes a x4 word tile for this hand only.',
     flavorText: 'If there was a problem, yo — you’ll solve it.',
     icon: '❄️',
     subtheme: 'rack',
@@ -986,7 +986,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'wordionaire', 
     name: 'Who Wants to Be a Wordionaire?', 
-    description: 'Choose one of three lifelines: Fast Cash (Instantly gain 100 points), Phone-a-Friend (reveals best word), or Double Down (next word x2 score).', 
+    description: 'Pick a lifeline: Fast Cash (+100 points now), Phone-a-Friend (shows your best word) or Double Down (your next word scores x2).', 
     flavorText: 'Big brains. Bigger words. Even bigger consequences.',
     icon: '💡',
     subtheme: 'utility',
@@ -1038,7 +1038,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'spaceInvader',
     name: 'Space Invader',
-    description: `Next word: 50% chance for x${POWER_PLAY_VALUES.spaceInvaderMultiplier}, 50% chance it's capped at ${POWER_PLAY_VALUES.spaceInvaderCap} points.`,
+    description: `Your next word: 50% chance it scores x${POWER_PLAY_VALUES.spaceInvaderMultiplier}, 50% chance it scores only ${POWER_PLAY_VALUES.spaceInvaderCap} points.`,
     flavorText: 'Destroy all words… or just barely survive.',
     icon: '👾',
     subtheme: 'score',
@@ -1090,7 +1090,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'continueScreen',
     name: 'Continue?',
-    description: `Arms right away: the first time your clock hits 0, you keep playing with ${TIME_BONUS.continueScreen} seconds, but lose ${POWER_PLAY_VALUES.continueScoreCostPercent}% of your score (never more than ${POWER_PLAY_VALUES.continueScoreCostMax.toLocaleString()} points).`,
+    description: `Works from the moment you take it: the first time your clock hits 0, you keep playing with ${TIME_BONUS.continueScreen} seconds. It costs ${POWER_PLAY_VALUES.continueScoreCostPercent}% of your score (never more than ${POWER_PLAY_VALUES.continueScoreCostMax.toLocaleString()}).`,
     flavorText: 'Continue? 9… 8… 7…',
     icon: '🕹️',
     subtheme: 'timer',
@@ -1265,7 +1265,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'priceIsRight',
     name: 'The Price Is Right',
-    description: `Starts the moment you pick it: bid on your next word before you build it. It scores at least ${POWER_PLAY_VALUES.priceIsRightBids.map(b => b.bid).join(', ')} points. Make your bid and win ${POWER_PLAY_VALUES.priceIsRightBids.map(b => `+${b.prize}`).join(', ')}. Miss and you lose ${POWER_PLAY_VALUES.priceIsRightBids.map(b => b.miss).join(', ')}.`,
+    description: `Starts the moment you pick it: bid on what your next word will score before you build it. Bid higher, win more: ${POWER_PLAY_VALUES.priceIsRightBids.map(b => `${b.bid}+ pays +${b.prize}`).join(', ')}. Fall short and you lose ${POWER_PLAY_VALUES.priceIsRightBids.map(b => b.miss).slice(0, -1).join(', ')} or ${POWER_PLAY_VALUES.priceIsRightBids[POWER_PLAY_VALUES.priceIsRightBids.length - 1].miss}.`,
     flavorText: 'Come on down!',
     icon: '🏷️',
     subtheme: 'score',
@@ -1310,7 +1310,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'multiplicity',
     name: 'Multiplicity',
-    description: 'A copycat. Tap it and it turns into a fresh copy of the last PowerPlay you used, ready in your pocket to use again. It can’t copy once-per-run PowerPlays or ones that fire when you pick them.',
+    description: 'Tap it and it becomes a copy of the last PowerPlay you used, ready to use again. It can’t copy once-per-run PowerPlays or ones that start the moment you pick them.',
     flavorText: 'She touched my pepe, Steve.',
     icon: '👯',
     subtheme: 'utility',
@@ -1321,7 +1321,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'hadouken',
     name: 'Hadouken!',
-    description: `In a boss round, your next ${POWER_PLAY_VALUES.hadoukenHits} words that break the villain's rule count as hits anyway. Saved for the next boss round if none is on.`,
+    description: `In a boss fight, your next ${POWER_PLAY_VALUES.hadoukenHits} words count as hits even if they break the villain's rule. No boss right now? It waits for the next one.`,
     flavorText: 'Hadouken!',
     icon: '💥',
     subtheme: 'utility',
@@ -1354,7 +1354,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'smellYaLater',
     name: 'Smell Ya Later!',
-    description: `Starts the moment you pick it: race your rival for your next ${POWER_PLAY_VALUES.rivalWords} words. He scores as fast as you've been scoring this run (at least ${POWER_PLAY_VALUES.rivalPointsPerSecond} points a second) for every second you take. Outscore him with those words and win +${POWER_PLAY_VALUES.rivalPrize}.`,
+    description: `Starts the moment you pick it: race Gary for your next ${POWER_PLAY_VALUES.rivalWords} words. Every second you take, he scores at your pace this run (at least ${POWER_PLAY_VALUES.rivalPointsPerSecond} points a second). Beat his score with those words and win +${POWER_PLAY_VALUES.rivalPrize}.`,
     flavorText: 'Smell ya later!',
     icon: '🏃',
     subtheme: 'timer',
@@ -1376,13 +1376,13 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'chickenDinner',
     name: 'Winner Winner Chicken Dinner',
-    description: `Blackjack: each valid word deals you a card (J/Q/K are 10, A is 11 or 1). Stand any time (tap the 🍗 chip). ${POWER_PLAY_VALUES.blackjackPayouts.map((p, i, all) => `${i === 0 ? p.min : `${p.min}-${all[i - 1].min - 1}`} pays +${p.points}`).join(', ')}. Go over ${POWER_PLAY_VALUES.blackjackTarget} and you bust.`,
+    description: `Play a hand of blackjack against the dealer: tap HIT for another card or STAND to stop. Get closer to ${POWER_PLAY_VALUES.blackjackTarget} than the dealer without going over: +${POWER_PLAY_VALUES.blackjackWin}. Blackjack (${POWER_PLAY_VALUES.blackjackTarget} with your first 2 cards) +${POWER_PLAY_VALUES.blackjackNatural}, a tie +${POWER_PLAY_VALUES.blackjackPush}.`,
     flavorText: 'Winner winner, chicken dinner!',
     icon: '🍗',
     subtheme: 'score',
-    effectType: 'next_word',
-    durationTag: 'LIMITED',
-    activate: arm('chickenDinner', { total: 0 }),
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // v7.67.1: a blackjack card (GambleCard); the old per-word game still settles for saved runs
   },
   {
     id: 'cardSharks',

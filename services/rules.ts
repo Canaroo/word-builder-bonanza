@@ -524,6 +524,43 @@ export const blackjackCard = (total: number, rand: () => number = Math.random): 
     const value = card === 14 ? (total + 11 > POWER_PLAY_VALUES.blackjackTarget ? 1 : 11) : Math.min(card, 10);
     return { face: cardFace(card), value };
 };
+/** Chicken Dinner (v7.67.1): a blackjack hand's best total (J/Q/K count 10; an A counts 11 unless that busts). */
+export const blackjackTotal = (cards: number[]): number => {
+    let total = 0, aces = 0;
+    for (const c of cards) { if (c === 14) { aces++; total += 11; } else total += Math.min(c, 10); }
+    while (total > POWER_PLAY_VALUES.blackjackTarget && aces > 0) { total -= 10; aces--; }
+    return total;
+};
+/** Chicken Dinner: the hands from the saved deck after `hits` hits. The player gets cards 0 and 1,
+ * the dealer 2 and 3, the player's hits come next, and the dealer draws the rest once you stand. */
+export const blackjackHands = (deck: number[], hits: number, dealerPlays: boolean): { player: number[]; dealer: number[] } => {
+    const player = [deck[0], deck[1], ...deck.slice(4, 4 + hits)];
+    const dealer = [deck[2], deck[3]];
+    if (dealerPlays && blackjackTotal(player) <= POWER_PLAY_VALUES.blackjackTarget) {
+        let i = 4 + hits;
+        while (blackjackTotal(dealer) < POWER_PLAY_VALUES.blackjackDealerStands && i < deck.length) dealer.push(deck[i++]);
+    }
+    return { player, dealer };
+};
+export type BlackjackResult = 'natural' | 'win' | 'push' | 'lose' | 'bust';
+/** Chicken Dinner: how the hand ended, once the dealer has played. */
+export const blackjackResult = (player: number[], dealer: number[]): BlackjackResult => {
+    const t = POWER_PLAY_VALUES.blackjackTarget;
+    const p = blackjackTotal(player), d = blackjackTotal(dealer);
+    const pNat = player.length === 2 && p === t, dNat = dealer.length === 2 && d === t;
+    if (p > t) return 'bust';
+    if (pNat && dNat) return 'push';
+    if (pNat) return 'natural';
+    if (dNat || (d <= t && d > p)) return 'lose';
+    if (d === p) return 'push';
+    return 'win';
+};
+/** Chicken Dinner: the listed prize for a result (before the level boost). */
+export const blackjackPrize = (r: BlackjackResult): number =>
+    r === 'natural' ? POWER_PLAY_VALUES.blackjackNatural : r === 'win' ? POWER_PLAY_VALUES.blackjackWin : r === 'push' ? POWER_PLAY_VALUES.blackjackPush : 0;
+/** Gump Luck (v7.67.1): what's in the chocolate, 25% each. */
+export type GumpPrize = 'time' | 'points' | 'shuffle' | 'empty';
+export const gumpRoll = (rand: () => number = Math.random): GumpPrize => (['time', 'points', 'shuffle', 'empty'] as const)[Math.min(3, Math.floor(rand() * 4))];
 /** Card Sharks: the pot after this many right calls. */
 export const cardSharksPot = (right: number): number =>
     right <= 0 ? 0 : POWER_PLAY_VALUES.cardSharksLadder[Math.min(right, POWER_PLAY_VALUES.cardSharksLadder.length) - 1];
