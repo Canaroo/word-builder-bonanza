@@ -807,7 +807,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'duckHunt',
     name: 'Duck Hunt',
-    description: `Grab the Zapper: ducks fly across the screen for ${POWER_PLAY_VALUES.duckSeconds} seconds. Tap to shoot them, +${POWER_PLAY_VALUES.duckPoints} a duck.`,
+    description: `Grab the Zapper: ${POWER_PLAY_VALUES.duckSeconds} seconds of fast, zigzagging ducks. Shoot a 🦆 duck for +${POWER_PLAY_VALUES.duckPoints}, but hitting a 🕊️ dove or the 🐕 dog costs ${POWER_PLAY_VALUES.duckPenalty}.`,
     flavorText: 'Grab the Zapper. Don’t let the dog laugh.',
     icon: '🦆',
     subtheme: 'score',

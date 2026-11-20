@@ -988,12 +988,26 @@ const Polaroid: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolv
   );
 };
 
-/** Duck Hunt: ducks cross the sky; tap to shoot. The flight plan is saved, so a resume can't redeal it. */
-const DUCK_FLIGHT_MS = 2400;
+/**
+ * Duck Hunt (v7.66.2: it was too easy, every duck was a sure hit). Ducks now cross faster and
+ * zigzag, 🕊️ doves fly among them and the 🐕 dog pops out of the grass: hitting a dove or the dog
+ * costs points. The flight plan is saved, so a resume can't redeal it.
+ */
+type DuckBird = { at: number; y: number; ltr: boolean; kind: 'duck' | 'dove'; wobble: number };
+const dealFlock = (): { birds: DuckBird[]; dogs: { at: number; x: number }[] } => {
+  const birds: DuckBird[] = [];
+  for (let at = 0; at <= V.duckSeconds * 1000 - V.duckFlightMs; at += V.duckEveryMs) {
+    birds.push({ at, y: 6 + Math.random() * 60, ltr: Math.random() < 0.5, kind: Math.random() < V.duckDoveChance ? 'dove' : 'duck', wobble: 0.6 + Math.random() * 0.8 });
+  }
+  if (!birds.some(b => b.kind === 'duck')) birds[0].kind = 'duck';
+  const dogs = Array.from({ length: V.duckDogs }, (_, i) => ({ at: 1500 + i * ((V.duckSeconds * 1000 - 2500) / V.duckDogs) + Math.random() * 600, x: 12 + Math.random() * 70 }));
+  return { birds, dogs };
+};
 const DuckHunt: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
   const [phase, setPhase] = useSaved<'ready' | 'flying' | 'done'>('phase', 'ready');
-  const [hits, setHits] = useSaved<number[]>('hits', []);
-  const [ducks] = useSaved('ducks', () => Array.from({ length: Math.floor((V.duckSeconds * 1000 - DUCK_FLIGHT_MS) / 750) + 1 }, (_, i) => ({ at: i * 750, y: 8 + Math.random() * 64, ltr: Math.random() < 0.5 })));
+  const [hits, setHits] = useSaved<number[]>('hits2', []);
+  const [dogHits, setDogHits] = useSaved<number[]>('dogHits', []);
+  const [flock] = useSaved('flock', dealFlock);
   const [now, setNow] = useState(0);
   const startRef = useRef(0);
   useEffect(() => {
@@ -1003,30 +1017,55 @@ const DuckHunt: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolv
     return () => clearInterval(t);
   }, [phase]);
   const left = useCountdown(phase === 'flying', V.duckSeconds * 1000, () => { setPhase('done'); soundService.playMilestone(); });
-  const shoot = (i: number) => { if (phase !== 'flying' || hits.includes(i)) return; setHits([...hits, i]); soundService.playValidWord(); buzz(20); };
-  const pts = hits.length * V.duckPoints;
+  const ducksHit = hits.filter(i => flock.birds[i]?.kind === 'duck').length;
+  const fouls = hits.length - ducksHit + dogHits.length;
+  const pts = Math.max(0, ducksHit * V.duckPoints - fouls * V.duckPenalty);
+  const totalDucks = flock.birds.filter(b => b.kind === 'duck').length;
+  const shoot = (i: number) => {
+    if (phase !== 'flying' || hits.includes(i)) return;
+    setHits([...hits, i]);
+    if (flock.birds[i].kind === 'duck') { soundService.playValidWord(); buzz(20); } else { soundService.playInvalidWord(); buzz([40, 30, 40]); }
+  };
+  const shootDog = (j: number) => {
+    if (phase !== 'flying' || dogHits.includes(j)) return;
+    setDogHits([...dogHits, j]); soundService.playInvalidWord(); buzz([60, 30, 60]);
+  };
   return (
     <>
-      <p className="text-slate-200 text-sm">{phase === 'ready' ? `Ducks fly for ${V.duckSeconds} seconds. Tap them to shoot, +${V.duckPoints} each.` : phase === 'flying' ? 'Pull!' : hits.length ? `${hits.length} ${hits.length === 1 ? 'duck' : 'ducks'} down!` : 'The dog is laughing at you. 🐕'}</p>
+      <p className="text-slate-200 text-sm leading-snug">{phase === 'ready'
+        ? <>Shoot the <strong className="text-white">🦆 ducks</strong>: +{V.duckPoints} each. They're fast! Don't hit the <strong className="text-white">🕊️ doves</strong> or the <strong className="text-white">🐕 dog</strong>: −{V.duckPenalty} each. {V.duckSeconds} seconds.</>
+        : phase === 'flying' ? 'Ducks only! Pull!' : ducksHit ? `${ducksHit} of ${totalDucks} ducks down${fouls ? `, ${fouls} oops` : ''}!` : 'The dog is laughing at you. 🐕'}</p>
       <div className="relative w-full h-56 rounded-xl overflow-hidden ring-2 ring-neon-cyan/50 bg-gradient-to-b from-sky-500 to-sky-300">
-        <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-b from-green-600 to-green-800" />
-        {phase === 'flying' && ducks.map((d, i) => {
-          const t = (now - d.at) / DUCK_FLIGHT_MS;
+        <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-b from-green-600 to-green-800 z-10" />
+        {phase === 'flying' && flock.birds.map((d, i) => {
+          const t = (now - d.at) / V.duckFlightMs;
           if (t < 0 || t > 1) return null;
           const x = d.ltr ? t * 110 - 10 : 100 - t * 110;
           const shot = hits.includes(i);
+          const y = shot ? d.y + t * 60 : d.y + Math.sin(t * 12 * d.wobble) * V.duckZigzag; // a real zigzag now
           return (
-            <button key={i} type="button" onPointerDown={e => { e.preventDefault(); shoot(i); }} aria-label={`Duck ${i + 1}`}
-              className="absolute text-4xl leading-none select-none touch-none p-1" style={{ left: `${x}%`, top: `${shot ? d.y + t * 60 : d.y + Math.sin(t * 12) * 4}%`, transform: `scaleX(${d.ltr ? -1 : 1})`, opacity: shot ? 0.5 : 1 }}>
-              {shot ? '💥' : '🦆'}
+            <button key={i} type="button" onPointerDown={e => { e.preventDefault(); shoot(i); }} aria-label={d.kind === 'duck' ? `Duck ${i + 1}` : `Dove ${i + 1}, don't shoot`}
+              className="absolute text-3xl leading-none select-none touch-none p-1" style={{ left: `${x}%`, top: `${y}%`, transform: `scaleX(${d.ltr ? -1 : 1})`, opacity: shot ? 0.5 : 1 }}>
+              {shot ? (d.kind === 'duck' ? '💥' : '❌') : d.kind === 'duck' ? '🦆' : '🕊️'}
             </button>
           );
         })}
-        {phase === 'ready' && <div className="absolute inset-0 grid place-items-center text-6xl" aria-hidden="true">🔫</div>}
+        {phase === 'flying' && flock.dogs.map((g, j) => {
+          const t = now - g.at;
+          if (t < 0 || t > V.duckDogMs) return null;
+          const rise = Math.min(1, t / 200, (V.duckDogMs - t) / 200);
+          return (
+            <button key={`dog${j}`} type="button" onPointerDown={e => { e.preventDefault(); shootDog(j); }} aria-label="The dog, don't shoot"
+              className="absolute text-4xl leading-none select-none touch-none z-0" style={{ left: `${g.x}%`, bottom: `${-6 + rise * 34}px` }}>
+              {dogHits.includes(j) ? '😵' : '🐕'}
+            </button>
+          );
+        })}
+        {phase === 'ready' && <div className="absolute inset-0 grid place-items-center text-6xl z-20" aria-hidden="true">🔫</div>}
       </div>
-      <div className="w-full flex justify-between items-baseline"><span className="osd-text text-xl text-neon-yellow">{hits.length} × {V.duckPoints} = +{pts}</span>{phase === 'flying' && <SecsLeft ms={left} />}</div>
+      <div className="w-full flex justify-between items-baseline"><span className="osd-text text-xl text-neon-yellow">🦆{ducksHit}{fouls ? ` · ❌${fouls}` : ''} = +{pts}</span>{phase === 'flying' && <SecsLeft ms={left} />}</div>
       {phase === 'ready' && <ArcadeButton color="cyan" className="w-full" onClick={() => { soundService.playPowerUp(); setPhase('flying'); }}>🦆 Pull!</ArcadeButton>}
-      {phase === 'done' && <ArcadeButton color="green" className="w-full" onClick={() => onResolve({ points: pts, headline: pts ? `+${pts} POINTS` : 'NO DUCKS', detail: `You shot ${hits.length} of ${ducks.length} ducks.`, tone: pts ? 'win' : 'neutral' })}>{pts ? `Take +${pts}` : 'Continue'}</ArcadeButton>}
+      {phase === 'done' && <ArcadeButton color="green" className="w-full" onClick={() => onResolve({ points: pts, headline: pts ? `+${pts} POINTS` : 'NO DUCKS', detail: `You shot ${ducksHit} of ${totalDucks} ducks${fouls ? ` and hit ${fouls} ${fouls === 1 ? 'thing' : 'things'} you shouldn't have (−${fouls * V.duckPenalty})` : ''}.`, tone: pts ? 'win' : 'neutral' })}>{pts ? `Take +${pts}` : 'Continue'}</ArcadeButton>}
     </>
   );
 };

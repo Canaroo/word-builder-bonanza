@@ -1918,7 +1918,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     powerPlayProgress: resetProgress,
                     powerPlayCooldowns: newPowerPlayCooldowns,
                 };
-                const newModalContent: ModalContent = { type: 'info', title: 'Thwomped!', content: `You got an extra Challenge!${swappedOut}`, autoClose: 2500 };
+                const newModalContent: ModalContent = { type: 'info', title: 'Thwomped!', content: `You got an extra Challenge!${swappedOut}` };
                 // The card takes the offer's place (see CARD_ON_PICK): queued, it was wiped by the next round.
                 return {
                     ...state,
@@ -1949,7 +1949,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     powerPlayProgress: resetProgress,
                     powerPlayCooldowns: newPowerPlayCooldowns,
                 };
-                const newModalContent: ModalContent = { type: 'info', title: 'Fluncle is Proud', content: `Fluncle is very proud of you. You gain ${scoreChange} points!${swappedOut}`, autoClose: 2500 };
+                const newModalContent: ModalContent = { type: 'info', title: 'Fluncle is Proud', content: `Fluncle is very proud of you. You gain ${scoreChange} points!${swappedOut}` };
                 // The card takes the offer's place (see CARD_ON_PICK): queued, it was wiped by the next round.
                 return {
                     ...state,
@@ -2117,7 +2117,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     ...state,
                     time: state.time - seconds,
                     timeGain: { seconds: -seconds, key: Date.now() },
-                    modalContent: { type: 'info', title: '🦔 Act Clear!', content: `Time bonus! ${seconds} seconds → +${scoreChange} points.`, autoClose: 2500 },
+                    modalContent: { type: 'info', title: '🦔 Act Clear!', content: `Time bonus! ${seconds} seconds → +${scoreChange} points.` },
                     isPaused: true,
                     gameState: {
                         ...state.gameState,
@@ -2154,7 +2154,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     hand: finalHand,
                     tileBag: finalBag,
                     buildRow: Array(BUILD_ROW_SIZE).fill(null),
-                    modalContent: { type: 'info', title: 'Bob Kelso!', content: '+100 points and a fresh hand.', autoClose: 2500 },
+                    modalContent: { type: 'info', title: 'Bob Kelso!', content: '+100 points and a fresh hand.' },
                     isPaused: true,
                     gameState: {
                         ...state.gameState,
@@ -2291,7 +2291,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     hand: finalHand,
                     tileBag: finalBag,
                     buildRow: Array(BUILD_ROW_SIZE).fill(null),
-                    modalContent: { type: 'info', title: 'Slim Shady Shuffle!', content: modalText, autoClose: 3000 },
+                    modalContent: { type: 'info', title: 'Slim Shady Shuffle!', content: modalText },
                     isPaused: true,
                     gameState: {
                         ...state.gameState,
@@ -2319,7 +2319,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 newLog.push(newLogEntry);
                 changes = { score: newScore, log: newLog };
                 
-                newModalContent = { type: 'info', title: 'Pinky and the Brain!', content: `Genius! ${description}`, autoClose: 3000 };
+                newModalContent = { type: 'info', title: 'Pinky and the Brain!', content: `Genius! ${description}` };
                 shouldPause = true;
             }
 
@@ -2358,7 +2358,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 newHand = padded;
                 newBag = remainingBag;
                 newBuildRow = Array(BUILD_ROW_SIZE).fill(null);
-                newModalContent = { type: 'info', title: '📸 Shake It Like a Polaroid!', content: `Kept your ${vowels.length} vowel${vowels.length === 1 ? '' : 's'} and redrew ${consonantCount} consonant${consonantCount === 1 ? '' : 's'}.${newTiles.length > 0 ? ` Your new ${newTiles[0].letter} is a ${POWER_PLAY_VALUES.shakeTileMultiplier}x word tile.` : ''}`, autoClose: 2200 };
+                newModalContent = { type: 'info', title: '📸 Shake It Like a Polaroid!', content: `Kept your ${vowels.length} vowel${vowels.length === 1 ? '' : 's'} and redrew ${consonantCount} consonant${consonantCount === 1 ? '' : 's'}.${newTiles.length > 0 ? ` Your new ${newTiles[0].letter} is a ${POWER_PLAY_VALUES.shakeTileMultiplier}x word tile.` : ''}` };
                 shouldPause = true;
                 newLog = [...newLog, { type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name, icon: powerPlay.icon, description: `Redrew ${consonantCount} consonants, kept the vowels.`, scoreChange: 0, cumulativeScore: state.gameState.score } as EventLogEntry];
                 changes = { ...changes, log: newLog };
@@ -2456,15 +2456,15 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     if (empty !== -1) newHand[empty] = tile;
                 });
                 newBag = remainingBag;
-                newModalContent = { type: 'info', title: '🦾 Go-Go-Gadget Hands!', content: 'Wowsers! +2 tiles now, and your hand refills to 10 for 2 rounds.', autoClose: 2200 };
+                newModalContent = { type: 'info', title: '🦾 Go-Go-Gadget Hands!', content: 'Wowsers! +2 tiles now, and your hand refills to 10 for 2 rounds.' };
                 shouldPause = true;
             }
             if (powerPlay.id === 'warpZone') {
-                newModalContent = { type: 'info', title: '🍄 Warp Zone!', content: 'Your next valid word starts a Golden Round.', autoClose: 2200 };
+                newModalContent = { type: 'info', title: '🍄 Warp Zone!', content: 'Your next valid word starts a Golden Round.' };
                 shouldPause = true;
             }
             if (powerPlay.id === 'whoYouGonnaCall') {
-                newModalContent = { type: 'info', title: '👻 Ghostbusted!', content: 'All strikes busted! That cost you some time.', autoClose: 2200 };
+                newModalContent = { type: 'info', title: '👻 Ghostbusted!', content: 'All strikes busted! That cost you some time.' };
                 shouldPause = true;
             }
             if (powerPlay.selectionType === 'tile_transform') {
@@ -3526,16 +3526,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   }, [state.modalContent, state.modalQueue, state.gameState, state.awaitingNextRound, handleStartNextRound, onGameOver, state.hand, state.tileBag, maxStrikes, resetRound]);
 
 
-  // Only quick PowerPlay/charm results auto-close. Bigger notices (level-ups, milestones, secret
-  // bonuses, Golden Rounds, Power Word, big combos) always wait for the player to tap Continue.
-  useEffect(() => {
-    if (modalContent?.autoClose) {
-        const timer = setTimeout(() => {
-            handleCloseModal();
-        }, modalContent.autoClose);
-        return () => clearTimeout(timer);
-    }
-  }, [modalContent, handleCloseModal]);
+  // v7.66.2 (the owner's call): no pop-up closes on its own any more. Every card with a Continue
+  // button waits for the player to tap it; quick results used to vanish after 2-3 seconds, before
+  // they could be read. (`autoClose` on old cards and saves is ignored.)
 
 
   const initialDeal = useCallback(() => {
@@ -3825,7 +3818,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       const now = Date.now();
       const modalQueue: ModalContent[] = [];
       if (infoMessage) {
-        modalQueue.push(typeof infoMessage === 'string' ? { type: 'info', title: 'PowerPlay Result', content: infoMessage, autoClose: 2500 } : infoMessage);
+        modalQueue.push(typeof infoMessage === 'string' ? { type: 'info', title: 'PowerPlay Result', content: infoMessage } : infoMessage);
       }
       const eventLogQueue: EventLogEntry[] = [];
       const oldScore = newState.score;
@@ -4758,7 +4751,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               modalQueue.push({ type: 'info', title: '😤 SO CLOSE!', content: `${hits}/${need} hits on ${boss.icon} ${boss.name}. +${reward.closePoints} points for the effort, but the badge (and its time) got away.` });
           } else if (outcome === 'escaped') {
               eventLogQueue.push({ type: 'event', id: `boss-${boss.id}-${now}`, name: `${boss.name} escaped`, icon: '💨', description: `${hits}/${need} hits in ${BOSS.words - (round?.wordsLeft ?? 0)} words: no badge this time.`, scoreChange: 0, cumulativeScore: runningScore });
-              modalQueue.push({ type: 'info', title: `💨 ${boss.name} got away`, content: `${hits}/${need} hits. No badge this time, and nothing lost.`, autoClose: 2500 });
+              modalQueue.push({ type: 'info', title: `💨 ${boss.name} got away`, content: `${hits}/${need} hits. No badge this time, and nothing lost.` });
           }
       }
       const bossIntro = startBossRound(newState, totalWords, eventLogQueue, runningScore);
@@ -4981,7 +4974,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               eventLogQueue.push({ type: 'event', id: `pw-${egg.id}-${now}`, name: title, icon, description: content, scoreChange: change, cumulativeScore: runningScore });
               return again
                   ? { type: 'info', title: head, content: `${icon} ${title} ${content}\n\n🔁 ${info.again}` }
-                  : { type: 'info', title: `${icon} ${title}`, content, autoClose: 3000 };
+                  : { type: 'info', title: `${icon} ${title}`, content };
           };
           if (effect === 'slot') {
               const pay = slotPayout(Math.random());
@@ -5057,7 +5050,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           newState.pendingTimeBonus = (newState.pendingTimeBonus ?? 0) + seconds;
           newState.powerSurgeProgress = Math.min(4, newState.powerSurgeProgress + 1);
           track(seconds);
-          return note('Cloned!', `Your best word ${best.toUpperCase()} is cloned: +${seconds}s next round and +1 toward your Word Combo.`);
+          return note('Cloned!', `Your best word, ${best.toUpperCase()}, earned ${seconds} seconds: you get them again on your next turn, plus one step on your Word Combo.`);
       };
 
       // Easter eggs: word bonuses and score-number bonuses add their points on top of the turn.

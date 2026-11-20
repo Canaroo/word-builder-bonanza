@@ -236,6 +236,18 @@ export const POWER_PLAY_VALUES = {
   polaroidMax: 300,
   duckSeconds: 10,               // Duck Hunt: ducks fly for this long; each one shot pays duckPoints
   duckPoints: 50,
+  // v7.66.2 (the owner: too easy, every duck was a sure hit): a bird crosses in duckFlightMs (was
+  // 2,400) and zigzags duckZigzag% of the sky's height (was a 4% wobble); one launches every
+  // duckEveryMs; duckDoveChance of them are 🕊️ doves, and the 🐕 dog pops up duckDogs times for
+  // duckDogMs. Hitting a dove or the dog costs duckPenalty. Modelled (a player who taps ahead of the
+  // duck, 180-250 ms reaction): old 100% of ducks hit; now 60-83%. 1.4 s and a 12% zigzag gave 26-32%.
+  duckFlightMs: 1800,
+  duckZigzag: 8,
+  duckEveryMs: 600,
+  duckDoveChance: 0.3,
+  duckDogs: 3,
+  duckDogMs: 900,
+  duckPenalty: 50,
   // Scrooge's Money Bin (v7.55.1, the owner's call: Credits came too easily elsewhere to matter):
   // coins rain for moneyBinSeconds, worth 1, 2 or 3 seconds each; the faster a coin falls, the more
   // it's worth. About 22 seconds fall in all; a catch is capped at moneyBinMaxSeconds.

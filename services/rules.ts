@@ -390,20 +390,21 @@ export const levelUpInfo = (level: number, gs?: WithCharms): LevelUpInfo => {
 /** v7.61.0: `prize` is the short reward the hint chip shows (so a player knows why to stop and look). */
 export const powerWordInfo = (effect: PowerWordEffect): { prize: string; label: string; does: string; again: string } => {
     const E = POWER_WORD_EFFECTS;
-    const slot = E.slot.map(p => `${p.seconds}`).join(', ');
+    // v7.66.2 (the owner: "talk like a human"): each line says what happens to you, in plain words.
+    const slot = E.slot.map(p => `+${p.seconds}`);
     const info = {
-        slot: { prize: 'UP TO +10 SEC', label: 'SLOT MACHINE', does: `Pull a slot machine for bonus time next round: +${slot} seconds.` },
-        freeze: { prize: 'FROZEN CLOCK', label: 'FREEZE', does: `The clock won't move for the first ${E.freezeSeconds} seconds of your next round.` },
-        heal: { prize: 'REMOVE A STRIKE', label: 'HEAL', does: `Removes one strike. With no strikes, +${E.healFallbackPoints} points instead.` },
-        slow: { prize: 'HALF-SPEED CLOCK', label: 'SLOW MOTION', does: `The clock runs at half speed for your next ${E.slowWords} words.` },
-        twin: { prize: 'CLONE YOUR BEST WORD', label: 'CLONE', does: 'Clones your best word: its time next round, plus one step toward your Word Combo.' },
-        shield: { prize: 'STRIKE SHIELD', label: 'RING SHIELD', does: 'Blocks your next strike. One shield at a time.' },
-        rewind: { prize: 'SLOWER CLOCK', label: 'REWIND', does: `The clock drops back one speed step for the rest of this level (at level 1, +${E.rewindLevelOneSeconds} seconds instead).` },
-        sword: { prize: 'FREE POWERPLAY', label: 'TAKE THIS', does: 'Fills your PowerPlay meter, so a PowerPlay offer appears.' },
-        spice: { prize: 'NEXT WORD x3', label: 'SPICE IT UP', does: `Your next word scores x${E.spiceMultiplier}.` },
-        cake: { prize: 'FREE CHARM', label: 'CAKE', does: 'A charm offer appears. The cake was real this time.' },
+        slot: { prize: 'UP TO +10 SEC', label: 'SLOT MACHINE', does: `Spins a slot machine for bonus time: ${slot.slice(0, -1).join(', ')} or ${slot[slot.length - 1]} seconds (the big one is rare).` },
+        freeze: { prize: 'FROZEN CLOCK', label: 'FREEZE', does: `Your clock stops for ${E.freezeSeconds} seconds at the start of your next turn. Free thinking time.` },
+        heal: { prize: 'REMOVE A STRIKE', label: 'HEAL', does: `Takes away one of your strikes. No strikes? You get +${E.healFallbackPoints} points instead.` },
+        slow: { prize: 'HALF-SPEED CLOCK', label: 'SLOW MOTION', does: `Your clock ticks at half speed for your next ${E.slowWords} words.` },
+        twin: { prize: 'BONUS TIME', label: 'CLONE', does: 'Bonus time: you get the seconds your best word earned all over again (a longer best word means more time). It also adds one step to your Word Combo.' },
+        shield: { prize: 'STRIKE SHIELD', label: 'RING SHIELD', does: 'Your next strike doesn\'t count: one mistake is free.' },
+        rewind: { prize: 'SLOWER CLOCK', label: 'REWIND', does: `Your clock goes back to last level's slower speed until the next level. (On level 1: +${E.rewindLevelOneSeconds} seconds instead.)` },
+        sword: { prize: 'FREE POWERPLAY', label: 'TAKE THIS', does: 'Fills your PowerPlay meter, so you pick a PowerPlay right now.' },
+        spice: { prize: 'NEXT WORD x3', label: 'SPICE IT UP', does: `Your next word scores triple (x${E.spiceMultiplier}).` },
+        cake: { prize: 'FREE CHARM', label: 'CAKE', does: 'You pick a new charm right now.' },
     }[effect];
-    return { ...info, again: 'Play it again on a later level to use it again (once per level).' };
+    return { ...info, again: 'Works once per level: play it again on a later level to use it again.' };
 };
 
 // --- v7.25 gamble PowerPlays: the rolls, kept pure so they can be tested (POWER_PLAY_VALUES). ---
