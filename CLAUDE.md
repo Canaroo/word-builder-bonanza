@@ -134,6 +134,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   **Mystery Tape** pays `points` (75) on take and `usePoints` (100) when the PowerPlay inside is used
   (`tapeBonusId`, paid by `payTapeUse` in the reducer wrapper; a swap drops it); the pocket button
   shows "📼+100". 31% of tape PowerPlays were never used against 4% of face-up picks.
+- **Feature tracking (v7.61.1):** `fork` (choice incl. `bail`, level, clock, advice), `golden`
+  (level, score, tile, ok), `gate` (gate, played/skip, points) events; `pp_use` extra `tape`;
+  `run_end` extras from `runEndExtras()` (golden, route, bails, skill, gems, lastWords). Shown in a
+  "Mid-run features" table on `/?stats`. The rules in `docs/LEADERBOARD.md` must be pasted into the
+  Firebase console; until then the new events are dropped and the extras fall back.
 - **WILDCARD (v7.50.0)** (`wildcard`, `Wildcard` in `GambleCard.tsx`, odds in
   `POWER_PLAY_VALUES.wildcard`): a pocket gamble card. The owner's GIF plays at the top
   (`public/powerplays/wildcard.webp`, v7.50.1: the van "YEEEHAAAAA!" clip from the owner's imgur

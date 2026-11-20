@@ -166,7 +166,7 @@ const StatsPage: React.FC = () => {
             } empty="No power words played yet." />
           </Section>
 
-          <Section title="Mid-run features (v7.62+)" note="Fork picks and cool-offs (Followed = picks that matched the card's advice, when it gave one). Golden Rounds played or missed. Score Gates played or skipped, with median points. Run extras come from run_end.">
+          <Section title="Mid-run features (v7.61.1+)" note="Fork picks and cool-offs (Followed = picks that matched the card's advice, when it gave one). Golden Rounds played or missed. Score Gates played or skipped, with median points. Run extras come from run_end.">
             <Table head={['Feature', 'Count', 'Detail']} rows={[
               ['🛣️ Fork: Easy / Danger', `${s.forks.easy} / ${s.forks.danger}`, `${s.forks.bail} cooled off · followed advice ${pct(s.forks.followed, s.forks.advised)}`],
               ['🌟 Golden Rounds', `${s.golden.played} played · ${s.golden.missed} missed`, `Golden Tile ${pct(s.golden.tile, s.golden.played)} · median ${median(s.golden.points)} pts`],

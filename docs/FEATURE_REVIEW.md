@@ -1,7 +1,24 @@
 # Feature Review: Golden Rounds, Gates, the Fork and friends (Nov 2026)
 
 What the data and the code say about the mid-run features, where they leak, and what to change.
-Nothing here is built yet: pick from the **Proposals** table at the end.
+
+## Status (built Nov 20, 2026)
+
+The owner asked for all of it, with one priority above the rest: players must see and understand
+each mechanic, and never close an explainer by accident.
+
+| Release | What shipped |
+|---|---|
+| v7.59.0 | **Tap guard** on every pop-up that opens on its own (1 s, "READ ME" bar). **Fork** card shows your clock and last level's change and marks the route that suits you; **hold the 🔥 chip to cool off** to Easy Street (F1, F2). |
+| v7.60.0 | **Golden Round** scores in full, then x2 / x4 with the Golden Tile; ★ GOLDEN box gets a bar and "★ N MORE!"; seeded Golden Tile, gate check on Golden words, a missed round no longer raises the target (G1, G2, G3). |
+| v7.61.0 | **Charm sets** pay at 2 of 3 (+50; full trio +150) with a 🧩 chip; **next-gate marker** under the score; **power word chip** names the prize and lights the tiles; **Mystery Tape** +75 on take, +100 on use (C1, S1, P1, M1). |
+| v7.61.1 | **Tracking**: `fork`, `golden`, `gate` events, `pp_use` `tape`, `run_end` extras; a "Mid-run features" table on `/?stats`. Needs the rules in `docs/LEADERBOARD.md` published. |
+
+Not built: F3 (a fourth fork at 15; the cool-off covers it), C2/C3 and M2 (wait for data), a 5,000
+warm-up gate (wait for the new `gate` data). P2: REWIND's hint can show (it showed once); leave the
+word until the new hint has had a few weeks.
+
+The original review follows.
 
 **Data used.** Firebase `/stats` pulled Nov 20, 2026: 7,390 events, 202 runs (Oct 30 – Nov 19),
 56 of them after charm sets and the Fork shipped (v7.41/v7.43). Plus code reading and three quick
