@@ -978,3 +978,27 @@ describe('Quack Attack (v7.54.0)', () => {
         expect(badge.cost).toBeUndefined();
     });
 });
+
+describe('CTU Safe House clock rescue (v7.67)', () => {
+    const ctu = CHARMS_LIST.find(c => c.id === 'ctuSafeHouse')!;
+    test('under 10 seconds it adds 15 once a level; not above the line, not twice, not without the charm', () => {
+        const s = start({ activeCharms: [ctu] }, 8);
+        const saved = gameReducer(s, { type: 'CTU_RESCUE' });
+        expect(saved.time).toBe(8 + TIME_BONUS.ctuSafeHouse);
+        expect(saved.gameState!.ctuLevel).toBe(1);
+        // Once a level: dropping under the line again on the same level does nothing.
+        const again = gameReducer({ ...saved, time: 5 }, { type: 'CTU_RESCUE' });
+        expect(again.time).toBe(5);
+        expect(gameReducer(start({ activeCharms: [ctu] }, 12), { type: 'CTU_RESCUE' }).time).toBe(12);
+        expect(gameReducer(start({ activeCharms: [] }, 8), { type: 'CTU_RESCUE' }).time).toBe(8);
+        expect(gameReducer(start({ activeCharms: [ctu] }, 0), { type: 'CTU_RESCUE' }).time).toBe(0);
+    });
+    test('the family charms pay flat points', () => {
+        expect(CHARM_BONUS.nicolesGrace).toBe(75);
+        expect(CHARM_BONUS.christiansHoodie).toBe(40);
+        expect(CHARM_BONUS.lena).toBe(25);
+        const lena = CHARMS_LIST.find(c => c.id === 'lenaOfTheLostLights')!;
+        expect(lena.description).toContain(`+${CHARM_BONUS.lena} points`);
+        expect(lena.description).not.toContain('%');
+    });
+});

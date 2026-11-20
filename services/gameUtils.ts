@@ -950,9 +950,8 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     // Lena of the Lost Lights
     if (gameState.activeCharms.some(c => c.id === 'lenaOfTheLostLights')) {
         if (['D', 'R', 'K', 'N'].some(l => lettersInWord.includes(l))) {
-             const bonus = Math.round(totalScore * CHARM_BONUS.lenaPercent / 100);
-             totalScore += bonus;
-             bonuses.push({ name: 'Lena of the Lost Lights', description: `+${bonus} pts (${CHARM_BONUS.lenaPercent}%)`, source: 'game' });
+             totalScore += CHARM_BONUS.lena;
+             bonuses.push({ name: 'Lena of the Lost Lights', description: `+${CHARM_BONUS.lena} pts`, source: 'game' });
         }
     }
 

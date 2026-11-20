@@ -332,6 +332,8 @@ export interface GameState {
   holdTile?: Tile | null;
   /** Tick-Tock Croc (v7.51.0): valid words since it was equipped or last surfaced. */
   crocWords?: number;
+  /** CTU Safe House (v7.67): the level its clock rescue last fired on (once a level). */
+  ctuLevel?: number;
   /** Greatest Hits (v7.52.0): the word lengths whose record already paid this run (3 = GOLD...). */
   hitsClaimed?: number[];
   /** Quack Attack (v7.54.0): QUA's fourth play already paid this run. */

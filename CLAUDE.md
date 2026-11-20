@@ -171,6 +171,17 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   (`JENGA_CASH`); a word under 4 letters (`completeSubmission`), an invalid word or a strike
   (`ADD_STRIKE`) topples it. Browser-checked with playtest.mjs (updated for the Play chooser, the
   tap guard and autosave; it now blocks Firebase).
+- **Charm copy pass, batch 1 (v7.67.0, the owner approved each line):** 22 charm texts reworded
+  clear AND funny (Insert Coin says you start with 3 strikes, the Snitch's catches and what scares
+  it off, S Club Party's x2 is once per word, Jumanji is every 3rd *hand*, Phil's-osophy isn't a coin
+  flip, Hungry Hippos needs every vowel in your hand...). Star Power's flavor no longer promises
+  "untouchable" (it's only +125). **Family charms pay flat points** (the owner: percents made players
+  do math): Nicole's Grace +75 (M or ends in a vowel, 25% of words), Christian's Hoodie Mode +40 (G,
+  A or M within 10 s of the last word), Lena +25 (D, R, K or N, 80% of words); matched to what the
+  percents paid on average (median word 110-190 in 209 runs). **CTU Safe House reworked:** once a
+  level, the clock dropping under 10 s adds +15 s (charm time, shrinks by level; `ctuLevel`,
+  `CTU_RESCUE`, `TIME_BONUS.ctuSafeHouse`); it used to swap in a 4-point tile after a word under 20
+  points, which almost never happened past level 3. Browser-checked: 9 s left → +15.
 - **Feature tracking (v7.61.1):** `fork` (choice incl. `bail`, level, clock, advice), `golden`
   (level, score, tile, ok), `gate` (gate, played/skip, points) events; `pp_use` extra `tape`;
   `run_end` extras from `runEndExtras()` (golden, route, bails, skill, gems, lastWords). Shown in a
