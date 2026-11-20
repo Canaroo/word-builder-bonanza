@@ -32,6 +32,8 @@ import GambleCard, { type GambleResult } from '../../components/GambleCard';
 import PowerPlayTrackers from '../../components/PowerPlayTrackers';
 import MiniGameCard from '../../components/MiniGames';
 import CharmTimeNote from '../../components/CharmTimeNote';
+import DangerChip from '../../components/DangerChip';
+import ModalTapGuard, { GUARDLESS_MODALS } from '../../components/ModalTapGuard';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
@@ -118,6 +120,7 @@ export interface GameScreenViewProps {
   handleBonesDone?: (word: string | null) => void;
   /** Fork in the Road: the route picked. */
   handleForkPick?: (route: 'easy' | 'danger') => void;
+  handleForkBail?: () => void;
   handleCrocPick?: () => void;
   /** A power word can be spelled from the tiles in play (the hint chip); tapping it explains. */
   powerHint?: { icon: string; length: number } | null;
@@ -181,7 +184,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, skillShotTileId = '', holdOpen = false, holdArmed = false, handleHoldTap, handleForkPick, handleCrocPick, handleBonesDone, lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, skillShotTileId = '', holdOpen = false, holdArmed = false, handleHoldTap, handleForkPick, handleForkBail, handleCrocPick, handleBonesDone, lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
@@ -401,7 +404,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 return <CrocCard win={!!data?.win} level={Number(data?.level) || 1} saved={data?.saved} onSave={(key, value) => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key, value } })} onDone={() => handleCrocPick?.()} />;
 
             case 'fork':
-                return <ForkCard level={Number(data?.level) || 1} onPick={route => handleForkPick?.(route)} />;
+                return <ForkCard level={Number(data?.level) || 1} delta={data?.delta ?? null} clock={Number(data?.clock) || 0} onPick={route => handleForkPick?.(route)} />;
 
             case 'last-words':
                 return <LastWordsCard reason={data?.reason === 'strikes' ? 'strikes' : 'time'} tiles={(hand ?? []).filter((t): t is Tile => !!t)} gameState={gameState} onDone={r => handleLastWords?.(r)} />;
@@ -844,6 +847,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     <div className="flex flex-col h-full min-h-0 p-3 text-slate-200 gap-2">
       {/* --- MODALS --- */}
       {renderModal()}
+      {/* v7.59.0: cards that open on their own swallow taps for a moment (keyed per card, not per save of its state). */}
+      {modalContent && !GUARDLESS_MODALS.has(modalContent.type) && (
+        <ModalTapGuard key={`${modalContent.type}|${modalContent.title ?? ''}|${(modalContent.data as any)?.id ?? ''}|${(modalContent.data as any)?.level ?? ''}`} />
+      )}
       {showSound && <SoundMenu isMuted={isMuted} onToggleMute={handleMuteToggle} onClose={() => setShowSound(false)} inRun />}
       {/* Resumed run: the board stays hidden (no free look at the tiles) until the 3-2-1 ends. */}
       {resumeCountdown > 0 && (
@@ -1137,12 +1144,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 <span className="osd-text text-base leading-none text-slate-200">{gameState?.holdTile ? 'HELD · TAP TO USE' : holdArmed ? 'TAP A TILE' : 'HOLD'}</span>
               </button>
             )}
-            {gameState?.route && (
-              <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs text-white whitespace-nowrap ring-1 ${gameState.route.choice === 'danger' ? 'ring-neon-red bg-neon-red/20' : 'ring-neon-green/70 bg-neon-green/10'}`}
-                aria-label={gameState.route.choice === 'danger' ? `Danger Zone: clock faster, every word times ${FORK.danger.points}` : 'Easy Street: clock slower'}>
-                <span aria-hidden="true">{gameState.route.choice === 'danger' ? '🔥' : '🌴'}</span>{gameState.route.choice === 'danger' ? `DANGER ZONE · x${FORK.danger.points}` : 'EASY STREET'}
-              </span>
-            )}
+            {gameState?.route && <DangerChip route={gameState.route} clock={time} onBail={handleForkBail} />}
           </div>
         )}
 

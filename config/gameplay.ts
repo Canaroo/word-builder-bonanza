@@ -479,7 +479,16 @@ export const GEM_INTRO_SHOWS = 2;
  *   parked in a slot that survives new hands and shuffles. It used to open for everyone at level 4.
  * GRUDGE: beating a boss that got away from this player before pays its badge points times this.
  */
-export const FORK = { levels: [4, 7, 11], easy: { clock: 0.9, points: 1 }, danger: { clock: 1.15, points: 1.5 } } as const;
+// v7.59.0: bailHoldMs: hold the Danger chip this long to cool off to Easy Street (no way back in until
+//   the next fork). advice: the card recommends Danger when the clock gained at least `gain` seconds
+//   over the last level (or sits at `comfy`+ without losing more than `gain`), Easy when it lost time
+//   and sits under `tight`. Simulated (levels 7-10, 2.2 s a word): locked Danger survived 32% and
+//   lost 27% of a run's value against Easy; with a bail at 25 s it survives 82% and gains 3%.
+export const FORK = {
+  levels: [4, 7, 11], easy: { clock: 0.9, points: 1 }, danger: { clock: 1.15, points: 1.5 },
+  bailHoldMs: 600, lowClockNudge: 25,
+  advice: { gain: 5, comfy: 60, tight: 45 },
+} as const;
 export const HOLD_SLOT = { charmId: 'holdThatThought' } as const;
 export const GRUDGE = { multiplier: 2 } as const;
 

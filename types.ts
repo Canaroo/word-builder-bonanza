@@ -320,7 +320,9 @@ export interface GameState {
   /** Bones (v7.44): ids of the ghosts met this run. */
   bonesMet?: string[];
   /** Fork in the Road (v7.43): the route picked at the last fork, and the level it was picked at. */
-  route?: { choice: 'easy' | 'danger'; level: number } | null;
+  route?: { choice: 'easy' | 'danger'; level: number; /** v7.59.0: cooled off from the Danger Zone mid-stretch */ bailed?: boolean } | null;
+  /** v7.59.0: the clock when the current level started, and how it moved over the level before (for the Fork card). */
+  levelClock?: { start: number; delta: number | null } | null;
   /** Hold Slot (v7.43): the tile parked there (survives new hands and shuffles). */
   holdTile?: Tile | null;
   /** Tick-Tock Croc (v7.51.0): valid words since it was equipped or last surfaced. */
