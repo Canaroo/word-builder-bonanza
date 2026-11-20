@@ -78,6 +78,12 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   from charms and PowerPlays). From level 12 the clock adds 4% a level (to x2.4) and word time
   loses 2% a level (to 55%); the level-12 card shows an OVERTIME banner. Simulated: top player's
   median level 21 → 17 (best 10%: 24 → 18), strong 15 → 14, typical runs untouched.
+- **Tap guard (v7.59.0, the owner's priority: players must not close an explainer by accident):**
+  every pop-up that opens on its own swallows taps for `MODAL_ARM_MS` (1 s) behind a clear layer
+  with a filling "READ ME" bar (`components/ModalTapGuard.tsx`, rendered by `GameScreenView` keyed
+  on the card's type/title/id/level). Cards the player opened (info, logs, activations) are listed
+  in `GUARDLESS_MODALS`; Last Words and Phoenix Down keep their own 1.5 s guard. Browser scripts
+  wait about 1.1 s before tapping a card's button.
 - **Pop-ups:** big notices (level-up, milestones, secret bonuses, Golden Round, Power Word, big
   combos) wait for Continue. Chance PowerPlays (rolls, coin flips, random tiles) show their
   result on a centered outcome card (`outcome()` in `GameScreen.tsx`, `components/OutcomeCard.tsx`)
@@ -518,6 +524,14 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   in `POST_WORD_MODALS`. Simulated at the pace real runs show (2.2-3.4 s a word): Danger is +50%
   for a player ahead of the clock and cuts survival from 79% to 10% for one on the edge at levels
   7-10; Easy Street lifts that player to 99%.
+  **v7.59.0 (from `docs/FEATURE_REVIEW.md`):** locked Danger was a trap at the median late pace
+  (2.2 s a word: survived levels 7-10 32% of the time, -27% run value against Easy). Now the card
+  shows the player's clock and how it moved over the last level (`gameState.levelClock`, set on each
+  level-up by `noteLevelClock`) and marks the route that suits it (`forkAdvice` in `services/rules.ts`,
+  `FORK.advice`). In the Danger Zone the chip above the hand is a button (`components/DangerChip.tsx`):
+  hold it `FORK.bailHoldMs` to cool off to Easy Street until the next fork (`route.bailed`, no way
+  back in); it pulses "LOW CLOCK? HOLD TO COOL OFF" at `FORK.lowClockNudge` seconds or less.
+  Simulated with a bail at 25 s: Danger +3% to +20% for most paces, still a loss for slow players.
   **Hold Slot** (`gameState.holdTile`, `HOLD_STASH` / `HOLD_RETURN`): a charm since v7.45.0 (the
   owner's call; it used to open for everyone at level 4): while **Hold That Thought**
   (`holdThatThought`, `HOLD_SLOT.charmId`) is equipped, a HOLD button sits above the hand; tap it,

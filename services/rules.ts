@@ -1,5 +1,5 @@
 // Pure gameplay rules. No React, no DOM: easy to test and to tune via config/gameplay.ts.
-import { BOSS, CHARM_BONUS, CHARM_LENGTH_BOOST, CHARM_UPGRADE, GAMEPLAY, PRIZE_GROWTH, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS, GEM_TILES, SKILL_SHOT } from '../config/gameplay';
+import { BOSS, CHARM_BONUS, CHARM_LENGTH_BOOST, CHARM_UPGRADE, GAMEPLAY, PRIZE_GROWTH, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS, GEM_TILES, SKILL_SHOT, FORK } from '../config/gameplay';
 import { BossRound, PowerWordEffect, ScoreCalculationResult } from '../types';
 
 const lookupByLength = (table: Record<number, number>, length: number, below: number): number => {
@@ -534,3 +534,15 @@ export const MISSIONS: { id: string; text: string; test: (word: string) => boole
     { id: 'double', text: 'Play a word with a double letter (like BOOK or BELL)', test: w => /(.)\1/.test(w) },
 ];
 export const missionById = (id: string | undefined) => MISSIONS.find(m => m.id === id);
+
+/**
+ * Fork in the Road advice (v7.59.0): which route suits the player, from how their clock moved over
+ * the level before (delta, seconds) and where it sits now. 'either' when it's a close call.
+ */
+export const forkAdvice = (delta: number | null | undefined, clock: number): 'danger' | 'easy' | 'either' => {
+    const A = FORK.advice;
+    if (delta == null) return clock >= A.comfy ? 'danger' : 'either';
+    if (delta >= A.gain || (clock >= A.comfy && delta > -A.gain)) return 'danger';
+    if (delta < 0 && clock < A.tight) return 'easy';
+    return 'either';
+};

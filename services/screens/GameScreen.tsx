@@ -396,10 +396,19 @@ const bonesModal = (gs: GameState, wordsBefore: number): ModalContent | null => 
 };
 
 /** Fork in the Road (v7.43): the route card, when this word levels up into a fork level. */
-const forkModal = (wordsBefore: number): ModalContent | null => {
+const forkModal = (wordsBefore: number, gs?: GameState, clock?: number): ModalContent | null => {
     const level = levelFor(wordsBefore + 1);
     if (level <= levelFor(wordsBefore) || !(FORK.levels as readonly number[]).includes(level)) return null;
-    return { type: 'fork', title: 'Fork in the Road', data: { level } };
+    // v7.59.0: the card shows how the clock did over the last level and which route suits it.
+    const delta = gs?.levelClock?.delta ?? null;
+    return { type: 'fork', title: 'Fork in the Road', data: { level, delta, clock: Math.round(clock ?? 0), prev: gs?.route?.choice ?? null } };
+};
+
+/** v7.59.0: on a level-up, remember the clock at the new level's start and how it moved over the last one. */
+const noteLevelClock = (gs: GameState, wordsBefore: number, clock: number): void => {
+    if (levelFor(wordsBefore + 1) <= levelFor(wordsBefore)) return;
+    const now = Math.round(clock);
+    gs.levelClock = { start: now, delta: now - (gs.levelClock?.start ?? GAMEPLAY.timeBank.start + (gs.headStart ?? 0)) };
 };
 
 /**
@@ -3280,6 +3289,23 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     handleCloseModal();
   };
 
+  /** v7.59.0: cool off from the Danger Zone to Easy Street until the next fork (no way back in). */
+  const handleForkBail = () => {
+    if (gameState?.route?.choice !== 'danger') return;
+    const level = levelFor(totalWords);
+    const next = (FORK.levels as readonly number[]).find(l => l > level);
+    dispatch({ type: 'UPDATE_GAME_STATE', payload: {
+        route: { choice: 'easy', level, bailed: true },
+        log: [...gameState.log, {
+            type: 'event', id: `fork-bail-${level}-${Date.now()}`, name: 'Cooled off', icon: '🌴',
+            description: `Left the Danger Zone at level ${level}: Easy Street ${next ? `until the level ${next} fork` : 'for the rest of the run'}.`,
+            scoreChange: 0, cumulativeScore: gameState.score,
+        } as EventLogEntry],
+    } });
+    soundService.playPowerUp();
+    showMessage(`🌴 Cooled off! Easy Street ${next ? `until level ${next}` : 'from here on'}: clock ${Math.round((1 - FORK.easy.clock) * 100)}% slower.`, 3000);
+  };
+
   /**
    * Bones: the ghost's word was found (or not). A win opens a charm offer made of the fallen
    * player's charms, in the card's place, so closing it carries on like any offer.
@@ -3739,7 +3765,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             newState.pendingTimeBonus = timeForWordAtLevel(word.length, levelFor(totalWords)); // Added back onto the time bank
             const levelUp = levelUpModal(totalWords, newState);
             if (levelUp) modalQueue.push(levelUp);
-            const goldenFork = forkModal(totalWords);
+            noteLevelClock(newState, totalWords, newState.bankedTime ?? time);
+            const goldenFork = forkModal(totalWords, newState, newState.bankedTime ?? time);
             if (goldenFork) modalQueue.push(goldenFork);
             const goldenBones = bonesModal(newState, totalWords);
             if (goldenBones) modalQueue.push(goldenBones);
@@ -3776,10 +3803,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // --- B: NORMAL ROUND SUBMISSION ---
       // The word's time is added to the bank when the next round starts.
       newState.pendingTimeBonus = timeForWordAtLevel(word.length, levelFor(totalWords));
+      noteLevelClock(newState, totalWords, time + newState.pendingTimeBonus);
 
       const levelUp = levelUpModal(totalWords, newState);
       if (levelUp) modalQueue.push(levelUp);
-      const fork = forkModal(totalWords);
+      const fork = forkModal(totalWords, newState, time + newState.pendingTimeBonus);
       if (fork) modalQueue.push(fork);
       const bones = bonesModal(newState, totalWords);
       if (bones) modalQueue.push(bones);
@@ -6077,6 +6105,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         holdArmed,
         handleHoldTap,
         handleForkPick,
+        handleForkBail,
         handleCrocPick,
         handleBonesDone,
         upcomingTiles: [], // Psychic Friends no longer peeks at tiles (v7.54.0)
