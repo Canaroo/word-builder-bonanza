@@ -87,7 +87,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
 - **Pop-ups:** big notices (level-up, milestones, secret bonuses, Golden Round, Power Word, big
   combos) wait for Continue. Chance PowerPlays (rolls, coin flips, random tiles) show their
   result on a centered outcome card (`outcome()` in `GameScreen.tsx`, `components/OutcomeCard.tsx`)
-  that also waits for Continue. Only other quick PowerPlay/charm results auto-close.
+  that also waits for Continue. **v7.66.2 (the owner's call): nothing auto-closes any more.** Quick
+  results (a Heisenberg-style outcome, "PowerPlay Result", Fluncle, Act Clear!...) used to vanish
+  after 2-3 s with their Continue button still showing; every card now waits for Continue (the
+  `autoClose` timer is gone and old `autoClose` fields are ignored). Don't add timed pop-ups.
 - **Decision gambles are push-your-luck** (`components/GambleCard.tsx`): Minesweeper, Let's Make a
   Deal, No Whammies! and Deal or No Deal keep going round after round until the player banks (or
   takes the deal) or busts; a bust wipes the pot, nothing more. One-roll gambles (Plinko, Hot Tub,
@@ -233,7 +236,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   time in 25 (Polaroid 2%, Ludicrous Speed, Mission: Impossible, Duck Hunt, Money Bin 4%, Wario 8%).
   Values in `POWER_PLAY_VALUES`; cards in `GambleCard.tsx` (useSaved keeps the deal, so a quit can't
   reroll). **Shake It Like a Polaroid**: tap for 5 s, +25 per 5 shakes (max +300). **Duck Hunt**: a
-  10 s shooting gallery, +50 a duck (flight plan saved). **Scrooge's Money Bin**: coins fall for 8 s;
+  10 s shooting gallery, +50 a duck (flight plan saved). v7.66.2 (the owner: too easy): ducks cross
+  in 1.8 s (was 2.4) and zigzag 8% (was a 4% wobble), 30% of birds are 🕊️ doves and the 🐕 dog pops
+  up 3 times; hitting either costs 50 (`duck*` in `POWER_PLAY_VALUES`). Modelled for a player who
+  taps ahead of the duck: 100% of ducks hit before, 60-83% now. **Scrooge's Money Bin**: coins fall for 8 s;
   v7.55.1 (the owner's call: 6 Credits didn't move anyone) made them clock time: 1 / 2 / 3 seconds
   each (the faster a coin falls, the more it's worth; 50 / 30 / 20% of coins), about 22 s on offer,
   capped at +15 s (`moneyBinCoins`, `moneyBinMaxSeconds`); a time card now (`TIME_CARD_IDS`).
@@ -638,6 +644,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   offer). They fire on submit and can fire again once per level; other secrets are once per run.
   New ones should be harder to spell than the existing ones (they can be abused). Values in
   `POWER_WORD_EFFECTS`; player-facing text in `powerWordInfo()` (`services/rules.ts`).
+  **v7.66.2 (the owner: "talk like a human"):** every `does` line says what happens to the player in
+  plain words, e.g. TWIN: "Bonus time: you get the seconds your best word earned all over again (a
+  longer best word means more time). It also adds one step to your Word Combo." Write any new
+  explanation that way: no jargon like "clones" or "speed step", one idea per sentence.
 - **App updates (v7.63.0, `services/appUpdate.ts`):** an installed Android app resumes instead of
   relaunching, and the browser only checked for a new service worker on a fresh launch, so the
   owner had to open and close the app several times. The service worker is now `registerType:

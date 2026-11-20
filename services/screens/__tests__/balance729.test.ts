@@ -54,7 +54,7 @@ describe('reworked PowerPlays (v7.29.1)', () => {
         }
         expect(pp('scroogeSwipe').description).toContain(`each worth 1, 2 or 3 seconds of clock`); // v7.55.1: time, not Credits
         expect(pp('scroogeSwipe').description).toContain(`up to +${V.moneyBinMaxSeconds} seconds`);
-        expect(pp('duckHunt').description).toContain(`+${V.duckPoints} a duck`);
+        expect(pp('duckHunt').description).toContain(`🦆 duck for +${V.duckPoints}`); // v7.66.2: doves and the dog cost points
         expect(pp('duckHunt').effectType).toBe('immediate'); // no tile pick any more
         expect(pp('warioWarp').description).toContain('+300 points for -5 seconds, +600 points for -10 seconds, +900 points for -15 seconds');
         expect(pp('shakeItLikeAPolaroid').description).toContain(`up to +${V.polaroidMax}`);
