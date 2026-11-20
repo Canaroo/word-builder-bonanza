@@ -66,8 +66,9 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             <Key>Easy Street</Key> runs the clock {Math.round((1 - FORK.easy.clock) * 100)}% slower.{' '}
             <Key>Danger Zone</Key> runs it {Math.round((FORK.danger.clock - 1) * 100)}% faster and pays{' '}
             <Key>x{FORK.danger.points}</Key> on every word. The card shows how your clock did last level and marks
-            the route that suits you. Changed your mind? <Key>Hold the 🔥 chip</Key> above your tiles to cool off to Easy
-            Street until the next fork.
+            the route that suits you. The chip above your tiles counts the words left until the next fork. Changed your mind?{' '}
+            <Key>Hold the 🔥 chip</Key> to cool off to Easy Street; there's no way back in, and Easy Street can't switch up
+            to Danger, until the next fork.
           </p>
           <p>
             <Key>🧲 Hold slot:</Key> hold the <Key>Hold That Thought</Key> charm and a HOLD button appears above your

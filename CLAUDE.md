@@ -568,6 +568,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   hold it `FORK.bailHoldMs` to cool off to Easy Street until the next fork (`route.bailed`, no way
   back in); it pulses "LOW CLOCK? HOLD TO COOL OFF" at `FORK.lowClockNudge` seconds or less.
   Simulated with a bail at 25 s: Danger +3% to +20% for most paces, still a loss for slow players.
+  **v7.61.4 (the owner's ask):** the card says how long a pick lasts in words ("It lasts 54 words
+  (until the level 7 fork), then you pick again"), that Easy Street is locked in until then and
+  that cooling off from Danger has no way back in. The route chip counts down
+  (`forkWordsLeft` in `services/rules.ts`): "🔥 DANGER x1.5 · 31 WORDS LEFT / HOLD TO COOL OFF (NO WAY
+  BACK)", "🌴 EASY STREET · 31 WORDS LEFT", or "REST OF RUN" after the last fork.
   **Hold Slot** (`gameState.holdTile`, `HOLD_STASH` / `HOLD_RETURN`): a charm since v7.45.0 (the
   owner's call; it used to open for everyone at level 4): while **Hold That Thought**
   (`holdThatThought`, `HOLD_SLOT.charmId`) is equipped, a HOLD button sits above the hand; tap it,

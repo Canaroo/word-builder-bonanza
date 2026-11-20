@@ -560,3 +560,13 @@ export const previousGateFor = (next: number): number => {
     const scores = [0, GATES.password.score, GATES.bonusStage.score, GATES.ladder.score, GATES.bigOne.score];
     return scores[Math.max(0, scores.indexOf(next) - 1)] ?? 0;
 };
+
+/**
+ * v7.61.4: valid words left until the next Fork (where the route can change again), or null after
+ * the last fork. `validWords` is the run's valid words so far.
+ */
+export const forkWordsLeft = (validWords: number): number | null => {
+    const level = levelFor(validWords);
+    const next = (FORK.levels as readonly number[]).find(l => l > level);
+    return next == null ? null : Math.max(0, (next - 1) * GAMEPLAY.levels.wordsPerLevel - validWords);
+};

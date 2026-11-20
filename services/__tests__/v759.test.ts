@@ -33,3 +33,13 @@ describe('v7.60.0 next gate', () => {
     expect(previousGateFor(50000)).toBe(30000);
   });
 });
+
+import { forkWordsLeft } from '../rules';
+describe('v7.61.4 words to the next fork', () => {
+  it('counts valid words until the next fork level, none after the last', () => {
+    expect(forkWordsLeft(54)).toBe(54);   // just reached level 4: next fork at level 7 (word 108)
+    expect(forkWordsLeft(100)).toBe(8);
+    expect(forkWordsLeft(108)).toBe(72);  // level 7: next fork at 11 (word 180)
+    expect(forkWordsLeft(180)).toBeNull(); // level 11: last fork
+  });
+});
