@@ -52,6 +52,7 @@ const played = (words) => words.map((word, i) => ({ type: 'word', word, status: 
 
 const newPage = async (browser) => {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await page.route(/firebaseio\.com/, r => r.abort()); // test runs never post scores or stats
   await page.goto(url);
   await page.waitForTimeout(1500);
   return page;
@@ -73,6 +74,7 @@ const dismissPopups = async (page) => {
     let button = page.locator('button:visible', { hasText: /^\s*(continue|take|equip|keep|close|face)/i }).first();
     if (!(await button.count())) button = page.locator('[role="dialog"] button:visible').last();
     if (!(await button.count())) break;
+    await page.waitForTimeout(1100); // v7.59.0: pop-ups ignore taps for 1 s (the tap guard)
     const box = button.locator('xpath=ancestor::div[contains(@class,"inset-0")][1]');
     seen.push(text(await ((await box.count()) ? box : button).innerText()).slice(0, 240));
     await button.click();
@@ -85,7 +87,11 @@ const dismissPopups = async (page) => {
 const baseSave = async (browser) => {
   const page = await newPage(browser);
   await page.getByPlaceholder('Enter Your Name').fill('PLAYTEST');
-  await page.locator('button', { hasText: 'NEW GAME' }).click();
+  // v7.48: one Play button; the first Play of the day opens a Daily / Regular chooser.
+  await page.locator('button', { hasText: /^\W*(PLAY|NEW GAME)/i }).first().click();
+  await page.waitForTimeout(1500);
+  const regular = page.locator('button:visible', { hasText: 'Regular game' });
+  if (await regular.count()) await regular.first().click();
   await page.waitForTimeout(2000);
   await dismissPopups(page);
   const save = await saveRun(page);
@@ -119,12 +125,15 @@ const runScenario = async (browser, base, sc, index) => {
   const name = sc.name ?? `scenario-${index + 1}`;
   const out = { name, popups: [] };
   const page = await newPage(browser);
+  // Leave the game first: a run autosaves when the page goes away, which would overwrite the edit.
+  await page.goto(new URL('/?bonuses', url).href);
   await page.evaluate(([k, v]) => localStorage.setItem(k, v), [SAVE_KEY, JSON.stringify(applyScenario(base, sc))]);
-  await page.reload();
+  await page.goto(url);
   await page.waitForTimeout(1500);
   // The saved run's main button is "▶ Continue" (v7.31 start screen; it was "Resume").
   await page.locator('button', { hasText: /^\W*Continue/i }).first().click();
   // A resumed run counts down 3-2-1 (board hidden) before play continues.
+  await page.waitForTimeout(800);
   await page.locator('text=RUN RESTORED').waitFor({ state: 'detached', timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(300);
 
@@ -158,6 +167,8 @@ const runScenario = async (browser, base, sc, index) => {
     if (await close.count()) await close.click();
   }
   if (sc.word) {
+    // Intro cards (Skill Shot, gems) can open on a fresh profile: clear them before tapping tiles.
+    out.popups.push(...await dismissPopups(page));
     for (const letter of sc.word.toUpperCase()) {
       // The word row comes before the rack on the page, so the last match is always a rack tile
       // (this matters for words with a repeated letter, like TREE).

@@ -8,6 +8,7 @@ import { internalWords } from '../data/internalWords';
 import { curatedWords, suggestableWords, isBlocked } from './curatedWords';
 import { canBeMadeFromLetters } from './rackMatch';
 import type { FindWordOptions } from './wordIndex';
+import { hiddenWordsIn } from './wordIndex';
 import type { DictionaryRequest, DictionaryResponse } from './dictionary.worker';
 import { storage, STORAGE_KEYS } from './storage';
 
@@ -28,7 +29,7 @@ type WorkerRequest = DictionaryRequest extends infer R ? R extends { id: number 
 let worker: Worker | null = null;
 let readyPromise: Promise<boolean> | null = null;
 let nextRequestId = 1;
-const pending = new Map<number, (result: boolean | string | null) => void>();
+const pending = new Map<number, (result: boolean | string | null | string[]) => void>();
 
 /** Starts loading the word list. Resolves true when ready, false if it couldn't load. */
 const preload = (): Promise<boolean> => {
@@ -66,11 +67,11 @@ const preload = (): Promise<boolean> => {
     return readyPromise;
 };
 
-const ask = async <T extends boolean | string | null>(request: WorkerRequest): Promise<T | undefined> => {
+const ask = async <T extends boolean | string | null | string[]>(request: WorkerRequest): Promise<T | undefined> => {
     if (!(await preload()) || !worker) return undefined;
     const id = nextRequestId++;
     return new Promise<T>((resolve) => {
-        pending.set(id, resolve as (result: boolean | string | null) => void);
+        pending.set(id, resolve as (result: boolean | string | null | string[]) => void);
         worker!.postMessage({ ...request, id });
     });
 };
@@ -186,6 +187,16 @@ async function findPlayableWord(letters: string[], options: FindWordOptions = {}
 }
 
 /**
+ * Inception (v7.62.0): everyday words of 3+ letters hiding inside `word` (CARPET → CAR, CARP, PET).
+ * Falls back to the curated internal words if the word lists couldn't load.
+ */
+async function hiddenWords(word: string): Promise<string[]> {
+    const fromList = await ask<string[]>({ type: 'hidden', word: word.trim().toLowerCase() });
+    if (Array.isArray(fromList)) return fromList;
+    return hiddenWordsIn(word, w => suggestableWords.has(w));
+}
+
+/**
  * Words from the curated internal dictionary only. Used for synchronous setup tasks
  * such as finding 3-letter words when balancing a rack.
  */
@@ -200,5 +211,6 @@ export const dictionaryService = {
     getDefinition,
     lookupWord,
     findPlayableWord,
+    hiddenWords,
     getDictionaryWords,
 };

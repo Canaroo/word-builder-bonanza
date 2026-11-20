@@ -26,7 +26,7 @@ import CrocCard from '../../components/CrocCard';
 import SoundMenu from '../../components/SoundMenu';
 import GreatestHitCard from '../../components/GreatestHitCard';
 import BonesCard from '../../components/BonesCard';
-import { FORK, SKILL_SHOT, GATES, MYSTERY_TAPE } from '../../config/gameplay';
+import { FORK, SKILL_SHOT, GATES, MYSTERY_TAPE, SHINE_BRIGHT_GEMS } from '../../config/gameplay';
 import { skillShotPoints } from '../../services/rules';
 import GambleCard, { type GambleResult } from '../../components/GambleCard';
 import PowerPlayTrackers from '../../components/PowerPlayTrackers';
@@ -34,7 +34,7 @@ import MiniGameCard from '../../components/MiniGames';
 import CharmTimeNote from '../../components/CharmTimeNote';
 import DangerChip from '../../components/DangerChip';
 import { leadingSet, setPayFor } from '../../data/charmSets';
-import { nextGateFor, previousGateFor, powerWordInfo, prizeFor, forkWordsLeft } from '../rules';
+import { nextGateFor, previousGateFor, powerWordInfo, prizeFor, forkWordsLeft, dangerPointsFor } from '../rules';
 import ModalTapGuard, { GUARDLESS_MODALS } from '../../components/ModalTapGuard';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
@@ -386,7 +386,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                                 <li>Use it in a word and the whole word scores <strong className="text-neon-yellow">x{mult}</strong>, charm points included.</li>
                                 <li>It stays in your hand until you use it, but a <strong className="text-white">shuffle trades it away</strong>, so play it first.</li>
                             </ol>
-                            <p className="text-sm text-slate-400">6-letter words earn x{GEM_TILES[6]}, 7 letters x{GEM_TILES[7]}, 8 or more x{GEM_TILES[8]}.</p>
+                            {(gameState?.activeCharms ?? []).some(c => c.id === 'shineBright')
+                              ? <p className="text-sm text-slate-400">💍 Shine Bright: 5-letter words earn x{SHINE_BRIGHT_GEMS[5]}, 6 letters x{SHINE_BRIGHT_GEMS[6]}, 7 letters x{SHINE_BRIGHT_GEMS[7]}, 8 or more x{SHINE_BRIGHT_GEMS[8]}.</p>
+                              : <p className="text-sm text-slate-400">6-letter words earn x{GEM_TILES[6]}, 7 letters x{GEM_TILES[7]}, 8 or more x{GEM_TILES[8]}.</p>}
                             <ArcadeButton color="cyan" className="w-full" onClick={handleCloseModal}>Got it</ArcadeButton>
                         </div>
                     </div>
@@ -436,7 +438,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 return <CrocCard win={!!data?.win} level={Number(data?.level) || 1} saved={data?.saved} onSave={(key, value) => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key, value } })} onDone={() => handleCrocPick?.()} />;
 
             case 'fork':
-                return <ForkCard level={Number(data?.level) || 1} delta={data?.delta ?? null} clock={Number(data?.clock) || 0} onPick={route => handleForkPick?.(route)} />;
+                return <ForkCard level={Number(data?.level) || 1} delta={data?.delta ?? null} clock={Number(data?.clock) || 0} points={dangerPointsFor(gameState)} onPick={route => handleForkPick?.(route)} />;
 
             case 'last-words':
                 return <LastWordsCard reason={data?.reason === 'strikes' ? 'strikes' : 'time'} tiles={(hand ?? []).filter((t): t is Tile => !!t)} gameState={gameState} onDone={r => handleLastWords?.(r)} />;
@@ -1211,7 +1213,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 <span className="osd-text text-base leading-none text-slate-200">{gameState?.holdTile ? 'HELD · TAP TO USE' : holdArmed ? 'TAP A TILE' : 'HOLD'}</span>
               </button>
             )}
-            {gameState?.route && <DangerChip route={gameState.route} clock={time} wordsLeft={forkWordsLeft(totalWords ?? 0)} onBail={handleForkBail} />}
+            {gameState?.route && <DangerChip route={gameState.route} clock={time} wordsLeft={forkWordsLeft(totalWords ?? 0)} points={dangerPointsFor(gameState)} onBail={handleForkBail} />}
             {setChip}
           </div>
         )}
@@ -1244,7 +1246,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           </div>
         )}
 
-        <PowerPlayTrackers gameState={gameState} upcomingTiles={upcomingTiles} quizLeft={quizLeft} raceRival={raceRival} onStand={() => dispatch({ type: 'BLACKJACK_STAND' })} />
+        <PowerPlayTrackers gameState={gameState} upcomingTiles={upcomingTiles} quizLeft={quizLeft} raceRival={raceRival} onStand={() => dispatch({ type: 'BLACKJACK_STAND' })} onJengaCash={() => dispatch({ type: 'JENGA_CASH' })} />
 
         {/* --- HAND: the standard hand in a 4x2 grid; widens to all rack slots when a power-up overfills it --- */}
         {(() => {
