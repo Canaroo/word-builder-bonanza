@@ -34,7 +34,7 @@ import MiniGameCard from '../../components/MiniGames';
 import CharmTimeNote from '../../components/CharmTimeNote';
 import DangerChip from '../../components/DangerChip';
 import { leadingSet, setPayFor } from '../../data/charmSets';
-import { nextGateFor, previousGateFor, powerWordInfo, prizeFor } from '../rules';
+import { nextGateFor, previousGateFor, powerWordInfo, prizeFor, forkWordsLeft } from '../rules';
 import ModalTapGuard, { GUARDLESS_MODALS } from '../../components/ModalTapGuard';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
@@ -1211,7 +1211,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 <span className="osd-text text-base leading-none text-slate-200">{gameState?.holdTile ? 'HELD · TAP TO USE' : holdArmed ? 'TAP A TILE' : 'HOLD'}</span>
               </button>
             )}
-            {gameState?.route && <DangerChip route={gameState.route} clock={time} onBail={handleForkBail} />}
+            {gameState?.route && <DangerChip route={gameState.route} clock={time} wordsLeft={forkWordsLeft(totalWords ?? 0)} onBail={handleForkBail} />}
             {setChip}
           </div>
         )}

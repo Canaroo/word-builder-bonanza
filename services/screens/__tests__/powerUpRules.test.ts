@@ -961,7 +961,8 @@ describe('Quack Attack (v7.54.0)', () => {
     test('QUA four times; the next 4 words score x4, charm points included', () => {
         expect(QUACK_ATTACK).toMatchObject({ word: 'QUA', plays: 4, multiplier: 4, words: 4 });
         const gs = { ...start({}).gameState!, activePowerPlays: { quackAttack: { words: 4 } } } as GameState;
-        const tiles = ['C', 'A', 'T'].map(l => gameUtils.createTile(l));
+        // Plain tiles: createTile makes a random x2 tile 15% of the time, which made this test flaky.
+        const tiles = ['C', 'A', 'T'].map(l => ({ ...gameUtils.createTile(l), multiplier: undefined, isSuper: false }));
         const plain = calculateScore('CAT', tiles, { ...gs, activePowerPlays: {} } as GameState);
         const quack = calculateScore('CAT', tiles, gs);
         expect(quack.bonuses.some(b => b.name === '🦆 Quack Attack' && b.description === 'x4 Word Score')).toBe(true);
