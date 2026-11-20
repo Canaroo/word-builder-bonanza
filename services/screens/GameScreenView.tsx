@@ -967,7 +967,13 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         {/* Strikes & Save Display */}
         <div className="flex items-center justify-end gap-2">
           <div>
-            <div className="osd-text text-base leading-none text-neon-red text-right">STRIKES</div>
+            <div className="osd-text text-base leading-none text-neon-red text-right whitespace-nowrap">
+              {/* v7.65.0: a shield (Hylian Shield, RINGS, Plot Armor) shows right by the strikes it protects. */}
+              {(gameState?.activePowerPlays?.strikeShield || gameState?.activePowerPlays?.plotArmor) && (
+                <span className="mr-1 text-neon-cyan" data-testid="shield-badge" aria-label="Shield up: your next strike is blocked">{gameState.activeBuffs.find(b => b.id === 'strikeShield')?.icon ?? '🛡️'}</span>
+              )}
+              STRIKES
+            </div>
             <div className="flex justify-end items-center gap-1.5 mt-1">
               {[...Array(maxStrikes ?? 3)].map((_, i) => (
                 <div key={i} className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full transition-colors ${(i < (gameState?.strikes ?? 0)) ? 'bg-neon-red shadow-[0_0_8px_#ff4757]' : 'bg-crt-600'}`}></div>

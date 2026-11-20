@@ -187,3 +187,22 @@ export const mathProblem = (rand: () => number, hard: boolean): MathProblem => {
 };
 /** MATH: what the Nth right answer in a row pays (1 = first in a row). */
 export const mathPoints = (streak: number): number => M.math.perRight + M.math.streakStep * Math.max(0, streak - 1);
+
+/**
+ * Are You Smarter Than a 5th Grader? (v7.65.0): a times-tables problem with 4 choices. Easy uses
+ * the 2-9 tables, hard goes up to 12. Wrong choices are classic slips: one row off (± a or ± b) or
+ * one off the answer.
+ */
+export interface TimesProblem { a: number; b: number; answer: number; choices: number[] }
+export const timesProblem = (rand: () => number, hard: boolean): TimesProblem => {
+    const int = (lo: number, hi: number) => lo + Math.floor(rand() * (hi - lo + 1));
+    const a = int(2, hard ? 12 : 9), b = int(2, hard ? 12 : 9);
+    const answer = a * b;
+    const choices = new Set<number>([answer]);
+    for (const d of [a, -a, b, -b, 1, -1, 2, -2, 10, -10].sort(() => rand() - 0.5)) {
+        if (choices.size >= 4) break;
+        if (answer + d > 0) choices.add(answer + d);
+    }
+    for (let d = 3; choices.size < 4; d++) choices.add(answer + d);
+    return { a, b, answer, choices: [...choices].sort(() => rand() - 0.5) };
+};

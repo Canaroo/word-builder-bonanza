@@ -27,10 +27,10 @@ const scoreWith = (active: Record<string, unknown>) =>
     calculateScore('cat', tiles('CAT'), { ...screenInitialState.gameState, activePowerPlays: active }).totalScore;
 
 describe('v7.28 PowerPlays', () => {
-    test('all 14 exist, with unique ids, and the total is 103', () => {
+    test('all 14 exist, with unique ids, and the total is 104', () => {
         for (const id of NEW_IDS) expect(pp(id), id).toBeTruthy();
-        expect(POWER_PLAYS_LIST).toHaveLength(103); // v7.62.0: Inception, Jenga!
-        expect(new Set(POWER_PLAYS_LIST.map(p => p.id)).size).toBe(103);
+        expect(POWER_PLAYS_LIST).toHaveLength(104); // v7.65.0: 5th Grader
+        expect(new Set(POWER_PLAYS_LIST.map(p => p.id)).size).toBe(104);
     });
 
     test('descriptions read their numbers from config', () => {

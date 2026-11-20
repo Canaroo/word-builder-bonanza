@@ -532,7 +532,7 @@ const powerPlaySeconds = (seconds: number): number => seconds;
 export type CharmTimeCut = { full: number; paid: number; percent: number; halved: boolean };
 
 /** Fire-on-pick PowerPlays that open a card in the offer's place (v7.39.2): the bid, the mission, Fluncle, Thwomped. */
-const CARD_ON_PICK = new Set(['priceIsRight', 'psychicFriends', 'missionImpossible', 'fluncleIsProud', 'thwomped']);
+const CARD_ON_PICK = new Set(['priceIsRight', 'psychicFriends', 'missionImpossible', 'fluncleIsProud', 'thwomped', 'fifthGrader']);
 
 /** Seconds of 3-2-1 before a resumed run continues. */
 export const RESUME_COUNTDOWN = 3;
@@ -1122,10 +1122,13 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
           let strikeBlockedByShield = false;
           let revivedByLifeFindsAWay = false;
           
+          // v7.65.0: copy before deleting (this used to edit the previous state's object in place).
+          activePowerPlays = { ...activePowerPlays };
           if(activePowerPlays.strikeShield) {
+            const shieldBuff = activeBuffs.find(b => b.id === 'strikeShield');
             delete activePowerPlays.strikeShield;
             activeBuffs = activeBuffs.filter(b => b.id !== 'strikeShield');
-            lastPowerPlayResult = { message: "🛡️ Hylian Shield absorbed the hit!", scoreChange: 0 };
+            lastPowerPlayResult = { message: `${shieldBuff?.icon ?? '🛡️'} ${shieldBuff?.name ?? 'Hylian Shield'} absorbed the hit!`, scoreChange: 0 };
             strikeBlockedByShield = true;
           } else if(activePowerPlays.plotArmor) {
               delete activePowerPlays.plotArmor;
@@ -1929,7 +1932,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 // The Price Is Right (v7.36.5): the bid card opens as the offer closes, before any tiles move.
                 // v7.36.6: the bid card takes the offer's place directly. Queued behind the offer, it was
                 // skipped: closing the offer saw an empty queue and started the next round.
-                if (powerPlay.id === 'priceIsRight' || powerPlay.id === 'psychicFriends' || powerPlay.id === 'missionImpossible') {
+                if (powerPlay.id === 'priceIsRight' || powerPlay.id === 'psychicFriends' || powerPlay.id === 'missionImpossible' || powerPlay.id === 'fifthGrader') {
                     newGameState.lastPowerPlayResult = null;
                     return {
                         ...state,
@@ -4971,7 +4974,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               if (newState.activePowerPlays.strikeShield) return note('Ring Shield', 'You already have a shield. It still blocks your next strike.');
               const shield = POWER_PLAYS_LIST.find(p => p.id === 'strikeShield');
               newState.activePowerPlays = { ...newState.activePowerPlays, strikeShield: true };
-              if (shield) newState.activeBuffs = [...newState.activeBuffs.filter(b => b.id !== 'strikeShield'), shield];
+              // v7.65.0: the buff says Ring Shield (it showed the Hylian Shield PowerPlay's name, so
+              // players who played RINGS thought nothing happened). Same shield underneath.
+              if (shield) newState.activeBuffs = [...newState.activeBuffs.filter(b => b.id !== 'strikeShield'), { ...shield, name: 'Ring Shield', icon: '💍', description: 'From RINGS: blocks your next strike. Gotta go fast!' }];
               return note('Ring Shield!', 'Your next strike is blocked.');
           }
           if (effect === 'rewind') {
