@@ -140,6 +140,9 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Billy Joel trio is now named **Billy Joel Night** (id `greatestHits` kept), so it no longer
   shares a name with the Greatest Hits replay feature. Italian Restaurant Ending's text names the
   song: "Billy Joel's Scenes from an Italian Restaurant: any word that ends in A, I or O...".
+- **REDRUM text (v7.61.3, the owner's ask; same effect):** "Your next word scores x2, guaranteed. If
+  it's a 4+ letter word that's also a word spelled backward, like STAR (RATS) or LIVE (EVIL), it
+  scores x5 instead."
 - **Feature tracking (v7.61.1):** `fork` (choice incl. `bail`, level, clock, advice), `golden`
   (level, score, tile, ok), `gate` (gate, played/skip, points) events; `pp_use` extra `tape`;
   `run_end` extras from `runEndExtras()` (golden, route, bails, skill, gems, lastWords). Shown in a

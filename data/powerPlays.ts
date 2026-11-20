@@ -1285,7 +1285,8 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'redrum',
     name: 'REDRUM',
-    description: `Your next word scores x${POWER_PLAY_VALUES.redrumBase}. If it's ${POWER_PLAY_VALUES.redrumLetters}+ letters and also a word backward (STAR/RATS, LIVE/EVIL, LEVEL), x${POWER_PLAY_VALUES.redrumMultiplier}.`,
+    // v7.61.3: same effect, plainer words (the owner found the old line hard to parse).
+    description: `Your next word scores x${POWER_PLAY_VALUES.redrumBase}, guaranteed. If it's a ${POWER_PLAY_VALUES.redrumLetters}+ letter word that's also a word spelled backward, like STAR (RATS) or LIVE (EVIL), it scores x${POWER_PLAY_VALUES.redrumMultiplier} instead.`,
     flavorText: 'Redrum. Redrum.',
     icon: '🪞',
     subtheme: 'score',
