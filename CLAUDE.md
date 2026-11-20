@@ -48,7 +48,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | PowerPlays / charms (103 / 108) | `data/powerPlays.ts`, `data/charms.ts` |
 | Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
 | Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Fork, Hold Slot, Grudge Match, Bones | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `FORK`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`; cards in `components/` (`LastWordsCard`, `ForkCard`, `BonesCard`) |
-| Secret bonuses (120 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
+| Secret bonuses (121 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
 | Hidden desktop pages | `/?stats` and `/?bonuses` (tabs: `&tab=words`, `scores`, `counts`, `charms`, `powerPlays`) render full-width outside the phone frame (`showToolPage` in `App.tsx`) |
 | Bosses (24) and Boss Badges | `data/bosses.ts` (villains, rules), `BOSS` in `config/gameplay.ts` (timing, rewards); badges in the profile (`recordBossBadge`) |
 | Cosmetics, streak milestones, themes, missions | `data/cosmetics.ts`, `data/packs.ts`, `data/missions.ts` |
@@ -486,6 +486,14 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   lane, +150 across; a hit sends you back to the curb). Tops of about 450, like the others; values
   in `MINI_GAME_VALUES`. Words chosen as common 4-letter words that a hand can spell 1.1-2.0% of the
   time (the 1.4-3.7% words were taken). Browser-checked at 390x844: all five play and pay.
+- **MATH (v7.64.0, the owner's idea):** 🧮 Mathletes ("The Limit Does Not Exist", Mean Girls), an
+  arcade word. A 10-second quiz with 4 big answer buttons (`MathQuiz` in `MiniGames.tsx`,
+  `mathProblem` / `mathPoints` in `services/miniGameRules.ts`, `MINI_GAME_VALUES.math`): single-digit
+  sums first, two-digit after 3 right, never a negative answer; distractors are near misses (±1,
+  ±2, ±10). Each right answer pays 60, +20 more for each in a row (5 in a row +500, 6 +660); a
+  wrong one costs nothing but resets the streak; a prize like the other arcade games (grows with
+  the level). Numbers use the tile font (Bungee's 7 reads as a ?). Browser-checked: 6 right and 1
+  wrong in 10 s paid +500.
 - **Score gates (v7.39.0):** the first word at or past a gate opens a one-time event (`GATES` in
   `config/gameplay.ts`, `gatesPassed` on the run). 10,000: the Password Gate, unscramble a 6-letter
   password (`data/gates.ts`, 80 words, none a secret bonus word) in 20 s; the scored Daily Run

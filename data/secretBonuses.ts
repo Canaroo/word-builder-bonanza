@@ -1414,4 +1414,15 @@ export const SECRET_BONUSES: SecretBonus[] = [
     media: "arcade",
     source: "Quantum Leap",
   },
+  {
+    id: "mathletes",
+    word: "MATH",
+    name: "🧮 “The Limit Does Not Exist” 🧮",
+    description: "When you submit the word \"MATH\": a 10-second quiz, as many sums as you can.",
+    miniGame: "math",
+    message: "The limit does not exist!",
+    hint: "Cady Heron's best subject. Carry the one, and the limit does not exist.",
+    media: "arcade",
+    source: "Mean Girls",
+  },
 ];

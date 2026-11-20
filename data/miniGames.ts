@@ -128,6 +128,13 @@ export const MINI_GAMES: Record<MiniGameId, MiniGameInfo> = {
     prize: `+${M.leap.perLane} a lane · across +${M.leap.home} more`,
     flavor: "It's not easy being green.",
   },
+  // v7.64.0
+  math: {
+    name: 'Mathletes', icon: '🧮',
+    rules: `${M.math.seconds} seconds. Tap the right answer to as many problems as you can. Right answers in a row pay more; a wrong one just resets the streak.`,
+    prize: `+${M.math.perRight} a right answer, +${M.math.streakStep} more for each one in a row (5 in a row: +${[1, 2, 3, 4, 5].reduce((t, k) => t + M.math.perRight + M.math.streakStep * (k - 1), 0)})`,
+    flavor: 'The limit does not exist!',
+  },
   ladder: {
     name: 'The Word Ladder', icon: '🪜',
     rules: `Climb rungs of ${G.ladder.rungs.join(', ')}+ letters, ${G.ladder.secondsPerRung} seconds each. Every rung doubles the pot. Bank it whenever you like; miss a rung and the pot is gone.`,
