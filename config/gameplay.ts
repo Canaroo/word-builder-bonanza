@@ -314,6 +314,8 @@ export const TIME_BONUS = {
   // Tick-Tock Croc (v7.51.0): every crocEvery valid words while it's equipped, pick 1 of 3 clocks:
   // crocWinChance for +tickTockCroc seconds (charm time: it shrinks with the level, so never more
   // than 10), else lose crocLoss points. The owner's numbers.
+  ctuSafeHouse: 15,       // v7.67: once a level, the clock dropping under ctuSafeHouseBelow seconds pays this (charm time)
+  ctuSafeHouseBelow: 10,
   tickTockCroc: 10,
   crocEvery: 25,
   crocWinChance: 0.6,
@@ -356,9 +358,13 @@ export const CHARM_BONUS = {
   rubiksCube: 60,          // rubiksCubeLetters+ letters, no repeated letter (v7.35: was 6+ letters for 150; 5+ fires on about half of 5-letter play)
   rubiksCubeLetters: 5,
   sickCombo: 50,           // word longer than your last one
-  lenaPercent: 20,
-  nicolesGracePercent: 25,
-  christiansHoodiePercent: 25,
+  // v7.67 (the owner's call): the family charms pay flat points instead of 20-25% (players had to
+  // work the percent out). Matched to what the percents paid on average (median word 110-190 in 209
+  // runs, about +18-20 a word): Lena fires on 80% of words, Christian on most fast ones, Nicole on 25%.
+  lena: 25,                // a D, R, K or N
+  nicolesGrace: 75,        // an M, or ending in a vowel
+  christiansHoodie: 40,    // a G, A or M within christiansHoodieSeconds of the last word
+  christiansHoodieSeconds: 10,
   buffy: 30,               // per word between 8 PM and 8 AM
   pianoManAbove: 30,       // Piano Man Encore: score this much on a word...
   pianoMan: 60,            // ...and your next word earns this

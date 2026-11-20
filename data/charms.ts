@@ -22,7 +22,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'philsosophy',
     name: 'Phil’s-osophy',
-    description: `Every word flips a coin: 25% chance for +${CHARM_BONUS.philsosophyWin}, 10% chance for -${CHARM_BONUS.philsosophyLoss}.`,
+    description: `Every word takes a chance: 25% it earns +${CHARM_BONUS.philsosophyWin}, 10% it loses ${CHARM_BONUS.philsosophyLoss}, otherwise nothing happens.`,
     flavorText: 'Life’s a coin flip. Phil wouldn’t have it any other way.',
     icon: '🪄',
     subtheme: 'score',
@@ -44,7 +44,7 @@ export const CHARMS_LIST: Charm[] = [
   { 
     id: 'sTierScorer', 
     name: 'S Club Party',
-    description: "Every S tile is now worth 15 points and doubles your word score.", 
+    description: "S tiles are worth 15 points, and any word with an S scores x2.", 
     flavorText: "There ain't no party like an S Club party.",
     icon: 'S✨',
     subtheme: 'score',
@@ -110,7 +110,7 @@ export const CHARMS_LIST: Charm[] = [
   { 
     id: 'strikeBank', 
     name: 'Insert Coin',
-    description: 'Score 500 points without a strike to earn a 4th strike, then 1,000 more for a 5th. A strike resets the count.',
+    description: 'You start with 3 strikes. Score 500 points without a strike and you get a 4th. Score 1,000 more without a strike for a 5th. A strike restarts the count.',
     flavorText: 'Play well and the machine pays you back.',
     icon: '🪙',
     subtheme: 'game',
@@ -232,7 +232,7 @@ export const CHARMS_LIST: Charm[] = [
     id: 'starPower',
     name: 'Star Power',
     description: `Words with both S and T earn +${CHARM_BONUS.starPower} points.`,
-    flavorText: 'Doot-doot-doot-doot-doot-doot! You’re untouchable when S, T, and A align.',
+    flavorText: 'Doot-doot-doot-doot-doot-doot! Grab a star (an S and a T) and the points come running.',
     icon: '🌟',
     subtheme: 'score',
     effectType: 'passive',
@@ -253,7 +253,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'goldenSnitch',
     name: 'Golden Snitch',
-    description: `Catch it 3 times for +${GAMEPLAY.snitchBonus} each: ${GAMEPLAY.snitchCatchTargets.join(', then ')} valid words in a row. Miss once and the count starts over. After the last catch it flies away.`,
+    description: `Chase it with valid words in a row: ${GAMEPLAY.snitchCatchTargets[0]} in a row catches it (+${GAMEPLAY.snitchBonus}), then ${GAMEPLAY.snitchCatchTargets[1]} in a row (+${GAMEPLAY.snitchBonus}), then ${GAMEPLAY.snitchCatchTargets[2]} (+${GAMEPLAY.snitchBonus}). A strike scares it off and the count starts over. After the third catch, it flies away for good.`,
     flavorText: 'Fast, rare, and game-changing — catch it if you can.',
     icon: '🕊️',
     subtheme: 'utility',
@@ -319,7 +319,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'nicolesGrace',
     name: 'Nicole’s Grace',
-    description: `Words with an M (for mom!) or ending in a vowel earn a ${CHARM_BONUS.nicolesGracePercent}% bonus.`,
+    description: `Words with an M (for Mom!) or that end in a vowel earn +${CHARM_BONUS.nicolesGrace} points.`,
     flavorText: 'Steady, strong, and always one step ahead — just like Mom.',
     icon: '💎',
     subtheme: 'score',
@@ -330,7 +330,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'christiansHoodieMode',
     name: 'Christian’s Hoodie Mode',
-    description: `Words with G, A, or M submitted within 10 seconds earn a ${CHARM_BONUS.christiansHoodiePercent}% bonus.`,
+    description: `Words with a G, A or M earn +${CHARM_BONUS.christiansHoodie} points when you play them within ${CHARM_BONUS.christiansHoodieSeconds} seconds of your last word.`,
     flavorText: 'Hoodie up. Game on. Comfort meets combat.',
     icon: '🎮',
     subtheme: 'utility',
@@ -341,7 +341,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'lenaOfTheLostLights',
     name: 'Lena of the Lost Lights',
-    description: `Words with a D, R, K, or N earn a ${CHARM_BONUS.lenaPercent}% bonus.`,
+    description: `Words with a D, R, K or N earn +${CHARM_BONUS.lena} points.`,
     flavorText: 'Shadows don’t scare you. You dance through the dark and come back stronger.',
     icon: '🦇',
     subtheme: 'score',
@@ -363,7 +363,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'beanCounter',
     name: 'Bean Counter',
-    description: `Earn +${CHARM_BONUS.beanCounter} points every time your total score crosses a multiple of 500.`,
+    description: `Every time your score passes another 500 (500, 1,000, 1,500…), +${CHARM_BONUS.beanCounter} points.`,
     flavorText: 'It’s reflective, shiny, and surprisingly generous—just like the Bean.',
     icon: '🫘',
     subtheme: 'utility',
@@ -374,7 +374,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'diceRollProtocol',
     name: 'Jumanji',
-    description: 'Every 3rd word, one random tile in your hand becomes a 2x tile.',
+    description: 'Every 3rd hand, the jungle swaps one random tile for a x2 word tile (any word it’s in scores double).',
     flavorText: 'It’s a jungle out there. Expect chaos.',
     icon: '🎲',
     subtheme: 'tile',
@@ -385,7 +385,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'glitchInTheCode',
     name: 'Glitch in the Code',
-    description: `After every 6th valid word in a row, your next round gets +${TIME_BONUS.glitchInTheCode} seconds.`,
+    description: `Play 6 valid words in a row for +${TIME_BONUS.glitchInTheCode} seconds. Then the count starts over.`,
     flavorText: 'Dodge the clock. One move at a time.',
     icon: '🤖',
     subtheme: 'game',
@@ -396,7 +396,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'doctorStrangesLoop',
     name: 'Dr. Strange’s Loop',
-    description: 'If you submit the same valid word twice in a single game, the second submission automatically earns a 2× score multiplier.',
+    description: 'Play a word you already played this run and it scores x2. Every replay counts.',
     flavorText: 'We’re in the endgame, again.',
     icon: '🌀',
     subtheme: 'score',
@@ -418,7 +418,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'executeOrder66',
     name: "Execute Order 66",
-    description: `If your word includes a double letter (like ‘LL’), add ${TIME_BONUS.executeOrder66} seconds to your next round.`,
+    description: `Words with a double letter (BALL, MOON) add +${TIME_BONUS.executeOrder66} seconds.`,
     flavorText: "Good soldiers follow orders.",
     icon: '🛰️',
     subtheme: 'game',
@@ -441,7 +441,7 @@ export const CHARMS_LIST: Charm[] = [
     id: 'buffyBonus',
     name: 'Buffy Bonus',
     description: `Words played between 8 PM and 8 AM (your time) earn +${CHARM_BONUS.buffy} points.`,
-    flavorText: 'Words played at night hit harder.',
+    flavorText: 'Into every generation a Slayer is born… and she works the night shift.',
     icon: '🧛‍♂️',
     subtheme: 'utility',
     effectType: 'passive',
@@ -462,7 +462,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'duckHuntCombo',
     name: 'Ditto!',
-    description: 'Use the same letter in 3 straight words? +350 points.',
+    description: 'Play 3 words in a row that share a letter (CAT, TOP, STEM all have a T): +350 points.',
     flavorText: 'Ditto used Transform!',
     icon: '🟣',
     subtheme: 'utility',
@@ -473,7 +473,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'drMariosCure',
     name: 'Dr. Mario’s Cure',
-    description: 'Submit 3 words in a row without using any multiplier tiles to earn a +100 bonus.',
+    description: 'Play 3 words in a row without a x2 (or bigger) tile: +100 points. Clean words only, doctor’s orders.',
     flavorText: 'Clear the junk — play clean, score big.',
     icon: '🦠',
     subtheme: 'utility',
@@ -485,7 +485,7 @@ export const CHARMS_LIST: Charm[] = [
     id: 'totallyClueless',
     name: 'Totally Clueless',
     description: `Words that score under ${CHARM_BONUS.totallyCluelessBelow} points get +${CHARM_BONUS.totallyClueless} points. As if!`,
-    flavorText: 'Ugh, as if! But, surprise — you score big on weak words.',
+    flavorText: 'Even your weakest words get a makeover.',
     icon: '👛',
     subtheme: 'score',
     effectType: 'passive',
@@ -616,10 +616,10 @@ export const CHARMS_LIST: Charm[] = [
   { 
     id: 'ctuSafeHouse', 
     name: 'CTU Safe House', 
-    description: 'If you play a word worth fewer than 20 points, automatically gain a replacement tile worth at least 4 points.', 
+    description: `Jack's got your back: once per level, when your clock drops under ${TIME_BONUS.ctuSafeHouseBelow} seconds, CTU pulls you out with +${TIME_BONUS.ctuSafeHouse} seconds.`,
     flavorText: 'Even in the worst situations, Jack has a fallback plan… and it’s heavily armed.',
     icon: '🏠',
-    subtheme: 'tile',
+    subtheme: 'utility',
     effectType: 'triggered',
     durationTag: 'PERSISTENT',
     activate: createPassiveBuff('ctuSafeHouse')
@@ -693,7 +693,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'gottaCatchEmAll',
     name: "Gotta Catch 'Em All!",
-    description: `Once your words have used all five vowels (A, E, I, O, U, in any words, any order): +${CHARM_BONUS.gottaCatchEmAll} points and +${TIME_BONUS.gottaCatchEmAll} seconds. Once per run, then it frees up its slot.`,
+    description: `Catch all five vowels (A, E, I, O, U) across your words, in any order: +${CHARM_BONUS.gottaCatchEmAll} points and +${TIME_BONUS.gottaCatchEmAll} seconds. Then it leaves and frees up its slot.`,
     flavorText: "Gotta catch 'em all!",
     icon: '📕',
     subtheme: 'utility',
@@ -862,7 +862,7 @@ export const CHARMS_LIST: Charm[] = [
     // v7.45: the Hold slot, as a charm. While it's equipped a HOLD button sits above the hand.
     id: 'holdThatThought',
     name: 'Hold That Thought',
-    description: 'Adds a Hold slot: tap HOLD, then a tile, to park it. It stays through new hands and shuffles until you tap it back. Drop this charm and the parked tile comes back to you.',
+    description: 'Gives you a HOLD button: tap it, then a tile, to save that tile for later. It stays through new hands and shuffles until you tap it back.',
     flavorText: "Don't play it yet. You'll know when.",
     icon: '🧲',
     subtheme: 'utility',
@@ -972,7 +972,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'goSpeedRacer',
     name: 'Go Speed Racer!',
-    description: `3-letter words score 0 but add +${TIME_BONUS.goSpeedRacer} seconds, even from level ${GAMEPLAY.timeBank.shortWordTimeStopsAtLevel} on (when they normally add none).`,
+    description: `3-letter words score 0 but always add +${TIME_BONUS.goSpeedRacer} seconds, even from level ${GAMEPLAY.timeBank.shortWordTimeStopsAtLevel} on, when short words stop adding time.`,
     flavorText: 'Go, Speed Racer! Go!',
     icon: '🏎️',
     subtheme: 'game',
@@ -1104,7 +1104,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'wheresWaldo',
     name: "Where's Waldo?",
-    description: 'Each new hand, one tile that starts a playable word is marked with a 1.',
+    description: 'Each new hand, Waldo hides in one tile: it’s marked with a 1, and a word you can play starts with it.',
     flavorText: "Look closer. He's always in the crowd.",
     icon: '👓',
     subtheme: 'tile',
@@ -1148,7 +1148,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'hungryHippos',
     name: 'Hungry Hungry Hippos',
-    description: `A word that uses every vowel in your hand (at least ${CHARM_BONUS.hungryHipposMinVowels}) earns +${CHARM_BONUS.hungryHippos} points.`,
+    description: `Gobble up every vowel in your hand in one word: +${CHARM_BONUS.hungryHippos} points. Your hand needs at least ${CHARM_BONUS.hungryHipposMinVowels} vowels.`,
     flavorText: 'Gobble them all up!',
     icon: '🦛',
     subtheme: 'score',
@@ -1255,4 +1255,5 @@ export const CHARM_TIME_SECONDS: Readonly<Record<string, number>> = {
     cliffhanger: TIME_BONUS.cliffhanger,
     wileECoyote: TIME_BONUS.wileECoyote,
     tickTockCroc: TIME_BONUS.tickTockCroc,
+    ctuSafeHouse: TIME_BONUS.ctuSafeHouse,
 };

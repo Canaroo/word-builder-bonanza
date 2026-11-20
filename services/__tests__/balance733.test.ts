@@ -358,8 +358,10 @@ describe('upgrade preview for percentage charms (v7.51.2)', () => {
         const d = (id: string) => CHARMS_LIST.find(c => c.id === id)!.description;
         expect(charmUpgradePreview(d('downToYourBoxers'))).toBeNull();
         expect(charmUpgradePercentPreview(d('downToYourBoxers'))).toEqual([{ from: 50, to: 75 }]);
-        expect(charmUpgradePercentPreview(d('nicolesGrace'))).toEqual([{ from: 25, to: 37.5 }]);
-        expect(charmUpgradePercentPreview(d('lenaOfTheLostLights'))).toEqual([{ from: 20, to: 30 }]);
+        // v7.67: the family charms pay flat points now, so their preview is +75 -> +113 and so on.
+        expect(charmUpgradePreview(d('nicolesGrace'))).not.toBeNull();
+        expect(charmUpgradePreview(d('lenaOfTheLostLights'))).not.toBeNull();
+        expect(charmUpgradePreview(d('christiansHoodieMode'))).not.toBeNull();
         // The upgrade really pays on Boxers' line: a 120-point word's +60 gets +30 more (+75% in all).
         const { charmUpgradePoints } = await import('../rules');
         expect(charmUpgradePoints([{ name: 'Down to Your Boxers', description: '+60 pts (50%)' }], ['Down to Your Boxers'])).toBe(30);

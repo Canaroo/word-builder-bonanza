@@ -235,6 +235,7 @@ type GameAction =
     | { type: 'TICK_FREEZE' }
     | { type: 'APPLY_MINIGAME'; payload: { name: string; icon: string; points: number; headline: string; detail: string; flat?: boolean } }
     | { type: 'ADD_TIME', payload: number }
+    | { type: 'CTU_RESCUE' }
     | { type: 'SET_TIME', payload: number }
     | { type: 'MOVE_TILE_TO_BUILD', payload: { tile: Tile, fromIndex: number } }
     | { type: 'RETURN_TILE_TO_HAND', payload: { fromBuildIndex: number } }
@@ -969,6 +970,20 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             return { ...state, isPaused: true,
                 modalContent: outcome(ticket, `+${pts} POINTS`, 'Your PowerPlay pocket was full, so the ticket paid points instead.', 'win'),
                 gameState: { ...gameState, score: gameState.score + pts, log: [...gameState.log, log(`Banked +${pts} points.`, pts, gameState.score + pts)] } };
+        }
+        case 'CTU_RESCUE': {
+            // CTU Safe House (v7.67): once a level, the clock dropping under the line pays charm time.
+            const level = runLevel(gameState);
+            if (!gameState.activeCharms.some(c => c.id === 'ctuSafeHouse') || gameState.roundType === 'golden'
+                || state.time <= 0 || state.time >= TIME_BONUS.ctuSafeHouseBelow || gameState.ctuLevel === level) return state;
+            const gained = bonusTime(TIME_BONUS.ctuSafeHouse, state.time, level);
+            const time = clampTime(state.time + gained, bankMax(gameState));
+            const entry: EventLogEntry = { type: 'event', id: `ctu-${Date.now()}`, name: 'CTU Safe House', icon: '🏠', description: `CTU pulled you out with ${state.time}s left: +${time - state.time}s.`, scoreChange: 0, cumulativeScore: gameState.score };
+            return {
+                ...state, time,
+                timeGain: { seconds: time - state.time, key: Date.now() },
+                gameState: { ...gameState, ctuLevel: level, log: [...gameState.log, entry] },
+            };
         }
         case 'CROC_RESULT': {
             if (state.modalContent?.type !== 'croc') return state;
@@ -3609,6 +3624,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           return;
       }
 
+      // CTU Safe House (v7.67): once a level, the clock dropping under the line pays charm time.
+      if (gameState && (time ?? 0) > 0 && (time ?? 0) < TIME_BONUS.ctuSafeHouseBelow && gameState.roundType !== 'golden'
+          && gameState.activeCharms.some(c => c.id === 'ctuSafeHouse') && gameState.ctuLevel !== runLevel(gameState)) {
+          const gained = bonusTime(TIME_BONUS.ctuSafeHouse, time ?? 0, runLevel(gameState));
+          dispatch({ type: 'CTU_RESCUE' });
+          showMessage(`🏠 CTU Safe House! Jack pulled you out: +${Math.round(gained)} seconds.`, 3000);
+          soundService.playPowerUp();
+          return;
+      }
+
       // The rest of the timer logic runs only if time is not paused.
       if ((time ?? 0) <= 0) {
           // A Golden Round running out of time just ends the Golden Round; the bank comes back.
@@ -4147,9 +4172,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (newState.activeCharms.some(c => c.id === 'nicolesGrace')) {
           const endsInVowel = VOWELS.has(word.toUpperCase().slice(-1));
           if (word.toUpperCase().includes('M') || endsInVowel) {
-              const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.nicolesGracePercent / 100);
+              const bonus = CHARM_BONUS.nicolesGrace;
               scoreResult.totalScore += bonus;
-              scoreResult.bonuses.push({ name: "Nicole's Grace", description: `+${bonus} pts (${CHARM_BONUS.nicolesGracePercent}%)` });
+              scoreResult.bonuses.push({ name: "Nicole's Grace", description: `+${bonus} pts` });
           }
       }
 
@@ -4160,10 +4185,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           showMessage(`🎹 Piano Man Encore! +${bonus} bonus points.`, 2000);
       }
       if (newState.activeCharms.some(c => c.id === 'christiansHoodieMode')) {
-          if (timeSinceLast < 10000 && /[GAM]/.test(word.toUpperCase())) {
-              const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.christiansHoodiePercent / 100);
+          if (timeSinceLast < CHARM_BONUS.christiansHoodieSeconds * 1000 && /[GAM]/.test(word.toUpperCase())) {
+              const bonus = CHARM_BONUS.christiansHoodie;
               scoreResult.totalScore += bonus;
-              scoreResult.bonuses.push({ name: "Christian’s Hoodie Mode", description: `+${bonus} pts (${CHARM_BONUS.christiansHoodiePercent}%)`});
+              scoreResult.bonuses.push({ name: "Christian’s Hoodie Mode", description: `+${bonus} pts`});
               showMessage(`🎮 Hoodie Mode! +${bonus} bonus points.`, 2000);
           }
       }
@@ -5343,7 +5368,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       const recycledTiles: Tile[] = [];
       
-      const needsHighValueTile = newState.activeCharms.some(c => c.id === 'ctuSafeHouse') && scoreResult.totalScore < 20;
 
       let tempNewHand: (Tile | null)[];
       let newBag: string[];
@@ -5360,22 +5384,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           const deal = gameUtils.dealNewHand(tileBag, [], willTriggerGoldenRound);
           let finalDealHand = applyMutation(deal.hand, willTriggerGoldenRound);
 
-          if (needsHighValueTile) {
-              const hasHighValue = finalDealHand.some(t => t.points >= 4);
-              if (!hasHighValue && finalDealHand.length > 0) {
-                  const highValueLetters = Object.keys(TILE_DISTRIBUTION).filter(l => TILE_DISTRIBUTION[l].points >= 4);
-                  if (highValueLetters.length > 0) {
-                      const randomHighValueLetter = highValueLetters[Math.floor(Math.random() * highValueLetters.length)];
-                      const newHighValueTile = gameUtils.createTile(randomHighValueLetter);
-                      const indexToReplace = Math.floor(Math.random() * finalDealHand.length);
-                      const tileToReturn = finalDealHand[indexToReplace];
-                      deal.tileBag = [...deal.tileBag, tileToReturn.letter];
-                      finalDealHand[indexToReplace] = newHighValueTile;
-                      showMessage('🏠 CTU Safe House: High-value tile secured!', 2000);
-                      soundService.playPowerUp();
-                  }
-              }
-          }
 
           const paddedDeal = Array(RACK_SIZE).fill(null);
           finalDealHand.forEach((tile, i) => paddedDeal[i] = tile);
@@ -5389,22 +5397,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           const drawResult = gameUtils.drawTiles(replenishCount, tileBag, willTriggerGoldenRound);
           let finalDrawnTiles = applyMutation(drawResult.newTiles, willTriggerGoldenRound);
 
-          if (needsHighValueTile) {
-              const hasHighValue = finalDrawnTiles.some(t => t.points >= 4);
-              if (!hasHighValue && finalDrawnTiles.length > 0) {
-                  const highValueLetters = Object.keys(TILE_DISTRIBUTION).filter(l => TILE_DISTRIBUTION[l].points >= 4);
-                  if (highValueLetters.length > 0) {
-                      const randomHighValueLetter = highValueLetters[Math.floor(Math.random() * highValueLetters.length)];
-                      const newHighValueTile = gameUtils.createTile(randomHighValueLetter);
-                      const indexToReplace = Math.floor(Math.random() * finalDrawnTiles.length);
-                      const tileToReturn = finalDrawnTiles[indexToReplace];
-                      drawResult.remainingBag = [...drawResult.remainingBag, tileToReturn.letter];
-                      finalDrawnTiles[indexToReplace] = newHighValueTile;
-                      showMessage('🏠 CTU Safe House: High-value tile secured!', 2000);
-                      soundService.playPowerUp();
-                  }
-              }
-          }
           
           let tempHand = [...cleanHand];
           
