@@ -56,6 +56,7 @@ import { getCollection, recordFound } from './services/collection';
 import { pickNextHint, RunRecap } from './services/runRecap';
 import { recordRunFinished, buyCosmetic, equipCosmetic, buyFreeze, publicFlair, type StreakUpdate } from './services/progression';
 import { cosmeticById, type CosmeticKind } from './data/cosmetics';
+import { applyUpdate, isUpdateReady, onUpdateReady, takeUpdatedNote } from './services/appUpdate';
 
 export enum Screen {
   Start,
@@ -70,6 +71,18 @@ export enum Screen {
 
 const App: React.FC = () => {
   const [screen, setScreen] = useState<Screen>(Screen.Start);
+  // App updates (v7.63.0, services/appUpdate.ts): a downloaded new version switches in on the start
+  // screen only (never mid-run), then a toast confirms it.
+  const [updateReady, setUpdateReady] = useState(isUpdateReady);
+  const [updatedFrom] = useState(takeUpdatedNote);
+  const [showUpdated, setShowUpdated] = useState(() => !!updatedFrom && updatedFrom !== __APP_VERSION__);
+  useEffect(() => onUpdateReady(() => setUpdateReady(true)), []);
+  useEffect(() => { if (updateReady && screen === Screen.Start) applyUpdate(__APP_VERSION__); }, [updateReady, screen]);
+  useEffect(() => {
+    if (!showUpdated) return;
+    const t = setTimeout(() => setShowUpdated(false), 4000);
+    return () => clearTimeout(t);
+  }, [showUpdated]);
   const [lastRunRecap, setLastRunRecap] = useState<RunRecap | null>(null);
   // When the current run (or resumed run) started, to tell which secrets it found first.
   const runStartedAt = useRef(Date.now());
@@ -625,6 +638,13 @@ const App: React.FC = () => {
         <ErrorBoundary key={screen} onRecover={handleRecoverFromCrash}>
           <Suspense fallback={<ScreenFallback />}>{renderScreen()}</Suspense>
         </ErrorBoundary>
+        {showUpdated && (
+          <div className="absolute top-3 inset-x-0 z-[80] flex justify-center pointer-events-none" role="status" aria-live="polite">
+            <div className="message-pop rounded-full bg-crt-950/95 ring-1 ring-neon-green px-4 py-1.5 osd-text text-lg leading-none text-neon-green shadow-glow-cyan">
+              ✨ UPDATED TO VER {__APP_VERSION__}
+            </div>
+          </div>
+        )}
         {selectedPack.id === 'default' && <div className="crt-overlay" aria-hidden="true" />}
         {/* Unmissable gold frame while a Golden Round runs (any theme). */}
         {isGoldenRound && screen === Screen.Game && <div className="golden-frame" aria-hidden="true" />}

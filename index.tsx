@@ -12,12 +12,14 @@ import './index.css';
 import App from './App';
 import { storage } from './services/storage';
 import { dictionaryService } from './services/dictionaryService';
+import { initAppUpdates } from './services/appUpdate';
 
 storage.init();
 // Start loading the word list now so the first submitted word doesn't wait for it.
 dictionaryService.preload();
-// Cache the game for offline play and pick up new versions on the next launch.
-registerSW({ immediate: true });
+// Cache the game for offline play. New versions download in the background and switch in on the
+// start screen (services/appUpdate.ts, v7.63.0).
+initAppUpdates(registerSW);
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

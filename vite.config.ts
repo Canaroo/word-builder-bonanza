@@ -18,7 +18,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // v7.63.0: 'prompt' so a new version waits (it used to take over and reload at once, which
+      // could land mid-run); services/appUpdate.ts switches to it on the start screen.
+      registerType: 'prompt',
       includeAssets: ['icons/*.png'],
       manifest: {
         name: 'Word Nerd',

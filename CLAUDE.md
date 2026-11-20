@@ -621,6 +621,18 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   offer). They fire on submit and can fire again once per level; other secrets are once per run.
   New ones should be harder to spell than the existing ones (they can be abused). Values in
   `POWER_WORD_EFFECTS`; player-facing text in `powerWordInfo()` (`services/rules.ts`).
+- **App updates (v7.63.0, `services/appUpdate.ts`):** an installed Android app resumes instead of
+  relaunching, and the browser only checked for a new service worker on a fresh launch, so the
+  owner had to open and close the app several times. The service worker is now `registerType:
+  'prompt'` (it waits instead of taking over and reloading, which could land mid-run). The game
+  checks for a new version (`registration.update()`, one small no-cache request for `sw.js`) when
+  it comes back to the foreground (at most once a minute), when the network returns and every 30
+  minutes; the new version downloads in the background, and `App.tsx` switches to it only on the
+  Start screen (`applyUpdate`), then shows "✨ UPDATED TO VER x" (`takeUpdatedNote`). Never mid-run:
+  an update found in a run waits until the player is back on the Start screen. `index.tsx` passes
+  `registerSW` in, so the module has no virtual import. Checked end to end with two builds served
+  locally: downloaded mid-run without a reload, switched on the Start screen, saved run kept. The
+  first update after v7.63.0 ships still needs one full close, since older installs run the old code.
 - **Auto-save:** the run saves itself (same slot as 💾) after every word, when pop-ups open or
   close, every 5 s, and when the game leaves the screen; it's cleared at game over. Resume shows
   a 3-2-1 with the board hidden. The back gesture opens the save prompt instead of leaving, and
