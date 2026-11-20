@@ -21,25 +21,25 @@ import LevelUpCard from '../../components/LevelUpCard';
 import OutcomeCard from '../../components/OutcomeCard';
 import ContinueCard from '../../components/ContinueCard';
 import LastWordsCard from '../../components/LastWordsCard';
-import ForkCard from '../../components/ForkCard';
+import ScratchCard from '../../components/ScratchCard';
+import type { ScratchPrize } from '../scratch';
 import CrocCard from '../../components/CrocCard';
 import SoundMenu from '../../components/SoundMenu';
 import GreatestHitCard from '../../components/GreatestHitCard';
 import BonesCard from '../../components/BonesCard';
-import { FORK, SKILL_SHOT, GATES, MYSTERY_TAPE, SHINE_BRIGHT_GEMS } from '../../config/gameplay';
+import { SKILL_SHOT, GATES, MYSTERY_TAPE, SHINE_BRIGHT_GEMS, CHARM_BONUS as CB } from '../../config/gameplay';
 import { skillShotPoints } from '../../services/rules';
 import GambleCard, { type GambleResult } from '../../components/GambleCard';
 import PowerPlayTrackers from '../../components/PowerPlayTrackers';
 import MiniGameCard from '../../components/MiniGames';
 import CharmTimeNote from '../../components/CharmTimeNote';
-import DangerChip from '../../components/DangerChip';
 import { leadingSet, setPayFor } from '../../data/charmSets';
-import { nextGateFor, previousGateFor, powerWordInfo, prizeFor, forkWordsLeft, dangerPointsFor } from '../rules';
+import { nextGateFor, previousGateFor, powerWordInfo, prizeFor, speedStreakPoints } from '../rules';
 import ModalTapGuard, { GUARDLESS_MODALS } from '../../components/ModalTapGuard';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
-  type: 'milestone' | 'blue-steel' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack';
+  type: 'milestone' | 'blue-steel' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'scratch' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -121,8 +121,7 @@ export interface GameScreenViewProps {
   /** Bones: the word spelled from a fallen player's hand (null: missed or skipped). */
   handleBonesDone?: (word: string | null) => void;
   /** Fork in the Road: the route picked. */
-  handleForkPick?: (route: 'easy' | 'danger') => void;
-  handleForkBail?: () => void;
+  handleScratchDone?: (prize: ScratchPrize | null) => void;
   handleCrocPick?: () => void;
   /** A power word can be spelled from the tiles in play (the hint chip); tapping it explains. */
   powerHint?: { icon: string; length: number; word?: string; effect?: string } | null;
@@ -186,7 +185,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, skillShotTileId = '', holdOpen = false, holdArmed = false, handleHoldTap, handleForkPick, handleForkBail, handleCrocPick, handleBonesDone, lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, skillShotTileId = '', holdOpen = false, holdArmed = false, handleHoldTap, handleScratchDone, handleCrocPick, handleBonesDone, lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
@@ -259,6 +258,15 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       }
       return ids;
     }, [powerLit, powerHint?.word, hand, buildRow]);
+    // v7.66.0: I Feel the Need… for Speed: the streak, so the player knows it's counting.
+    const speedOn = (gameState?.activeCharms ?? []).some(c => c.id === 'needForSpeed');
+    const speedStreak = gameState?.speedStreak ?? 0;
+    const speedChip = speedOn ? (
+      <span data-testid="speed-chip" className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs text-white whitespace-nowrap ring-1 ${speedStreak >= 1 ? 'ring-neon-cyan bg-neon-cyan/15' : 'ring-white/20 bg-crt-950/70'}`}
+        aria-label={`Speed streak: ${speedStreak}. Next fast ${CB.speedLetters}+ letter word pays ${speedStreakPoints(speedStreak + 1)}.`}>
+        <span aria-hidden="true">🛩️</span>{speedStreak >= 1 ? `SPEED x${speedStreak} · NEXT +${speedStreakPoints(speedStreak + 1)} IF ≤${CB.speedSeconds}` : `${CB.speedLetters}+ LETTERS FAST TO START`}{speedStreak >= 1 && <span className="font-sans text-[10px] lowercase">sec</span>}
+      </span>
+    ) : null;
     const nextGate = gameState?.roundType === 'golden' ? null : nextGateFor(gameState);
     // v7.61.0: the best charm set the player has started, so sets aren't a secret.
     const lead = leadingSet((gameState?.activeCharms ?? []).map(c => c.id));
@@ -438,7 +446,12 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 return <CrocCard win={!!data?.win} level={Number(data?.level) || 1} saved={data?.saved} onSave={(key, value) => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key, value } })} onDone={() => handleCrocPick?.()} />;
 
             case 'fork':
-                return <ForkCard level={Number(data?.level) || 1} delta={data?.delta ?? null} clock={Number(data?.clock) || 0} points={dangerPointsFor(gameState)} onPick={route => handleForkPick?.(route)} />;
+                // v7.66.0: the Fork is gone; a card saved mid-pick just closes (see GameScreen).
+                return null;
+
+            case 'scratch':
+                return <ScratchCard key={`scratch-${data?.level}`} level={Number(data?.level) || 1} squares={data?.squares ?? []} saved={data?.saved}
+                    onSave={(key, value) => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key, value } })} onDone={p => handleScratchDone?.(p)} />;
 
             case 'last-words':
                 return <LastWordsCard reason={data?.reason === 'strikes' ? 'strikes' : 'time'} tiles={(hand ?? []).filter((t): t is Tile => !!t)} gameState={gameState} onDone={r => handleLastWords?.(r)} />;
@@ -1207,7 +1220,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           </div>
         </div>
 
-        {(holdOpen || gameState?.route || setChip) && (
+        {(holdOpen || speedChip || setChip) && (
           <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
             {holdOpen && (
               <button type="button" onPointerDown={e => { e.preventDefault(); handleHoldTap?.(); }} onClick={e => { if (e.detail === 0) handleHoldTap?.(); }}
@@ -1219,7 +1232,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 <span className="osd-text text-base leading-none text-slate-200">{gameState?.holdTile ? 'HELD · TAP TO USE' : holdArmed ? 'TAP A TILE' : 'HOLD'}</span>
               </button>
             )}
-            {gameState?.route && <DangerChip route={gameState.route} clock={time} wordsLeft={forkWordsLeft(totalWords ?? 0)} points={dangerPointsFor(gameState)} onBail={handleForkBail} />}
+            {speedChip}
             {setChip}
           </div>
         )}

@@ -3,8 +3,8 @@ import { calculateScore, createTile } from '../../gameUtils';
 import { gameReducer, screenInitialState, type GameScreenState } from '../GameScreen';
 import { CHARMS_LIST } from '../../../data/charms';
 import { POWER_PLAYS_LIST } from '../../../data/powerPlays';
-import { CHARM_BONUS, FORK, GEM_TILES, POWER_PLAY_VALUES, SHINE_BRIGHT_GEMS } from '../../../config/gameplay';
-import { anagramKey, dangerPointsFor, freakyFridayMatch, gemMultiplierFor, jengaPot, prizeFor, stonksPoints } from '../../rules';
+import { CHARM_BONUS, GEM_TILES, POWER_PLAY_VALUES, SHINE_BRIGHT_GEMS, SCRATCH } from '../../../config/gameplay';
+import { anagramKey, nextSpeedStreak, speedStreakPoints, freakyFridayMatch, gemMultiplierFor, jengaPot, prizeFor, stonksPoints } from '../../rules';
 import { hiddenWordsIn } from '../../wordIndex';
 import type { GameState, Tile } from '../../../types';
 
@@ -19,7 +19,7 @@ describe('v7.62.0 charms', () => {
     test('all five exist with descriptions that read their numbers from config', () => {
         for (const id of ['stonks', 'shineBright', 'needForSpeed', 'keymaster', 'freakyFriday']) expect(charm(id)).toBeTruthy();
         expect(charm('stonks').description).toContain(`+${CHARM_BONUS.stonksPerLevel * 10} at level 10`);
-        expect(charm('needForSpeed').description).toContain(`x${CHARM_BONUS.needForSpeedPoints}`);
+        expect(charm('needForSpeed').description).toContain(`up to +${CHARM_BONUS.speedMax} a word`);
     });
 
     test('Stonks pays per level on 4+ letter words, nothing on 3-letter words', () => {
@@ -49,9 +49,18 @@ describe('v7.62.0 charms', () => {
         expect(gemMultiplierFor(5)).toBe(0);
     });
 
-    test('Need for Speed raises the Danger Zone multiplier only while equipped', () => {
-        expect(dangerPointsFor({ activeCharms: [] })).toBe(FORK.danger.points);
-        expect(dangerPointsFor({ activeCharms: [{ id: 'needForSpeed' }] })).toBe(CHARM_BONUS.needForSpeedPoints);
+    test('Need for Speed (v7.66.0): 4+ letter words in a row, fast; pays from the 2nd, capped', () => {
+        // first 4+ letter word starts it, fast ones build it, a slow one restarts it, a short one ends it
+        let streak = nextSpeedStreak(0, 5, null);
+        expect(streak).toBe(1);
+        expect(speedStreakPoints(streak)).toBe(0);
+        streak = nextSpeedStreak(streak, 4, 2);
+        expect([streak, speedStreakPoints(streak)]).toEqual([2, CHARM_BONUS.speedStep]);
+        streak = nextSpeedStreak(streak, 6, 3.9);
+        expect(speedStreakPoints(streak)).toBe(CHARM_BONUS.speedStep * 2);
+        expect(nextSpeedStreak(streak, 5, CHARM_BONUS.speedSeconds + 1)).toBe(1);
+        expect(nextSpeedStreak(streak, 3, 1)).toBe(0);
+        expect(speedStreakPoints(20)).toBe(CHARM_BONUS.speedMax);
     });
 
     test('Keymaster: a Score Gate pays 50% more; arcade games are untouched', () => {
@@ -95,5 +104,56 @@ describe('v7.65.0 shields', () => {
         expect(after.gameState!.activePowerPlays.strikeShield).toBeUndefined();
         expect(after.gameState!.lastPowerPlayResult?.message).toBe('💍 Ring Shield absorbed the hit!');
         expect(before.gameState!.activePowerPlays.strikeShield).toBe(true); // not mutated
+    });
+});
+
+import { dealScratch, safeFirstScratch, skullOdds } from '../../scratch';
+describe('v7.66.0 scratch-off ticket', () => {
+    const seeded = (seed: number) => () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    test('a deal has the right number of skulls and prizes, mixed up, and respects slots and pocket', () => {
+        const kinds = new Set<string>();
+        for (let i = 0; i < 200; i++) {
+            const d = dealScratch(seeded(i + 1), { heldCharmIds: ['powerGlove'], slotOpen: true, pocketEmpty: true });
+            expect(d).toHaveLength(SCRATCH.squares);
+            expect(d.filter(s => s.kind === 'skull')).toHaveLength(SCRATCH.skulls);
+            d.forEach(s => kinds.add(s.kind));
+            expect(d.some(s => s.kind === 'charm' && s.id === 'powerGlove')).toBe(false); // never one you hold
+            const full = dealScratch(seeded(i + 1), { heldCharmIds: [], slotOpen: false, pocketEmpty: false });
+            expect(full.some(s => s.kind === 'charm' || s.kind === 'powerplay')).toBe(false);
+        }
+        expect([...kinds].sort()).toEqual(['challenge', 'charm', 'points', 'powerplay', 'shuffle', 'skull', 'time']);
+    });
+    test('the first scratch is always safe, and the odds count what is still covered', () => {
+        const d = dealScratch(seeded(5), { heldCharmIds: [], slotOpen: true, pocketEmpty: true });
+        const skull = d.findIndex(s => s.kind === 'skull');
+        const safe = safeFirstScratch(d, skull);
+        expect(safe[skull].kind).not.toBe('skull');
+        expect(safe.filter(s => s.kind === 'skull')).toHaveLength(SCRATCH.skulls);
+        expect(skullOdds(safe, [skull])).toEqual({ skulls: SCRATCH.skulls, left: SCRATCH.squares - 1 });
+    });
+    test('banked prizes pay; a skull pays nothing', () => {
+        const base = start({ score: 100, shuffleCount: 1, challengeCount: 0 });
+        const withCard = { ...base, modalContent: { type: 'scratch', title: 'x', data: {} } } as GameScreenState;
+        expect(gameReducer(withCard, { type: 'SCRATCH_RESULT', payload: { prize: { kind: 'points', amount: 250 } } }).gameState!.score).toBe(100 + prizeFor(250, 1));
+        expect(gameReducer(withCard, { type: 'SCRATCH_RESULT', payload: { prize: { kind: 'shuffle', amount: 2 } } }).gameState!.shuffleCount).toBe(3);
+        expect(gameReducer(withCard, { type: 'SCRATCH_RESULT', payload: { prize: { kind: 'challenge', amount: 1 } } }).gameState!.challengeCount).toBe(1);
+        const timed = gameReducer({ ...withCard, time: 30 }, { type: 'SCRATCH_RESULT', payload: { prize: { kind: 'time', amount: 10 } } });
+        expect(timed.time).toBe(40);
+        const pp = gameReducer(withCard, { type: 'SCRATCH_RESULT', payload: { prize: { kind: 'powerplay', id: 'plinko' } } });
+        expect(pp.gameState!.availablePowerPlays.map(p => p.id)).toEqual(['plinko']);
+        const bust = gameReducer(withCard, { type: 'SCRATCH_RESULT', payload: { prize: null } });
+        expect(bust.gameState!.score).toBe(100);
+        expect(bust.modalContent?.type).toBe('outcome');
+    });
+});
+
+describe('v7.66.0 scratch-off prize lists', () => {
+    test('every charm and PowerPlay on the ticket exists; PowerPlays are pocket ones, not once-a-run', () => {
+        for (const id of SCRATCH.charms) expect(CHARMS_LIST.some(c => c.id === id), id).toBe(true);
+        for (const id of SCRATCH.powerPlays) {
+            const pp = POWER_PLAYS_LIST.find(p => p.id === id);
+            expect(pp, id).toBeTruthy();
+            expect(pp!.oncePerRun, id).toBeFalsy();
+        }
     });
 });

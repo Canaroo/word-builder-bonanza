@@ -47,7 +47,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
 | PowerPlays / charms (104 / 108) | `data/powerPlays.ts`, `data/charms.ts` |
 | Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
-| Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Fork, Hold Slot, Grudge Match, Bones | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `FORK`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`; cards in `components/` (`LastWordsCard`, `ForkCard`, `BonesCard`) |
+| Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Hold Slot, Grudge Match, Bones; the scratch-off ticket (v7.66, where the Fork was) | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `SCRATCH`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`, `services/scratch.ts`; cards in `components/` (`LastWordsCard`, `ScratchCard`, `BonesCard`) |
 | Secret bonuses (121 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
 | Hidden desktop pages | `/?stats` and `/?bonuses` (tabs: `&tab=words`, `scores`, `counts`, `charms`, `powerPlays`) render full-width outside the phone frame (`showToolPage` in `App.tsx`) |
 | Bosses (24) and Boss Badges | `data/bosses.ts` (villains, rules), `BOSS` in `config/gameplay.ts` (timing, rewards); badges in the profile (`recordBossBadge`) |
@@ -148,7 +148,7 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   52-62% of late charm offers that were passed; upgradable. **💍 Shine Bright Like a Diamond**
   (`shineBright`): gems one step bigger plus a x2 gem from 5 letters (`SHINE_BRIGHT_GEMS`,
   `gemMultiplierFor(length, shineBright)`; the gem card lists them). **🛩️ I Feel the Need… for
-  Speed** (`needForSpeed`): Danger Zone x1.75 instead of x1.5 (`dangerPointsFor`, also on the Fork
+  Speed** (`needForSpeed`; v7.66.0 made it a speed streak, see the Fork note): was Danger Zone x1.75 (the Fork
   card and chip); offered from level 4 only. **🗝️ Are You the Keymaster?** (`keymaster`): Score
   Gates pay +50% (`APPLY_MINIGAME` with `flat`; the outcome card shows "🗝️ Keymaster +50%: 1,000 →
   1,500"); offered from 5,000 points and while a gate is left. **🔀 Freaky Friday**
@@ -591,25 +591,20 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Two gems in one word add (x5 + x5 = x10), like all word-multiplier tiles, so banking one is a
   real but bounded tactic. It waits for any open pop-up and for the Skill Shot card on the same hand.
 - **Borrowed mechanics, batch two (v7.43.0).** Values in `FORK`, `HOLD_SLOT`, `GRUDGE`.
-  **Fork in the Road** (`components/ForkCard.tsx`, `gameState.route`): at levels 4, 7 and 11 a
-  card after the level-up makes the player pick Easy Street (clock 10% slower) or the Danger Zone
-  (clock 15% faster, every word x1.5 as a "🔥 Danger Zone" line), until the next fork. `fork` is
-  in `POST_WORD_MODALS`. Simulated at the pace real runs show (2.2-3.4 s a word): Danger is +50%
-  for a player ahead of the clock and cuts survival from 79% to 10% for one on the edge at levels
-  7-10; Easy Street lifts that player to 99%.
-  **v7.59.0 (from `docs/FEATURE_REVIEW.md`):** locked Danger was a trap at the median late pace
-  (2.2 s a word: survived levels 7-10 32% of the time, -27% run value against Easy). Now the card
-  shows the player's clock and how it moved over the last level (`gameState.levelClock`, set on each
-  level-up by `noteLevelClock`) and marks the route that suits it (`forkAdvice` in `services/rules.ts`,
-  `FORK.advice`). In the Danger Zone the chip above the hand is a button (`components/DangerChip.tsx`):
-  hold it `FORK.bailHoldMs` to cool off to Easy Street until the next fork (`route.bailed`, no way
-  back in); it pulses "LOW CLOCK? HOLD TO COOL OFF" at `FORK.lowClockNudge` seconds or less.
-  Simulated with a bail at 25 s: Danger +3% to +20% for most paces, still a loss for slow players.
-  **v7.61.4 (the owner's ask):** the card says how long a pick lasts in words ("It lasts 54 words
-  (until the level 7 fork), then you pick again"), that Easy Street is locked in until then and
-  that cooling off from Danger has no way back in. The route chip counts down
-  (`forkWordsLeft` in `services/rules.ts`): "🔥 DANGER x1.5 · 31 WORDS LEFT / HOLD TO COOL OFF (NO WAY
-  BACK)", "🌴 EASY STREET · 31 WORDS LEFT", or "REST OF RUN" after the last fork.
+  **Fork in the Road** (v7.43-v7.65) is gone (v7.66.0, the owner's call: players never picked a
+  route that cost time). Its levels (4, 7, 11) now deal a **🎟️ scratch-off ticket** (`SCRATCH` in
+  `config/gameplay.ts`, `services/scratch.ts`, `components/ScratchCard.tsx`, `scratchModal`, reducer
+  `SCRATCH_RESULT`): a 3x3 card with 2 skulls; each scratch reveals a prize that REPLACES the one
+  held, bank any time, a skull wipes it, the first scratch is always safe (`safeFirstScratch`).
+  Prizes are dealt at random by `SCRATCH.weights`: points (a prize), time (full), shuffles, a
+  Challenge, a good charm (only with an open slot, never one held; equipped via `CHOOSE_CHARM`) or a
+  good pocket PowerPlay (only with an empty pocket). The deal is rolled when the card is queued and
+  saved with scratched squares (`SET_GAMBLE_STATE`), so a quit can't redo it. Old saves: `route` is
+  ignored and an open `fork` card closes itself. The `fork` stat event and FEATURE_REVIEW notes are
+  history. **🛩️ I Feel the Need… for Speed** became a speed streak (`nextSpeedStreak`,
+  `speedStreakPoints`, `CHARM_BONUS.speed*`, `gameState.speedStreak`/`speedLastMs`): 4+ letter
+  words each within 4 play seconds of the last; the 2nd pays +25, then +50... up to +150; a slow 4+
+  letter word restarts it, a short word or a strike ends it; a 🛩️ chip shows the streak; upgradable.
   **Hold Slot** (`gameState.holdTile`, `HOLD_STASH` / `HOLD_RETURN`): a charm since v7.45.0 (the
   owner's call; it used to open for everyone at level 4): while **Hold That Thought**
   (`holdThatThought`, `HOLD_SLOT.charmId`) is equipped, a HOLD button sits above the hand; tap it,

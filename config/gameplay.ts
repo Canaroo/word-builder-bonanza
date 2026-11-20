@@ -421,7 +421,13 @@ export const CHARM_BONUS = {
   // v7.62.0 content drop (docs: CLAUDE.md "Content drop v7.62.0").
   stonksPerLevel: 8,           // Stonks: 4+ letter words earn this x the run level (+40 at 5, +120 at 15)
   stonksLetters: 4,
-  needForSpeedPoints: 1.75,    // I Feel the Need… for Speed: the Danger Zone pays this instead of FORK.danger.points
+  // I Feel the Need… for Speed (v7.66.0 rework, the Danger Zone is gone): 4+ letter words played
+  // within speedSeconds of play time of the last one build a streak. The first only starts it; from
+  // the 2nd: +speedStep, +2x, +3x... up to speedMax a word. A slow or short word starts over.
+  speedLetters: 4,
+  speedSeconds: 4,
+  speedStep: 25,
+  speedMax: 150,
   keymasterPercent: 50,        // Are You the Keymaster?: Score Gate events pay this much more
   keymasterFromScore: 5000,    // ...and it's only offered from this score (it does nothing before a gate)
   freakyFridayMultiplier: 3,   // Freaky Friday: an anagram of an earlier word this run scores this
@@ -517,21 +523,33 @@ export const GEM_INTRO_SHOWS = 2;
 
 /**
  * v7.43: three more mechanics borrowed from other games.
- * FORK: at these levels (the start of a tier) the player picks a route until the next fork. The
- *   clock factor multiplies the level's clock speed; the points factor multiplies each word's score.
+ * (FORK, Easy Street / Danger Zone, was removed in v7.66.0: nobody picked a route that cost time.
+ * Its levels now deal a SCRATCH ticket, below.)
  * HOLD_SLOT: the Hold slot comes from a charm (v7.45, `charmId`): while it's equipped, one tile can be
  *   parked in a slot that survives new hands and shuffles. It used to open for everyone at level 4.
  * GRUDGE: beating a boss that got away from this player before pays its badge points times this.
  */
-// v7.59.0: bailHoldMs: hold the Danger chip this long to cool off to Easy Street (no way back in until
-//   the next fork). advice: the card recommends Danger when the clock gained at least `gain` seconds
-//   over the last level (or sits at `comfy`+ without losing more than `gain`), Easy when it lost time
-//   and sits under `tight`. Simulated (levels 7-10, 2.2 s a word): locked Danger survived 32% and
-//   lost 27% of a run's value against Easy; with a bail at 25 s it survives 82% and gains 3%.
-export const FORK = {
-  levels: [4, 7, 11], easy: { clock: 0.9, points: 1 }, danger: { clock: 1.15, points: 1.5 },
-  bailHoldMs: 600, lowClockNudge: 25,
-  advice: { gain: 5, comfy: 60, tight: 45 },
+/**
+ * Scratch-off ticket (v7.66.0, the owner's design; replaces the Fork at its levels). A 3x3 card with
+ * `skulls` skulls: each scratch reveals a prize that REPLACES the one you hold, so you bank when you
+ * like what you have; a skull wipes it. The first scratch is always safe. Prizes are dealt at random
+ * from `prizes` by `weights` (charms only with an open slot, PowerPlays only with an empty pocket),
+ * so no two tickets look alike. Points are prizes (grow with the level); time pays in full.
+ * Charms and PowerPlays come from the most-picked ones in the usage stats (good ones).
+ */
+export const SCRATCH = {
+  levels: [4, 7, 11],
+  squares: 9,
+  skulls: 2,
+  prizes: {
+    points: [150, 250, 400, 600],
+    time: [5, 10, 15],
+    shuffle: [1, 2],
+    challenge: [1],
+  },
+  weights: { points: 3, time: 2, shuffle: 1.5, challenge: 1, charm: 1, powerplay: 1 },
+  charms: ['powerGlove', 'sTierScorer', 'goldenTicket', 'theDudeAbides', 'finisher', 'chaosTheory', 'oneRing', 'thrillerNight', 'strikeBank', 'theOpposite', 'pianoManEncore', 'glitchInTheCode'],
+  powerPlays: ['timeBoost', 'neosChoice', 'multiverseOfSadness', 'plinko', 'biglyScore', 'gumpLuck', 'letterUpgrade'],
 } as const;
 export const HOLD_SLOT = { charmId: 'holdThatThought' } as const;
 export const GRUDGE = { multiplier: 2 } as const;

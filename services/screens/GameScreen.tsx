@@ -36,8 +36,9 @@ import { grudgeFor, grudgeTaunt, recordBossResult } from '../grudges';
 import { pickBone, refreshBones, markLooted, type Bone } from '../bones';
 import { currentPlayer } from '../players';
 import { BONES } from '../../config/gameplay';
-import { FORK, HOLD_SLOT, GRUDGE, SKILL_SHOT } from '../../config/gameplay';
-import { gemMultiplierFor, skillShotPoints, forkAdvice, dangerPointsFor, freakyFridayMatch, jengaPot } from '../rules';
+import { SCRATCH, HOLD_SLOT, GRUDGE, SKILL_SHOT } from '../../config/gameplay';
+import { dealScratch, type ScratchPrize } from '../scratch';
+import { gemMultiplierFor, skillShotPoints, freakyFridayMatch, jengaPot, nextSpeedStreak, speedStreakPoints } from '../rules';
 import { findPowerWordHint, powerWordHintStands } from '../powerWordHint';
 import { BOSSES, bossById, pickBoss } from '../../data/bosses';
 import { sendStat } from '../stats';
@@ -283,6 +284,7 @@ type GameAction =
     | { type: 'JACKASS', payload: { powerPlay: PowerPlay } }
     | { type: 'BLACKJACK_STAND' }
     | { type: 'JENGA_CASH' }
+    | { type: 'SCRATCH_RESULT'; payload: { prize: ScratchPrize | null } }
     | { type: 'RETURN_BUILD_ROW' }
     | { type: 'SET_GAMBLE_STATE', payload: { key: string; value: unknown } }
     | { type: 'DRAFT_TILES', payload: { letters: string[] } }
@@ -418,20 +420,20 @@ const openGates = (gs: GameState, modalQueue: ModalContent[], logQueue: EventLog
     }
 };
 
-/** Fork in the Road (v7.43): the route card, when this word levels up into a fork level. */
-const forkModal = (wordsBefore: number, gs?: GameState, clock?: number): ModalContent | null => {
+/**
+ * Scratch-off ticket (v7.66.0): the card dealt when a word levels up into a SCRATCH level (4, 7,
+ * 11: the Fork used to be here). The deal is rolled now and carried in the pop-up's data, so a quit
+ * can't reroll it.
+ */
+const scratchModal = (wordsBefore: number, gs: GameState): ModalContent | null => {
     const level = levelFor(wordsBefore + 1);
-    if (level <= levelFor(wordsBefore) || !(FORK.levels as readonly number[]).includes(level)) return null;
-    // v7.59.0: the card shows how the clock did over the last level and which route suits it.
-    const delta = gs?.levelClock?.delta ?? null;
-    return { type: 'fork', title: 'Fork in the Road', data: { level, delta, clock: Math.round(clock ?? 0), prev: gs?.route?.choice ?? null } };
-};
-
-/** v7.59.0: on a level-up, remember the clock at the new level's start and how it moved over the last one. */
-const noteLevelClock = (gs: GameState, wordsBefore: number, clock: number): void => {
-    if (levelFor(wordsBefore + 1) <= levelFor(wordsBefore)) return;
-    const now = Math.round(clock);
-    gs.levelClock = { start: now, delta: now - (gs.levelClock?.start ?? GAMEPLAY.timeBank.start + (gs.headStart ?? 0)) };
+    if (level <= levelFor(wordsBefore) || !(SCRATCH.levels as readonly number[]).includes(level)) return null;
+    const squares = dealScratch(Math.random, {
+        heldCharmIds: gs.activeCharms.map(c => c.id),
+        slotOpen: gs.activeCharms.length < CHARM_SLOTS,
+        pocketEmpty: gs.availablePowerPlays.length === 0,
+    });
+    return { type: 'scratch', title: 'Scratch-Off', data: { level, squares } };
 };
 
 /**
@@ -499,7 +501,7 @@ const levelUpModal = (wordsBefore: number, gs?: GameState): ModalContent | null 
  * stuck in the old round: v7.19.0's level-up card was, so a word whose only pop-up was a
  * level-up lost its word time, and Groundhog's Day saw a word "already played" and didn't fire.
  */
-export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['blue-steel', 'milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork', 'bones', 'croc', 'greatest-hit', 'quack'];
+export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['blue-steel', 'milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork', 'scratch', 'bones', 'croc', 'greatest-hit', 'quack'];
 
 /**
  * A chance PowerPlay's result (a roll, a coin flip, a random tile): a centered card that waits
@@ -755,7 +757,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         // A gamble card's board, kept in its pop-up so the auto-save stores it (v7.28.9).
         case 'SET_GAMBLE_STATE': {
             const m = state.modalContent;
-            if (m?.type !== 'gamble' && m?.type !== 'minigame' && m?.type !== 'croc') return state;
+            if (m?.type !== 'gamble' && m?.type !== 'minigame' && m?.type !== 'croc' && m?.type !== 'scratch') return state;
             return { ...state, modalContent: { ...m, data: { ...m.data, saved: { ...(m.data?.saved ?? {}), [action.payload.key]: action.payload.value } } } };
         }
         case 'SET_HAND_AND_BAG': return { ...state, hand: action.payload.hand, tileBag: action.payload.tileBag };
@@ -913,6 +915,61 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             return { ...state, hand };
         }
         // Tick-Tock Croc (v7.51.0): pay the result rolled when the croc surfaced, then the outcome card.
+        // Scratch-off ticket (v7.66.0): pay the banked prize. Charms were equipped just before
+        // (CHOOSE_CHARM); a PowerPlay goes in the pocket (the deal only offers one when it's empty).
+        case 'SCRATCH_RESULT': {
+            const prize = action.payload.prize as ScratchPrize | null;
+            const ticket = { icon: '🎟️', name: 'Scratch-Off Ticket' };
+            const level = runLevel(gameState);
+            const log = (description: string, scoreChange = 0, score = gameState.score): EventLogEntry =>
+                ({ type: 'event', id: `scratch-${Date.now()}`, name: ticket.name, icon: ticket.icon, description, scoreChange, cumulativeScore: score });
+            if (!prize || prize.kind === 'skull') {
+                return { ...state, isPaused: true,
+                    modalContent: outcome(ticket, '💀 BUSTED', 'A skull under the foil. Nothing this time; better luck on the next ticket.', 'lose'),
+                    gameState: { ...gameState, log: [...gameState.log, log('Hit a skull: no prize.')] } };
+            }
+            if (prize.kind === 'points') {
+                const pts = prizeFor(prize.amount, level);
+                const score = gameState.score + pts;
+                return { ...state, isPaused: true,
+                    modalContent: outcome(ticket, `+${pts} POINTS`, pts !== prize.amount ? `Cashed in.\n\n⬆ Level ${level} prize boost: ${prize.amount} → ${pts} points.` : 'Cashed in.', 'win'),
+                    gameState: { ...gameState, score, log: [...gameState.log, log(`Banked +${pts} points.`, pts, score)] } };
+            }
+            if (prize.kind === 'time') {
+                const time = clampTime(state.time + prize.amount, bankMax(gameState));
+                const got = time - state.time;
+                return { ...state, time, isPaused: true, timeGain: { seconds: got, key: Date.now() },
+                    modalContent: outcome(ticket, `+${got} SECONDS`, got < prize.amount ? `Your clock was nearly full: +${got} of ${prize.amount}.` : 'Straight onto your clock.', 'win'),
+                    gameState: { ...gameState, log: [...gameState.log, log(`Banked +${got} seconds.`)] } };
+            }
+            if (prize.kind === 'shuffle') {
+                return { ...state, isPaused: true,
+                    modalContent: outcome(ticket, `+${prize.amount} ${prize.amount === 1 ? 'SHUFFLE' : 'SHUFFLES'}`, 'Hold the Shuffle button when your hand goes cold.', 'win'),
+                    gameState: { ...gameState, shuffleCount: gameState.shuffleCount + prize.amount, log: [...gameState.log, log(`Banked +${prize.amount} ${prize.amount === 1 ? 'shuffle' : 'shuffles'}.`)] } };
+            }
+            if (prize.kind === 'challenge') {
+                return { ...state, isPaused: true,
+                    modalContent: outcome(ticket, `+${prize.amount} CHALLENGE`, 'Stuck on a hand? Challenge it.', 'win'),
+                    gameState: { ...gameState, challengeCount: gameState.challengeCount + prize.amount, log: [...gameState.log, log(`Banked +${prize.amount} Challenge.`)] } };
+            }
+            if (prize.kind === 'charm') {
+                const charm = CHARMS_LIST.find(c => c.id === prize.id);
+                const on = gameState.activeCharms.some(c => c.id === prize.id);
+                return { ...state, isPaused: true,
+                    modalContent: outcome(ticket, `${charm?.icon ?? '🍀'} ${(charm?.name ?? 'Charm').toUpperCase()}`, on ? `It's on now: ${charm?.description ?? ''}` : 'Your charm slots were full, so it slipped away.', on ? 'win' : 'neutral'),
+                    gameState: { ...gameState, log: [...gameState.log, log(on ? `Won the ${charm?.name} charm.` : 'A charm, but no slot was open.')] } };
+            }
+            const pp = ppById(prize.id);
+            if (pp && gameState.availablePowerPlays.length === 0) {
+                return { ...state, isPaused: true,
+                    modalContent: outcome(ticket, `${pp.icon} ${pp.name.toUpperCase()}`, `It's in your pocket: tap the green ▶ USE button above your tiles when you want it.\n\n${pp.description}`, 'win'),
+                    gameState: { ...gameState, availablePowerPlays: [pp], log: [...gameState.log, log(`Won the ${pp.name} PowerPlay.`)] } };
+            }
+            const pts = prizeFor(SCRATCH.prizes.points[1], level);
+            return { ...state, isPaused: true,
+                modalContent: outcome(ticket, `+${pts} POINTS`, 'Your PowerPlay pocket was full, so the ticket paid points instead.', 'win'),
+                gameState: { ...gameState, score: gameState.score + pts, log: [...gameState.log, log(`Banked +${pts} points.`, pts, gameState.score + pts)] } };
+        }
         case 'CROC_RESULT': {
             if (state.modalContent?.type !== 'croc') return state;
             const win = !!state.modalContent.data?.win;
@@ -1182,7 +1239,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
           let newTileBag = state.tileBag;
           
           const survivorWords = gameState.survivorWords; // unused since v7.35 (Survivor pays per strike carried)
-          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, mixtapeChain: null, survivorWords };
+          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, mixtapeChain: null, survivorWords, speedStreak: 0 };
           
           if ((actuallyGotAStrike || strikeBlockedByShield) && action.payload?.source === 'invalid_word') {
               // An invalid word costs time from the bank (not with the I'm Always Here charm).
@@ -3345,42 +3402,27 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     dispatch({ type: 'END_RUN', payload: { reason } });
   }, [lexCoins, onLexCoinChange, totalWords]);
 
+  // v7.66.0: a run saved with the old Fork card open just closes it (the Fork is gone).
+  useEffect(() => { if (state.modalContent?.type === 'fork') handleCloseModal(); }, [state.modalContent]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /** Tick-Tock Croc: a clock was picked; pay what the croc rolled. */
   const handleCrocPick = () => { if (state.modalContent?.type === 'croc') dispatch({ type: 'CROC_RESULT' }); };
 
-  /** Fork in the Road: take a route (until the next fork), then carry on. */
-  const handleForkPick = (choice: 'easy' | 'danger') => {
-    if (state.modalContent?.type !== 'fork') return;
-    const level = Number(state.modalContent.data?.level) || levelFor(totalWords);
-    const forkClock = Number(state.modalContent.data?.clock) || 0;
-    sendStat({ type: 'fork', choice, level, clock: forkClock, advice: forkAdvice(state.modalContent.data?.delta ?? null, forkClock) });
-    dispatch({ type: 'UPDATE_GAME_STATE', payload: {
-        route: { choice, level },
-        log: [...gameState.log, {
-            type: 'event', id: `fork-${level}-${Date.now()}`, name: choice === 'danger' ? 'Danger Zone' : 'Easy Street', icon: choice === 'danger' ? '🔥' : '🌴',
-            description: choice === 'danger' ? `Level ${level} fork: clock ${Math.round((FORK.danger.clock - 1) * 100)}% faster, every word x${dangerPointsFor(gameState)}.` : `Level ${level} fork: clock ${Math.round((1 - FORK.easy.clock) * 100)}% slower, normal points.`,
-            scoreChange: 0, cumulativeScore: gameState.score,
-        } as EventLogEntry],
-    } });
-    handleCloseModal();
-  };
-
-  /** v7.59.0: cool off from the Danger Zone to Easy Street until the next fork (no way back in). */
-  const handleForkBail = () => {
-    if (gameState?.route?.choice !== 'danger') return;
-    const level = levelFor(totalWords);
-    const next = (FORK.levels as readonly number[]).find(l => l > level);
-    sendStat({ type: 'fork', choice: 'bail', level, clock: Math.round(time) });
-    dispatch({ type: 'UPDATE_GAME_STATE', payload: {
-        route: { choice: 'easy', level, bailed: true },
-        log: [...gameState.log, {
-            type: 'event', id: `fork-bail-${level}-${Date.now()}`, name: 'Cooled off', icon: '🌴',
-            description: `Left the Danger Zone at level ${level}: Easy Street ${next ? `until the level ${next} fork` : 'for the rest of the run'}.`,
-            scoreChange: 0, cumulativeScore: gameState.score,
-        } as EventLogEntry],
-    } });
-    soundService.playPowerUp();
-    showMessage(`🌴 Cooled off! Easy Street ${next ? `until level ${next}` : 'from here on'}: clock ${Math.round((1 - FORK.easy.clock) * 100)}% slower.`, 3000);
+  /**
+   * Scratch-off ticket (v7.66.0): the player banked a prize (or hit a skull). A charm goes on through
+   * CHOOSE_CHARM (the deal only offers charms with a slot open); everything else is SCRATCH_RESULT,
+   * which also shows the outcome card.
+   */
+  const scratchAnswered = useRef<unknown>(null);
+  const handleScratchDone = (prize: ScratchPrize | null) => {
+    const card = state.modalContent;
+    if (card?.type !== 'scratch' || scratchAnswered.current === card) return;
+    scratchAnswered.current = card;
+    if (prize?.kind === 'charm') {
+        const charm = CHARMS_LIST.find(c => c.id === prize.id);
+        if (charm && gameState.activeCharms.length < CHARM_SLOTS) dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand: hand ?? [], allOffered: [charm] } });
+    }
+    dispatch({ type: 'SCRATCH_RESULT', payload: { prize } });
   };
 
   /**
@@ -3660,7 +3702,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       const slow = slowMo * hammer;
       // ⏪ REWIND (a power word) runs this level's clock at the previous level's speed.
       const clockLevel = levelFor(totalWords) - (gameState.rewindLevel === levelFor(totalWords) ? 1 : 0);
-      const tickMs = frozen ? 1000 : gameState.roundType === 'golden' ? 1000 : tickMsFor(Math.max(1, clockLevel)) * slow / (gameState.route ? FORK[gameState.route.choice].clock : 1);
+      const tickMs = frozen ? 1000 : gameState.roundType === 'golden' ? 1000 : tickMsFor(Math.max(1, clockLevel)) * slow;
       const interval = setInterval(() => {
           dispatch(frozen ? { type: 'TICK_FREEZE' } : { type: 'TICK_TIMER', ms: tickMs });
       }, tickMs);
@@ -3836,11 +3878,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 scoreResult = { ...scoreResult, totalScore: scoreResult.totalScore + bonus, bonuses: [...scoreResult.bonuses, { name: 'Thank You for Being a Friend', description: `+${bonus} pts (${CHARM_BONUS.goldenGirlsPercent}%)` }] };
             }
             if (levelUpModal(totalWords, newState)) payLevelUp(scoreResult);
-            if (newState.route?.choice === 'danger' && scoreResult.totalScore > 0) {
-                const dz = dangerPointsFor(newState);
-                const extra = Math.round(scoreResult.totalScore * (dz - 1));
-                scoreResult = { ...scoreResult, totalScore: scoreResult.totalScore + extra, bonuses: [...scoreResult.bonuses, { name: '🔥 Danger Zone', description: `+${extra} pts (x${dz}${dz !== FORK.danger.points ? ', I Feel the Need… for Speed' : ''})` }] };
-            }
             const turnScore = scoreResult.totalScore;
             sendStat({ type: 'golden', level: levelFor(totalWords + 1), score: turnScore, tile: usedGoldenTile, ok: true });
             
@@ -3862,8 +3899,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             newState.pendingTimeBonus = timeForWordAtLevel(word.length, levelFor(totalWords)); // Added back onto the time bank
             const levelUp = levelUpModal(totalWords, newState);
             if (levelUp) modalQueue.push(levelUp);
-            noteLevelClock(newState, totalWords, newState.bankedTime ?? time);
-            const goldenFork = forkModal(totalWords, newState, newState.bankedTime ?? time);
+            const goldenFork = scratchModal(totalWords, newState);
             if (goldenFork) modalQueue.push(goldenFork);
             const goldenBones = bonesModal(newState, totalWords);
             if (goldenBones) modalQueue.push(goldenBones);
@@ -3900,11 +3936,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // --- B: NORMAL ROUND SUBMISSION ---
       // The word's time is added to the bank when the next round starts.
       newState.pendingTimeBonus = timeForWordAtLevel(word.length, levelFor(totalWords));
-      noteLevelClock(newState, totalWords, time + newState.pendingTimeBonus);
 
       const levelUp = levelUpModal(totalWords, newState);
       if (levelUp) modalQueue.push(levelUp);
-      const fork = forkModal(totalWords, newState, time + newState.pendingTimeBonus);
+      const fork = scratchModal(totalWords, newState);
       if (fork) modalQueue.push(fork);
       const bones = bonesModal(newState, totalWords);
       if (bones) modalQueue.push(bones);
@@ -4098,6 +4133,20 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           scoreResult.totalScore += CHARM_BONUS.momentum;
           scoreResult.bonuses.push({ name: "Quarter Mile at a Time", description: `+${CHARM_BONUS.momentum} pts`});
           showMessage(`💨 Quarter Mile at a Time! +${CHARM_BONUS.momentum} bonus points.`, 2000);
+      }
+      // I Feel the Need… for Speed (v7.66.0): fast 4+ letter words in a row, timed in play seconds
+      // (pop-ups and pauses don't count against you). Pays from the 2nd: +25, +50... up to +150.
+      if (newState.activeCharms.some(c => c.id === 'needForSpeed')) {
+          const playMs = quizMsRef.current;
+          const since = newState.speedLastMs != null ? Math.max(0, playMs - newState.speedLastMs) / 1000 : null;
+          const streak = nextSpeedStreak(newState.speedStreak ?? 0, word.length, since);
+          const pts = speedStreakPoints(streak);
+          newState.speedStreak = streak;
+          newState.speedLastMs = playMs;
+          if (pts > 0) {
+              scoreResult.totalScore += pts;
+              scoreResult.bonuses.push({ name: 'I Feel the Need… for Speed', description: `+${pts} pts (${streak} fast words in a row)` });
+          }
       }
       const scoreBeforeEncore = scoreResult.totalScore;
       
@@ -4823,13 +4872,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       const gem = gemMultiplierFor(word.length, newState.activeCharms.some(c => c.id === 'shineBright'));
       if (gem > 0) newState.pendingGem = Math.max(newState.pendingGem ?? 0, gem);
 
-      // Fork in the Road (v7.43): the Danger Zone pays more on every word (0 means 0 still holds).
-      if (!wordLocked && newState.route?.choice === 'danger' && runningScore > oldScore) {
-          const dz = dangerPointsFor(newState);
-          const extra = Math.round((runningScore - oldScore) * (dz - 1));
-          runningScore += extra;
-          scoreResult.bonuses.push({ name: '🔥 Danger Zone', description: `+${extra} pts (x${dz}${dz !== FORK.danger.points ? ', I Feel the Need… for Speed' : ''})` });
-      }
 
       // Blue Steel (v7.57.0): the word after ZOO's fourth play scores x5 on everything it earned
       // above (tiles, charms, bonus lines, the Danger Zone). 0 means 0 still holds; the separate
@@ -5277,7 +5319,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               // Mr. Glass takes a strike slot away: never offer it when that would end the run.
               !(c.id === 'mrGlass' && newState.strikes >= maxStrikesFor({ ...newState, activeCharms: [...newState.activeCharms, c] })) &&
               // v7.62.0: charms that do nothing yet aren't offered until they can work.
-              !(c.id === 'needForSpeed' && levelFor(totalWordsSubmitted) < FORK.levels[0]) &&
               !(c.id === 'keymaster' && (newState.score < CHARM_BONUS.keymasterFromScore || (newState.gatesPassed ?? []).length >= 4)) &&
               !newState.charmCooldowns[c.id]
           );
@@ -6242,8 +6283,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         holdOpen,
         holdArmed,
         handleHoldTap,
-        handleForkPick,
-        handleForkBail,
+        handleScratchDone,
         handleCrocPick,
         handleBonesDone,
         upcomingTiles: [], // Psychic Friends no longer peeks at tiles (v7.54.0)
