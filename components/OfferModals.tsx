@@ -246,25 +246,36 @@ const charmLabel = (id: string) => { const c = CHARMS_LIST.find(x => x.id === id
 export const SetNote: React.FC<{ charmId: string; after: readonly string[]; dropping?: boolean }> = ({ charmId, after, dropping }) => {
   const sets = setsWith(charmId);
   if (sets.length === 0) return null;
+  // v7.61.2: plain sentences in the body font (the arcade caps line was hard to read), one idea each.
+  const box = (key: string, tone: string, text: React.ReactNode) => (
+    <span key={key} className={`block mt-1.5 rounded-lg px-2 py-1.5 text-sm leading-snug normal-case tracking-normal ring-1 ${tone}`}
+      >{text}</span>
+  );
+  const names = (ids: string[], joiner: string) => ids.map(charmLabel).join(joiner);
   return (
-    <>
+    <span className="block" style={{ fontFamily: "'Poppins', sans-serif", letterSpacing: 'normal', textShadow: 'none' }}>
       {sets.map(set => {
         const p = setProgress(set, dropping ? [...after, charmId] : after);
+        const n = set.members.length;
+        const title = <strong className="text-white">🧩 {set.icon} {set.name}</strong>;
         if (dropping) {
-          // v7.61.0: what the set pays now against what it would pay without this charm.
+          // What the set pays now against what it would pay without this charm.
           const now = setPayFor(set, p.held.length), then = setPayFor(set, p.held.length - 1);
-          return now > then
-            ? <span key={set.id} className="block text-neon-red">🧩 {p.complete ? 'BREAKS' : 'WEAKENS'} {set.icon} {set.name.toUpperCase()}: LOSE +{now - then} A WORD</span>
-            : null;
+          if (now <= then) return null;
+          return box(set.id, 'ring-neon-red/50 bg-neon-red/10 text-red-200', then > 0
+            ? <>Dropping this weakens {title}: every word drops from +{now} to +{then}.</>
+            : <>Dropping this breaks up {title}: you lose +{now} on every word.</>);
         }
         const pays = setPayFor(set, p.held.length);
-        return p.complete
-          ? <span key={set.id} className="block text-neon-green">🧩 COMPLETES {set.icon} {set.name.toUpperCase()}: +{pays} EVERY WORD</span>
-          : pays > 0
-            ? <span key={set.id} className="block text-neon-green">🧩 {set.icon} {set.name.toUpperCase()} {p.held.length}/{set.members.length}: +{pays} EVERY WORD NOW · +{setBonusFor(set)} WITH {p.missing.map(charmLabel).join(' + ').toUpperCase()}</span>
-            : <span key={set.id} className="block text-neon-cyan">🧩 SET {set.icon} {set.name.toUpperCase()} {p.held.length}/{set.members.length} · +{setPayFor(set, p.held.length + 1)} A WORD WITH {set.members.length - p.held.length > 1 ? 'ONE MORE OF ' : ''}{p.missing.map(charmLabel).join(' / ').toUpperCase()}</span>;
+        if (p.complete) return box(set.id, 'ring-neon-green/60 bg-neon-green/10 text-green-100', <>This completes {title}! Every word earns <strong className="text-neon-green">+{pays}</strong>.</>);
+        if (pays > 0) return box(set.id, 'ring-neon-green/60 bg-neon-green/10 text-green-100',
+          <>{title} ({p.held.length} of {n}): every word earns <strong className="text-neon-green">+{pays}</strong> right away. Add {names(p.missing, ' or ')} later for <strong className="text-neon-green">+{setBonusFor(set)}</strong>.</>);
+        const next = setPayFor(set, p.held.length + 1);
+        return box(set.id, 'ring-neon-cyan/40 bg-crt-950/60 text-slate-200', n - p.held.length > 1
+          ? <>Part of the {title} set (this makes {p.held.length} of {n}). Also hold {names(p.missing, ' or ')} and every word earns <strong className="text-neon-cyan">+{next}</strong>; all {n} earn <strong className="text-neon-cyan">+{setBonusFor(set)}</strong>.</>
+          : <>Part of the {title} set (this makes {p.held.length} of {n}). Also hold {names(p.missing, ' and ')} and every word earns <strong className="text-neon-cyan">+{next}</strong>.</>);
       })}
-    </>
+    </span>
   );
 };
 

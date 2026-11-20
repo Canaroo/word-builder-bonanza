@@ -275,8 +275,8 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'italianRestaurantEnding',
     name: 'Italian Restaurant Ending',
-    description: `Words that end like Italian, in A, I or O (PASTA, ZITI, RADIO), earn +${CHARM_BONUS.italianRestaurant} points.`,
-    flavorText: 'A bottle of red, a bottle of white… and a word that ends in a vowel.',
+    description: `Billy Joel's Scenes from an Italian Restaurant: any word that ends in A, I or O, like PASTA, ZITI or RADIO, earns +${CHARM_BONUS.italianRestaurant} points.`,
+    flavorText: 'A bottle of red, a bottle of white… and a big plate of ZITI.',
     icon: '🍝',
     subtheme: 'utility',
     effectType: 'passive',

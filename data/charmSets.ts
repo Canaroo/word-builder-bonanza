@@ -18,7 +18,7 @@ export const CHARM_SETS: CharmSet[] = [
   { id: 'asYouWish', name: 'As You Wish', icon: '👑', members: ['inigosRevenge', 'battleOfWits', 'trueLove'], flavorText: 'Inconceivable! All three.' },
   { id: 'fightNight', name: 'Fight Night', icon: '🥊', members: ['littleMac', 'finishHim', 'doubleDragon'], flavorText: 'Round one. Fight!' },
   { id: 'saturdayMorning', name: 'Saturday Morning', icon: '📺', members: ['turtlePower', 'titansGo', 'scoobyStack'], flavorText: 'Cereal, pajamas, cartoons till noon.' },
-  { id: 'greatestHits', name: 'Greatest Hits', icon: '🎹', members: ['pianoManEncore', 'italianRestaurantEnding', 'weDidntStartTheFire'], flavorText: 'Sing us a song, you’re the piano man.' },
+  { id: 'greatestHits', name: 'Billy Joel Night', icon: '🎹', members: ['pianoManEncore', 'italianRestaurantEnding', 'weDidntStartTheFire'], flavorText: 'Sing us a song, you’re the piano man.' },
   { id: 'gameShowNetwork', name: 'Game Show Network', icon: '🎤', members: ['doubleDare', 'supermarketSweep', 'theValve'], flavorText: 'Survey says: all three!' },
   { id: 'familyPhoto', name: 'Family Photo', icon: '🏠', members: ['nicolesGrace', 'christiansHoodieMode', 'lenaOfTheLostLights'], flavorText: 'Everybody squeeze in. Say cheese!' },
 ];
