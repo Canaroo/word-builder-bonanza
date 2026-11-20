@@ -26,13 +26,15 @@ import CrocCard from '../../components/CrocCard';
 import SoundMenu from '../../components/SoundMenu';
 import GreatestHitCard from '../../components/GreatestHitCard';
 import BonesCard from '../../components/BonesCard';
-import { FORK, SKILL_SHOT } from '../../config/gameplay';
+import { FORK, SKILL_SHOT, GATES, MYSTERY_TAPE } from '../../config/gameplay';
 import { skillShotPoints } from '../../services/rules';
 import GambleCard, { type GambleResult } from '../../components/GambleCard';
 import PowerPlayTrackers from '../../components/PowerPlayTrackers';
 import MiniGameCard from '../../components/MiniGames';
 import CharmTimeNote from '../../components/CharmTimeNote';
 import DangerChip from '../../components/DangerChip';
+import { leadingSet, setPayFor } from '../../data/charmSets';
+import { nextGateFor, previousGateFor, powerWordInfo, prizeFor } from '../rules';
 import ModalTapGuard, { GUARDLESS_MODALS } from '../../components/ModalTapGuard';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
@@ -123,7 +125,7 @@ export interface GameScreenViewProps {
   handleForkBail?: () => void;
   handleCrocPick?: () => void;
   /** A power word can be spelled from the tiles in play (the hint chip); tapping it explains. */
-  powerHint?: { icon: string; length: number } | null;
+  powerHint?: { icon: string; length: number; word?: string; effect?: string } | null;
   handlePowerHintInfo?: () => void;
   /** Psychic Friends Network: the next tiles in the bag, in draw order. */
   upcomingTiles?: string[];
@@ -243,6 +245,36 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             setLevelFlash(Date.now());
         }
     }, [modalContent]);
+    // v7.61.0: power word hint: the prize on the chip, and (after a tap) the tiles that spell it lit.
+    const [powerLitWord, setPowerLitWord] = React.useState('');
+    const powerLit = !!powerHint?.word && powerLitWord === powerHint.word;
+    const powerPrize = powerHint?.effect ? powerWordInfo(powerHint.effect as any).prize : 'A BONUS';
+    const powerLitIds = React.useMemo(() => {
+      const ids = new Set<string>();
+      if (!powerLit || !powerHint?.word) return ids;
+      const pool = [...(hand ?? []), ...(buildRow ?? []).map(i => i?.tile)].filter((t): t is Tile => !!t);
+      for (const letter of powerHint.word) {
+        const t = pool.find(x => x.letter.toUpperCase() === letter && !ids.has(x.id));
+        if (t) ids.add(t.id);
+      }
+      return ids;
+    }, [powerLit, powerHint?.word, hand, buildRow]);
+    const nextGate = gameState?.roundType === 'golden' ? null : nextGateFor(gameState);
+    // v7.61.0: the best charm set the player has started, so sets aren't a secret.
+    const lead = leadingSet((gameState?.activeCharms ?? []).map(c => c.id));
+    const setChip = lead ? (() => {
+            const n = lead.set.members.length;
+            const next = setPayFor(lead.set, lead.held + 1);
+            const text = lead.complete ? `${lead.set.name.toUpperCase()} · +${lead.points} A WORD`
+              : lead.points > 0 ? `${lead.held}/${n} · +${lead.points} A WORD · +${next} AT ${n}/${n}`
+              : `${lead.set.name.toUpperCase()} ${lead.held}/${n} · +${next} AT ${lead.held + 1}/${n}`;
+            return (
+              <span data-testid="set-chip" className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs text-white whitespace-nowrap ring-1 max-w-full overflow-hidden ${lead.points > 0 ? 'ring-neon-green/70 bg-neon-green/10' : 'ring-neon-cyan/50 bg-crt-950/70'}`}
+                aria-label={`Charm set ${lead.set.name}: ${lead.held} of ${n} held. ${lead.points > 0 ? `Pays ${lead.points} a word.` : ''} ${lead.complete ? '' : `${next} a word with ${lead.held + 1}.`}`}>
+                <span aria-hidden="true">🧩{lead.set.icon}</span><span className="truncate">{text}</span>
+              </span>
+            );
+          })() : null;
     // The Golden Tile's letter, wherever it sits (rack or word row), for the Golden Round banner.
     const goldenLetter = gameState?.goldenTileId
       ? [...(hand ?? []), ...(buildRow ?? []).map(i => i?.tile)].find(t => t?.id === gameState.goldenTileId)?.letter
@@ -864,6 +896,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       {/* --- TOP BAR --- */}
       <div className="grid grid-cols-[1fr_auto_1fr] items-center flex-shrink-0 text-white gap-2">
         {/* Score & Words Display */}
+        <div className="flex flex-col gap-1 min-w-0">
         <div className="flex items-center gap-3 min-w-0">
           <div className="text-left">
             <div className="osd-text text-base leading-none text-neon-yellow">SCORE</div>
@@ -873,6 +906,24 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             <div className="osd-text text-base leading-none text-neon-yellow">WORDS</div>
             <div className="font-osd text-3xl leading-none text-white">{totalWords ?? 0}</div>
           </div>
+        </div>
+        {nextGate != null && (() => {
+          // v7.61.0: the next Score Gate, so the gates are a goal rather than a surprise.
+          const score = gameState?.score ?? 0;
+          const from = previousGateFor(nextGate);
+          const pct = Math.max(0, Math.min(100, ((score - from) / (nextGate - from)) * 100));
+          const near = nextGate - score <= GATES.markerGlowWithin;
+          return (
+            <div className="w-full max-w-[9rem]" data-testid="gate-marker" aria-label={`Next Score Gate at ${nextGate.toLocaleString()} points: ${(nextGate - score).toLocaleString()} to go. It opens a bonus event.`}>
+              <div className={`osd-text text-sm leading-none whitespace-nowrap ${near ? 'text-neon-pink animate-pulse' : 'text-slate-400'}`}>
+                🚪 {nextGate >= 1000 ? `${nextGate / 1000}K` : nextGate} GATE{near ? '!' : ''}
+              </div>
+              <div className="h-1 mt-0.5 rounded-full bg-crt-600 overflow-hidden">
+                <div className={`h-full rounded-full ${near ? 'bg-neon-pink' : 'bg-slate-400/70'}`} style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          );
+        })()}
         </div>
 
         {/* Timer Display */}
@@ -1109,6 +1160,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     <span className="text-base leading-none">{pp.icon}</span>
                     <span className="osd-text text-lg leading-none shrink-0">▶ USE</span>
                     <span className="truncate">{pp.name}</span>
+                    {gameState?.tapeBonusId === pp.id && <span className="shrink-0 rounded-full bg-crt-900 text-neon-yellow osd-text text-base leading-none px-1.5 py-0.5" aria-label={`Mystery Tape bonus when used`}>📼+{prizeFor(MYSTERY_TAPE.usePoints, levelFor(totalWords ?? 0))}</span>}
                 </button>
                 )
             ))}
@@ -1147,8 +1199,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           </div>
         </div>
 
-        {(holdOpen || gameState?.route) && (
-          <div className="flex items-center justify-center gap-2">
+        {(holdOpen || gameState?.route || setChip) && (
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
             {holdOpen && (
               <button type="button" onPointerDown={e => { e.preventDefault(); handleHoldTap?.(); }} onClick={e => { if (e.detail === 0) handleHoldTap?.(); }}
                 aria-label={gameState?.holdTile ? `Hold slot: ${gameState.holdTile.letter}. Tap to take it back.` : holdArmed ? 'Hold slot: tap a tile to park it' : 'Hold slot, empty. Tap, then tap a tile to park it.'}
@@ -1160,6 +1212,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
               </button>
             )}
             {gameState?.route && <DangerChip route={gameState.route} clock={time} onBail={handleForkBail} />}
+            {setChip}
           </div>
         )}
 
@@ -1180,9 +1233,13 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
         {powerHint && (
           <div className="flex justify-center">
-            <button type="button" onClick={handlePowerHintInfo} aria-label={`Hint: a ${powerHint.length}-letter power word is hiding in this hand. Tap for more.`}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1 osd-text text-lg leading-none whitespace-nowrap ring-1 ring-neon-yellow bg-neon-yellow/15 text-neon-yellow shadow-[0_0_12px_rgba(255,226,122,0.45)] animate-pulse hover:bg-neon-yellow/25">
-              <span aria-hidden="true">⚡</span>POWER WORD IN THIS HAND<span aria-hidden="true">{powerHint.icon}</span>
+            {/* v7.61.0: the chip names the prize; a tap lights the word's tiles (in no order). */}
+            <button type="button" onClick={() => { if (powerLitWord === powerHint.word) handlePowerHintInfo?.(); else setPowerLitWord(powerHint.word ?? ''); }}
+              aria-label={`Hint: a ${powerHint.length}-letter power word is hiding in this hand. Prize: ${powerPrize}. ${powerLit ? 'Its tiles are lit. Tap for more.' : 'Tap to light its tiles.'}`}
+              data-testid="power-hint"
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 osd-text text-lg leading-none whitespace-nowrap ring-1 ring-neon-yellow bg-neon-yellow/15 text-neon-yellow shadow-[0_0_12px_rgba(255,226,122,0.45)] hover:bg-neon-yellow/25 max-w-full overflow-hidden ${powerLit ? '' : 'animate-pulse'}`}>
+              <span aria-hidden="true">⚡{powerHint.icon}</span>
+              <span className="truncate">{powerLit ? `SPELL ${powerHint.length} LETTERS WITH THE LIT TILES` : `POWER WORD: ${powerPrize} · TAP`}</span>
             </button>
           </div>
         )}
@@ -1204,7 +1261,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 const hintOrder = hintIndex >= 0 ? hintIndex + 1 : undefined;
                 return (
                   <div key={item?.id || originalIndex} className="w-full h-12 min-[375px]:h-14 sm:h-16 flex items-center justify-center">
-                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} skillShot={item.id === skillShotTileId ? skillShotPrize : undefined} hintOrder={hintOrder} bossHint={bossTileHint(item)} faceDown={blind && !peeking} /> : <div className="w-full h-full rounded-lg bg-crt-950/60 ring-1 ring-white/5"></div>}
+                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} skillShot={item.id === skillShotTileId ? skillShotPrize : undefined} powerLit={powerLitIds.has(item.id)} hintOrder={hintOrder} bossHint={bossTileHint(item)} faceDown={blind && !peeking} /> : <div className="w-full h-full rounded-lg bg-crt-950/60 ring-1 ring-white/5"></div>}
                   </div>
                 );
               })}

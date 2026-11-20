@@ -457,7 +457,10 @@ export const CHARM_UPGRADE = { percent: 50 } as const;
  * pullChance: with part of a set held, the chance a charm offer swaps its last card for a missing
  * piece (when one can be offered).
  */
-export const CHARM_SET_BONUS = { pair: 50, trio: 100, pullChance: 0.5 } as const;
+// v7.61.0: sets pay as you build. A whole set was held in 2 of 56 runs (set charms were picked 13% of
+// the time offered, against 26% for a charm), since nothing paid until the last piece. Now 2 of a
+// 3-charm set pays `trioPartial`, and the full trio pays `trio` (was 100).
+export const CHARM_SET_BONUS = { pair: 50, trio: 150, trioPartial: 50, pullChance: 0.5 } as const;
 
 /**
  * v7.42: four mechanics borrowed from other games.
@@ -513,9 +516,12 @@ export const BONES = { minLevel: 2, minLetters: 5, seconds: 30, perRun: 1, maxAg
  * runs, Nov 2026) and pays `points` on the spot for taking it blind (a prize: grows with the
  * level). Only pocket PowerPlays go in the pool: nothing that fires on pick, no bets, no time cards.
  */
+// v7.61.0: taken in 62% of the offers that showed it, but 31% of the PowerPlays it handed out were
+// never used (4% of face-up picks), so it now pays `points` on take and `usePoints` more on use.
 export const MYSTERY_TAPE = {
   chance: 0.25,
-  points: 150,
+  points: 75,
+  usePoints: 100,
   pool: [
     'cassiesClue', 'carmenSandiego', 'yoshisWildRide', 'tetrisTouch', 'letterUpgrade', 'schruteBucks',
     'neuralyzer', 'captainPlanet', 'whoYouGonnaCall', 'buyAVowel', 'moreThanMeets',
@@ -561,6 +567,8 @@ export const MINI_GAME_VALUES = {
  * Points only and flat (no level boost): the numbers on the card are what it pays.
  */
 export const GATES = {
+  // v7.61.0: the marker under the score lights up this many points before the next gate.
+  markerGlowWithin: 2000,
   password: { score: 10000, seconds: 20, solve: 1000, hint: 500, miss: 250 },
   bonusStage: { score: 30000, seconds: 30, multiplier: 3, handSize: 10, perLetter: 25 }, // each word: (its score + 25 a letter) x3
   // v7.49: 9% of Nov 12-15 runs passed 50,000 and 2% passed 70,000. Points (and a badge), never

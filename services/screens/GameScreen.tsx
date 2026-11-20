@@ -29,7 +29,7 @@ import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenV
 import { recordMissionEvent } from '../missions';
 import { currentStreak, powerWordBonusFor, recordBossBadge, earnCosmetic } from '../progression';
 import { PHOENIX_DOWN } from '../../config/progression';
-import { completedSets, setBonusFor, setPullCandidates } from '../../data/charmSets';
+import { payingSets, setPullCandidates } from '../../data/charmSets';
 import { CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS } from '../../config/gameplay';
 import { headStartSeconds } from '../headStart';
 import { grudgeFor, grudgeTaunt, recordBossResult } from '../grudges';
@@ -417,10 +417,6 @@ const openGates = (gs: GameState, modalQueue: ModalContent[], logQueue: EventLog
     }
 };
 
-/** The next score gate this run hasn't crossed (for the marker under the score), or null. */
-export const nextGateFor = (gs: { score: number; gatesPassed?: number[] } | null | undefined): number | null =>
-    gs ? (GATE_LIST.map(([, g]) => g.score).find(s => !(gs.gatesPassed ?? []).includes(s) && s > gs.score) ?? null) : null;
-
 /** Fork in the Road (v7.43): the route card, when this word levels up into a fork level. */
 const forkModal = (wordsBefore: number, gs?: GameState, clock?: number): ModalContent | null => {
     const level = levelFor(wordsBefore + 1);
@@ -662,11 +658,31 @@ export function withBuildRowReturned<T extends Pick<GameScreenState, 'hand' | 'b
 
 /** The game reducer, plus the time ledger: clock gains from shuffles and power-ups are recorded by source. */
 export function gameReducer(state: GameScreenState, action: GameAction): GameScreenState {
-    const next = payBackpack(state, logPowerPlayUse(state, baseGameReducer(state, action), action), action);
+    const next = payTapeUse(state, payBackpack(state, logPowerPlayUse(state, baseGameReducer(state, action), action), action), action);
     const source = TIME_GAIN_SOURCE[action.type];
     const gained = next.time - state.time;
     if (!source || gained <= 0 || !next.gameState || state.gameState?.roundType === 'golden' || next.gameState.roundType === 'golden') return next;
     return { ...next, gameState: creditTime(next.gameState, source, gained) };
+}
+
+/**
+ * Mystery Tape (v7.61.0): the PowerPlay that came out of a tape pays MYSTERY_TAPE.usePoints (a
+ * prize) when it's used. Swapping it out for another drops the bonus.
+ */
+function payTapeUse(state: GameScreenState, next: GameScreenState, action: GameAction): GameScreenState {
+    const tapeId = state.gameState?.tapeBonusId;
+    if (!tapeId || !next.gameState) return next;
+    const used = usedPowerPlay(state, next, action);
+    const stillHeld = next.gameState.availablePowerPlays.some(p => p.id === tapeId);
+    if (used?.id === tapeId) {
+        const pts = prizeFor(MYSTERY_TAPE.usePoints, runLevel(next.gameState));
+        const score = next.gameState.score + pts;
+        return { ...next, gameState: { ...next.gameState, score, tapeBonusId: null,
+            lastPowerPlayResult: { message: `📼 Mystery Tape played! +${pts} points.`, scoreChange: pts },
+            log: [...next.gameState.log, { type: 'event', id: `tape-use-${Date.now()}`, name: 'Mystery Tape played', icon: '📼',
+                description: `Used ${used.icon} ${used.name} from a Mystery Tape: +${pts} points.`, scoreChange: pts, cumulativeScore: score } as EventLogEntry] } };
+    }
+    return stillHeld ? next : { ...next, gameState: { ...next.gameState, tapeBonusId: null } };
 }
 
 /**
@@ -1704,17 +1720,17 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             const charmAlreadyActive = newGameState.activeCharms.some(c => c.id === charm.id);
             const newActiveCharms = charmAlreadyActive ? newGameState.activeCharms : [...newGameState.activeCharms, charm];
 
-            // Charm sets (v7.41): say so when this pick completes one.
-            const setsBefore = completedSets(gameState.activeCharms.map(c => c.id)).map(s => s.id);
-            const newSets = completedSets(newActiveCharms.map(c => c.id)).filter(s => !setsBefore.includes(s.id));
-            if (newSets.length > 0) {
-                const text = newSets.map(s => `${s.icon} ${s.name}: +${setBonusFor(s)} points on every word`).join(' · ');
-                newGameState.log = [...newGameState.log, ...newSets.map(s => ({
-                    type: 'event', id: `charm-set-${s.id}-${Date.now()}`, name: `Set complete: ${s.name}`, icon: s.icon,
-                    description: `All ${s.members.length} charms held: +${setBonusFor(s)} points on every word while the set stays together.`,
+            // Charm sets (v7.41): say so when this pick starts a set paying or completes one (v7.61.0: 2 of a trio pays).
+            const payBefore = new Map(payingSets(gameState.activeCharms.map(c => c.id)).map(s => [s.set.id, s.points]));
+            const raised = payingSets(newActiveCharms.map(c => c.id)).filter(s => s.points > (payBefore.get(s.set.id) ?? 0));
+            if (raised.length > 0) {
+                const text = raised.map(s => `${s.set.icon} ${s.set.name}: +${s.points} points on every word${s.complete ? '' : ` (${s.held}/${s.set.members.length}, more with the last piece)`}`).join(' · ');
+                newGameState.log = [...newGameState.log, ...raised.map(s => ({
+                    type: 'event', id: `charm-set-${s.set.id}-${Date.now()}`, name: `${s.complete ? 'Set complete' : 'Set paying'}: ${s.set.name}`, icon: s.set.icon,
+                    description: `${s.held} of ${s.set.members.length} charms held: +${s.points} points on every word while they stay together.`,
                     scoreChange: 0, cumulativeScore: newGameState.score,
                 } as EventLogEntry))];
-                newGameState.lastPowerPlayResult = { message: `🧩 SET COMPLETE! ${text}`, scoreChange: 0 };
+                newGameState.lastPowerPlayResult = { message: `🧩 ${raised.some(s => s.complete) ? 'SET COMPLETE' : 'SET PAYING'}! ${text}`, scoreChange: 0 };
             }
 
             return {
@@ -1771,9 +1787,10 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 gameState = {
                     ...gameState,
                     score: gameState.score + tapePoints,
+                    tapeBonusId: powerPlay.id,
                     log: [...gameState.log, {
                         type: 'event', id: `mystery-tape-${Date.now()}`, name: 'Mystery Tape', icon: '📼',
-                        description: `Taken blind: it was ${powerPlay.icon} ${powerPlay.name}. +${tapePoints} points.`,
+                        description: `Taken blind: it was ${powerPlay.icon} ${powerPlay.name}. +${tapePoints} points, +${prizeFor(MYSTERY_TAPE.usePoints, runLevel(gameState))} more when you use it.`,
                         scoreChange: tapePoints, cumulativeScore: gameState.score + tapePoints,
                     } as EventLogEntry],
                 };
@@ -4696,10 +4713,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       // Charm sets (v7.41): every set held in full pays on each valid word (0 means 0 still holds).
       if (!wordLocked) {
-          for (const set of completedSets(newState.activeCharms.map(c => c.id))) {
-              const points = setBonusFor(set);
+          for (const { set, held, points, complete } of payingSets(newState.activeCharms.map(c => c.id))) {
               runningScore += points;
-              scoreResult.bonuses.push({ name: `🧩 ${set.name} set`, description: `+${points} pts (all ${set.members.length} charms held)` });
+              scoreResult.bonuses.push({ name: `🧩 ${set.name} set`, description: `+${points} pts (${complete ? `all ${set.members.length}` : `${held} of ${set.members.length}`} charms held)` });
           }
       }
 
@@ -6038,7 +6054,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             soundService.playMilestone();
             dispatch({ type: 'SET_MODAL_CONTENT', payload: {
                 type: 'outcome', title: 'Mystery Tape',
-                content: `+${tapePoints} points for taking it blind.\n\n${powerPlay.description}\n\nIt's in your pocket: tap it in the Buffs tray to use it.`,
+                content: `+${tapePoints} points for taking it blind, and +${prizeFor(MYSTERY_TAPE.usePoints, levelFor(totalWords))} more when you use it.\n\n${powerPlay.description}\n\nIt's in your pocket: tap the green 📼 ▶ USE button above your tiles.`,
                 data: { icon: powerPlay.icon, headline: powerPlay.name.toUpperCase(), tone: 'win' },
             } });
             return;

@@ -167,8 +167,9 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             hold so its point bonuses pay {CHARM_UPGRADE.percent}% more (once per charm). <Key>Long words</Key> boost
             charm points: +{CHARM_LENGTH_BOOST[5]}% on 5 letters, +{CHARM_LENGTH_BOOST[6]}% on 6, +{CHARM_LENGTH_BOOST[7]}% on 7
             and +{CHARM_LENGTH_BOOST[8]}% on 8. <Key>🧩 Charm sets</Key>: some charms belong together (the offer card
-            says which). Hold a whole set and every word earns +{CHARM_SET_BONUS.pair} (two charms) or +
-            {CHARM_SET_BONUS.trio} (three).
+            says which). A full pair pays +{CHARM_SET_BONUS.pair} on every word. A three-charm set starts paying at two
+            (+{CHARM_SET_BONUS.trioPartial}) and pays +{CHARM_SET_BONUS.trio} with all three. The 🧩 chip above your tiles
+            shows your best set.
           </p>
           <p>
             <Key>PowerPlays</Key> are a button you press once, at the moment you choose. Fill the meter by playing{' '}
@@ -180,7 +181,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             take one, it won't be offered again that run. <Key>Point prizes</Key> (gambles, Pop Quiz and the like) grow{' '}
             {Math.round(PRIZE_GROWTH.perLevel * 100)}% with each level, up to x{PRIZE_GROWTH.max}. Now and then one card is a{' '}
             <Key>📼 Mystery Tape</Key>: a face-down PowerPlay that pays +{MYSTERY_TAPE.points} points (a prize) for taking
-            it blind.
+            it blind, and +{MYSTERY_TAPE.usePoints} more when you use what was inside.
           </p>
         </Section>
 
