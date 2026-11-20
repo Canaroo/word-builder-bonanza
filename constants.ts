@@ -33,6 +33,7 @@ export const OFFER_RECENCY_WINDOW = 12; // Turns
 export const OFFER_EXPLORATION_BOOST = 1.25;
 export const OFFER_REPEAT_PENALTY = 0.25; // Applied if seen in last 3 offers
 export const OFFER_MAX_RECENCY_PENALTY = 0.6;
+export const OFFER_MAX_PER_SUBTHEME = 2; // v7.67.2: never three of one kind in an offer (was 1)
 
 
 // Scrabble Tile Distribution and Points

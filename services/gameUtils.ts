@@ -1,6 +1,6 @@
 import { Tile, Charm, GameState, WordData, ScoreCalculationResult, ScoreBonusInfo, PowerPlay } from '../types';
 import { CHARM_BONUS, CHARM_SLOTS, POWER_PLAY_VALUES, POWER_WORD_EFFECTS, QUACK_ATTACK } from '../config/gameplay';
-import { TILE_DISTRIBUTION, VOWELS, RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, COMBO_TILES, COMBO_TILE_CHANCE, OFFER_RECENCY_WINDOW, OFFER_EXPLORATION_BOOST, OFFER_REPEAT_PENALTY, OFFER_MAX_RECENCY_PENALTY } from '../constants';
+import { TILE_DISTRIBUTION, VOWELS, RACK_SIZE, HAND_SIZE, BALANCE_REPLACE_COUNT, COMBO_TILES, COMBO_TILE_CHANCE, OFFER_RECENCY_WINDOW, OFFER_EXPLORATION_BOOST, OFFER_REPEAT_PENALTY, OFFER_MAX_RECENCY_PENALTY, OFFER_MAX_PER_SUBTHEME } from '../constants';
 import { dictionaryService } from './dictionaryService';
 import { canBeMadeFromLetters } from './rackMatch';
 import { combineMultipliers, lengthMultiplier, UPSIDE_DOWN_POINTS, levelFor, stonksPoints, freakyFridayMatch } from './rules';
@@ -992,7 +992,9 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
 export function getOffer(
     allItems: (Charm | PowerPlay)[],
     count: number,
-    gameState: GameState
+    gameState: GameState,
+    /** Names a separate random stream (the time-card swap redraws from its own). */
+    stream: string = 'offer',
 ): { offeredItems: (Charm | PowerPlay)[], offerDetails: { id: string, score: number }[] } {
     
     // Daily Run: every item gets a seeded rank for this offer number, and the offer is the best-ranked
@@ -1008,7 +1010,10 @@ export function getOffer(
         return { offeredItems: ranked.map(r => r.item), offerDetails: ranked.map(r => ({ id: r.item.id, score: r.score })) };
     }
 
-    const rng = new SeededRNG(gameState.runSeed + gameState.totalOffersMade);
+    // v7.67.2: the seed is mixed for each offer. It used to be runSeed + the offer number, and this
+    // generator turns neighbouring seeds into nearly the same first numbers, so back-to-back offers
+    // drew alike and a few items were starved (a third of their fair share in 81,000 simulated offers).
+    const rng = new SeededRNG(Math.floor(dailyRank(gameState.runSeed, gameState.totalOffersMade, stream) * 2147483646) + 1);
     const currentTurn = (gameState.log.filter(e => e.type === 'word' && e.status === 'valid').length) + 1;
 
     // 1. Filter out ineligible items
@@ -1087,9 +1092,12 @@ export function getOffer(
 
         // Fill remaining slots
         while (finalSelection.length < count && selectionPool.length > 0) {
-            // Constraint 2: Avoid subtheme collision
-            const currentSubthemes = new Set(finalSelection.map(si => si.item.subtheme));
-            let diversePool = selectionPool.filter(si => !currentSubthemes.has(si.item.subtheme));
+            // Constraint 2 (v7.67.2): at most OFFER_MAX_PER_SUBTHEME cards of one kind. It was one of each
+            // kind, so the biggest kind (score: 48 PowerPlays, 42 charms) could fill one slot at most and
+            // each of its items showed about 40% less often than the rest.
+            const kindCounts: Record<string, number> = {};
+            finalSelection.forEach(si => { kindCounts[si.item.subtheme] = (kindCounts[si.item.subtheme] || 0) + 1; });
+            let diversePool = selectionPool.filter(si => (kindCounts[si.item.subtheme] || 0) < OFFER_MAX_PER_SUBTHEME);
             
             // Relaxation: If no diverse options, use the whole pool
             if (diversePool.length === 0) {
