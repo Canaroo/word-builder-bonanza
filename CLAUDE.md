@@ -134,6 +134,12 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   **Mystery Tape** pays `points` (75) on take and `usePoints` (100) when the PowerPlay inside is used
   (`tapeBonusId`, paid by `payTapeUse` in the reducer wrapper; a swap drops it); the pocket button
   shows "📼+100". 31% of tape PowerPlays were never used against 4% of face-up picks.
+- **Set notes reworded (v7.61.2, the owner found them confusing):** offer cards explain sets in
+  plain sentences in the body font, in a small box (`SetNote` in `OfferModals.tsx`): "Part of the
+  🧩 ☕ Central Perk set (this makes 1 of 2). Also hold 🛋️ PIVOT! and every word earns +50." The
+  Billy Joel trio is now named **Billy Joel Night** (id `greatestHits` kept), so it no longer
+  shares a name with the Greatest Hits replay feature. Italian Restaurant Ending's text names the
+  song: "Billy Joel's Scenes from an Italian Restaurant: any word that ends in A, I or O...".
 - **Feature tracking (v7.61.1):** `fork` (choice incl. `bail`, level, clock, advice), `golden`
   (level, score, tile, ok), `gate` (gate, played/skip, points) events; `pp_use` extra `tape`;
   `run_end` extras from `runEndExtras()` (golden, route, bails, skill, gems, lastWords). Shown in a
