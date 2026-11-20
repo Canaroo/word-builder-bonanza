@@ -9,7 +9,7 @@ import { calculateScore } from '../services/gameUtils';
 import { TILE_DISTRIBUTION } from '../constants';
 import { soundService } from '../services/soundService';
 import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopShot, hoopsPrize, goalPrize, golfStroke, golfPrize, GOLF_CUP, ringTossPoints, riffPrize, strikerSwing, strikerPrize, pitStopPrize, coasterRide, coasterPrize, sealPrize, montePrize,
-  lureCatch, lurePrize, dialDistance, dialCombo, dialPrize, wireBomb, wirePrize, eggKind, eggPoints, leapPrize, leapHit, LEAP_FROG } from '../services/miniGameRules';
+  lureCatch, lurePrize, dialDistance, dialCombo, dialPrize, wireBomb, wirePrize, eggKind, eggPoints, leapPrize, leapHit, LEAP_FROG, mathProblem, mathPoints, type MathProblem } from '../services/miniGameRules';
 import type { LureCatch, WireBomb, WireColor, EggKind } from '../services/miniGameRules';
 
 // Arcade mini-games (v7.38.0). Spelling an arcade word (GAME, MOLE, CLAW, DART, GOAL, DICE, BOWL,
@@ -1650,9 +1650,87 @@ const Leap: React.FC<{ finish: Finish }> = ({ finish }) => {
   );
 };
 
+// MATH (v7.64.0): Mathletes. A 10-second quiz; tap the right answer of four.
+const MathQuiz: React.FC<{ finish: Finish }> = ({ finish }) => {
+  const Q = M.math;
+  const [progress, setProgress] = useSaved<{ left: number; score: number; right: number; wrong: number; streak: number; best: number; problem: MathProblem }>(
+    'math', () => ({ left: Q.seconds * 1000, score: 0, right: 0, wrong: 0, streak: 0, best: 0, problem: mathProblem(Math.random, false) }));
+  const live = useRef(progress);
+  const [flash, setFlash] = useState<{ ok: boolean; text: string; key: number } | null>(null);
+  const [, setFrame] = useState(0);
+  const ended = useRef(false);
+  const end = () => {
+    if (ended.current) return;
+    ended.current = true;
+    const s = live.current;
+    setProgress({ ...s });
+    finish({
+      points: s.score,
+      headline: s.right ? `${s.right} RIGHT: +${s.score}` : 'THE LIMIT DOES NOT EXIST',
+      detail: s.right ? `${s.right} right${s.wrong ? `, ${s.wrong} wrong` : ''} in ${Q.seconds} seconds. Best streak: ${s.best} in a row.` : 'No right answers this time. Fetch is never going to happen.',
+    });
+  };
+  useEffect(() => {
+    let raf = 0, last = performance.now(), saveIn = 1000;
+    const loop = (now: number) => {
+      const dt = Math.min(50, now - last); last = now;
+      if (ended.current) return;
+      const s = live.current;
+      s.left = Math.max(0, s.left - dt); saveIn -= dt;
+      if (saveIn <= 0) { saveIn = 1000; setProgress({ ...s }); }
+      setFrame(f => f + 1);
+      if (s.left <= 0) { end(); return; }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const answer = (choice: number) => {
+    if (ended.current) return;
+    const s = live.current;
+    if (choice === s.problem.answer) {
+      s.streak += 1; s.right += 1; s.best = Math.max(s.best, s.streak);
+      const pts = mathPoints(s.streak);
+      s.score += pts;
+      setFlash({ ok: true, text: `+${pts}${s.streak > 1 ? ` · ${s.streak} IN A ROW` : ''}`, key: Date.now() });
+      tick(); buzz(8);
+    } else {
+      s.wrong += 1; s.streak = 0;
+      setFlash({ ok: false, text: `${s.problem.a} ${s.problem.op} ${s.problem.b} = ${s.problem.answer}`, key: Date.now() });
+      soundService.playInvalidWord(); buzz(40);
+    }
+    s.problem = mathProblem(Math.random, s.right >= Q.hardAfter);
+    setProgress({ ...s });
+  };
+  const s = live.current;
+  const p = s.problem;
+  return (
+    <>
+      <div className="w-full flex justify-between items-baseline text-xl">
+        <span className="font-display text-neon-yellow">+{s.score}</span>
+        <span className="osd-text text-lg text-slate-300">{s.streak > 0 ? `🔥 ${s.streak} IN A ROW · NEXT +${mathPoints(s.streak + 1)}` : `NEXT +${mathPoints(1)}`}</span>
+        <Secs ms={s.left} warnBelow={3000} />
+      </div>
+      <TimeBar ms={s.left} total={Q.seconds * 1000} warnBelow={3000} />
+      <div className="w-full max-w-[19rem] rounded-xl bg-crt-950/80 ring-1 ring-white/15 py-5 text-center" aria-live="polite" aria-label={`${p.a} ${p.op === '+' ? 'plus' : 'minus'} ${p.b}`}>
+        <span className="font-tile font-extrabold text-5xl text-white tabular-nums">{p.a} {p.op === '-' ? '−' : '+'} {p.b}</span>
+        <span className="font-tile font-extrabold text-5xl text-slate-500"> = ?</span>
+      </div>
+      <p key={flash?.key} className={`osd-text text-lg min-h-[1.5rem] ${flash ? (flash.ok ? 'text-neon-green message-pop' : 'text-neon-red message-pop') : 'text-transparent'}`}>{flash ? (flash.ok ? `✔ ${flash.text}` : `✘ ${flash.text}`) : '.'}</p>
+      <div className="grid grid-cols-2 gap-2 w-full max-w-[19rem]">
+        {p.choices.map(c => (
+          <button key={`${p.a}${p.op}${p.b}-${c}`} type="button" data-testid="math-choice" onPointerDown={e => { e.preventDefault(); answer(c); }} onClick={e => { if (e.detail === 0) answer(c); }}
+            aria-label={`Answer ${c}`}
+            className="rounded-xl py-4 bg-neon-cyan/10 ring-2 ring-neon-cyan text-white font-tile font-extrabold text-3xl tabular-nums select-none touch-none active:scale-95 active:bg-neon-cyan/25">{c}</button>
+        ))}
+      </div>
+    </>
+  );
+};
+
 const GAMES: Record<MiniGameId, React.FC<GameProps>> = { pong: Pong, mole: Mole, claw: Claw, darts: Darts, goal: Goal, dice: Dice, bowl: Bowl, golf: Golf, hoops: Hoops, password: Password, bonusStage: BonusStage,
   ringToss: RingToss, riff: Riff, striker: Striker, pitStop: PitStop, coaster: Coaster, seal: Seal, monte: Monte,
-  lure: Lure, dial: Dial, wire: Wire, nest: Nest, leap: Leap,
+  lure: Lure, dial: Dial, wire: Wire, nest: Nest, leap: Leap, math: MathQuiz,
   ladder: Ladder, bigOne: BigOne };
 
 /** The arcade card: intro (Play or Skip), the game, then the result. */

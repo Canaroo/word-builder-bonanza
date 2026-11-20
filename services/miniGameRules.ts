@@ -161,3 +161,29 @@ export const leapPrize = (best: number, home: boolean): number =>
 /** Road Hop: does a car spanning [carX, carX + carW] (percent of the road) hit the frog at the middle? */
 export const LEAP_FROG = { x: 50, half: 4.5 };
 export const leapHit = (carX: number, carW: number): boolean => carX < LEAP_FROG.x + LEAP_FROG.half && carX + carW > LEAP_FROG.x - LEAP_FROG.half;
+
+/**
+ * MATH (v7.64.0): one quiz problem with 4 answer choices. Easy problems use single digits (7 + 5,
+ * 14 - 6); hard ones two digits (34 + 27, 63 - 18). Answers are never negative. `rand` is 0..1.
+ */
+export interface MathProblem { a: number; b: number; op: '+' | '-'; answer: number; choices: number[] }
+export const mathProblem = (rand: () => number, hard: boolean): MathProblem => {
+    const int = (lo: number, hi: number) => lo + Math.floor(rand() * (hi - lo + 1));
+    const op: '+' | '-' = rand() < 0.5 ? '+' : '-';
+    let a: number, b: number;
+    if (!hard) {
+        if (op === '+') { a = int(2, 9); b = int(2, 9); } else { a = int(6, 18); b = int(2, Math.min(9, a - 1)); }
+    } else if (op === '+') { a = int(11, 49); b = int(11, 49); } else { a = int(30, 99); b = int(11, a - 11); }
+    const answer = op === '+' ? a + b : a - b;
+    // Near misses players actually make: off by one or two, or by ten (a carry or a borrow).
+    const near = hard ? [1, -1, 10, -10, 2, -2, 11, -9] : [1, -1, 2, -2, 3, -3];
+    const choices = new Set<number>([answer]);
+    for (const d of [...near].sort(() => rand() - 0.5)) {
+        if (choices.size >= 4) break;
+        if (answer + d >= 0) choices.add(answer + d);
+    }
+    for (let d = 4; choices.size < 4; d++) choices.add(answer + d);
+    return { a, b, op, answer, choices: [...choices].sort(() => rand() - 0.5) };
+};
+/** MATH: what the Nth right answer in a row pays (1 = first in a row). */
+export const mathPoints = (streak: number): number => M.math.perRight + M.math.streakStep * Math.max(0, streak - 1);

@@ -585,6 +585,11 @@ export const MINI_GAME_VALUES = {
   wire: { bombs: 3, seconds: 8, perBomb: 100, allBonus: 150 },     // WIRE: follow the manual, cut the right wire
   nest: { seconds: 10, perEgg: 20, golden: 100, rotten: 20, goldenChance: 0.07, rottenChance: 0.16, spawnMs: [420, 650] }, // NEST: catch the eggs
   leap: { seconds: 15, lanes: 5, perLane: 60, home: 150 },         // LEAP: hop across five lanes of traffic
+  // MATH (v7.64.0, the owner's idea): a 10-second quiz, 4 answer buttons. Each right answer pays
+  // perRight + streakStep for every right answer before it in a row (60, 80, 100...); a wrong one
+  // costs nothing but resets the streak. Single digits first, two digits after hardAfter right.
+  // At 1.5-2 s an answer: 5 right in a row +500, 6 +660, 7 +840.
+  math: { seconds: 10, perRight: 60, streakStep: 20, hardAfter: 3 },
 } as const;
 
 /**

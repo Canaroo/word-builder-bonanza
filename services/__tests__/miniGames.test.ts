@@ -10,9 +10,9 @@ import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopSh
   lureCatch, lurePrize, dialDistance, dialCombo, dialPrize, wireBomb, wirePrize, eggKind, eggPoints, leapPrize, leapHit, LEAP_FROG } from '../miniGameRules';
 
 describe('arcade words', () => {
-  test('twenty-two words open a mini-game, pay no flat points, and every game has a word', () => {
+  test('twenty-three words open a mini-game, pay no flat points, and every game has a word', () => {
     const arcade = SECRET_BONUSES.filter(b => b.miniGame);
-    expect(arcade.map(b => b.word).sort()).toEqual(['BOWL', 'CLAW', 'DART', 'DEAL', 'DIAL', 'DICE', 'GAME', 'GOAL', 'LANE', 'LEAP', 'LURE', 'MOLE', 'NAIL', 'NEST', 'NET', 'NOTE', 'RIDE', 'RING', 'SEAL', 'TEE', 'TIRE', 'WIRE']);
+    expect(arcade.map(b => b.word).sort()).toEqual(['BOWL', 'CLAW', 'DART', 'DEAL', 'DIAL', 'DICE', 'GAME', 'GOAL', 'LANE', 'LEAP', 'LURE', 'MATH', 'MOLE', 'NAIL', 'NEST', 'NET', 'NOTE', 'RIDE', 'RING', 'SEAL', 'TEE', 'TIRE', 'WIRE']);
     for (const b of arcade) expect(b.points ?? 0).toBe(0);
     // Every arcade game has a word (LANE shares Bowling with BOWL); the two gate games open by score instead.
     const games = new Set(arcade.map(b => b.miniGame));
@@ -244,5 +244,34 @@ describe('the 50,000 and 70,000 gates (v7.49)', () => {
     }
     expect(new Set(BIG_ONE_WORDS).size).toBe(BIG_ONE_WORDS.length);
     for (const n of GATES.ladder.rungs) for (const w of LADDER_FALLBACK[n]) { expect(w.length).toBe(n); expect(common.has(w.toLowerCase()), w).toBe(true); }
+  });
+});
+
+import { mathProblem, mathPoints } from '../miniGameRules';
+describe('MATH quiz (v7.64.0)', () => {
+  const it = test;
+  const seeded = (seed: number) => () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  it('deals fair problems: right answer among 4 different, non-negative choices', () => {
+    for (let i = 0; i < 400; i++) {
+      for (const hard of [false, true]) {
+        const p = mathProblem(seeded(i + 1), hard);
+        expect(p.answer).toBe(p.op === '+' ? p.a + p.b : p.a - p.b);
+        expect(p.answer).toBeGreaterThanOrEqual(0);
+        expect(new Set(p.choices).size).toBe(4);
+        expect(p.choices).toContain(p.answer);
+        expect(p.choices.every(c => c >= 0)).toBe(true);
+        if (!hard) expect(p.b).toBeLessThanOrEqual(9);
+        else expect(Math.max(p.a, p.b)).toBeGreaterThanOrEqual(11);
+      }
+    }
+  });
+  it('pays 60, 80, 100... for answers in a row', () => {
+    expect([1, 2, 3, 6].map(mathPoints)).toEqual([60, 80, 100, 160]);
+    expect([1, 2, 3, 4, 5, 6].reduce((t, k) => t + mathPoints(k), 0)).toBe(660);
+  });
+  it('MATH opens the quiz', () => {
+    const egg = SECRET_BONUSES.find(e => e.word === 'MATH');
+    expect(egg?.miniGame).toBe('math');
+    expect(MINI_GAMES.math.flavor).toBeTruthy();
   });
 });
