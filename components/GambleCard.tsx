@@ -5,6 +5,7 @@ import ArcadeButton, { NamedLabel } from './ArcadeButton';
 import { POWER_PLAY_VALUES as V } from '../config/gameplay';
 import { doorsForRound, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, WHAMMY_BOARD, whammySpin, whammySquareFor, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout } from '../services/rules';
 import { createTile, createTileBag, shuffleArray } from '../services/gameUtils';
+import { timesProblem, type TimesProblem } from '../services/miniGameRules';
 import type { Tile } from '../types';
 import { CHARMS_LIST } from '../data/charms';
 import { soundService } from '../services/soundService';
@@ -1134,11 +1135,85 @@ const Mission: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve
   );
 };
 
+/**
+ * Are You Smarter Than a 5th Grader? (v7.65.0): 10 seconds of times tables. Each right answer climbs
+ * the ladder; a wrong one drops a rung. The prize is the rung you finish on. Progress is saved, so
+ * a quit can't redeal the problem.
+ */
+const FifthGrader: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
+  const L = V.fifthGraderLadder, G = V.fifthGraderGrades;
+  const [phase, setPhase] = useSaved<'ready' | 'quiz' | 'done'>('phase', 'ready');
+  const [game, setGame] = useSaved<{ rung: number; right: number; wrong: number; best: number; problem: TimesProblem }>('game', () => ({ rung: 0, right: 0, wrong: 0, best: 0, problem: timesProblem(Math.random, false) }));
+  const [flash, setFlash] = useState<{ ok: boolean; text: string; key: number } | null>(null);
+  const left = useCountdown(phase === 'quiz', V.fifthGraderSeconds * 1000, () => { setPhase('done'); soundService.playMilestone(); });
+  const answer = (c: number) => {
+    if (phase !== 'quiz') return;
+    const p = game.problem;
+    const ok = c === p.answer;
+    const rung = ok ? Math.min(L.length, game.rung + 1) : Math.max(0, game.rung - 1);
+    const right = game.right + (ok ? 1 : 0);
+    setGame({ rung, right, wrong: game.wrong + (ok ? 0 : 1), best: Math.max(game.best, rung), problem: timesProblem(Math.random, right >= V.fifthGraderHardAfter) });
+    setFlash(ok ? { ok, text: `${G[rung - 1]?.toUpperCase() ?? ''} · +${L[rung - 1]}`, key: Date.now() } : { ok, text: `${p.a} × ${p.b} = ${p.answer} · DOWN A RUNG`, key: Date.now() });
+    if (ok) { soundService.playTileClick(); buzz(8); } else { soundService.playInvalidWord(); buzz(40); }
+    if (ok && rung >= L.length) { setPhase('done'); soundService.playMilestone(); }
+  };
+  const prize = game.rung > 0 ? L[game.rung - 1] : 0;
+  const top = game.rung >= L.length;
+  const p = game.problem;
+  return (
+    <>
+      {phase === 'ready' && (
+        <>
+          <p className="text-slate-200 text-sm leading-snug">Times tables for <strong className="text-white">{V.fifthGraderSeconds} seconds</strong>. Each right answer climbs a grade; a wrong one drops you back one. You win the rung you finish on, up to <strong className="text-neon-yellow">+{L[L.length - 1].toLocaleString()}</strong>.</p>
+          <ArcadeButton color="green" className="w-full" onClick={() => setPhase('quiz')}>🔔 Start class</ArcadeButton>
+        </>
+      )}
+      <div className="w-full flex items-stretch gap-2">
+        {/* The ladder, top rung first, like the show's board. */}
+        <ol className="flex flex-col-reverse gap-0.5 w-28 shrink-0" aria-label={`Ladder: rung ${game.rung} of ${L.length}`}>
+          {L.map((v, i) => (
+            <li key={i} className={`flex justify-between rounded px-1.5 py-0.5 osd-text text-sm leading-none ${i + 1 === game.rung ? 'bg-neon-yellow text-crt-900' : i < game.rung ? 'bg-neon-yellow/15 text-neon-yellow' : 'bg-crt-950/70 text-slate-500'}`}>
+              <span>{G[i].replace(' Grade', '')}</span><span>+{v}</span>
+            </li>
+          ))}
+        </ol>
+        <div className="flex-1 flex flex-col gap-2 min-w-0">
+          <div className="flex justify-between items-baseline">
+            <span className="osd-text text-xl text-neon-yellow">+{prize}</span>
+            {phase === 'quiz' ? <SecsLeft ms={left} /> : <span className="osd-text text-lg text-slate-400">{game.right} RIGHT</span>}
+          </div>
+          {phase !== 'done' ? (
+            <>
+              <div className="rounded-xl bg-crt-950/80 ring-1 ring-white/15 py-3 text-center" aria-live="polite" aria-label={`${p.a} times ${p.b}`}>
+                <span className={`font-tile font-extrabold text-4xl tabular-nums ${phase === 'quiz' ? 'text-white' : 'text-slate-600'}`}>{phase === 'quiz' ? `${p.a} × ${p.b}` : '? × ?'}</span>
+              </div>
+              <p key={flash?.key} className={`osd-text text-base leading-tight min-h-[1.25rem] ${flash ? (flash.ok ? 'text-neon-green message-pop' : 'text-neon-red message-pop') : 'text-transparent'}`}>{flash ? `${flash.ok ? '✔' : '✘'} ${flash.text}` : '.'}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {p.choices.map(c => (
+                  <button key={`${p.a}x${p.b}-${c}`} type="button" data-testid="times-choice" disabled={phase !== 'quiz'} aria-label={`Answer ${c}`}
+                    onPointerDown={e => { e.preventDefault(); answer(c); }} onClick={e => { if (e.detail === 0) answer(c); }}
+                    className="rounded-xl py-3 bg-neon-cyan/10 ring-2 ring-neon-cyan text-white font-tile font-extrabold text-2xl tabular-nums select-none touch-none active:scale-95 disabled:opacity-40">{c}</button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="text-slate-200 text-sm leading-snug">{top ? "Top of the class! You're smarter than a 5th grader." : prize ? `Class dismissed: you finished in ${G[game.rung - 1]} with ${game.right} right.` : "I'm not smarter than a 5th grader! No rungs this time."}</p>
+          )}
+        </div>
+      </div>
+      {phase === 'done' && (
+        <ArcadeButton color="green" className="w-full" onClick={() => onResolve({ points: prize, headline: top ? `SMARTER THAN A 5TH GRADER! +${prize}` : prize ? `${G[game.rung - 1].toUpperCase()}: +${prize}` : 'NOT SMARTER THAN A 5TH GRADER', detail: `${game.right} right${game.wrong ? `, ${game.wrong} wrong` : ''} in ${V.fifthGraderSeconds} seconds.`, tone: prize ? 'win' : 'lose' })}>{prize ? `Take +${prize}` : 'Continue'}</ArcadeButton>
+      )}
+    </>
+  );
+};
+
 const GAMES: Record<string, React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[]; extra?: Record<string, unknown> }>> = {
   letsMakeADeal: Doors, dealOrNoDeal: Deal, noWhammies: Whammies, minesweeper: Mines,
   priceIsRight: PriceIsRight, psychicFriends: PsychicCall, draftDay: DraftDay, cardSharks: CardSharks, plinko: Plinko,
   hotTubTimeMachine: HotTub, luckyCharms: LuckyCharms, wildcard: Wildcard,
   shakeItLikeAPolaroid: Polaroid, duckHunt: DuckHunt, scroogeSwipe: MoneyBin, warioWarp: WarioBags, missionImpossible: Mission,
+  fifthGrader: FifthGrader,
 };
 
 /** The interactive part of a gamble PowerPlay. */

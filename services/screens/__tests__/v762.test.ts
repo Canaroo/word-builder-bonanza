@@ -86,3 +86,14 @@ describe('v7.62.0 PowerPlays', () => {
         expect(toppled.gameState!.score).toBe(100);
     });
 });
+
+describe('v7.65.0 shields', () => {
+    test('a blocked strike names the shield that took it and leaves the old state alone', () => {
+        const before = start({ strikes: 0, activePowerPlays: { strikeShield: true }, activeBuffs: [{ id: 'strikeShield', name: 'Ring Shield', icon: '💍' } as never] });
+        const after = gameReducer(before, { type: 'ADD_STRIKE', payload: { source: 'invalid_word' } });
+        expect(after.gameState!.strikes).toBe(0);
+        expect(after.gameState!.activePowerPlays.strikeShield).toBeUndefined();
+        expect(after.gameState!.lastPowerPlayResult?.message).toBe('💍 Ring Shield absorbed the hit!');
+        expect(before.gameState!.activePowerPlays.strikeShield).toBe(true); // not mutated
+    });
+});

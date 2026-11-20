@@ -275,3 +275,20 @@ describe('MATH quiz (v7.64.0)', () => {
     expect(MINI_GAMES.math.flavor).toBeTruthy();
   });
 });
+
+import { timesProblem } from '../miniGameRules';
+describe('5th Grader times tables (v7.65.0)', () => {
+  const seeded = (seed: number) => () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  test('fair problems: the product among 4 different positive choices, tables 2-9 then up to 12', () => {
+    for (let i = 0; i < 400; i++) {
+      for (const hard of [false, true]) {
+        const p = timesProblem(seeded(i + 7), hard);
+        expect(p.answer).toBe(p.a * p.b);
+        expect(new Set(p.choices).size).toBe(4);
+        expect(p.choices).toContain(p.answer);
+        expect(p.choices.every(c => c > 0)).toBe(true);
+        expect(Math.max(p.a, p.b)).toBeLessThanOrEqual(hard ? 12 : 9);
+      }
+    }
+  });
+});

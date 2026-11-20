@@ -45,7 +45,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | Scoring | `services/gameUtils.ts` `calculateScore` |
 | Game state, reducer, turn logic | `services/screens/GameScreen.tsx` (large) |
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
-| PowerPlays / charms (103 / 108) | `data/powerPlays.ts`, `data/charms.ts` |
+| PowerPlays / charms (104 / 108) | `data/powerPlays.ts`, `data/charms.ts` |
 | Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
 | Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Fork, Hold Slot, Grudge Match, Bones | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `FORK`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`; cards in `components/` (`LastWordsCard`, `ForkCard`, `BonesCard`) |
 | Secret bonuses (121 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
@@ -494,6 +494,17 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   wrong one costs nothing but resets the streak; a prize like the other arcade games (grows with
   the level). Numbers use the tile font (Bungee's 7 reads as a ?). Browser-checked: 6 right and 1
   wrong in 10 s paid +500.
+- **Are You Smarter Than a 5th Grader? (v7.65.0, the owner's ask: a PowerPlay like MATH)**
+  (`fifthGrader`, `FifthGrader` in `GambleCard.tsx`, `timesProblem` in `services/miniGameRules.ts`,
+  `fifthGrader*` in `POWER_PLAY_VALUES`): fires on pick (`INSTANT_POWER_PLAY_IDS`, `CARD_ON_PICK`).
+  10 seconds of times tables (2-9, up to 12 after 3 right) with 4 answer buttons; each right answer
+  climbs the ladder (50, 100, 150, 250, 400, 600, 800, 1,000, labeled 1st to 5th grade), a wrong one
+  drops a rung, and the prize is the rung you finish on (a prize: grows with the level). Browser-
+  checked: 6 right, 1 wrong → 3rd Grade +400 (+440 at level 2).
+  **RINGS shield, checked (v7.65.0):** it worked (first strike blocked, second counted), but the buff
+  showed the Hylian Shield PowerPlay's name, so it now reads 💍 Ring Shield, the blocked-strike
+  message names the shield that took it, and any shield shows by STRIKES. `ADD_STRIKE` no longer
+  edits the previous state's `activePowerPlays` in place.
 - **Score gates (v7.39.0):** the first word at or past a gate opens a one-time event (`GATES` in
   `config/gameplay.ts`, `gatesPassed` on the run). 10,000: the Password Gate, unscramble a 6-letter
   password (`data/gates.ts`, 80 words, none a secret bonus word) in 20 s; the scored Daily Run

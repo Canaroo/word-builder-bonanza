@@ -262,6 +262,14 @@ export const POWER_PLAY_VALUES = {
   // Jenga! (v7.62.0): block N pays jengaStep x N into the tower (50, 100, 150...), up to jengaBlocks
   // blocks (+1,050). Cash out any time from the chip; a word under jengaMinLetters letters, an
   // invalid word or a strike topples it (the pot is lost). A prize: grows with the level.
+  // Are You Smarter Than a 5th Grader? (v7.65.0): fires on pick. 10 seconds of times tables, 4 answer
+  // buttons; each right answer climbs a rung of the ladder (the prize is the rung you end on), a
+  // wrong one drops you a rung. 2-9 tables first, up to 12 after fifthGraderHardAfter right.
+  // At about 2 s an answer: 4 right +250, 5 +400, 6 +600 (a prize: grows with the level).
+  fifthGraderSeconds: 10,
+  fifthGraderLadder: [50, 100, 150, 250, 400, 600, 800, 1000],
+  fifthGraderGrades: ['1st Grade', '1st Grade', '2nd Grade', '2nd Grade', '3rd Grade', '3rd Grade', '4th Grade', '5th Grade'],
+  fifthGraderHardAfter: 3,
   jengaStep: 50,
   jengaBlocks: 6,
   jengaMinLetters: 4,

@@ -62,6 +62,8 @@ export const INSTANT_POWER_PLAY_IDS = new Set([
   'priceIsRight',
   // Psychic Friends Network (v7.54.0): the call comes first, on the fresh hand, like a bid.
   'psychicFriends',
+  // Are You Smarter Than a 5th Grader? (v7.65.0): class starts the moment it's picked.
+  'fifthGrader',
 ]);
 
 export const POWER_PLAYS_LIST: PowerPlay[] = [
@@ -1427,6 +1429,18 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     durationTag: 'LIMITED',
     activate: arm('jenga', { blocks: 0 }),
   },
+  // --- v7.65.0 ---
+  {
+    id: 'fifthGrader',
+    name: 'Are You Smarter Than a 5th Grader?',
+    description: `Starts the moment you pick it: ${POWER_PLAY_VALUES.fifthGraderSeconds} seconds of times tables, tap the right answer. Each right answer climbs a grade on the ladder (+${POWER_PLAY_VALUES.fifthGraderLadder.slice(0, 4).join(', +')}… up to +${POWER_PLAY_VALUES.fifthGraderLadder[POWER_PLAY_VALUES.fifthGraderLadder.length - 1].toLocaleString()}); a wrong one drops you back a grade. You win the rung you finish on.`,
+    flavorText: "I'm not smarter than a 5th grader!",
+    icon: '🎒',
+    subtheme: 'score',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (fires on pick: the quiz card)
+  },
 ];
 
 /** PowerPlays that pay a flat point prize, which grows with the run level (PRIZE_GROWTH, prizeFor).
@@ -1439,4 +1453,5 @@ export const PRIZE_POWER_PLAY_IDS: ReadonlySet<string> = new Set([
   'withGreatPower', 'gumpLuck', 'warioWarp', 'thanosGift', 'wildcard', 'psychicFriends',
   'shakeItLikeAPolaroid', 'duckHunt', 'missionImpossible',
   'inception', 'jenga', // v7.62.0
+  'fifthGrader', // v7.65.0
 ]);
