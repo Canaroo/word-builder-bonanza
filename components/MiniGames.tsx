@@ -1405,13 +1405,25 @@ const Dial: React.FC<{ finish: Finish }> = ({ finish }) => {
         </div>
         <div className="absolute inset-[30%] rounded-full grid place-items-center ring-2 ring-slate-900 transition-[background-color,box-shadow] duration-100"
           style={{ backgroundColor: flash === 'miss' ? '#7f1d1d' : `rgba(61, 255, 122, ${0.12 + glow * 0.75})`, boxShadow: glow ? `0 0 ${8 + glow * 24}px rgba(61,255,122,${glow})` : 'none' }}>
-          <span className="font-display text-2xl text-white tabular-nums">{num}</span>
+          <span className="flex flex-col items-center leading-none">
+            <span className="font-display text-2xl text-white tabular-nums">{num}</span>
+            {dist === 0 && !flash && <span className="osd-text text-sm text-white">ON IT</span>}
+          </span>
         </div>
       </div>
-      <p className="osd-text text-lg text-slate-300 min-h-[1.5rem]" aria-live="polite">{flash === 'hit' ? 'CLICK! GOT ONE' : flash === 'miss' ? 'NOT THERE' : dist === 0 ? '* CLICK *' : glow ? 'GETTING WARM…' : 'DRAG TO TURN THE DIAL'}</p>
+      {/* v7.67.8 (a player found the rules unclear): say plainly how close you are and when to tap SET. */}
+      <p className="osd-text text-base leading-none text-slate-400">FINDING SECRET NUMBER {Math.min(s.found + 1, D.numbers)} OF {D.numbers}</p>
+      <p className={`osd-text text-xl leading-none min-h-[1.5rem] ${flash === 'hit' || (dist === 0 && !flash) ? 'text-neon-green' : flash === 'miss' ? 'text-neon-red' : glow ? 'text-neon-yellow' : 'text-neon-cyan'}`} aria-live="polite" data-testid="dial-hint">
+        {flash === 'hit' ? (s.found >= D.numbers ? '🔓 CRACKED IT!' : `✅ GOT IT! NOW FIND NUMBER ${s.found + 1}`)
+          : flash === 'miss' ? '❌ NOT ON IT YET: KEEP TURNING'
+          : dist === 0 ? '🎯 ON IT! TAP 🔓 SET'
+          : dist === 1 ? '🔥 HOT! ONE MORE NOTCH'
+          : glow ? '♨️ WARM: YOU\'RE CLOSE'
+          : '❄️ COLD: KEEP TURNING'}
+      </p>
       <div className="w-full grid grid-cols-[1fr_2fr_1fr] gap-2">
         <button type="button" aria-label="Turn down one" onPointerDown={e => { e.preventDefault(); nudge(-1); }} className="rounded-xl py-3 bg-crt-800 ring-2 ring-neon-cyan text-neon-cyan font-display text-2xl select-none touch-none active:scale-95">◀</button>
-        <ArcadeButton color="green" onClick={set}>🔓 SET</ArcadeButton>
+        <ArcadeButton color="green" className={dist === 0 && !flash ? 'animate-pulse ring-4 ring-neon-green' : ''} onClick={set}>🔓 SET</ArcadeButton>
         <button type="button" aria-label="Turn up one" onPointerDown={e => { e.preventDefault(); nudge(1); }} className="rounded-xl py-3 bg-crt-800 ring-2 ring-neon-cyan text-neon-cyan font-display text-2xl select-none touch-none active:scale-95">▶</button>
       </div>
     </>

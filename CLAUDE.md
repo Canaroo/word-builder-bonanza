@@ -541,7 +541,9 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   (the owner's ask; quips on the intro card via `flavor` in `data/miniGames.ts`): LURE 🎣 Gone
   Fishin' (tap when the bobber dips: under 0.4 s a whopper +120, 0.65 s a keeper +70, 1 s a minnow
   +30, too soon spooks it; 3 whoppers +100), DIAL 🔓 Safecracker (a 40-number dial glows within 3 and
-  clicks on the number; find 3 in 20 s, +100 each, +150 cracked), WIRE 💣 Cut the Wire (3 bombs, 8 s
+  clicks on the number; find 3 in 20 s, +100 each, +150 cracked; v7.67.8, a player found it unclear: the
+  rules name the secret numbers and the dial's middle, and the dial says ❄️ COLD / ♨️ WARM / 🔥 HOT /
+  🎯 ON IT! TAP SET with "FINDING SECRET NUMBER 1 OF 3", the middle shows ON IT and SET pulses), WIRE 💣 Cut the Wire (3 bombs, 8 s
   each, a manual line that gets trickier: `wireBomb` in `services/miniGameRules.ts`; a test reads
   every line back independently; +100 a bomb, +150 all), NEST 🥚 Egg Drop (drag the nest for 10 s:
   +20 an egg, golden +100, rotten -20) and LEAP 🐸 Road Hop (hop 5 lanes of traffic in 15 s, +60 a
