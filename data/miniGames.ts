@@ -8,7 +8,7 @@ export interface MiniGameInfo { name: string; icon: string; rules: string; prize
 export const MINI_GAMES: Record<MiniGameId, MiniGameInfo> = {
   pong: {
     name: 'Pong', icon: '🏓',
-    rules: `Drag your paddle along the bottom. First to ${M.pong.toWin} points beats the CPU.`,
+    rules: `Drag your paddle along the bottom to hit the ball back. Get it past the CPU's paddle to score. First to ${M.pong.toWin} points wins.`,
     prize: `Win: +${M.pong.prize}`,
   },
   mole: {
@@ -18,32 +18,32 @@ export const MINI_GAMES: Record<MiniGameId, MiniGameInfo> = {
   },
   claw: {
     name: 'Claw Machine', icon: '🕹️',
-    rules: 'Slide the claw over a prize and drop it. The trophy pays big but slips more often.',
+    rules: 'Move the claw over a prize (drag, or tap ◀ ▶), then tap ▼ Drop the Claw. The trophy pays big but slips more often.',
     prize: `Plush +${M.claw.plush} · trophy +${M.claw.trophy}`,
   },
   darts: {
     name: 'Darts', icon: '🎯',
-    rules: `The crosshair drifts around the board. Tap to throw. ${M.darts.darts} darts.`,
+    rules: `The green crosshair drifts around the board. Tap 🎯 Throw when it's over the middle: the closer to the bullseye, the more points. ${M.darts.darts} darts.`,
     prize: `Bull +${M.darts.bull} · inner +${M.darts.inner} · outer +${M.darts.outer}`,
   },
   goal: {
     name: 'Penalty Shootout', icon: '⚽',
-    rules: `${M.goal.kicks} kicks. Pick a spot in the net; the keeper dives one way.`,
+    rules: `${M.goal.kicks} kicks. Tap a spot in the net to shoot. The keeper dives to one spot: if it's not yours, it's a goal.`,
     prize: `+${M.goal.perGoal} a goal · all ${M.goal.kicks}: +${M.goal.hatTrick}`,
   },
   dice: {
     name: 'Yahtzee-lite', icon: '🎲',
-    rules: 'Roll 3 dice. Tap any to keep, then reroll the rest once.',
+    rules: 'Roll 3 dice. Tap the ones you want to keep, then reroll the rest once. Three of a kind, a straight (three in a row, like 2-3-4) or a pair pays.',
     prize: `Three of a kind +${M.dice.triple} · straight +${M.dice.straight} · pair +${M.dice.pair}`,
   },
   bowl: {
     name: 'Bowling', icon: '🎳',
-    rules: 'The arrow swings. Tap to roll; the closer to center, the more pins fall. One spare ball.',
+    rules: 'An arrow swings back and forth. Tap 🎳 Roll when it points straight up: the closer to the middle, the more pins fall. Pins left standing get a second ball.',
     prize: `Strike +${M.bowl.strike} · spare +${M.bowl.spare} · +${M.bowl.perPin} a pin`,
   },
   golf: {
     name: 'Mini Golf', icon: '⛳',
-    rules: `Tap to stop the power meter. Sink it in ${M.golf.strokes} strokes or fewer.`,
+    rules: `A power bar fills and empties. Tap ⛳ Putt when it's in the green band to sink the ball. Miss and you putt again from where it stopped: ${M.golf.strokes} strokes.`,
     prize: `Hole in one +${M.golf.prizes[0]} · 2 strokes +${M.golf.prizes[1]} · 3 +${M.golf.prizes[2]}`,
   },
   password: {
@@ -58,13 +58,13 @@ export const MINI_GAMES: Record<MiniGameId, MiniGameInfo> = {
   },
   hoops: {
     name: 'Free Throws', icon: '🏀',
-    rules: `${M.hoops.shots} shots. Tap when the meter hits the middle.`,
+    rules: `${M.hoops.shots} shots. A white line slides along the bar: tap 🏀 Shoot when it's in the green for a swish. The yellow banks it in off the glass.`,
     prize: `Swish +${M.hoops.swish} · off the glass +${M.hoops.bank} · all swishes +${M.hoops.perfect}`,
   },
   // v7.46.0
   ringToss: {
     name: 'Ring Toss', icon: '🎪',
-    rules: `A ring drifts over the bottle. Tap to toss. ${M.ringToss.rings} rings.`,
+    rules: `A ring drifts around the bottle. Tap 🎪 Toss when it's right over the bottle: the closer, the more it pays. ${M.ringToss.rings} rings.`,
     prize: `Ringer +${M.ringToss.ringer} · on the rim +${M.ringToss.rim} · close +${M.ringToss.near}`,
   },
   riff: {
@@ -74,7 +74,7 @@ export const MINI_GAMES: Record<MiniGameId, MiniGameInfo> = {
   },
   striker: {
     name: 'High Striker', icon: '🔨',
-    rules: `The power meter swings. Tap at the top to ring the bell. ${M.striker.swings} swings.`,
+    rules: `A white line climbs and drops on the thin meter. Tap 🔨 Swing when it's at the top, in the green, to ring the bell. ${M.striker.swings} swings.`,
     prize: `Bell +${M.striker.bell} · close +${M.striker.close} · low +${M.striker.low} · ${M.striker.swings} bells +${M.striker.allBells} more`,
   },
   pitStop: {
@@ -84,12 +84,12 @@ export const MINI_GAMES: Record<MiniGameId, MiniGameInfo> = {
   },
   coaster: {
     name: 'Loop the Loop', icon: '🎢',
-    rules: `Hold to build speed, let go in the green to clear the loop. Too slow stalls, too fast flies off. ${M.coaster.rides} rides.`,
+    rules: `Hold the button to build speed: a marker slides along the speed bar. Let go while it's in the green for a clean loop (yellow is wobbly). Let go too early and you stall; hold into the red and you fly off. ${M.coaster.rides} rides.`,
     prize: `Clean +${M.coaster.clean} · wobbly +${M.coaster.wobbly} · all clean +${M.coaster.allClean} more`,
   },
   seal: {
     name: 'Balance Act', icon: '🦭',
-    rules: `Keep the ball on the seal's nose for ${M.seal.seconds} seconds. Tap ◀ and ▶ to nudge it back.`,
+    rules: `Keep the ball on the seal's nose for ${M.seal.seconds} seconds. It keeps rolling off: tap ◀ or ▶ to push it back toward the middle.`,
     prize: `+${M.seal.perSecond} a second · all ${M.seal.seconds} +${M.seal.fullBonus} more`,
   },
   monte: {
@@ -112,19 +112,19 @@ export const MINI_GAMES: Record<MiniGameId, MiniGameInfo> = {
   },
   wire: {
     name: 'Cut the Wire', icon: '💣',
-    rules: `${M.wire.bombs} bombs, ${M.wire.seconds} seconds each. Read the manual and cut the one wire it means. The bombs get trickier.`,
+    rules: `${M.wire.bombs} bombs, ${M.wire.seconds} seconds each. Read the bomb manual and tap the one wire it tells you to cut (left and right as you look at the bomb). Each bomb gets trickier.`,
     prize: `+${M.wire.perBomb} a bomb · all ${M.wire.bombs} +${M.wire.allBonus} more`,
     flavor: 'Red wire or blue wire? MacGyver would know.',
   },
   nest: {
     name: 'Egg Drop', icon: '🥚',
-    rules: `Slide the nest to catch falling eggs for ${M.nest.seconds} seconds. Grab the golden ones, dodge the rotten ones.`,
+    rules: `Drag left and right to slide the nest and catch falling eggs for ${M.nest.seconds} seconds. Golden eggs pay more; dodge the rotten ones (🤢), they cost points.`,
     prize: `+${M.nest.perEgg} an egg · golden +${M.nest.golden} · rotten -${M.nest.rotten}`,
     flavor: 'Eggs-cellent.',
   },
   leap: {
     name: 'Road Hop', icon: '🐸',
-    rules: `Tap HOP to cross ${M.leap.lanes} lanes of traffic in ${M.leap.seconds} seconds. Get hit and you're back on the curb.`,
+    rules: `Tap ⬆ HOP to move the frog up one lane. Wait for a gap in the cars: get hit and you're back on the curb. Cross all ${M.leap.lanes} lanes in ${M.leap.seconds} seconds.`,
     prize: `+${M.leap.perLane} a lane · across +${M.leap.home} more`,
     flavor: "It's not easy being green.",
   },

@@ -550,6 +550,13 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   lane, +150 across; a hit sends you back to the curb). Tops of about 450, like the others; values
   in `MINI_GAME_VALUES`. Words chosen as common 4-letter words that a hand can spell 1.1-2.0% of the
   time (the 1.4-3.7% words were taken). Browser-checked at 390x844: all five play and pay.
+- **Arcade game instructions pass (v7.67.9, after the Safecracker report):** every intro card says
+  which button to tap and when (no "tap to throw" without naming the target), and the timing games
+  show a cyan hint line by the button (`data-testid="arcade-hint"`): Darts, Ring Toss, Bowling, Free
+  Throws, High Striker, Road Hop; Loop the Loop's speed bar labels STALL / CLEAN / FLY OFF; Balance
+  Act says "push the ball back to the middle". Rules rewritten for Pong, Claw, Darts, Penalty,
+  Yahtzee-lite (what a straight is), Bowling, Mini Golf, Free Throws, Ring Toss, High Striker, Loop
+  the Loop, Balance Act, Cut the Wire, Egg Drop, Road Hop. A new arcade game should do the same.
 - **MATH (v7.64.0, the owner's idea):** 🧮 Mathletes ("The Limit Does Not Exist", Mean Girls), an
   arcade word. A 10-second quiz with 4 big answer buttons (`MathQuiz` in `MiniGames.tsx`,
   `mathProblem` / `mathPoints` in `services/miniGameRules.ts`, `MINI_GAME_VALUES.math`): single-digit
