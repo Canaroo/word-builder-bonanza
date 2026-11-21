@@ -58,7 +58,12 @@ const MIN_HIT_LETTERS = 4;
 const tooShort = (word: string) => `too short: ${word.length} letters, needs ${MIN_HIT_LETTERS}+`;
 const usedLetters = (word: string, banned: string) => [...new Set([...word].filter(l => banned.includes(l)))].join(', ');
 const noLetterMiss = (letter: string) => (word: string) => word.length < MIN_HIT_LETTERS ? tooShort(word) : `used ${letter}`;
-const rarestPoints = (tiles: Tile[]) => Math.max(0, ...tiles.map(t => t.points));
+/** What a tile is worth right now: a PowerPlay can change it for a while (the number on the tile). */
+const tileValue = (t: Tile) => t.tempPoints ?? t.points ?? 0;
+const rarestPoints = (tiles: Tile[]) => Math.max(0, ...tiles.map(tileValue));
+/** Lord Business (v7.67.6): every tile ties for the top value, so any word counts and nothing glows.
+ * It used to light every tile red (about 1 hand in 20 is all 1-point tiles), which read as a bug. */
+const allTied = (tiles: Tile[]) => tiles.length > 0 && tiles.every(t => tileValue(t) === rarestPoints(tiles));
 
 export const BOSSES: Boss[] = [
   // --- Early (the first boss level) ---
@@ -111,13 +116,14 @@ export const BOSSES: Boss[] = [
   },
   {
     id: 'lordBusiness', name: 'Lord Business', icon: '👔', tier: 'mid', source: 'The LEGO Movie',
-    rule: 'USE YOUR RAREST TILE', description: 'Every word must use your highest-value tile.',
+    rule: 'USE YOUR RAREST TILE', description: 'Every word must use your highest-value tile (it glows). If all your tiles are worth the same, any word counts.',
     taunt: 'Everything is NOT awesome until you spend that tile.',
     check: (word, tiles) => {
+      if (allTied(tiles)) return true;
       const top = rarestPoints(tiles);
-      return tiles.some(t => t.points === top && word.includes(t.letter));
+      return tiles.some(t => tileValue(t) === top && word.includes(t.letter));
     },
-    tileHint: (tile, tiles) => (tile.points === rarestPoints(tiles) ? 'glow' : null),
+    tileHint: (tile, tiles) => (!allTied(tiles) && tileValue(tile) === rarestPoints(tiles) ? 'glow' : null),
   },
   // --- Late ---
   {
@@ -176,8 +182,8 @@ export const BOSSES: Boss[] = [
     id: 'hades', name: 'Hades', icon: '🔥', tier: 'early', source: 'Hercules',
     rule: 'USE A 3+ POINT TILE', description: 'Every word must use a tile worth 3 or more points.',
     taunt: "Name's Hades, Lord of the Dead. Bring me your heavy hitters, babe.",
-    check: (word, tiles) => tiles.some(t => t.points >= 3 && word.includes(t.letter)),
-    tileHint: tile => (tile.points >= 3 ? 'glow' : null),
+    check: (word, tiles) => tiles.some(t => tileValue(t) >= 3 && word.includes(t.letter)),
+    tileHint: tile => (tileValue(tile) >= 3 ? 'glow' : null),
   },
   {
     id: 'cruella', name: 'Cruella de Vil', icon: '🐾', tier: 'mid', source: '101 Dalmatians',
