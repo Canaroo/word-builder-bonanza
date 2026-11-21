@@ -359,3 +359,40 @@ describe('Chicken Dinner blackjack card and Gump Luck box (v7.67.1)', () => {
         expect(next.gameState.shuffleCount).toBe(3);
     });
 });
+
+describe('PowerPlays that fire on pick (v7.67.7)', () => {
+    const pick = (s: GameScreenState, id: string) => gameReducer({ ...s, gameState: { ...s.gameState, powerPlayOffer: [pp(id)] } }, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp(id), allOffered: [pp(id)] } });
+    test('Hadouken! arms on pick instead of going to the pocket', () => {
+        const next = pick(start(), 'hadouken');
+        expect(next.gameState.activePowerPlays.hadouken).toEqual({ hits: V.hadoukenHits });
+        expect(next.gameState.availablePowerPlays).toHaveLength(0);
+    });
+    test('Neuralyzer lines up a charm offer on pick', () => {
+        const next = pick(start(), 'neuralyzer');
+        expect(next.gameState.neuralyzerOffer).toBe(true);
+        expect(next.gameState.availablePowerPlays).toHaveLength(0);
+    });
+    test("Chubbs' Pep Talk removes a strike now, or waits and erases the next one", () => {
+        expect(pick(start({ strikes: 2 }), 'chubbsPepTalk').gameState.strikes).toBe(1);
+        const waiting = pick(start({ strikes: 0 }), 'chubbsPepTalk');
+        expect(waiting.gameState.activePowerPlays.chubbsPepTalk).toBe(true);
+        const hit = gameReducer(waiting, { type: 'ADD_STRIKE' });
+        expect(hit.gameState.strikes).toBe(0);
+        expect(hit.gameState.activePowerPlays.chubbsPepTalk).toBeUndefined();
+        expect(gameReducer(hit, { type: 'ADD_STRIKE' }).gameState.strikes).toBe(1); // only once
+    });
+    test('Turn Back Time adds its seconds when it erases a strike, now or later', () => {
+        const now = pick(start({ strikes: 1 }, 30), 'rewind');
+        expect(now.gameState.strikes).toBe(0);
+        expect(now.time).toBe(30 + TIME_BONUS.rescue);
+        const waiting = pick(start({ strikes: 0 }, 30), 'rewind');
+        expect(waiting.time).toBe(30);
+        const hit = gameReducer(waiting, { type: 'ADD_STRIKE' });
+        expect(hit.gameState.strikes).toBe(0);
+        expect(hit.time).toBe(30 + TIME_BONUS.rescue);
+    });
+    test('none of them is in the Mystery Tape pool', async () => {
+        const { MYSTERY_TAPE } = await import('../../../config/gameplay');
+        for (const id of ['hadouken', 'chubbsPepTalk', 'rewind', 'neuralyzer']) expect(MYSTERY_TAPE.pool as readonly string[]).not.toContain(id);
+    });
+});

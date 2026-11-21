@@ -321,6 +321,12 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
 - **Timed, blind and bet PowerPlays fire on pick** (`INSTANT_POWER_PLAY_IDS`): Pop Quiz, Hotshot,
   Smell Ya Later!, Bird Box, Daily Double and Mission: Impossible start on the fresh hand when chosen
   from the offer.
+  **v7.67.7 (the owner's call): four more fire on pick, since waiting gave no choice:** Hadouken!
+  (it already waits for a boss; 3 of 7 picks were never used), Neuralyzer (out of the Mystery Tape
+  pool), and the strike erasers Chubbs' Pep Talk and Turn Back Time (`strikeEraser` in
+  `data/powerPlays.ts`): a strike now is removed at once (Turn Back Time adds its 10 s); with none,
+  it arms and `ADD_STRIKE` erases the next real strike (not Jackass or With Great Power, which take
+  one on purpose). Before, both were wasted when used at 0 strikes.
   Held in the pocket, a player could wait for (or build) the right word, then activate and submit.
   New timed or bet ones go there too. Daily Double's wager is never more than the score (it isn't
   offered under 100 points), and a Sliders undo keeps a settled Daily Double or Price Is Right bet. It also
