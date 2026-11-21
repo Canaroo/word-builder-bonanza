@@ -10,6 +10,9 @@ export const STORAGE_KEYS = {
     savedGame: 'wordBuilderBonanzaSave',
     /** The daily run's own save slot, so a regular run can't wipe an unfinished daily attempt. */
     savedDailyGame: 'wordNerdDailySave',
+    /** v7.67.5: which open copy of the game owns each save slot (only the newest copy saves). */
+    savedGameOwner: 'wordBuilderBonanzaSaveOwner',
+    savedDailyGameOwner: 'wordNerdDailySaveOwner',
     /** Per player: the day of their scored daily run and how it went (services/daily.ts). */
     dailyRecord: 'wordNerdDailyRecord',
     savedLogs: 'wordBuilderBonanzaSavedLogs',

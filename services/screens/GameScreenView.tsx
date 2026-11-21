@@ -1,4 +1,5 @@
 import { Sec, withSec } from '../../components/Seconds';
+import EndRunCard from '../../components/EndRunCard';
 import React, { useEffect, useRef, useState } from 'react';
 import ArcadeButton from '../../components/ArcadeButton';
 import ShuffleButton from '../../components/ShuffleButton';
@@ -170,6 +171,12 @@ export interface GameScreenViewProps {
   handleChallenge: () => Promise<void>;
   handleSaveClick: () => void;
   handleConfirmSave: () => void;
+  /** Opens the End run card (two confirmations; the run is thrown away). */
+  handleEndRun?: () => void;
+  /** The End run card while it's open (v7.67.5). */
+  endRun?: { summary?: string; onCancel: () => void; onConfirm: () => void } | null;
+  /** Another open copy of the game took this run's save slot: back to the start screen (v7.67.5). */
+  onLostSave?: (() => void) | null;
   showBuffInfo: (buff: Charm | PowerPlay) => void;
   handleActivatePowerPlay: (powerPlay: PowerPlay, confirmed?: boolean) => void;
   handleActivateCharm: (charm: Charm) => void;
@@ -190,7 +197,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
     handleMoveToBuild, handleReturnToHand, handleShuffle, handleSubmit, handleClear,
-    handleChallenge, handleSaveClick, handleConfirmSave, showBuffInfo,
+    handleChallenge, handleSaveClick, handleConfirmSave, handleEndRun, endRun, onLostSave, showBuffInfo,
     handleActivatePowerPlay, handleActivateCharm, handleChoosePowerPlay, handleChooseCharm, handlePassCharm, handleUpgradeCharm, handleKeepPowerPlay,
     handleAddTileToSwap, handleRemoveTileFromSwap, handleExecuteSwap, dispatch
 }) => {
@@ -576,12 +583,15 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     <div className={modalBaseClass}>
                         <div className={`${modalBoxBaseClass} border-cyan-400`}>
                            <h2 className="text-3xl font-bold text-cyan-400 mb-4 text-center">{title}</h2>
-                           <p className="text-slate-200 text-center my-4">Save your run and return to the main menu? Tap Resume there to pick up right where you left off.</p>
+                           <p className="text-slate-200 text-center my-4">Save your run and return to the main menu? Tap ▶ Continue there to pick up right where you left off.</p>
                            <p className="text-slate-400 text-sm text-center -mt-2 mb-2">Your run also saves itself after every word, so closing the app by accident won't lose it.</p>
                            <div className="flex gap-4 mt-4">
                                 <button onClick={handleCloseModal} className="w-full px-6 py-3 text-xl font-bold text-white bg-red-600 rounded-lg shadow-lg hover:bg-red-500">CANCEL</button>
                                 <button onClick={handleConfirmSave} className="w-full px-6 py-3 text-xl font-bold text-slate-900 bg-cyan-400 rounded-lg shadow-lg hover:bg-cyan-300">SAVE & QUIT</button>
                            </div>
+                           {handleEndRun && (
+                               <button type="button" onClick={handleEndRun} className="w-full mt-4 osd-text text-lg text-slate-400 underline hover:text-neon-red">🗑️ End this run without saving</button>
+                           )}
                         </div>
                     </div>
                 );
@@ -894,6 +904,17 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     <div className="flex flex-col h-full min-h-0 p-3 text-slate-200 gap-2">
       {/* --- MODALS --- */}
       {renderModal()}
+      {endRun && <EndRunCard summary={endRun.summary} onCancel={endRun.onCancel} onConfirm={endRun.onConfirm} />}
+      {onLostSave && (
+        <div className="absolute inset-0 z-[80] bg-crt-950/95 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="This run is open in another window">
+          <div className="bg-crt-900 border-4 border-neon-cyan rounded-2xl px-5 py-6 max-w-sm w-full flex flex-col items-center text-center gap-3">
+            <div className="text-5xl leading-none" aria-hidden="true">📼</div>
+            <h2 className="font-display text-xl text-neon-cyan leading-tight">THIS TAPE WAS RECORDED OVER</h2>
+            <p className="text-slate-200 text-sm leading-snug">Word Nerd is open in another window or tab, and a newer game is using the save. This copy has stopped saving so it can't overwrite it.</p>
+            <ArcadeButton color="cyan" className="w-full" onClick={onLostSave}>Back to the start screen</ArcadeButton>
+          </div>
+        </div>
+      )}
       {/* v7.59.0: cards that open on their own swallow taps for a moment (keyed per card, not per save of its state). */}
       {modalContent && !GUARDLESS_MODALS.has(modalContent.type) && (
         <ModalTapGuard key={`${modalContent.type}|${modalContent.title ?? ''}|${(modalContent.data as any)?.id ?? ''}|${(modalContent.data as any)?.level ?? ''}`} />

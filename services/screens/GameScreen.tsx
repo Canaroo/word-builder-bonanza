@@ -50,6 +50,8 @@ interface GameScreenProps {
   playerName: string;
   onGameOver: (gameState: GameState) => void;
   onSaveGame: (state: GameScreenState) => void;
+  /** Back to the start screen without saving (End run, or a copy that lost its save slot). */
+  onLeaveRun?: () => void;
   isResuming: boolean;
   onTimeLow: (isLow: boolean) => void;
   onGoldenRoundChange: (isGolden: boolean) => void;
@@ -3000,9 +3002,21 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
     }
 }
 
-export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveGame, isResuming, onTimeLow, onGoldenRoundChange, onBossRoundChange, onScoreUpdate, onLexCoinChange, tileClass, powerWord, daily = null, lexCoins = 0 }) => {
+export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveGame, onLeaveRun, isResuming, onTimeLow, onGoldenRoundChange, onBossRoundChange, onScoreUpdate, onLexCoinChange, tileClass, powerWord, daily = null, lexCoins = 0 }) => {
     // A Daily Run saves to its own slot, so a regular run can't wipe an unfinished daily attempt.
     const saveSlot = daily ? STORAGE_KEYS.savedDailyGame : STORAGE_KEYS.savedGame;
+    // v7.67.5: only the newest open copy of the game may write this save slot. The owner found an
+    // old run coming back on Continue: a second window (the app and a browser tab, or one left in
+    // the background) still had the old run open, and its auto-save wrote it over the new run every
+    // few seconds. Each GameScreen claims the slot when it opens; a copy that loses the claim stops
+    // saving and shows a card that sends it back to the start screen.
+    const ownerKey = daily ? STORAGE_KEYS.savedDailyGameOwner : STORAGE_KEYS.savedGameOwner;
+    const instanceId = React.useRef(`${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`).current;
+    React.useState(() => { storage.setString(ownerKey, instanceId); return null; }); // claim before any save
+    const ownsSave = () => { const owner = storage.getString(ownerKey); return !owner || owner === instanceId; };
+    const [lostSave, setLostSave] = React.useState(false);
+    const [endingRun, setEndingRun] = React.useState(false);
+    const leaving = React.useRef(false);
     // Stop using the daily's seeded tile luck once this run leaves the screen.
     useEffect(() => () => gameUtils.setTileStream(null), []);
     // Bones: load other players' fallen runs in the background (no ghosts if it fails).
@@ -3265,7 +3279,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   // over the save is cleared instead, so a finished run can't be resumed.
   const autoSave = React.useRef<() => void>(() => {});
   autoSave.current = () => {
-      if (!state.gameState || state.isLoading || (state.resumeCountdown ?? 0) > 0) return;
+      if (!state.gameState || state.isLoading || (state.resumeCountdown ?? 0) > 0 || leaving.current) return;
+      if (!ownsSave()) { leaving.current = true; setLostSave(true); dispatch({ type: 'PAUSE_GAME' }); return; }
       if (state.gameState.log.some(e => e.type === 'game_over') || state.modalContent?.type === 'game-over-summary') {
           storage.remove(saveSlot);
           return;
@@ -3275,7 +3290,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   useEffect(() => { autoSave.current(); }, [state.gameState?.log.length, state.gameState?.strikes, state.modalContent, state.awaitingNextRound]);
   useEffect(() => {
       const saveNow = () => autoSave.current();
-      const onHide = () => { if (document.visibilityState === 'hidden') saveNow(); };
+      const onHide = () => { if (document.visibilityState === 'hidden') saveNow(); else if (!ownsSave() && !leaving.current) { leaving.current = true; setLostSave(true); dispatch({ type: 'PAUSE_GAME' }); } };
       document.addEventListener('visibilitychange', onHide);
       window.addEventListener('pagehide', saveNow);
       const every = setInterval(saveNow, 5000);
@@ -5826,6 +5841,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     };
     
     const handleConfirmSave = () => {
+        if (!ownsSave()) { leaving.current = true; setLostSave(true); dispatch({ type: 'PAUSE_GAME' }); return; }
         const screenState: GameScreenState = {
             gameState, time, hand, buildRow, tileBag, message: '',
             isPaused: false, isLoading: false, loadingMessage: null, modalContent: null, modalQueue: [],
@@ -6215,6 +6231,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         dispatch({ type: 'EXECUTE_SWAP' });
     };
 
+    // End run (v7.67.5): thrown away for good, nothing saved or recorded.
+    const endRunForGood = () => {
+        leaving.current = true;
+        // Mark the slot ended, so no other open copy of this run writes it back.
+        if (ownsSave()) { storage.remove(saveSlot); storage.setString(ownerKey, `ended-${Date.now()}`); }
+        gameUtils.setTileStream(null);
+        soundService.playUIClick();
+        onLeaveRun?.();
+    };
+    const runSummary = gameState ? `${(gameState.score ?? 0).toLocaleString()} pts, level ${levelFor(totalWords)}` : undefined;
     const viewProps: GameScreenViewProps = {
         gameState,
         time,
@@ -6277,6 +6303,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         handleChallenge,
         handleSaveClick,
         handleConfirmSave,
+        handleEndRun: () => setEndingRun(true),
+        endRun: endingRun ? { summary: runSummary, onCancel: () => setEndingRun(false), onConfirm: endRunForGood } : null,
+        onLostSave: lostSave ? () => { gameUtils.setTileStream(null); onLeaveRun?.(); } : null,
         showBuffInfo,
         handleActivatePowerPlay,
         handleActivateCharm,

@@ -12,6 +12,7 @@ import { missedWordsService } from '../missedWordsService';
 import { powerWordService } from '../powerWordService';
 import EventLogDisplay from '../../components/EventLogDisplay';
 import RankingModal from '../../components/RankingModal';
+import EndRunCard from '../../components/EndRunCard';
 import ArcadeButton from '../../components/ArcadeButton';
 import { collectionProgress } from '../collection';
 import { BOSSES } from '../../data/bosses';
@@ -276,6 +277,17 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [shopNews, setShopNews] = useState(() => storage.getString(STORAGE_KEYS.shopNewsSeen) !== SHOP_NEWS.id);
   const closeShopNews = () => { storage.setString(STORAGE_KEYS.shopNewsSeen, SHOP_NEWS.id); setShopNews(false); };
 
+  // End the saved run (v7.67.5): two confirmations, then it's gone (nothing recorded).
+  const [endingSaved, setEndingSaved] = useState(false);
+  const endSavedRun = () => {
+    storage.remove(STORAGE_KEYS.savedGame);
+    // Mark the slot ended, so a copy of that run still open in another window can't write it back.
+    storage.setString(STORAGE_KEYS.savedGameOwner, `ended-${Date.now()}`);
+    setSavedGame(null);
+    setEndingSaved(false);
+    showToast('🗑️ Run ended. Ready for a fresh one!');
+  };
+
   const handleResumeClick = () => {
     if (savedGame) {
         soundService.initialize();
@@ -528,6 +540,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </div>
         </div>
       )}
+      {endingSaved && savedGame && (
+        <EndRunCard summary={continueRun?.label} onCancel={() => setEndingSaved(false)} onConfirm={endSavedRun} />
+      )}
       {confirmNewGame && savedGame && (
         <div className="absolute inset-0 z-50 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Start a new game?">
           <div className="bg-crt-900 border-2 border-neon-yellow rounded-2xl p-6 max-w-sm w-full text-center flex flex-col gap-3">
@@ -679,6 +694,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   <span className="osd-text text-base leading-none normal-case tracking-normal opacity-80">{continueRun.label}</span>
                 </ArcadeButton>
                 <ArcadeButton color="yellow" variant="outline" className="w-full" disabled={!name.trim()} onClick={handlePlayClick}>New Game</ArcadeButton>
+                <button type="button" className="osd-text text-base leading-none text-slate-500 underline hover:text-neon-red -mt-0.5" onClick={() => { soundService.playUIClick(); setEndingSaved(true); }}>🗑️ End the saved run</button>
               </>
             ) : (
               <>
