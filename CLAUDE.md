@@ -437,6 +437,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   repeated the rule, and thought Magneto was broken (its mechanics were right). Misses now read
   "too short: 3 letters, needs 4+", "shared T with CAT" or "used E", in the toast and the log.
   A new rule with more than one part should get a `missReason`.
+  **Lord Business (v7.67.6, a player's report: every tile turned red):** USE YOUR RAREST TILE glowed
+  every tile tied for the top value, so a hand of all 1-point tiles (about 1 in 20) lit up entirely.
+  Now an all-tied hand lights nothing and any word counts (the description says so), and Lord
+  Business and Hades read a tile at the value it shows (`tileValue`: `tempPoints` first). Tests in
+  `lordBusiness.test.ts`.
   **Ivan Drago (v7.54.2):** BEAT YOUR LAST: SCORE OR LENGTH (a word scores more than the last one,
   or has more letters), 5 hits (was score only, 4 hits, won 1 of 12). The owner kept the four 100%
   early bosses (Cobra Commander, Mojo Jojo, Oogie Boogie, King Hippo) as warm-ups on purpose.
