@@ -309,7 +309,7 @@ const Darts: React.FC<{ finish: Finish }> = ({ finish }) => {
           </g>
         )}
       </svg>
-      {throws.length < M.darts.darts && <ArcadeButton color="green" className="w-full" onClick={throwDart}>🎯 Throw!</ArcadeButton>}
+      {throws.length < M.darts.darts && <><p className="osd-text text-base leading-none text-neon-cyan" data-testid="arcade-hint">TAP THROW WHEN THE CROSSHAIR IS ON THE MIDDLE</p><ArcadeButton color="green" className="w-full" onClick={throwDart}>🎯 Throw!</ArcadeButton></>}
     </>
   );
 };
@@ -440,7 +440,7 @@ const Bowl: React.FC<{ finish: Finish }> = ({ finish }) => {
         <span className="absolute text-2xl leading-none -translate-x-1/2 transition-all ease-in" style={{ left: `${laneX(rolling ?? aim)}%`, top: rolling !== null ? '5%' : '86%', transitionDuration: rolling !== null ? '850ms' : '0ms' }} aria-hidden="true">⚫</span>
         {rolling === null && !over && <div className="absolute bottom-10 h-16 w-0.5 bg-neon-yellow origin-bottom" style={{ left: '50%', transform: `rotate(${aim * 28}deg)` }} />}
       </div>
-      {!over && <ArcadeButton color="green" className="w-full" onClick={roll} disabled={rolling !== null}>🎳 Roll!</ArcadeButton>}
+      {!over && <><p className="osd-text text-base leading-none text-neon-cyan" data-testid="arcade-hint">TAP ROLL WHEN THE ARROW POINTS STRAIGHT UP</p><ArcadeButton color="green" className="w-full" onClick={roll} disabled={rolling !== null}>🎳 Roll!</ArcadeButton></>}
     </>
   );
 };
@@ -531,6 +531,7 @@ const Hoops: React.FC<{ finish: Finish }> = ({ finish }) => {
             <div className="absolute inset-y-0 left-[42.5%] w-[15%] bg-neon-green/50" />
             <div className="absolute inset-y-0 w-1 bg-white" style={{ left: `${50 + needle * 49}%` }} />
           </div>
+<p className="osd-text text-base leading-none text-neon-cyan" data-testid="arcade-hint">TAP SHOOT WHEN THE LINE IS IN THE GREEN</p>
           <ArcadeButton color="green" className="w-full" onClick={shoot} disabled={!!flying}>🏀 Shoot!</ArcadeButton>
         </>
       )}
@@ -571,7 +572,7 @@ const RingToss: React.FC<{ finish: Finish }> = ({ finish }) => {
         {tosses.map((d, i) => <circle key={i} cx={d.x} cy={d.y} r={13} fill="none" stroke={d.pts >= M.ringToss.ringer ? '#3dff8c' : '#ffe27a'} strokeWidth={4} />)}
         {tosses.length < R.rings && <circle cx={cx} cy={cy} r={13} fill="none" stroke="#ff4dc4" strokeWidth={4} strokeDasharray="6 3" />}
       </svg>
-      {tosses.length < R.rings && <ArcadeButton color="pink" className="w-full" onClick={toss}>🎪 Toss!</ArcadeButton>}
+      {tosses.length < R.rings && <><p className="osd-text text-base leading-none text-neon-cyan" data-testid="arcade-hint">TAP TOSS WHEN THE RING IS OVER THE BOTTLE</p><ArcadeButton color="pink" className="w-full" onClick={toss}>🎪 Toss!</ArcadeButton></>}
     </>
   );
 };
@@ -675,7 +676,7 @@ const Striker: React.FC<{ finish: Finish }> = ({ finish }) => {
           </div>
         )}
       </div>
-      {!over && <ArcadeButton color="pink" className="w-full" onClick={swing} disabled={flying !== null}>🔨 Swing!</ArcadeButton>}
+      {!over && <><p className="osd-text text-base leading-none text-neon-cyan" data-testid="arcade-hint">TAP SWING WHEN THE LINE HITS THE GREEN AT THE TOP</p><ArcadeButton color="pink" className="w-full" onClick={swing} disabled={flying !== null}>🔨 Swing!</ArcadeButton></>}
     </>
   );
 };
@@ -767,6 +768,12 @@ const Coaster: React.FC<{ finish: Finish }> = ({ finish }) => {
             <div className="absolute inset-y-0 left-0 bg-white/20" style={{ width: `${(holding ? speed : 0) * 100}%` }} />
             <div className="absolute inset-y-0 w-1 bg-white" style={{ left: `${(holding ? speed : 0) * 100}%` }} />
           </div>
+          {/* v7.67.9: name the zones, so "let go in the green" makes sense. */}
+          <div className="relative w-full max-w-[19rem] h-3 osd-text text-[0.7rem] leading-none text-slate-400" aria-hidden="true">
+            <span className="absolute left-0">STALL</span>
+            <span className="absolute left-[75%] -translate-x-1/2 text-neon-green">CLEAN</span>
+            <span className="absolute right-0 text-neon-red">FLY OFF</span>
+          </div>
           <button type="button" aria-label="Hold to build speed, let go to launch"
             onPointerDown={e => { e.preventDefault(); start(); }} onPointerUp={release} onPointerLeave={release} onPointerCancel={release}
             className={`w-full rounded-xl py-4 font-display text-xl select-none touch-none ${holding ? 'bg-neon-yellow text-crt-900' : 'bg-neon-pink text-white'}`}>
@@ -822,7 +829,7 @@ const Seal: React.FC<{ finish: Finish }> = ({ finish }) => {
         <span className="absolute left-1/2 -translate-x-1/2 bottom-2 text-6xl leading-none" aria-hidden="true">🦭</span>
         <div className="absolute inset-x-0 bottom-0 h-2 bg-neon-cyan/30" />
       </div>
-      <p className="osd-text text-lg text-slate-300">{started ? 'KEEP IT UP!' : 'TAP ◀ OR ▶ TO START'}</p>
+      <p className="osd-text text-lg text-slate-300">{started ? 'PUSH THE BALL BACK TO THE MIDDLE!' : 'TAP ◀ OR ▶ TO START'}</p>
       <div className="w-full grid grid-cols-2 gap-2">
         <button type="button" aria-label="Nudge left" onPointerDown={e => { e.preventDefault(); nudge(-1); }} className="rounded-xl py-4 bg-crt-800 ring-2 ring-neon-cyan text-neon-cyan font-display text-2xl select-none touch-none active:scale-95">◀</button>
         <button type="button" aria-label="Nudge right" onPointerDown={e => { e.preventDefault(); nudge(1); }} className="rounded-xl py-4 bg-crt-800 ring-2 ring-neon-cyan text-neon-cyan font-display text-2xl select-none touch-none active:scale-95">▶</button>
@@ -1656,6 +1663,7 @@ const Leap: React.FC<{ finish: Finish }> = ({ finish }) => {
           );
         })}
       </div>
+<p className="osd-text text-base leading-none text-neon-cyan" data-testid="arcade-hint">HOP WHEN THE LANE ABOVE YOUR FROG IS CLEAR</p>
       <button type="button" onPointerDown={e => { e.preventDefault(); hop(); }} aria-label="Hop forward"
         className="w-full rounded-xl py-4 bg-neon-green/15 ring-2 ring-neon-green text-neon-green font-display text-2xl select-none touch-none active:scale-95">⬆ HOP</button>
     </>
