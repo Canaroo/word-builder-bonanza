@@ -43,6 +43,8 @@ const ScratchCard: React.FC<{
   const [done, setDone] = useState(false);
   // v7.67.3 (the owner's ask): after a bank, the rest of the card turns over so you see what you passed up.
   const [banked, setBanked] = useState<boolean>(!!saved?.banked);
+  // v7.67.4 (the owner's ask): tap a turned-over charm or PowerPlay to read what it does.
+  const [info, setInfo] = useState<number | null>(null);
   const last = opened.length ? opened[opened.length - 1] : -1;
   const held = last >= 0 ? squares[last] : null;
   const busted = held?.kind === 'skull';
@@ -50,6 +52,10 @@ const ScratchCard: React.FC<{
   const prizesLeft = left - skulls;
   const heldLabel = held && !busted ? scratchLabel(held, level) : null;
   const revealAll = banked || busted;
+  const infoSq = info !== null ? squares[info] : null;
+  const infoItem = infoSq?.kind === 'charm' ? (() => { const c = charmById(infoSq.id); return c && { kind: 'CHARM', icon: c.icon, name: c.name, description: c.description, flavor: c.flavorText }; })()
+    : infoSq?.kind === 'powerplay' ? (() => { const p = ppById(infoSq.id); return p && { kind: 'POWERPLAY', icon: p.icon, name: p.name, description: p.description, flavor: p.flavorText }; })()
+    : null;
   const bank = () => { if (done || !held || busted) return; soundService.playTileClick(); setBanked(true); onSave?.('banked', true); };
 
   const scratch = (i: number) => {
@@ -68,13 +74,23 @@ const ScratchCard: React.FC<{
 
   return (
     <div className="absolute inset-0 bg-crt-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-3 animate-fade-in" role="dialog" aria-modal="true" aria-label="Scratch-off ticket">
-      <div className="bg-crt-900 border-4 border-neon-yellow shadow-[0_0_28px_rgba(255,226,122,0.4)] rounded-2xl px-4 py-4 max-w-md w-full flex flex-col items-center text-center gap-2.5 level-stage-in">
+      <div className="bg-crt-900 border-4 border-neon-yellow shadow-[0_0_28px_rgba(255,226,122,0.4)] rounded-2xl px-4 py-4 max-w-md w-full max-h-full overflow-y-auto flex flex-col items-center text-center gap-2.5 level-stage-in">
         <p className="osd-text text-lg tracking-[0.25em] text-neon-yellow">LEVEL {level} · LUCKY TICKET</p>
         <h2 className="font-display text-2xl text-white leading-tight">🎟️ SCRATCH-OFF</h2>
+        {info !== null && infoItem ? (
+          <div className="w-full rounded-xl bg-crt-950/80 ring-2 ring-neon-cyan px-3 py-2 text-left relative" data-testid="scratch-info" aria-live="polite">
+            <button type="button" onClick={() => setInfo(null)} className="absolute top-1 right-2 text-slate-300 text-lg leading-none px-1" aria-label="Close the description">✕</button>
+            <p className="osd-text text-sm leading-none text-neon-cyan">{infoItem.kind}</p>
+            <p className="font-display text-base text-white leading-tight mt-1 pr-5">{infoItem.icon} {infoItem.name}</p>
+            <p className="text-slate-200 text-sm leading-snug mt-1">{infoItem.description}</p>
+            {infoItem.flavor && <p className="text-slate-400 text-xs italic leading-snug mt-1">“{infoItem.flavor}”</p>}
+          </div>
+        ) : (
         <p className="text-slate-300 text-sm leading-snug">
           Scratch a square to win what's under it. <strong className="text-white">Each new scratch replaces your prize</strong>, so stop when you like what you're holding.
           {' '}{SCRATCH.skulls} squares hide a 💀 that wipes it. Your first scratch is always safe.
         </p>
+        )}
 
         {/* What you'd walk away with right now. */}
         <div className={`w-full rounded-xl px-3 py-2 ring-2 ${busted ? 'ring-neon-red bg-neon-red/10' : held ? 'ring-neon-green bg-neon-green/10' : 'ring-white/15 bg-crt-950/70'}`} data-testid="scratch-held" aria-live="polite">
@@ -90,9 +106,10 @@ const ScratchCard: React.FC<{
             const missed = !isOpen && revealAll; // turned over after the bank or the bust
             const isHeld = i === last && !busted;
             const lbl = scratchLabel(sq, level);
+            const readable = sq.kind === 'charm' || sq.kind === 'powerplay';
             return (
-              <button key={i} type="button" data-testid="scratch-square" disabled={isOpen || busted || banked || done}
-                onClick={() => scratch(i)} aria-label={isOpen ? `Square ${i + 1}: ${lbl.plain}` : missed ? `Square ${i + 1}, not scratched: ${lbl.plain}` : `Scratch square ${i + 1}`}
+              <button key={i} type="button" data-testid="scratch-square" disabled={!(readable && (isOpen || missed)) && (isOpen || busted || banked || done)}
+                onClick={() => (readable && (isOpen || missed) ? setInfo(info === i ? null : i) : scratch(i))} aria-label={isOpen ? `Square ${i + 1}: ${lbl.plain}` : missed ? `Square ${i + 1}, not scratched: ${lbl.plain}` : `Scratch square ${i + 1}`}
                 className={`aspect-square rounded-lg flex flex-col items-center justify-center px-1 select-none transition-transform active:scale-95 ${
                   missed ? `bg-crt-950/60 border-2 border-dashed ${sq.kind === 'skull' ? 'border-neon-red/60' : 'border-white/40'} opacity-75 level-stage-in`
                   : !isOpen ? 'bg-[linear-gradient(135deg,#d6d9e0_0%,#9aa1ad_45%,#e8eaef_55%,#a3a9b5_100%)] text-crt-900 shadow-inner ring-1 ring-white/50'
@@ -107,6 +124,7 @@ const ScratchCard: React.FC<{
                       ? <span className="text-[10px] leading-tight text-white line-clamp-2 mt-0.5">{lbl.big}</span>
                       : <span className="font-display text-sm leading-tight text-white mt-0.5">{lbl.big}</span>)}
                     {missed && <span className="osd-text text-xs leading-none text-slate-400 mt-0.5">{sq.kind === 'skull' ? 'DODGED' : 'MISSED'}</span>}
+                    {readable && <span className={`osd-text text-xs leading-none mt-0.5 ${info === i ? 'text-neon-cyan' : 'text-neon-cyan/80'}`}>ⓘ READ</span>}
                   </>
                 )}
               </button>
