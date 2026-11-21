@@ -106,7 +106,7 @@ export const MINI_GAMES: Record<MiniGameId, MiniGameInfo> = {
   },
   dial: {
     name: 'Safecracker', icon: '🔓',
-    rules: `Turn the dial. The light glows near a number and clicks right on it; tap SET there. Find all ${M.dial.numbers} in ${M.dial.seconds} seconds.`,
+    rules: `The safe has ${M.dial.numbers} secret numbers. Turn the dial (drag it, or tap ◀ ▶). The middle of the dial turns green as you get close, and says ON IT when you're there: tap 🔓 SET. Then hunt the next number. Find all ${M.dial.numbers} in ${M.dial.seconds} seconds.`,
     prize: `+${M.dial.perNumber} a number · cracked +${M.dial.cracked} more`,
     flavor: 'I love it when a plan comes together.',
   },
