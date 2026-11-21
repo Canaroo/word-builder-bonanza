@@ -603,7 +603,7 @@ export const MYSTERY_TAPE = {
   usePoints: 100,
   pool: [
     'cassiesClue', 'carmenSandiego', 'yoshisWildRide', 'tetrisTouch', 'letterUpgrade', 'schruteBucks',
-    'neuralyzer', 'captainPlanet', 'whoYouGonnaCall', 'buyAVowel', 'moreThanMeets',
+    'captainPlanet', 'whoYouGonnaCall', 'buyAVowel', 'moreThanMeets',
     'withGreatPower', 'cowabunga', 'warioWarp', 'shapeshiftersTongue', 'hookshot', 'shakeItLikeAPolaroid',
     'ludicrousSpeed', 'duckHunt', 'actClear', 'echoesOfThePast', 'holdOntoYourButts', 'upsideDown',
     'rescueDrop', 'luckyCharms',

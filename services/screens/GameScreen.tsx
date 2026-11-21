@@ -1255,13 +1255,26 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
           let newTime = state.time;
           let newHand = [...state.hand];
           let newTileBag = state.tileBag;
+          // Chubbs' Pep Talk / Turn Back Time waiting for a strike (v7.67.7): this one gets erased.
+          const eraserId = actuallyGotAStrike && !revivedByLifeFindsAWay
+              ? (['chubbsPepTalk', 'rewind'] as const).find(id => activePowerPlays[id]) : undefined;
+          if (eraserId) {
+              const eraser = POWER_PLAYS_LIST.find(p => p.id === eraserId)!;
+              strikes = Math.max(0, strikes - 1);
+              activePowerPlays = { ...activePowerPlays };
+              delete activePowerPlays[eraserId];
+              activeBuffs = activeBuffs.filter(b => b.id !== eraserId);
+              const secs = eraserId === 'rewind' ? powerPlaySeconds(TIME_BONUS.rescue) : 0;
+              newTime = clampTime(newTime + secs, bankMax(gameState));
+              lastPowerPlayResult = { message: `${eraser.icon} ${eraser.name} erased that strike${secs ? ` and added ${secs} seconds` : ''}!`, scoreChange: 0 };
+          }
           
           const survivorWords = gameState.survivorWords; // unused since v7.35 (Survivor pays per strike carried)
           let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, mixtapeChain: null, survivorWords, speedStreak: 0 };
           
           if ((actuallyGotAStrike || strikeBlockedByShield) && action.payload?.source === 'invalid_word') {
               // An invalid word costs time from the bank (not with the I'm Always Here charm).
-              if (!activeCharms.some(c => c.id === 'imAlwaysHere')) newTime = clampTime(state.time - GAMEPLAY.timeBank.invalidPenalty, bankMax(gameState));
+              if (!activeCharms.some(c => c.id === 'imAlwaysHere')) newTime = clampTime(newTime - GAMEPLAY.timeBank.invalidPenalty, bankMax(gameState));
               
               // Add a new tile while the hand is below the standard size; otherwise swap one.
               const hasSpace = newHand.filter(t => t !== null).length < HAND_SIZE;
@@ -1987,6 +2000,8 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 
                 const changes = powerPlay.activate(newGameState);
                 newGameState = { ...newGameState, ...changes };
+                // Turn Back Time (v7.67.7): its seconds come with the strike it erases.
+                const rewindSecs = powerPlay.id === 'rewind' && gameState.strikes > 0 ? powerPlaySeconds(TIME_BONUS.rescue) : 0;
                 // Timed challenges start on the clock as it stands now (it runs once the offer closes).
                 if (powerPlay.id === 'popQuizHotshot') newGameState.activePowerPlays = { ...newGameState.activePowerPlays, popQuizHotshot: { startClock: state.time, startMs: state.quizMs ?? 0 } };
                 const raceRate = rivalRateFor(state.gameState.score, state.playMs ?? 0);
@@ -2020,6 +2035,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 return {
                     ...state,
                     gameState: newGameState,
+                    ...(rewindSecs ? { time: clampTime(state.time + rewindSecs, bankMax(newGameState)), timeGain: { seconds: rewindSecs, key: Date.now() } } : {}),
                 };
             } 
             
@@ -2496,7 +2512,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             const activationChanges = powerPlay.activate(state.gameState);
             let timeChange = 0;
             if (powerPlay.id === 'timeBoost') timeChange = powerPlaySeconds(TIME_BONUS.timeBoost);
-            if (powerPlay.id === 'rewind') timeChange = powerPlaySeconds(TIME_BONUS.rescue);
+            if (powerPlay.id === 'rewind' && state.gameState.strikes > 0) timeChange = powerPlaySeconds(TIME_BONUS.rescue);
             if (powerPlay.id === 'whoYouGonnaCall') timeChange = -Math.min(15, Math.max(0, state.time - 5));
 
             if (powerPlay.id === 'sonicSpeed') {

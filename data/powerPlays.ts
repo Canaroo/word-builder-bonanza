@@ -17,6 +17,22 @@ const arm = (id: string, value: unknown = true) => (gameState: GameState): Parti
   };
 };
 
+// Chubbs' Pep Talk / Turn Back Time (v7.67.7): remove a strike now, or wait for the next one
+// (ADD_STRIKE erases it the moment it lands). Turn Back Time's seconds are added by GameScreen.
+const strikeEraser = (id: 'chubbsPepTalk' | 'rewind', gameState: GameState): Partial<GameState> => {
+  const powerPlay = POWER_PLAYS_LIST.find(p => p.id === id)!;
+  if (gameState.strikes > 0) {
+    const entry: EventLogEntry = { type: 'event', id: `pp-${id}-${Date.now()}`, name: powerPlay.name, description: 'One strike was removed.', scoreChange: 0, cumulativeScore: gameState.score, icon: powerPlay.icon };
+    return { strikes: gameState.strikes - 1, log: [...gameState.log, entry],
+      lastPowerPlayResult: { message: `${powerPlay.icon} ${powerPlay.name}: one strike erased!`, scoreChange: 0 } };
+  }
+  return {
+    activePowerPlays: { ...gameState.activePowerPlays, [id]: true },
+    activeBuffs: [...gameState.activeBuffs.filter(b => b.id !== id), { ...powerPlay, description: 'Waiting: it erases your next strike the moment you get one.' }],
+    lastPowerPlayResult: { message: `${powerPlay.icon} ${powerPlay.name} is standing by: it erases your next strike.`, scoreChange: 0 },
+  };
+};
+
 // Letter Upgrade / Polish: one letter gets a boost for a few words.
 const letterBoost = (id: 'letterUpgrade' | 'polish', words: number) => (gameState: GameState, options?: { letter?: string }): Partial<GameState> => {
   const letter = options?.letter;
@@ -54,6 +70,10 @@ export const INSTANT_POWER_PLAY_IDS = new Set([
   'thwomped', 'fluncleIsProud',
   'strikeShield', 'plotArmor', 'saveByTheBell', 'timeTurner', 'mutationProtocol',
   'deepFreeze', 'groundhogsDay', 'lifeFindsAWay', 'wildcardWake', 'continueScreen',
+  // v7.67.7 (the owner's call): these waited in the pocket for no reason. Hadouken! already waits
+  // for a boss (3 of 7 picks were never used); the strike removers were wasted at 0 strikes, so
+  // they now wait for your next strike; Neuralyzer's offer comes with the next word anyway.
+  'hadouken', 'chubbsPepTalk', 'rewind', 'neuralyzer',
   // Timed or blind challenges, and Daily Double's bet, start on the fresh hand, so a player can't
   // wait for (or build) the right word before they begin.
   'popQuizHotshot', 'smellYaLater', 'birdBox', 'dailyDouble', 'missionImpossible',
@@ -393,16 +413,14 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'rewind', 
     name: 'Turn Back Time',
-    description: `Remove your last strike and gain ${TIME_BONUS.rescue} seconds.`, 
+    description: `Takes away your last strike and adds ${TIME_BONUS.rescue} seconds. No strikes yet? It waits and undoes your next one, seconds included.`, 
     flavorText: 'If I could turn back time...',
     icon: '⏪',
     subtheme: 'strike',
     effectType: 'immediate',
     durationTag: 'ONE_TIME',
     oncePerRun: true,
-    activate: (gameState) => ({
-      strikes: Math.max(0, gameState.strikes - 1),
-    })
+    activate: (gameState) => strikeEraser('rewind', gameState), // v7.67.7: see chubbsPepTalk
   },
   { 
     id: 'fluncleIsProud', 
@@ -657,7 +675,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'chubbsPepTalk',
     name: 'Chubbs’ Pep Talk',
-    description: 'Remove one strike.',
+    description: 'Takes away one of your strikes. No strikes yet? It waits and erases the next one you get.',
     flavorText: 'Just easin’ the tension, baby.',
     icon: '💪',
     subtheme: 'strike',
@@ -665,27 +683,8 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     maxUses: 1,
     oncePerRun: true,
     durationTag: 'ONE_TIME',
-    activate: (gameState) => {
-      const strikeRemoved = gameState.strikes > 0;
-      const newStrikes = Math.max(0, gameState.strikes - 1);
-
-      if (strikeRemoved) {
-        const logEntry: EventLogEntry = {
-          type: 'event',
-          id: `pp-chubbsPepTalk-${Date.now()}`,
-          name: 'Chubbs’ Pep Talk',
-          description: 'One strike was removed.',
-          scoreChange: 0,
-          cumulativeScore: gameState.score,
-          icon: '💪',
-        };
-        return {
-          strikes: newStrikes,
-          log: [...gameState.log, logEntry],
-        };
-      }
-      return { strikes: newStrikes };
-    }
+    // v7.67.7: fires on pick. With a strike it removes one now; without, it waits for the next strike.
+    activate: (gameState) => strikeEraser('chubbsPepTalk', gameState),
   },
   {
     id: 'cassiesClue',
@@ -1120,7 +1119,13 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     effectType: 'immediate',
     oncePerRun: true,
     durationTag: 'ONE_TIME',
-    activate: () => ({}), // Handled in GameScreen (v7.25 gambles)
+    // v7.67.7: fires on pick (it was a pocket card; the offer comes with the next word anyway).
+    activate: (gameState) => ({
+      wordMilestoneProgress: { ...gameState.wordMilestoneProgress, count: gameState.wordMilestoneProgress.nextUnlock - 1 },
+      neuralyzerOffer: true,
+      log: [...gameState.log, { type: 'event', id: `pp-neuralyzer-${Date.now()}`, name: 'Neuralyzer', icon: '🕶️', description: 'A charm offer comes with the next valid word.', scoreChange: 0, cumulativeScore: gameState.score }],
+      lastPowerPlayResult: { message: '🕶️ *flash* Your next valid word brings a charm offer.', scoreChange: 0 },
+    }),
   },
   {
     id: 'letsMakeADeal',
