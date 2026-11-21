@@ -713,6 +713,19 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   close, every 5 s, and when the game leaves the screen; it's cleared at game over. Resume shows
   a 3-2-1 with the board hidden. The back gesture opens the save prompt instead of leaving, and
   New Game asks first when a saved run exists. `savableScreenState()` in `GameScreen.tsx`.
+- **One save writer, and End run (v7.67.5, the owner's report):** a saved run came back on Continue
+  after the owner had erased it, started over and saved a new one. Reproduced: two copies of the game
+  open at once (the installed app and a tab, or a window left in the background) share one save
+  slot, and the old copy's auto-save (every 5 s, on hide) wrote its run over the new one within 6 s.
+  Now each GameScreen claims the slot when it opens (`savedGameOwner` / `savedDailyGameOwner`,
+  `ownsSave()`); a copy that lost the claim stops saving and shows "📼 THIS TAPE WAS RECORDED OVER"
+  with a way back to the start screen (`onLostSave`, `onLeaveRun`), and `handleGameOver` only clears
+  the slot if it holds that run (`runSeed`). **End run** (`components/EndRunCard.tsx`): "🗑️ End this
+  run without saving" in the 💾 card and "🗑️ End the saved run" under New Game on the Start screen;
+  two steps (the second swaps the buttons and wakes after 1 s, "Game over, man. Game over!"), then
+  the run is thrown away: no Game Over screen, score, personal best or stats (the owner's call), and
+  the slot is marked ended so no other open copy writes it back. Browser-checked both, plus the two
+  windows. The scored Daily's try stays used once it started.
 - **0 means 0:** a word wiped or capped by a gamble (Heisenberg, Double or Nothing, Space Invader,
   Gift From Thanos, Fast Cash) stays at that score: later flat bonuses (chain,
   charms, Super Hand, Nice Rack, Flux, Thriller) don't count (`wordCeiling` in `completeSubmission`).

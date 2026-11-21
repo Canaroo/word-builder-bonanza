@@ -317,10 +317,20 @@ const App: React.FC = () => {
     musicService.pause();
   }, [playerName]);
 
+  /** Leaves a run without saving it: End run (v7.67.5), or a copy that another window took the save from. */
+  const handleLeaveRun = useCallback(() => {
+    setScreen(Screen.Start);
+    musicService.pause();
+  }, []);
+
 
   const handleGameOver = useCallback((gameState: GameState) => {
     const daily = gameState.daily ?? null;
-    storage.remove(daily ? STORAGE_KEYS.savedDailyGame : STORAGE_KEYS.savedGame);
+    // Clear the save only if it holds this run (v7.67.5): an old copy of the game in another window
+    // must not wipe a newer run's save when its own run ends.
+    const slot = daily ? STORAGE_KEYS.savedDailyGame : STORAGE_KEYS.savedGame;
+    const savedRun = storage.getJSON<any>(slot, null)?.gameScreenState?.gameState;
+    if (!savedRun || savedRun.runSeed === gameState.runSeed) storage.remove(slot);
     const validWords = gameState.log.filter(e => e.type === 'word' && e.status === 'valid').length;
     sendStat({ type: 'run_end', score: gameState.score, words: validWords, level: levelFor(validWords), bosses: gameState.bossesBeaten ?? 0, charms: (gameState.activeCharms ?? []).map(c => c.id).join(','), ...(daily ? { daily: true } : {}) }, {
       cause: gameState.endReason === 'strikes' ? 'strikes' : 'clock',
@@ -558,6 +568,7 @@ const App: React.FC = () => {
             playerName={playerName} 
             onGameOver={handleGameOver} 
             onSaveGame={handleSaveGame}
+            onLeaveRun={handleLeaveRun}
             isResuming={isResuming}
             onTimeLow={setIsTimeLow}
             onGoldenRoundChange={setIsGoldenRound}
