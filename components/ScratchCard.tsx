@@ -29,7 +29,7 @@ export const scratchLabel = (p: ScratchPrize, level: number): { icon: string; bi
   }
 };
 
-interface Saved { opened?: number[]; squares?: ScratchPrize[] }
+interface Saved { opened?: number[]; squares?: ScratchPrize[]; banked?: boolean }
 
 const ScratchCard: React.FC<{
   level: number;
@@ -41,15 +41,19 @@ const ScratchCard: React.FC<{
   const [squares, setSquares] = useState<ScratchPrize[]>(saved?.squares ?? dealt);
   const [opened, setOpened] = useState<number[]>(saved?.opened ?? []);
   const [done, setDone] = useState(false);
+  // v7.67.3 (the owner's ask): after a bank, the rest of the card turns over so you see what you passed up.
+  const [banked, setBanked] = useState<boolean>(!!saved?.banked);
   const last = opened.length ? opened[opened.length - 1] : -1;
   const held = last >= 0 ? squares[last] : null;
   const busted = held?.kind === 'skull';
   const { skulls, left } = skullOdds(squares, opened);
   const prizesLeft = left - skulls;
   const heldLabel = held && !busted ? scratchLabel(held, level) : null;
+  const revealAll = banked || busted;
+  const bank = () => { if (done || !held || busted) return; soundService.playTileClick(); setBanked(true); onSave?.('banked', true); };
 
   const scratch = (i: number) => {
-    if (done || busted || opened.includes(i)) return;
+    if (done || busted || banked || opened.includes(i)) return;
     let next = squares;
     if (opened.length === 0) {
       next = safeFirstScratch(squares, i); // the first scratch is always safe
@@ -74,7 +78,7 @@ const ScratchCard: React.FC<{
 
         {/* What you'd walk away with right now. */}
         <div className={`w-full rounded-xl px-3 py-2 ring-2 ${busted ? 'ring-neon-red bg-neon-red/10' : held ? 'ring-neon-green bg-neon-green/10' : 'ring-white/15 bg-crt-950/70'}`} data-testid="scratch-held" aria-live="polite">
-          <p className="osd-text text-sm leading-none text-slate-400">{busted ? 'BUSTED' : "YOU'RE HOLDING"}</p>
+          <p className="osd-text text-sm leading-none text-slate-400">{busted ? 'BUSTED' : banked ? 'YOU BANKED' : "YOU'RE HOLDING"}</p>
           <p className="font-display text-xl leading-tight text-white mt-1">
             {busted ? '💀 Nothing this time' : heldLabel ? <>{heldLabel.icon} {heldLabel.big} <span className="osd-text text-base text-slate-300">{heldLabel.small}</span></> : <span className="text-slate-500">Nothing yet: scratch one!</span>}
           </p>
@@ -83,16 +87,18 @@ const ScratchCard: React.FC<{
         <div className="grid grid-cols-3 gap-2 w-full max-w-[18rem]">
           {squares.map((sq, i) => {
             const isOpen = opened.includes(i);
+            const missed = !isOpen && revealAll; // turned over after the bank or the bust
             const isHeld = i === last && !busted;
             const lbl = scratchLabel(sq, level);
             return (
-              <button key={i} type="button" data-testid="scratch-square" disabled={isOpen || busted || done}
-                onClick={() => scratch(i)} aria-label={isOpen ? `Square ${i + 1}: ${lbl.plain}` : `Scratch square ${i + 1}`}
+              <button key={i} type="button" data-testid="scratch-square" disabled={isOpen || busted || banked || done}
+                onClick={() => scratch(i)} aria-label={isOpen ? `Square ${i + 1}: ${lbl.plain}` : missed ? `Square ${i + 1}, not scratched: ${lbl.plain}` : `Scratch square ${i + 1}`}
                 className={`aspect-square rounded-lg flex flex-col items-center justify-center px-1 select-none transition-transform active:scale-95 ${
-                  !isOpen ? 'bg-[linear-gradient(135deg,#d6d9e0_0%,#9aa1ad_45%,#e8eaef_55%,#a3a9b5_100%)] text-crt-900 shadow-inner ring-1 ring-white/50'
+                  missed ? `bg-crt-950/60 border-2 border-dashed ${sq.kind === 'skull' ? 'border-neon-red/60' : 'border-white/40'} opacity-75 level-stage-in`
+                  : !isOpen ? 'bg-[linear-gradient(135deg,#d6d9e0_0%,#9aa1ad_45%,#e8eaef_55%,#a3a9b5_100%)] text-crt-900 shadow-inner ring-1 ring-white/50'
                   : sq.kind === 'skull' ? 'bg-neon-red/20 ring-2 ring-neon-red'
                   : isHeld ? 'bg-neon-green/20 ring-2 ring-neon-green' : 'bg-crt-950/80 ring-1 ring-white/10 opacity-50'}`}>
-                {!isOpen ? (
+                {!isOpen && !missed ? (
                   <span className="osd-text text-lg leading-none text-crt-900/70">SCRATCH</span>
                 ) : (
                   <>
@@ -100,6 +106,7 @@ const ScratchCard: React.FC<{
                     {sq.kind !== 'skull' && (sq.kind === 'charm' || sq.kind === 'powerplay'
                       ? <span className="text-[10px] leading-tight text-white line-clamp-2 mt-0.5">{lbl.big}</span>
                       : <span className="font-display text-sm leading-tight text-white mt-0.5">{lbl.big}</span>)}
+                    {missed && <span className="osd-text text-xs leading-none text-slate-400 mt-0.5">{sq.kind === 'skull' ? 'DODGED' : 'MISSED'}</span>}
                   </>
                 )}
               </button>
@@ -107,7 +114,10 @@ const ScratchCard: React.FC<{
           })}
         </div>
 
-        {!busted && (
+        {revealAll && (
+          <p className="text-slate-300 text-sm leading-snug" aria-live="polite">{busted ? "Here's what was under the rest of the card." : "Here's what you passed up. No regrets: you walked away with a prize."}</p>
+        )}
+        {!revealAll && (
           <p className="osd-text text-base leading-tight text-slate-300">
             {opened.length === 0 ? 'FIRST SCRATCH IS SAFE' : prizesLeft > 0 ? `NEXT SCRATCH: ${skulls} 💀 IN ${left} SQUARES` : 'NO PRIZES LEFT TO SCRATCH'}
           </p>
@@ -115,8 +125,10 @@ const ScratchCard: React.FC<{
 
         {busted ? (
           <ArcadeButton color="red" className="w-full" onClick={() => finish(null)}>Tear it up</ArcadeButton>
+        ) : banked && held ? (
+          <ArcadeButton color="green" className="w-full" onClick={() => finish(held)}>Take {heldLabel?.plain}</ArcadeButton>
         ) : held ? (
-          <ArcadeButton color="green" className="w-full" onClick={() => finish(held)}>✋ Bank it: {heldLabel?.plain}</ArcadeButton>
+          <ArcadeButton color="green" className="w-full" onClick={bank}>✋ Bank it: {heldLabel?.plain}</ArcadeButton>
         ) : null}
       </div>
     </div>
