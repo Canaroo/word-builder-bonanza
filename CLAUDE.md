@@ -653,7 +653,9 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Prizes are dealt at random by `SCRATCH.weights`: points (a prize), time (full), shuffles, a
   Challenge, a good charm (only with an open slot, never one held; equipped via `CHOOSE_CHARM`) or a
   good pocket PowerPlay (only with an empty pocket). The deal is rolled when the card is queued and
-  saved with scratched squares (`SET_GAMBLE_STATE`), so a quit can't redo it. Old saves: `route` is
+  saved with scratched squares (`SET_GAMBLE_STATE`), so a quit can't redo it. v7.67.3 (the owner's ask): after a
+  bank or a bust, every unscratched square turns over (dashed, "MISSED", skulls "DODGED") so the
+  player sees what they passed up; a bank pays only on "Take" (`banked` saved in the pop-up's data). Old saves: `route` is
   ignored and an open `fork` card closes itself. The `fork` stat event and FEATURE_REVIEW notes are
   history. **🛩️ I Feel the Need… for Speed** became a speed streak (`nextSpeedStreak`,
   `speedStreakPoints`, `CHARM_BONUS.speed*`, `gameState.speedStreak`/`speedLastMs`): 4+ letter
