@@ -44,4 +44,25 @@ describe('scratch-off reveal (v7.67.3)', () => {
     expect(host.textContent).toContain('YOU BANKED');
     expect(button(/^Take/)).toBeTruthy();
   });
+    test('a turned-over charm or PowerPlay can be tapped to read it (v7.67.4)', async () => {
+        const { CHARMS_LIST } = await import('../../data/charms');
+        const deal: ScratchPrize[] = [{ kind: 'charm', id: 'stonks' }, { kind: 'powerplay', id: 'plinko' }, ...squares.slice(2)];
+        const onDone = vi.fn();
+        mount(<ScratchCard level={1} squares={deal} onDone={onDone} />);
+        act(() => tiles()[0].click());          // scratch: the charm turns over
+        expect(host.querySelector('[data-testid="scratch-info"]')).toBeNull();
+        expect(tiles()[0].disabled).toBe(false);
+        act(() => tiles()[0].click());          // tap again: read it
+        const info = host.querySelector('[data-testid="scratch-info"]')!;
+        expect(info.textContent).toContain(CHARMS_LIST.find(c => c.id === 'stonks')!.name);
+        expect(info.textContent).toContain('CHARM');
+        expect(tiles().filter(t => /not scratched|^Square/.test(t.getAttribute('aria-label')!))).toHaveLength(1); // reading didn't scratch anything
+        act(() => tiles()[0].click());          // tap again: close it
+        expect(host.querySelector('[data-testid="scratch-info"]')).toBeNull();
+        // After a bank, a missed PowerPlay can be read too.
+        act(() => button(/Bank it/).click());
+        act(() => tiles()[1].click());
+        expect(host.querySelector('[data-testid="scratch-info"]')!.textContent).toContain('POWERPLAY');
+        expect(onDone).not.toHaveBeenCalled();
+    });
 });
