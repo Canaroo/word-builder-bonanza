@@ -266,6 +266,13 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   `lineIsFrom` now matches the name then a non-letter, like scoring does; it fixed Last Action Hero,
   E.T. Phone Home, Golden Ticket, Sesame Street, Freaky Friday, Vanna's Vowels, Sands of Time,
   Glitch in the Code and Execute Order 66. A test checks no charm's lines count for another.
+  **v7.72.4 (every charm checked):** Gear also reads event log entries in a charm's name (Double
+  Dare, CTU Safe House, the Croc's seconds and bites, Backpack), negative lines (Hammer Time -10) and
+  National Treasure's share of secret bonuses; Bean Counter's duplicate event is skipped. Wile E.
+  Coyote and Power Glove now log what they pay, and Keymaster's +50% is its own log entry
+  ("Are You the Keymaster?"). Multiplier charms (S Club Party, Freaky Friday, I'm Ready!...) show "x2
+  ON N WORDS". Charms that only change rules (Turbo Button, Little Mac...) say so instead of "Nothing
+  earned"; `paysDirectly` and a test listing the rules-only ones keep new charms classified.
 - **How offers are drawn (`getOffer` in `services/gameUtils.ts`; checked v7.67.2, the owner's ask).**
   Pool: everything not held or active, not shown in the last 3 words (`charmCooldowns`,
   `powerPlayCooldowns`), not a taken once-per-run PowerPlay, and not one that can't work yet

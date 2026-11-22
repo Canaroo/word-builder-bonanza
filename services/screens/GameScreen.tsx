@@ -916,7 +916,9 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             const boosted = points !== listed;
             const boostNote = keymaster ? `🗝️ Keymaster +${CHARM_BONUS.keymasterPercent}%: ${listed.toLocaleString()} → ${points.toLocaleString()} points.` : `⬆ Level ${level} prize boost: ${listed} → ${points} points.`;
             const score = gameState.score + points;
-            const entry: EventLogEntry = { type: 'event', id: `mg-${name}-${Date.now()}`, name, icon, description: headline, scoreChange: points, cumulativeScore: score };
+            const entry: EventLogEntry = { type: 'event', id: `mg-${name}-${Date.now()}`, name, icon, description: headline, scoreChange: keymaster ? listed : points, cumulativeScore: keymaster ? gameState.score + listed : score };
+            // v7.72.4: Keymaster's extra gets its own entry, so the event log and the Gear menu credit it.
+            const keyEntry: EventLogEntry[] = keymaster ? [{ type: 'event', id: `keymaster-${Date.now()}`, name: 'Are You the Keymaster?', icon: '🗝️', description: `+${CHARM_BONUS.keymasterPercent}% on ${name}: +${(points - listed).toLocaleString()} points.`, scoreChange: points - listed, cumulativeScore: score }] : [];
             return {
                 ...state,
                 isPaused: true,
@@ -925,7 +927,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     content: boosted ? `${detail}\n\n${boostNote}` : detail,
                     data: { icon, headline: boosted ? headline.replace(`+${listed.toLocaleString()}`, `+${points.toLocaleString()}`).replace(`+${listed}`, `+${points}`) : headline, tone: points > 0 ? 'win' : 'lose' },
                 },
-                gameState: { ...gameState, score, log: [...gameState.log, entry] },
+                gameState: { ...gameState, score, log: [...gameState.log, entry, ...keyEntry] },
             };
         }
         case 'APPLY_GAMBLE': {
@@ -1451,6 +1453,8 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
               const acme = bonusTime(TIME_BONUS.wileECoyote, newTime, runLevel(gameState));
               newTime = clampTime(newTime + acme, bankMax(gameState));
               if (acme < TIME_BONUS.wileECoyote) wileCut = { full: TIME_BONUS.wileECoyote, paid: acme, percent: charmTimeAt(TIME_BONUS.wileECoyote, runLevel(gameState)).percent, halved: acme < charmTimeAt(TIME_BONUS.wileECoyote, runLevel(gameState)).paid };
+              // v7.72.4: logged, so the event log and the Gear menu show what it paid.
+              tempGameState.log = [...(tempGameState.log ?? gameState.log), { type: 'event', id: `wile-${Date.now()}`, name: 'Wile E. Coyote', icon: '🧨', description: `Acme refund after a strike: +${CHARM_BONUS.wileECoyote} points, +${acme}s.`, scoreChange: CHARM_BONUS.wileECoyote, cumulativeScore: tempGameState.score }];
               tempGameState.lastPowerPlayResult = { message: `🧨 Acme refund: +${CHARM_BONUS.wileECoyote} points, +${acme}s${acme < TIME_BONUS.wileECoyote ? ` (charm time cut from ${TIME_BONUS.wileECoyote}s)` : ''}.`, scoreChange: CHARM_BONUS.wileECoyote };
           }
           
@@ -1935,7 +1939,12 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             } else if (newGameState.activeCharms.length >= CHARM_SLOTS && !newGameState.activeCharms.some(c => c.id === charm.id)) {
                 return state;
             }
-            if (charm.id === 'powerGlove') newTime = clampTime(newTime + 15, POWER_GLOVE_BANK_MAX);
+            if (charm.id === 'powerGlove') {
+                const before = newTime;
+                newTime = clampTime(newTime + 15, POWER_GLOVE_BANK_MAX);
+                // v7.72.4: logged, so the Gear menu shows the seconds it gave.
+                if (newTime > before) newGameState.log = [...newGameState.log, { type: 'event', id: `glove-${Date.now()}`, name: charm.name, icon: charm.icon, description: `Equipped: +${newTime - before}s.`, scoreChange: 0, cumulativeScore: newGameState.score }];
+            }
 
             const stateChanges = charm.activate(newGameState);
 
