@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { fetchStats, summarize, median, type StoredStat } from '../services/stats';
+import { fetchStats, summarize, median, statId, type StoredStat } from '../services/stats';
 import { BOSSES } from '../data/bosses';
 import { MISSION_TEMPLATES } from '../data/missions';
 import { BOSS, POWER_WORD_EFFECTS } from '../config/gameplay';
 import { SECRET_BONUSES } from '../data/secretBonuses';
 import { CHARMS_LIST } from '../data/charms';
+import { SHARD_CHARMS } from '../data/triforce';
 import { POWER_PLAYS_LIST } from '../data/powerPlays';
 
 // Stats: anonymous usage numbers from Firebase /stats. Unlinked; open /?stats.
@@ -191,7 +192,7 @@ const StatsPage: React.FC = () => {
         <div className="grid gap-4 xl:grid-cols-2 items-start">
           <Section title={`Charms (${CHARMS_LIST.length})`} note={`Click a column to sort. Pick % = picked when offered. Runs = runs that ended with it equipped; Avg score = their average. ${offers(s.passes.charm)} passed, ${offers(s.upgrades)} upgraded a charm instead.`}>
             <SortTable head={['Charm', 'Offered', 'Picked', 'Pick %', 'Runs', 'Avg score']} defaultSort={2} fmt={[, , , asPct]}
-              rows={CHARMS_LIST.filter(c => showAll || s.charms[c.id]).map(c => {
+              rows={[...CHARMS_LIST, ...SHARD_CHARMS.map(c => ({ ...c, id: statId(c.id) }))].filter(c => showAll || s.charms[c.id]).map(c => {
                 const x = s.charms[c.id] ?? { offered: 0, picked: 0, endRuns: 0, avgEndScore: 0 };
                 return [`${c.icon} ${c.name}`, x.offered, x.picked, rate(x.picked, x.offered), x.endRuns, x.endRuns ? x.avgEndScore : null];
               })} empty="No charm offers yet." />

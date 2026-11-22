@@ -156,3 +156,28 @@ describe('Triforce of Wisdom: ask Zelda (v7.72.0)', () => {
         expect(gameReducer(s, { type: 'ZELDA_PLACE', payload: { word: 'STAR', tileIds: ['t0', 't1', 't2', 't3'] } })).toBe(s);
     });
 });
+
+describe('shard stats (v7.72.6)', () => {
+    test('every charm, PowerPlay and shard id passes the /stats rules once sent through statId', async () => {
+        const { statId } = await import('../../stats');
+        const { POWER_PLAYS_LIST } = await import('../../../data/powerPlays');
+        const ids = [...CHARMS_LIST, ...POWER_PLAYS_LIST, ...SHARD_CHARMS].map(c => statId(c.id));
+        expect(ids.filter(id => !/^[A-Za-z0-9]{1,32}$/.test(id))).toEqual([]);
+        expect(statId('shard_power')).toBe('shardPower');
+    });
+    test('charm offers deal shards at the designed rates, spread evenly over the pieces', () => {
+        const offer = () => ({ offeredItems: CHARMS_LIST.slice(0, 3), offerDetails: CHARMS_LIST.slice(0, 3).map(c => ({ id: c.id, score: 1 })) });
+        const count = (triforce: any) => {
+            const seen: Record<string, number> = {}; let n = 0;
+            for (let r = 0; r < 3000; r++) for (let k = 0; k < 5; k++) {
+                const s = dealShard(offer(), { triforce, runSeed: 1795000000000 + r * 7919, totalOffersMade: k }).offeredItems.find(c => c.fragile);
+                n++; if (s) seen[s.fragile!] = (seen[s.fragile!] ?? 0) + 1;
+            }
+            return { n, seen };
+        };
+        const fresh = count({});
+        for (const id of ['power', 'wisdom', 'courage']) expect(fresh.seen[id] / fresh.n).toBeCloseTo(TRIFORCE.firstChance / 3, 1);
+        const started = count({ power: 1 });
+        expect(started.seen.power / started.n).toBeCloseTo(TRIFORCE.nextChance, 1);
+    });
+});

@@ -42,7 +42,7 @@ import { dealScratch, type ScratchPrize } from '../scratch';
 import { gemMultiplierFor, skillShotPoints, freakyFridayMatch, jengaPot, nextSpeedStreak, speedStreakPoints } from '../rules';
 import { findPowerWordHint, powerWordHintStands } from '../powerWordHint';
 import { BOSSES, bossById, pickBoss } from '../../data/bosses';
-import { sendStat } from '../stats';
+import { sendStat, statId } from '../stats';
 import { getBonusMedia } from '../../data/bonusMedia';
 import type { MissionEvent } from '../../data/missions';
 
@@ -6365,7 +6365,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         const alreadyOn = gameState.activeCharms.some(c => c.id === charm.id);
         const equippedCount = Math.min(CHARM_SLOTS, gameState.activeCharms.length + (replaceId || alreadyOn ? 0 : 1));
         trackMission({ type: 'charm', equippedCount, swapped: !!replaceId });
-        sendStat({ type: 'charm_offer', offered: allOffered.map(c => c.id).join(','), picked: charm.id, level: levelFor(totalWords) });
+        sendStat({ type: 'charm_offer', offered: allOffered.map(c => statId(c.id)).join(','), picked: statId(charm.id), level: levelFor(totalWords) });
         dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand: hand ?? [], allOffered, replaceId } });
         handleCloseModal();
     };
@@ -6373,14 +6373,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     const handleUpgradeCharm = (charmId: string, allOffered: Charm[]) => {
         soundService.playUIClick();
         // `upgraded` is a newer stats field: until the Firebase rules allow it, this counts as a pass.
-        sendStat({ type: 'charm_offer', offered: allOffered.map(c => c.id).join(','), picked: '', level: levelFor(totalWords) }, { upgraded: charmId });
+        sendStat({ type: 'charm_offer', offered: allOffered.map(c => statId(c.id)).join(','), picked: '', level: levelFor(totalWords) }, { upgraded: charmId });
         dispatch({ type: 'UPGRADE_CHARM', payload: { charmId, allOffered } });
         handleCloseModal();
     };
 
     const handlePassCharm = (allOffered: Charm[]) => {
         soundService.playUIClick();
-        sendStat({ type: 'charm_offer', offered: allOffered.map(c => c.id).join(','), picked: '', level: levelFor(totalWords) });
+        sendStat({ type: 'charm_offer', offered: allOffered.map(c => statId(c.id)).join(','), picked: '', level: levelFor(totalWords) });
         dispatch({ type: 'PASS_CHARM', payload: { allOffered } });
         handleCloseModal();
     };

@@ -93,6 +93,13 @@ export const runEndExtras = (gs: {
 };
 
 /** Sends one event. Never throws; a lost event is fine. */
+/**
+ * An item id as the /stats rules accept it: letters and digits only (v7.72.6). Triforce shard ids
+ * (shard_power...) have an underscore, so every charm offer that held a shard was rejected and never
+ * recorded. They're sent as shardPower, shardWisdom, shardCourage.
+ */
+export const statId = (id: string): string => id.replace(/_(\w)/g, (_, c: string) => c.toUpperCase());
+
 export const sendStat = (event: StatEvent, extras?: StatExtras): void => {
     if (!enabled()) return;
     const post = (body: object) => fetch(`${databaseURL()}/${STATS_PATH}.json`, {
