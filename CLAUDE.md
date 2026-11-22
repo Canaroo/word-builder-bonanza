@@ -200,6 +200,23 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   HIT and STAND, the 16-card deck dealt up front and saved. It was a card per word with a chip to
   stand (picked 5 of 26 offers, used 4 times); the old per-word game and `BLACKJACK_STAND` still
   settle saved runs. Simulated: about +142 a hand on average, paying in about half of hands.
+- **Fragile charms: the Triforce (v7.69.0, the owner's idea and picks)** (`data/triforce.ts`,
+  `TRIFORCE` in `config/gameplay.ts`, `components/TriforceEmblem.tsx`, `dealShard` in
+  `GameScreen.tsx`): three pieces, each built from 3 shards taken from charm offers. A shard is
+  Charm-shaped (`fragile` set, ids `shard_power` etc., not in `CHARMS_LIST`) but never equipped:
+  `CHOOSE_CHARM` adds it to `gameState.triforce`, no slot needed even with 5 full, and a finished
+  piece works from the shelf. Offers: with a piece started, its next shard replaces the last card
+  `nextChance` (40%) of the time, else a fresh piece's first shard `firstChance` (30%); seeded with
+  `dailyRank`. Simulated on real run lengths: one piece finished in 31% of median runs (5 charm
+  offers), 67% with 8, 82-90% with 10+; all three in under 1%. **Power** x1.5 on the whole word after
+  Blue Steel (0 means 0 holds, "🔺 Triforce of Power" line). **Wisdom** lights a 5+ (else 4+) letter
+  word's tiles in order each hand (`SET_HIGHLIGHTED_TILES`; Where's Waldo steps aside). **Courage**
+  once per level (`courageLevel`): blocks a strike in `ADD_STRIKE` after shields, or the clock hitting
+  0 gives +15 s charm time (`COURAGE_CLOCK`). All three: +5,000 and the 🔺 Hero of Time badge
+  (`b_heroOfTime`, `triforceWish`). The emblem (three triangles, 3 shards each) shows on the offer
+  card with the next shard blinking, on a 🔺 chip above the tiles (tap for the shelf) and on the
+  "YOU GOT IT!" card (`triforce` modal). The old Triforce of Courage charm is now **Master Sword**
+  (id `triforceOfCourage` kept, still in Hyrule Heroes). Tests in `triforce.test.ts`.
 - **How offers are drawn (`getOffer` in `services/gameUtils.ts`; checked v7.67.2, the owner's ask).**
   Pool: everything not held or active, not shown in the last 3 words (`charmCooldowns`,
   `powerPlayCooldowns`), not a taken once-per-run PowerPlay, and not one that can't work yet

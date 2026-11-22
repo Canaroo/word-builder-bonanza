@@ -728,7 +728,7 @@ export const calculateScore = (word: string, tiles: Tile[], gameState: GameState
     // Charm: Triforce of Courage
     if (gameState.activeCharms.some(c => c.id === 'triforceOfCourage') && ['Z', 'X', 'Q'].some(l => lettersInWord.includes(l))) {
         flatBonus += CHARM_BONUS.triforceOfCourage;
-        bonuses.push({ name: 'Triforce of Courage', description: `+${CHARM_BONUS.triforceOfCourage} pts`, source: 'game' });
+        bonuses.push({ name: 'Master Sword', description: `+${CHARM_BONUS.triforceOfCourage} pts`, source: 'game' });
     }
     
     // Charm: Power Pellet

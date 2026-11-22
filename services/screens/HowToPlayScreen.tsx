@@ -1,7 +1,7 @@
 import { Sec } from '../../components/Seconds';
 import React from 'react';
 import { soundService } from '../soundService';
-import { SCRATCH, GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, HEAD_START, SKILL_SHOT, GEM_TILES, HOLD_SLOT, GRUDGE, BONES, GATES, GREATEST_HITS } from '../../config/gameplay';
+import { SCRATCH, GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, HEAD_START, SKILL_SHOT, GEM_TILES, HOLD_SLOT, GRUDGE, BONES, GATES, GREATEST_HITS , TRIFORCE } from '../../config/gameplay';
 import { PHOENIX_DOWN } from '../../config/progression';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import ArcadeButton from '../../components/ArcadeButton';
@@ -168,6 +168,13 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             says which). A full pair pays +{CHARM_SET_BONUS.pair} on every word. A three-charm set starts paying at two
             (+{CHARM_SET_BONUS.trioPartial}) and pays +{CHARM_SET_BONUS.trio} with all three. The 🧩 chip above your tiles
             shows your best set.
+          </p>
+          <p>
+            <Key>🔺 Fragile charms: the Triforce</Key>. Some charm offers hold a <Key>shard</Key> instead of a charm.
+            Collect {TRIFORCE.shards} shards to assemble a piece. A shard does nothing on its own, but it never uses a
+            charm slot, and neither does the finished piece. Power: every word scores x{TRIFORCE.powerMultiplier}.
+            Wisdom: each new hand lights up a long word you can play. Courage: once per level, a strike or running out
+            of time bounces off. All three in one run: +{TRIFORCE.wishPoints.toLocaleString()} and the Hero of Time badge.
           </p>
           <p>
             <Key>PowerPlays</Key> are a button you press once, at the moment you choose. Fill the meter by playing{' '}

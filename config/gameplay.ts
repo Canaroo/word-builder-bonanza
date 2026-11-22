@@ -306,6 +306,23 @@ export const POWER_PLAY_VALUES = {
 };
 
 // Seconds from the time PowerPlays and charms (before the bonus-time rules above).
+// Fragile charms (v7.69.0, the owner's idea and picks): three Triforce pieces, each built from 3
+// shards collected from charm offers. A shard does nothing on its own and needs no charm slot; a
+// finished piece sits on the Triforce shelf (no slot either). The nudge, like charm-set pieces: a
+// charm offer swaps its last card for a shard of an unstarted piece `firstChance` of the time, and
+// for the next shard of a started piece `nextChance` of the time. Simulated with the real run
+// lengths: one piece is finished in 31% of median runs (5 charm offers), 67% with 8, 82-90% with 10+.
+export const TRIFORCE = {
+  shards: 3,
+  firstChance: 0.3,
+  nextChance: 0.4,
+  powerMultiplier: 1.5,     // Power: every word x1.5, charm points included
+  wisdomMinLetters: 5,      // Wisdom: each new hand lights a word this long or longer (else 4)
+  courageSeconds: 15,       // Courage: once a level, the clock hitting 0 gives this (charm time)
+  wishPoints: 5000,         // all three pieces in one run
+  badgeId: 'b_heroOfTime',
+} as const;
+
 export const TIME_BONUS = {
   timeTurner: 10,          // per word, for 2 words
   timeBoost: 10,

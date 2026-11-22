@@ -15,6 +15,7 @@ export const MODAL_ARM_MS = 1000;
 export const GUARDLESS_MODALS = new Set([
   'last-words', 'continue-offer', 'event-log', 'milestone-info', 'buff-info', 'powerplay-activation',
   'charm-activation', 'save-confirmation',
+  // The Triforce shelf opened from its chip (an assembled piece's card does get the guard: data.got).
 ]);
 
 const ModalTapGuard: React.FC<{ ms?: number }> = ({ ms = MODAL_ARM_MS }) => {
