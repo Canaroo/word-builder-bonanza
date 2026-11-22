@@ -176,7 +176,8 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             x{TRIFORCE.powerMultiplier}. <Key>Wisdom</Key>: once per level, tap <Key>🔺 ASK ZELDA</Key> above your tiles
             and she puts the longest word your tiles can make ({TRIFORCE.wisdomMinLetters}+ letters) in the word row, so
             you just tap Submit. If there isn't one, she says so and you keep your ask for later (try a shuffle).{' '}
-            <Key>Courage</Key>: once per level, a strike or running out of time bounces off. All three in one run:
+            <Key>Courage</Key>: once per level, Link takes one hit for you: your next strike is blocked, or if your clock
+            runs out first you get +{TRIFORCE.courageSeconds} seconds instead (any shield you hold goes first). All three in one run:
             +{TRIFORCE.wishPoints.toLocaleString()} and the Hero of Time badge.
           </p>
           <p>

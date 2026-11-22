@@ -211,7 +211,7 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   offers), 67% with 8, 82-90% with 10+; all three in under 1%. **Power** x1.5 on the whole word after
   Blue Steel (0 means 0 holds, "🔺 Triforce of Power" line). **Wisdom** (see v7.72.0 below). **Courage**
   once per level (`courageLevel`): blocks a strike in `ADD_STRIKE` after shields, or the clock hitting
-  0 gives +15 s charm time (`COURAGE_CLOCK`). All three: +5,000 and the 🔺 Hero of Time badge
+  0 gives +15 s, fixed since v7.72.2 (`COURAGE_CLOCK`). All three: +5,000 and the 🔺 Hero of Time badge
   (`b_heroOfTime`, `triforceWish`). The emblem (three triangles, 3 shards each) shows on the offer
   card with the next shard blinking, on a 🔺 chip above the tiles (tap for the shelf) and on the
   "YOU GOT IT!" card (`triforce` modal). The old Triforce of Courage charm is now **Master Sword**
@@ -225,6 +225,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   v7.72.1: How to Play explains Ask Zelda, the shard sources (offers, scratch-offs, Lucky Charms) and
   the 🎒 Gear menu; its old lines about the 🧩 set chip and the "Buffs tray" now point to Gear and the
   green ▶ USE pocket button. The Triforce shelf card lists all shard sources too.
+  v7.72.2 (the owner's picks): Courage reads "Link takes one hit for you each level: your next strike
+  is blocked, or if your clock runs out first you get +15 seconds instead. Any shield you hold goes
+  first." Its +15 is now fixed at every level (it was charm time: 12 at level 5, 8 from level 10).
+  Power's text was kept as is.
   **More shard sources (v7.69.1, the owner's picks):** scratch-off tickets (one square at most holds
   a shard, `TRIFORCE.scratchWeight` 0.6: about 1 ticket in 3; bank it like any prize; "ⓘ READ"
   shows the piece) and Lucky Charms (`luckyChance` 25%: a shard falls out instead of a charm, no
