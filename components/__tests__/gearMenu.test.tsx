@@ -3,7 +3,8 @@
 import { describe, test, expect, vi, afterEach } from 'vitest';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import GearMenu, { earnedThisRun } from '../GearMenu';
+import GearMenu, { earnedThisRun, lineIsFrom } from '../GearMenu';
+import { calculateScore } from '../../services/gameUtils';
 import { CHARMS_LIST } from '../../data/charms';
 import { POWER_PLAYS_LIST } from '../../data/powerPlays';
 import { screenInitialState } from '../../services/screens/GameScreen';
@@ -23,6 +24,26 @@ describe('Gear menu (v7.71.0)', () => {
         expect(earnedThisRun(log, 'Stonks')).toEqual({ points: 1240, seconds: 0 });
         expect(earnedThisRun(log, 'Crystal Ball')).toEqual({ points: 0, seconds: 5 });
         expect(earnedThisRun(log, 'Glass Joe').points).toBe(300);
+    });
+    test('lines that add detail after the name count too (v7.72.3: Last Action Hero showed nothing)', () => {
+        const log = [word([{ name: 'Last Action Hero (E)', description: '+15 pts' }, { name: 'Golden Ticket!', description: '+50 pts' }]),
+            word([{ name: 'Last Action Hero (S)', description: '+15 pts' }, { name: '⏳ Sands of Time! +5s next round', description: '+5s next round' }])];
+        expect(earnedThisRun(log, 'Last Action Hero').points).toBe(30);
+        expect(earnedThisRun(log, 'Golden Ticket').points).toBe(50);
+        expect(earnedThisRun(log, 'Sands of Time').seconds).toBe(5);
+    });
+    test("no charm's lines are counted for another charm", () => {
+        for (const a of CHARMS_LIST) for (const b of CHARMS_LIST) {
+            if (a.id !== b.id && lineIsFrom(a.name, b.name)) throw new Error(`${a.name} would count as ${b.name}`);
+        }
+    });
+    test('a real Last Action Hero word pays +15 on its last tile and shows in Gear', () => {
+        const gs = { ...screenInitialState.gameState, activeCharms: [charm('finisher')] } as GameState;
+        const tiles = 'CAT'.split('').map((letter, i) => ({ id: `t${i}`, letter, points: letter === 'C' ? 3 : 1 }));
+        const without = calculateScore('CAT', tiles as any, { ...gs, activeCharms: [] } as GameState);
+        const withIt = calculateScore('CAT', tiles as any, gs);
+        expect(withIt.totalScore - without.totalScore).toBeGreaterThanOrEqual(15);
+        expect(earnedThisRun([word(withIt.bonuses)], 'Last Action Hero').points).toBe(15);
     });
     test('lists charms, the pocket, running effects and sets; tapping explains; USE fires the PowerPlay', () => {
         const gs = { ...screenInitialState.gameState, activeCharms: [charm('stonks'), charm('pivot')], activeBuffs: [charm('stonks'), charm('pivot'), pp('konamiCode')],
