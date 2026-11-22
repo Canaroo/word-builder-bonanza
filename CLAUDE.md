@@ -260,6 +260,12 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Kept: HOLD, Jenga, power word hint, Skill Shot, Head Start, Pop Quiz, the race, bids and calls,
   Inception, the speed streak, Greatest Hits and Tamagotchi. The GEAR strip glows gold for 3.5 s when
   a shard, a new charm or an upgrade lands (`gearGlow`, not on a resume).
+  **v7.72.3 (a player saw Last Action Hero show nothing in Gear):** it was paying (+15 on the last
+  tile, upgrades and the long-word boost included); Gear only matched a score line's exact name, and
+  many lines add detail ("Last Action Hero (E)", "Golden Ticket!", "Sands of Time! +5s next round").
+  `lineIsFrom` now matches the name then a non-letter, like scoring does; it fixed Last Action Hero,
+  E.T. Phone Home, Golden Ticket, Sesame Street, Freaky Friday, Vanna's Vowels, Sands of Time,
+  Glitch in the Code and Execute Order 66. A test checks no charm's lines count for another.
 - **How offers are drawn (`getOffer` in `services/gameUtils.ts`; checked v7.67.2, the owner's ask).**
   Pool: everything not held or active, not shown in the last 3 words (`charmCooldowns`,
   `powerPlayCooldowns`), not a taken once-per-run PowerPlay, and not one that can't work yet

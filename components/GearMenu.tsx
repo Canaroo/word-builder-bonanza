@@ -13,13 +13,28 @@ import ArcadeButton from './ArcadeButton';
 // from here), running effects, charm sets, the Triforce and a run summary. Tap anything and the box
 // at the bottom explains it. The game is paused and the board is covered while it's open.
 
+const plainQuotes = (s: string) => s.replace(/[‘’]/g, "'");
+/**
+ * Whether a score line belongs to this charm: its name, maybe after a leading emoji, then nothing or
+ * a non-letter (v7.72.3). Many lines add detail after the name, like "Last Action Hero (E)",
+ * "Golden Ticket!" or "Sands of Time! +5s next round"; matching the exact name missed them, so the
+ * Gear menu showed nothing earned for charms that were paying. Scoring matches the same way.
+ */
+export const lineIsFrom = (lineName: string, name: string): boolean => {
+  const want = plainQuotes(name);
+  return [lineName, lineName.replace(/^\S+\s/, '')].some(n => {
+    const plain = plainQuotes(n);
+    return plain.startsWith(want) && !/^[A-Za-z0-9]/.test(plain.slice(want.length));
+  });
+};
+
 /** What a charm (or set) has earned this run, summed from its score lines in the word log. */
 export const earnedThisRun = (log: GameState['log'], name: string): { points: number; seconds: number } => {
   let points = 0, seconds = 0;
   for (const e of log) {
     if (e.type !== 'word' || e.status !== 'valid') continue;
     for (const b of (e as { bonuses?: { name: string; description: string }[] }).bonuses ?? []) {
-      if (b.name !== name && b.name.replace(/^\S+\s/, '') !== name) continue;
+      if (!lineIsFrom(b.name, name)) continue;
       const pts = b.description.match(/\+([\d,]+)\s*pts/);
       const secs = b.description.match(/\+(\d+)\s*s\b|\+(\d+)s/);
       if (pts) points += Number(pts[1].replace(/,/g, ''));
