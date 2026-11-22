@@ -116,6 +116,12 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Lucky Charms (`LuckyCharms`): shake the cereal box, a charm tumbles out and flips, and a bumped
   charm wobbles. The game picks the charm on use and passes it in the pop-up's data (`charmId`,
   `replaceId`, read as `extra`); the card returns it as `charm` and `handleResolveGamble` equips it. Ladders, rounds and offers in `POWER_PLAY_VALUES`.
+  **Let's Make a Deal (v7.68.0, the owner's design; `Doors`, `dealDoors`, `doorPrizes`
+  [150, 200, 300, 450], `doorSweepBonus` 500):** one row of 5 doors, 4 prizes and a Zonk, dealt once
+  and saved. Tap a door: it swings open (`door-swing`); a prize stays open and joins the pot, then
+  bank or open another; the Zonk (🐐) wipes the pot; all 4 prizes pay +500 more. When it's over every
+  other door turns over (MISSED / DODGED). It used to be 3 rounds of 3 doors, and a win's message
+  named where that round's Zonk was. Best play (bank after 2-3 doors) averages about 330 (old: 340).
   After a bank, each shows what would have come next, then pays on "Take the N": Minesweeper the
   mine (and the odds the next pick had), Card Sharks the next card, Let's Make a Deal the doors you
   passed on, No Whammies! the next spin, Deal or No Deal your case (when you take the deal).
@@ -215,7 +221,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   "Mid-run features" table on `/?stats`. The rules in `docs/LEADERBOARD.md` must be pasted into the
   Firebase console; until then the new events are dropped and the extras fall back.
 - **WILDCARD (v7.50.0)** (`wildcard`, `Wildcard` in `GambleCard.tsx`, odds in
-  `POWER_PLAY_VALUES.wildcard`): a pocket gamble card. The owner's GIF plays at the top
+  `POWER_PLAY_VALUES.wildcard`): a pocket gamble card. v7.68.0 (the owner: it didn't read as It's
+  Always Sunny): named **Wildcard, B*tches!** (bleeped, the owner's pick), icon 🤠, "Charlie goes
+  rogue." lead-in, flavor "Yee-haw! (Charlie Kelly...)", and the offer card shows the van clip as its
+  picture (`ITEM_ART` in `OfferModals.tsx`). The owner's GIF plays at the top
   (`public/powerplays/wildcard.webp`, v7.50.1: the van "YEEEHAAAAA!" clip from the owner's imgur
   link, an animated WebP at 360 px, 75 KB instead of the 1 MB GIF; a spinning 🎡 shows if it fails), then SPIN runs a light
   around four outcomes and slows onto the roll (rolled once, saved): +5 s 30%, +500 30% (a prize,

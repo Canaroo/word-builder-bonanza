@@ -5,6 +5,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import GambleCard, { type GambleResult } from '../GambleCard';
 import { POWER_PLAY_VALUES as V } from '../../config/gameplay';
+import { dealDoors } from '../../services/rules';
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 afterEach(() => vi.restoreAllMocks());
@@ -18,22 +19,47 @@ const render = (id: string) => {
     return { el, onResolve, button, byLabel };
 };
 
-describe("Let's Make a Deal reveal", () => {
-    test('walking away opens the next round of doors, then pays on Take', () => {
-        // With random 0 the shuffle puts the prizes at [2nd, Zonk, 1st] each round.
-        vi.spyOn(Math, 'random').mockReturnValue(0);
-        const [a, b] = V.doorRounds[1];
-        const { el, onResolve, button, byLabel } = render('letsMakeADeal');
-        act(() => byLabel('Door 1').click()); // round 1 prize
+describe("Let's Make a Deal (v7.68.0): open doors one at a time", () => {
+    // With Math.random fixed, the board is the same as dealDoors(() => 0.5).
+    const board = dealDoors(() => 0.5);
+    const zonkAt = board.indexOf(0);
+    const prizeAt = board.map((d, i) => (d > 0 ? i : -1)).filter(i => i >= 0);
+    const doors = (el: HTMLElement) => [...el.querySelectorAll('[data-testid="deal-door"]')] as HTMLButtonElement[];
+    const labels = (el: HTMLElement) => doors(el).map(d => d.getAttribute('aria-label')!);
+    test('closed doors hide their prize; an opened prize stays open and joins the pot; banking turns the rest over', () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0.5);
+        const { el, onResolve, button } = render('letsMakeADeal');
+        expect(labels(el).every(l => /^Door \d$/.test(l))).toBe(true);
+        act(() => doors(el)[prizeAt[0]].click());
+        act(() => doors(el)[prizeAt[1]].click());
+        // Only the two opened doors show what's behind them; nothing names the Zonk's door yet.
+        expect(labels(el).filter(l => /\+|Zonk/.test(l))).toHaveLength(2);
+        expect(el.textContent).not.toContain('🐐'); // the Zonk's door isn't shown
+        const pot = board[prizeAt[0]] + board[prizeAt[1]];
+        expect(el.textContent).toContain(`POT: ${pot}`);
         act(() => button('walk away').click());
         expect(onResolve).not.toHaveBeenCalled();
-        expect(byLabel(`Door 1: +${b}`)).toBeTruthy();
-        expect(byLabel('Door 2: Zonk')).toBeTruthy();
-        expect(byLabel(`Door 3: +${a}`)).toBeTruthy();
-        expect(el.textContent).toContain('The Zonk was behind door 2');
+        expect(labels(el).filter(l => /not opened/.test(l))).toHaveLength(3);
+        expect(labels(el)[zonkAt]).toBe(`Door ${zonkAt + 1}: Zonk (not opened)`);
         act(() => button('Take the').click());
-        expect(onResolve).toHaveBeenCalledWith(expect.objectContaining({ points: V.doorRounds[0][1], tone: 'win' }));
-        expect(onResolve.mock.calls[0][0].detail).toContain(`Behind the doors: Door 1: +${b} · Door 2: Zonk · Door 3: +${a}.`);
+        expect(onResolve).toHaveBeenCalledWith(expect.objectContaining({ points: pot, tone: 'win' }));
+    });
+    test('the Zonk wipes the pot', () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0.5);
+        const { el, onResolve, button } = render('letsMakeADeal');
+        act(() => doors(el)[prizeAt[0]].click());
+        act(() => doors(el)[zonkAt].click());
+        expect(doors(el).every(d => d.disabled)).toBe(true);
+        act(() => button('Continue').click());
+        expect(onResolve).toHaveBeenCalledWith(expect.objectContaining({ points: 0, tone: 'lose' }));
+    });
+    test('all four prizes pay the bonus', () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0.5);
+        const { el, onResolve, button } = render('letsMakeADeal');
+        for (const i of prizeAt) act(() => doors(el)[i].click());
+        const pot = V.doorPrizes.reduce((a, b) => a + b, 0);
+        act(() => button('Take the').click());
+        expect(onResolve).toHaveBeenCalledWith(expect.objectContaining({ points: pot + V.doorSweepBonus, tone: 'win' }));
     });
 });
 

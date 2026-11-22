@@ -1130,7 +1130,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'letsMakeADeal',
     name: "Let's Make a Deal",
-    description: `Up to ${POWER_PLAY_VALUES.doorRounds.length} rounds of 3 doors: two pay (round 1: +${POWER_PLAY_VALUES.doorRounds[0][0]} or +${POWER_PLAY_VALUES.doorRounds[0][1]}, bigger each round) and one Zonk wipes your pot. Walk away with the pot after any win.`,
+    description: `${POWER_PLAY_VALUES.doorPrizes.length + 1} doors: ${POWER_PLAY_VALUES.doorPrizes.length} hide prizes (${POWER_PLAY_VALUES.doorPrizes.map(p => `+${p}`).join(', ')}) and 1 hides the Zonk, which wipes your pot. Open them one at a time and walk away whenever you like. Find all ${POWER_PLAY_VALUES.doorPrizes.length} prizes for +${POWER_PLAY_VALUES.doorSweepBonus} more.`,
     flavorText: 'Do you want what is behind Door Number 2?',
     icon: '🚪',
     subtheme: 'utility',
@@ -1195,10 +1195,11 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   },
   {
     id: 'wildcard',
-    name: 'WILDCARD',
-    description: `Spin the wheel: ${Math.round(POWER_PLAY_VALUES.wildcard[0].chance * 100)}% +${POWER_PLAY_VALUES.wildcard[0].seconds} seconds, ${Math.round(POWER_PLAY_VALUES.wildcard[1].chance * 100)}% +${POWER_PLAY_VALUES.wildcard[1].points} points, ${Math.round(POWER_PLAY_VALUES.wildcard[2].chance * 100)}% a free tile of your choice for this hand, or ${Math.round(POWER_PLAY_VALUES.wildcard[3].chance * 100)}% a strike (a shield blocks it).`,
-    flavorText: 'Wildcard! Yee-haw!',
-    icon: '🎡',
+    // v7.68.0 (the owner: it didn't read as It's Always Sunny): Charlie's line, bleeped for kids.
+    name: 'Wildcard, B*tches!',
+    description: `Charlie goes rogue. Spin the wheel: ${Math.round(POWER_PLAY_VALUES.wildcard[0].chance * 100)}% +${POWER_PLAY_VALUES.wildcard[0].seconds} seconds, ${Math.round(POWER_PLAY_VALUES.wildcard[1].chance * 100)}% +${POWER_PLAY_VALUES.wildcard[1].points} points, ${Math.round(POWER_PLAY_VALUES.wildcard[2].chance * 100)}% a free tile of your choice for this hand, or ${Math.round(POWER_PLAY_VALUES.wildcard[3].chance * 100)}% a strike (a shield blocks it).`,
+    flavorText: "Yee-haw! (Charlie Kelly, It's Always Sunny in Philadelphia)",
+    icon: '🤠',
     subtheme: 'utility',
     effectType: 'immediate',
     durationTag: 'ONE_TIME',

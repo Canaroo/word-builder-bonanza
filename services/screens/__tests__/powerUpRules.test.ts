@@ -16,7 +16,7 @@ import { calculateScore } from '../../gameUtils';
 import * as gameUtils from '../../gameUtils';
 import { RACK_SIZE } from '../../../constants';
 import type { GameState, Tile } from '../../../types';
-import { catchVowels, handSizeFor, meterLettersFor, bossHitsToWin, advanceBoss, plinkoPayout, hotTubSeconds, dailyDoubleWager, doorsForRound, minesweeperPot, bankerOffer, dealGame } from '../../rules';
+import { catchVowels, handSizeFor, meterLettersFor, bossHitsToWin, advanceBoss, plinkoPayout, hotTubSeconds, dailyDoubleWager, dealDoors, minesweeperPot, bankerOffer, dealGame } from '../../rules';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -762,9 +762,9 @@ describe('v7.25 gamble PowerPlays', () => {
         expect(PRIZE_POWER_PLAY_IDS.has('dailyDouble')).toBe(true);
     });
     test('push your luck: doors, Minesweeper and Deal or No Deal', () => {
-        // Each round of doors: its two prizes and a Zonk (0), shuffled.
-        expect(doorsForRound(0, () => 0).sort((a, b) => a - b)).toEqual([0, ...POWER_PLAY_VALUES.doorRounds[0]]);
-        expect(doorsForRound(2, () => 0.5).sort((a, b) => a - b)).toEqual([0, ...POWER_PLAY_VALUES.doorRounds[2]]);
+        // v7.68.0: one row of doors, the prizes and a Zonk (0), shuffled.
+        expect(dealDoors(() => 0).sort((a, b) => a - b)).toEqual([0, ...POWER_PLAY_VALUES.doorPrizes].sort((a, b) => a - b));
+        expect(dealDoors(() => 0.5).filter(d => d === 0)).toHaveLength(1);
         // The Minesweeper pot climbs the ladder.
         expect(minesweeperPot(0)).toBe(0);
         expect(minesweeperPot(1)).toBe(POWER_PLAY_VALUES.minesweeperLadder[0]);
@@ -827,7 +827,7 @@ describe('WILDCARD (v7.50.0)', () => {
     });
     test('it is a pocket gamble card, its +500 grows with the level, and the text reads from config', () => {
         const pp = POWER_PLAYS_LIST.find(p => p.id === 'wildcard')!;
-        expect(pp.name).toBe('WILDCARD');
+        expect(pp.name).toBe('Wildcard, B*tches!'); // v7.68.0: Charlie's line
         expect(INSTANT_POWER_PLAY_IDS.has('wildcard')).toBe(false);
         expect(GAMBLE_CARD_IDS).toContain('wildcard');
         expect(PRIZE_POWER_PLAY_IDS.has('wildcard')).toBe(true);

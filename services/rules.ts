@@ -484,8 +484,9 @@ const shuffle = <T,>(list: T[], rand: () => number): T[] => {
     return out;
 };
 /** Let's Make a Deal: a round's three doors, shuffled (0 = the Zonk). */
-export const doorsForRound = (round: number, rand: () => number = Math.random): number[] =>
-    shuffle([...POWER_PLAY_VALUES.doorRounds[Math.min(round, POWER_PLAY_VALUES.doorRounds.length - 1)], 0], rand);
+/** Let's Make a Deal (v7.68.0): the prize doors and the Zonk (0), shuffled. */
+export const dealDoors = (rand: () => number = Math.random): number[] =>
+    shuffle([...POWER_PLAY_VALUES.doorPrizes, 0], rand);
 /** Minesweeper: the pot after this many safe squares. */
 export const minesweeperPot = (safePicks: number): number =>
     POWER_PLAY_VALUES.minesweeperLadder.slice(0, safePicks).reduce((a, b) => a + b, 0);

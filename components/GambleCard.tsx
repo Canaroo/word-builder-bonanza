@@ -3,7 +3,7 @@ import { Sec } from './Seconds';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import ArcadeButton, { NamedLabel } from './ArcadeButton';
 import { POWER_PLAY_VALUES as V, TIME_BONUS } from '../config/gameplay';
-import { doorsForRound, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, WHAMMY_BOARD, whammySpin, whammySquareFor, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout, blackjackHands, blackjackTotal, blackjackResult, blackjackPrize, gumpRoll, type GumpPrize } from '../services/rules';
+import { dealDoors, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, WHAMMY_BOARD, whammySpin, whammySquareFor, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout, blackjackHands, blackjackTotal, blackjackResult, blackjackPrize, gumpRoll, type GumpPrize } from '../services/rules';
 import { createTile, createTileBag, shuffleArray } from '../services/gameUtils';
 import { timesProblem, type TimesProblem } from '../services/miniGameRules';
 import type { Tile } from '../types';
@@ -53,64 +53,79 @@ const Frame: React.FC<{ icon: string; name: string; children: React.ReactNode }>
   </div>
 );
 
-/** Let's Make a Deal: each round, two doors pay and one is a Zonk that wipes the pot. Bank after any win. */
+/**
+ * Let's Make a Deal (v7.68.0, the owner's design): one row of doors, 4 prizes and 1 Zonk, dealt once
+ * and saved. Open a door: a prize stays open and joins the pot, then bank or open another. The
+ * Zonk wipes the pot. Find all 4 prizes for a bonus. When it's over, every door turns over.
+ */
 const Doors: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
-  const rounds = V.doorRounds.length;
-  const [round, setRound] = useSaved('round', 0);
-  const [pot, setPot] = useSaved('pot', 0);
-  const [doors, setDoors] = useSaved('doors', () => doorsForRound(0));
-  const [last, setLast] = useSaved<string | null>('last', null);
-  // Walking away opens the doors you passed on (v7.28.6), so you see what you'd have faced.
-  const [walked, setWalked] = useSaved<{ amount: number; played: number } | null>('walked', null);
-  const behind = doors.map((d, j) => `Door ${j + 1}: ${d ? `+${d}` : 'Zonk'}`).join(' · ');
-  const bank = (amount: number, played: number, revealed = false) =>
-    onResolve({ points: amount, headline: `BANKED: +${amount} POINTS`, detail: `You walked away after ${played} ${played === 1 ? 'round' : 'rounds'} with the cash.${revealed ? `\n\nBehind the doors: ${behind}.` : ''}`, tone: 'win' });
-  const pick = (i: number) => {
-    if (walked) return;
-    const prize = doors[i];
-    const others = doors.map((d, j) => (j === i ? null : `Door ${j + 1}: ${d ? `+${d}` : 'Zonk'}`)).filter(Boolean).join(' · ');
-    if (!prize) {
-      onResolve({ points: 0, headline: `DOOR ${i + 1}: ZONK!`, detail: `${pot ? `The Zonk took your pot of ${pot} points.` : 'A Zonk on the first door. Nothing won this time.'}\n\n${others}`, tone: 'lose' });
-      return;
-    }
-    const next = pot + prize;
-    if (round + 1 >= rounds) { bank(next, round + 1); return; }
-    soundService.playTileClick();
-    setPot(next); setRound(round + 1); setDoors(doorsForRound(round + 1));
-    setLast(`Door ${i + 1}: +${prize}! (${others})`);
+  const [doors] = useSaved('board', () => dealDoors());
+  const [opened, setOpened] = useSaved<number[]>('opened', []);
+  const [banked, setBanked] = useSaved<boolean>('banked', false);
+  const zonkAt = doors.indexOf(0);
+  const zonked = opened.includes(zonkAt);
+  const found = opened.filter(i => doors[i] > 0);
+  const pot = found.reduce((t, i) => t + doors[i], 0); // before a Zonk
+  const prizesLeft = doors.filter((d, i) => d > 0 && !opened.includes(i)).length;
+  const swept = !zonked && prizesLeft === 0;
+  const over = zonked || swept || banked;
+  const lastOpened = opened.length ? opened[opened.length - 1] : -1;
+  const open = (i: number) => {
+    if (over || opened.includes(i)) return;
+    if (doors[i] === 0) { soundService.playInvalidWord(); try { navigator.vibrate?.([60, 30, 60]); } catch { /* */ } }
+    else { soundService.playTileClick(); try { navigator.vibrate?.(12); } catch { /* */ } }
+    setOpened([...opened, i]);
   };
-  const prizes = V.doorRounds[round];
-  if (walked) {
-    return (
-      <>
-        <p className="osd-text text-lg text-neon-cyan">ROUND {round + 1}: WHAT YOU PASSED ON</p>
-        <div className="grid grid-cols-3 gap-2 w-full">
-          {doors.map((d, i) => (
-            <div key={i} className={`rounded-xl ring-2 py-4 font-display text-xl level-stage-in ${d ? 'bg-crt-950 ring-neon-green text-neon-green' : 'bg-neon-red/20 ring-neon-red text-neon-red'}`} aria-label={`Door ${i + 1}: ${d ? `+${d}` : 'Zonk'}`}>
-              {d ? `+${d}` : 'ZONK'}
-            </div>
-          ))}
-        </div>
-        <p className="text-slate-200" aria-live="polite">Two of the three doors would have paid. The Zonk was behind <strong className="text-neon-red">door {doors.indexOf(0) + 1}</strong>.</p>
-        <p className="font-display text-3xl text-neon-yellow">BANKED: {walked.amount}</p>
-        <ArcadeButton color="green" className="w-full" onClick={() => bank(walked.amount, walked.played, true)}>Take the {walked.amount}</ArcadeButton>
-      </>
-    );
-  }
+  const total = swept ? pot + V.doorSweepBonus : pot;
+  const finish = () => {
+    if (zonked) onResolve({ points: 0, headline: `DOOR ${zonkAt + 1}: ZONK!`, detail: pot ? `The Zonk took your pot of ${pot} points.` : 'The Zonk was behind your first door. Nothing won this time.', tone: 'lose' });
+    else if (swept) onResolve({ points: total, headline: `ALL 4 PRIZES! +${total}`, detail: `You opened every prize door (${pot}) and dodged the Zonk: +${V.doorSweepBonus} more.`, tone: 'win' });
+    else onResolve({ points: pot, headline: `BANKED: +${pot}`, detail: `You opened ${found.length} ${found.length === 1 ? 'door' : 'doors'} and walked away. The Zonk was behind door ${zonkAt + 1}.`, tone: 'win' });
+  };
   return (
     <>
-      <p className="osd-text text-lg text-neon-cyan">ROUND {round + 1} OF {rounds}</p>
-      {last && <p className="text-neon-green text-sm">{last}</p>}
-      <p className="text-slate-200">Two doors hold +{prizes[0]} and +{prizes[1]}. One hides a Zonk that wipes your pot.</p>
-      <p className="font-display text-3xl text-neon-yellow" aria-live="polite">POT: {pot}</p>
-      <div className="grid grid-cols-3 gap-2 w-full">
-        {doors.map((_, i) => (
-          <button key={`${round}-${i}`} type="button" onClick={() => pick(i)} className="rounded-xl bg-gradient-to-b from-[#8b5a2b] to-[#5a3a1a] ring-2 ring-neon-yellow/70 py-5 font-display text-2xl text-neon-yellow hover:brightness-110" aria-label={`Door ${i + 1}`}>
-            🚪<br />{i + 1}
-          </button>
-        ))}
+      <p className="text-slate-200 text-sm leading-snug">
+        {V.doorPrizes.length} doors hide prizes ({V.doorPrizes.map(p => `+${p}`).join(', ')}). 1 hides the <strong className="text-neon-red">Zonk</strong>, which wipes your pot.
+        Open doors one at a time and walk away whenever you like. Find all {V.doorPrizes.length} for +{V.doorSweepBonus} more.
+      </p>
+      <p className="font-display text-3xl text-neon-yellow" aria-live="polite">{zonked ? 'ZONK! POT: 0' : swept ? `POT: ${pot} +${V.doorSweepBonus}` : `POT: ${pot}`}</p>
+      <div className="grid grid-cols-5 gap-1.5 w-full" style={{ perspective: '600px' }}>
+        {doors.map((d, i) => {
+          const isOpen = opened.includes(i);
+          const turned = !isOpen && over; // turned over at the end: what you passed up
+          const zonk = d === 0;
+          return (
+            <button key={i} type="button" data-testid="deal-door" disabled={isOpen || over} onClick={() => open(i)}
+              aria-label={isOpen || turned ? `Door ${i + 1}: ${zonk ? 'Zonk' : `+${d}`}${turned ? ' (not opened)' : ''}` : `Door ${i + 1}`}
+              className={`aspect-[3/4] rounded-lg flex flex-col items-center justify-center select-none transition-transform active:scale-95 ${
+                isOpen ? `${zonk ? 'bg-neon-red/25 ring-2 ring-neon-red' : 'bg-neon-green/20 ring-2 ring-neon-green'} ${i === lastOpened ? 'door-swing' : ''}`
+                : turned ? `bg-crt-950/60 border-2 border-dashed ${zonk ? 'border-neon-red/60' : 'border-white/40'} opacity-75`
+                : 'bg-gradient-to-b from-[#8b5a2b] to-[#5a3a1a] ring-2 ring-neon-yellow/70 hover:brightness-110'}`}>
+              {isOpen || turned ? (
+                <>
+                  <span className="text-2xl leading-none" aria-hidden="true">{zonk ? '🐐' : '💰'}</span>
+                  <span className={`font-display text-sm leading-tight mt-1 ${zonk ? 'text-neon-red' : 'text-white'}`}>{zonk ? 'ZONK' : `+${d}`}</span>
+                  {turned && <span className="osd-text text-[0.65rem] leading-none text-slate-400 mt-0.5">{zonk ? 'DODGED' : 'MISSED'}</span>}
+                </>
+              ) : (
+                <>
+                  <span className="text-2xl leading-none" aria-hidden="true">🚪</span>
+                  <span className="font-display text-lg leading-none text-neon-yellow mt-1">{i + 1}</span>
+                </>
+              )}
+            </button>
+          );
+        })}
       </div>
-      {pot > 0 && <ArcadeButton color="green" className="w-full" onClick={() => { soundService.playTileClick(); setWalked({ amount: pot, played: round }); }}>Take the {pot} and walk away</ArcadeButton>}
+      <p className="osd-text text-base leading-tight text-slate-300 min-h-[1.25rem]" aria-live="polite">
+        {zonked ? `🐐 ZONK! THE GOAT ATE YOUR POT` : swept ? '🎉 YOU CLEANED OUT THE SHOWROOM!' : banked ? 'HERE\'S WHAT WAS BEHIND THE OTHER DOORS'
+          : opened.length === 0 ? 'PICK A DOOR' : `${prizesLeft} ${prizesLeft === 1 ? 'PRIZE' : 'PRIZES'} AND 1 ZONK LEFT: ODDS ${prizesLeft} IN ${prizesLeft + 1}`}
+      </p>
+      {over ? (
+        <ArcadeButton color={zonked ? 'red' : 'green'} className="w-full" onClick={finish}>{zonked ? 'Continue' : `Take the ${total}`}</ArcadeButton>
+      ) : pot > 0 ? (
+        <ArcadeButton color="green" className="w-full" onClick={() => { soundService.playTileClick(); setBanked(true); }}>Take the {pot} and walk away</ArcadeButton>
+      ) : null}
     </>
   );
 };
@@ -828,7 +843,7 @@ const LuckyCharms: React.FC<{ onResolve: (r: GambleResult) => void; extra?: Reco
  * public/powerplays/wildcard.webp (v7.50.1: 75 KB, from a 1 MB GIF); if it fails to load the card
  * shows a spinning 🎡 instead.
  */
-const WILDCARD_GIF = `${import.meta.env.BASE_URL ?? '/'}powerplays/wildcard.webp`;
+export const WILDCARD_GIF = `${import.meta.env.BASE_URL ?? '/'}powerplays/wildcard.webp`;
 const WILDCARD_FACES = [
   { icon: '⏱️', tone: 'text-neon-green', ring: 'ring-neon-green', bg: 'bg-neon-green/25' },
   { icon: '💰', tone: 'text-neon-yellow', ring: 'ring-neon-yellow', bg: 'bg-neon-yellow/25' },
