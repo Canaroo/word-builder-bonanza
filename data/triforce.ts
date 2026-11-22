@@ -21,7 +21,7 @@ export const TRIFORCE_PIECES: Record<TriforceId, { name: string; holder: string;
   },
   courage: {
     name: 'Triforce of Courage', holder: 'Link', color: '#5dff8f', glow: 'rgba(93,255,143,0.8)',
-    does: `Once per level, the first thing that would hurt you bounces off: a strike is blocked, or if your clock hits 0 you get +${TRIFORCE.courageSeconds} seconds.`,
+    does: `Link takes one hit for you each level: your next strike is blocked, or if your clock runs out first you get +${TRIFORCE.courageSeconds} seconds instead. Any shield you hold goes first.`,
     flavor: "Link's piece. Too brave to go down easy.",
   },
 };

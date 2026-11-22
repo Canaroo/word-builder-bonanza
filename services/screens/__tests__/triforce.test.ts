@@ -59,6 +59,11 @@ describe('fragile charms: the Triforce (v7.69.0)', () => {
         expect(saved.time).toBeGreaterThan(0);
         expect(gameReducer({ ...saved, time: 0 }, { type: 'COURAGE_CLOCK' }).time).toBe(0);
     });
+    test('Courage pays the full seconds at any level (v7.72.2)', () => {
+        const log = Array.from({ length: 170 }, (_, i) => ({ type: 'word', word: 'CAT', status: 'valid', score: 5, baseScore: 5, bonuses: [], definition: '', cumulativeScore: 5 * (i + 1) })) as any;
+        const s = start({ triforce: { courage: 3 }, log }, 0);
+        expect(gameReducer(s, { type: 'COURAGE_CLOCK' }).time).toBe(TRIFORCE.courageSeconds);
+    });
     test('the old Triforce of Courage charm is now Master Sword, and shard ids never clash with charms', () => {
         expect(CHARMS_LIST.find(c => c.id === 'triforceOfCourage')!.name).toBe('Master Sword');
         for (const sh of SHARD_CHARMS) expect(CHARMS_LIST.some(c => c.id === sh.id)).toBe(false);

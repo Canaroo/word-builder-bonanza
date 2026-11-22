@@ -1099,7 +1099,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             // Triforce of Courage (v7.69.0): once a level, the clock hitting 0 gives charm time instead.
             const level = runLevel(gameState);
             if (!triforceDone(gameState, 'courage') || gameState.courageLevel === level || state.time > 0) return state;
-            const gained = bonusTime(TRIFORCE.courageSeconds, 0, level);
+            const gained = TRIFORCE.courageSeconds; // v7.72.2 (the owner's call): fixed, no level shrink
             const entry: EventLogEntry = { type: 'event', id: `courage-${Date.now()}`, name: 'Triforce of Courage', icon: '🔺', description: `Out of time, but courage held: +${gained}s.`, scoreChange: 0, cumulativeScore: gameState.score };
             return { ...state, time: clampTime(gained, bankMax(gameState)), timeGain: { seconds: gained, key: Date.now() },
                 gameState: { ...gameState, courageLevel: level, log: [...gameState.log, entry], lastPowerPlayResult: { message: `🔺 Triforce of Courage: +${gained} seconds! (once per level)`, scoreChange: 0 } } };
