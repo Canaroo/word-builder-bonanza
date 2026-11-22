@@ -1195,3 +1195,11 @@ body {
 /* End-of-run cards hold off taps for a moment (components/useArmDelay.ts): this bar fills meanwhile. */
 @keyframes arm-fill { from { width: 0%; } to { width: 100%; } }
 .arm-fill { width: 0%; animation-name: arm-fill; animation-timing-function: linear; animation-fill-mode: forwards; }
+
+/* Let's Make a Deal (v7.68.0): a door swings open on its hinge to show what's behind it. */
+@keyframes door-swing {
+  0% { transform: rotateY(-85deg); opacity: 0.2; transform-origin: left center; }
+  100% { transform: rotateY(0deg); opacity: 1; transform-origin: left center; }
+}
+.door-swing { animation: door-swing 0.45s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .door-swing { animation: none; } }

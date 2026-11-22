@@ -131,7 +131,11 @@ export const POWER_PLAY_VALUES = {
   // v7.25 gambles. Expected values sit near Fluncle's sure +300 so a gamble is worth the risk.
   // Let's Make a Deal: each round, two doors hold these prizes and one hides a Zonk that wipes
   // the pot. Bank after any win, or play the next round (bigger prizes). EV if you play all 3: ~340.
-  doorRounds: [[150, 250], [300, 400], [500, 700]] as number[][],
+  // v7.68.0 (the owner's design): one row of doors, 4 prizes and 1 Zonk, opened one at a time.
+  // It used to be 3 rounds of 3 doors, and a win's message named where the Zonk was in that round.
+  // Banking after 2-3 doors averages about 330 (the old best play was about 340).
+  doorPrizes: [150, 200, 300, 450],
+  doorSweepBonus: 500,     // finding all 4 prizes (1 time in 5)
   // Deal or No Deal: you hold one of these cases (equal odds, average 425). Each round more cases
   // open and the Banker offers this share of the average of what's left. Deal, or go on.
   dealCases: [0, 25, 100, 200, 400, 750, 1500],

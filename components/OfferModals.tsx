@@ -13,6 +13,10 @@ import ArcadeButton, { NamedLabel } from './ArcadeButton';
 import CharmTimeNote from './CharmTimeNote';
 import { CHARMS_LIST } from '../data/charms';
 import { setsWith, setProgress, setBonusFor, setPayFor, payingSets } from '../data/charmSets';
+import { WILDCARD_GIF } from './GambleCard';
+
+/** v7.68.0: items whose offer card shows a picture instead of the emoji (the owner's clips). */
+const ITEM_ART: Record<string, string> = { wildcard: WILDCARD_GIF };
 
 // The two "pick one" screens: PowerPlays (hold one, keep or swap) and Charms (5 slots).
 
@@ -46,7 +50,9 @@ const ItemCard: React.FC<{
   const body = (
     <>
       <div className="flex items-start gap-2">
-        <span className="text-2xl leading-none mt-0.5" aria-hidden="true">{item.icon}</span>
+        {ITEM_ART[item.id]
+          ? <img src={ITEM_ART[item.id]} alt="" aria-hidden="true" className="w-12 h-12 rounded-md object-cover ring-1 ring-white/20 shrink-0" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+          : <span className="text-2xl leading-none mt-0.5" aria-hidden="true">{item.icon}</span>}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-display text-sm text-white leading-tight">{item.name}</span>
