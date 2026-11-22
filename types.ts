@@ -36,6 +36,8 @@ export interface Charm {
   selectionType?: 'tile_transform';
   durationTag: DurationTag;
   activate: (gameState: GameState, options?: any) => Partial<GameState>;
+  /** A fragile charm's shard (v7.69.0): which Triforce piece it builds. Never equipped. */
+  fragile?: 'power' | 'wisdom' | 'courage';
 }
 
 
@@ -334,6 +336,12 @@ export interface GameState {
   crocWords?: number;
   /** CTU Safe House (v7.67): the level its clock rescue last fired on (once a level). */
   ctuLevel?: number;
+  /** Fragile charms (v7.69.0): Triforce shards collected this run, 3 completes a piece. */
+  triforce?: Partial<Record<'power' | 'wisdom' | 'courage', number>>;
+  /** Triforce of Courage: the level its once-a-level rescue last fired on. */
+  courageLevel?: number;
+  /** The full Triforce's wish was granted this run. */
+  triforceWish?: boolean;
   /** Greatest Hits (v7.52.0): the word lengths whose record already paid this run (3 = GOLD...). */
   hitsClaimed?: number[];
   /** Quack Attack (v7.54.0): QUA's fourth play already paid this run. */

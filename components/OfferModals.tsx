@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { Charm, PowerPlay } from '../types';
 import { INSTANT_POWER_PLAY_IDS, PRIZE_POWER_PLAY_IDS } from '../data/powerPlays';
-import { CHARM_SLOTS, CHARM_UPGRADE, MYSTERY_TAPE } from '../config/gameplay';
+import { CHARM_SLOTS, CHARM_UPGRADE, MYSTERY_TAPE , TRIFORCE } from '../config/gameplay';
 import { prizeFor } from '../services/rules';
 import { UPGRADABLE_CHARM_IDS } from '../data/charms';
 import DurationBadge from '../ui/DurationBadge';
@@ -14,6 +14,8 @@ import CharmTimeNote from './CharmTimeNote';
 import { CHARMS_LIST } from '../data/charms';
 import { setsWith, setProgress, setBonusFor, setPayFor, payingSets } from '../data/charmSets';
 import { WILDCARD_GIF } from './GambleCard';
+import TriforceEmblem from './TriforceEmblem';
+import type { TriforceId } from '../data/triforce';
 
 /** v7.68.0: items whose offer card shows a picture instead of the emoji (the owner's clips). */
 const ITEM_ART: Record<string, string> = { wildcard: WILDCARD_GIF };
@@ -298,7 +300,9 @@ export const CharmOffer: React.FC<{
   onPass: () => void;
   /** The run level: time charms show what their seconds pay here (v7.40.2). */
   level?: number;
-}> = ({ title, reason, offered, equipped, upgradedIds = [], onChoose, onUpgrade, onPass, level = 1 }) => {
+  /** Fragile charms (v7.69.0): Triforce shards collected so far. */
+  triforce?: Partial<Record<TriforceId, number>>;
+}> = ({ title, reason, offered, equipped, upgradedIds = [], onChoose, onUpgrade, onPass, level = 1, triforce = {} }) => {
   const [picked, setPicked] = useState<Charm | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
   const [upgrading, setUpgrading] = useState(false);
@@ -429,7 +433,19 @@ export const CharmOffer: React.FC<{
             </div>
           </button>
         )}
-        {offered.map(charm => (
+        {offered.map(charm => charm.fragile ? (
+          // Fragile charms (v7.69.0): a shard goes on the Triforce shelf, so it never needs a slot.
+          <ItemCard
+            key={charm.id}
+            item={charm}
+            tag={<Tag tone="yellow">🔺 SHARD</Tag>}
+            note={<span className="flex items-center gap-2">
+              <TriforceEmblem triforce={triforce} next={charm.fragile} size={44} />
+              <span className="text-neon-yellow">SHARD {Math.min(TRIFORCE.shards, (triforce[charm.fragile] ?? 0) + 1)} OF {TRIFORCE.shards} · NO SLOT NEEDED · DOES NOTHING UNTIL ALL {TRIFORCE.shards}</span>
+            </span>}
+            onClick={() => onChoose(charm)}
+          />
+        ) : (
           <ItemCard
             key={charm.id}
             item={charm}

@@ -6,6 +6,7 @@ import * as gameUtils from '../gameUtils';
 import { MILESTONES_LIST } from '../../data/milestones';
 import { CHARMS_LIST, UPGRADABLE_CHARM_IDS, NO_LENGTH_BOOST_CHARM_IDS } from '../../data/charms';
 import { GAMBLE_CARD_IDS, type GambleResult } from '../../components/GambleCard';
+import { TRIFORCE_IDS, TRIFORCE_PIECES, SHARD_CHARMS, shardCharm, shardsOf, triforceDone, type TriforceId } from '../../data/triforce';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, TIME_CARD_IDS } from '../../data/powerPlays';
 import { MINI_GAMES } from '../../data/miniGames';
 import { gatePassword, RECENT_PASSWORDS } from '../../data/gates';
@@ -24,7 +25,7 @@ import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
 import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, charmLengthPoints, charmLengthBoostFor, charmMultiplierPoints, itemMultiplierIn, prizeFor, prizeScaleFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, charmTimeAt, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, rivalRateFor, redrumReverse , missionById } from '../rules';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES, GEM_INTRO_SHOWS, QUACK_ATTACK, BLUE_STEEL } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES, GEM_INTRO_SHOWS, QUACK_ATTACK, BLUE_STEEL , TRIFORCE } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
 import { currentStreak, powerWordBonusFor, recordBossBadge, earnCosmetic } from '../progression';
@@ -238,6 +239,7 @@ type GameAction =
     | { type: 'APPLY_MINIGAME'; payload: { name: string; icon: string; points: number; headline: string; detail: string; flat?: boolean } }
     | { type: 'ADD_TIME', payload: number }
     | { type: 'CTU_RESCUE' }
+    | { type: 'COURAGE_CLOCK' }
     | { type: 'SET_TIME', payload: number }
     | { type: 'MOVE_TILE_TO_BUILD', payload: { tile: Tile, fromIndex: number } }
     | { type: 'RETURN_TILE_TO_HAND', payload: { fromBuildIndex: number } }
@@ -545,7 +547,7 @@ export const RESUME_COUNTDOWN = 3;
 /** JSON drops functions, so saved charms and PowerPlays inside a pop-up are swapped back for their definitions. */
 const rehydrateModal = (m: ModalContent): ModalContent => {
     if (!m) return null;
-    const defs = new Map<string, Charm | PowerPlay>([...CHARMS_LIST, ...POWER_PLAYS_LIST].map(d => [d.id, d]));
+    const defs = new Map<string, Charm | PowerPlay>([...CHARMS_LIST, ...SHARD_CHARMS, ...POWER_PLAYS_LIST].map(d => [d.id, d]));
     const fix = (x: any): any => (x && typeof x === 'object' && typeof x.id === 'string' && defs.has(x.id) && 'durationTag' in x ? { ...defs.get(x.id)!, ...x, activate: defs.get(x.id)!.activate } : x);
     return { ...m, data: Array.isArray(m.data) ? m.data.map(fix) : fix(m.data) };
 };
@@ -612,6 +614,32 @@ export const pullSetPiece = (
     return {
         offeredItems: offer.offeredItems.map((c, i) => (i === last ? piece : c)),
         offerDetails: offer.offerDetails.map((d, i) => (i === last ? { id: piece.id, score: d.score } : d)),
+    };
+};
+
+/**
+ * Fragile charms (v7.69.0): sometimes a charm offer's last card becomes a Triforce shard. With a piece
+ * started, its next shard comes TRIFORCE.nextChance of the time; otherwise a shard of a piece not
+ * started yet comes TRIFORCE.firstChance of the time. Seeded like set pieces, so a Daily matches.
+ */
+export const dealShard = (
+    offer: { offeredItems: Charm[]; offerDetails: { id: string; score: number }[] },
+    gs: Pick<GameState, 'triforce' | 'runSeed' | 'totalOffersMade'>,
+): { offeredItems: Charm[]; offerDetails: { id: string; score: number }[] } => {
+    if (offer.offeredItems.length === 0 || offer.offeredItems.some(c => c.fragile)) return offer;
+    const rank = (tag: string) => gameUtils.dailyRank(gs.runSeed, gs.totalOffersMade, tag);
+    const started = TRIFORCE_IDS.filter(id => shardsOf(gs, id) > 0 && !triforceDone(gs, id));
+    const fresh = TRIFORCE_IDS.filter(id => shardsOf(gs, id) === 0);
+    const byRank = (ids: TriforceId[], tag: string) => [...ids].sort((a, b) => rank(`${tag}-${a}`) - rank(`${tag}-${b}`))[0];
+    let pick: TriforceId | undefined;
+    if (started.length && rank('shard-next') < TRIFORCE.nextChance) pick = byRank(started, 'shard-next');
+    else if (fresh.length && rank('shard-first') < TRIFORCE.firstChance) pick = byRank(fresh, 'shard-first');
+    if (!pick) return offer;
+    const shard = shardCharm(pick);
+    const last = offer.offeredItems.length - 1;
+    return {
+        offeredItems: offer.offeredItems.map((c, i) => (i === last ? shard : c)),
+        offerDetails: offer.offerDetails.map((d, i) => (i === last ? { id: shard.id, score: d.score } : d)),
     };
 };
 
@@ -974,6 +1002,15 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 modalContent: outcome(ticket, `+${pts} POINTS`, 'Your PowerPlay pocket was full, so the ticket paid points instead.', 'win'),
                 gameState: { ...gameState, score: gameState.score + pts, log: [...gameState.log, log(`Banked +${pts} points.`, pts, gameState.score + pts)] } };
         }
+        case 'COURAGE_CLOCK': {
+            // Triforce of Courage (v7.69.0): once a level, the clock hitting 0 gives charm time instead.
+            const level = runLevel(gameState);
+            if (!triforceDone(gameState, 'courage') || gameState.courageLevel === level || state.time > 0) return state;
+            const gained = bonusTime(TRIFORCE.courageSeconds, 0, level);
+            const entry: EventLogEntry = { type: 'event', id: `courage-${Date.now()}`, name: 'Triforce of Courage', icon: '🔺', description: `Out of time, but courage held: +${gained}s.`, scoreChange: 0, cumulativeScore: gameState.score };
+            return { ...state, time: clampTime(gained, bankMax(gameState)), timeGain: { seconds: gained, key: Date.now() },
+                gameState: { ...gameState, courageLevel: level, log: [...gameState.log, entry], lastPowerPlayResult: { message: `🔺 Triforce of Courage: +${gained} seconds! (once per level)`, scoreChange: 0 } } };
+        }
         case 'CTU_RESCUE': {
             // CTU Safe House (v7.67): once a level, the clock dropping under the line pays charm time.
             const level = runLevel(gameState);
@@ -1195,6 +1232,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
           let { strikes, activePowerPlays, activeBuffs, score, powerPlayProgress, consecutiveSuccesses, flawlessScore, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress } = gameState;
           let actuallyGotAStrike = false;
           let strikeBlockedByShield = false;
+          let courageBlocked = false;
           let revivedByLifeFindsAWay = false;
           
           // v7.65.0: copy before deleting (this used to edit the previous state's object in place).
@@ -1210,6 +1248,11 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
               activeBuffs = activeBuffs.filter(b => b.id !== 'plotArmor');
               score = Math.max(0, score - 150);
               lastPowerPlayResult = { message: "💸 Plot Armor was consumed, saving you from a strike for 150 points.", scoreChange: -150 };
+          } else if (triforceDone(gameState, 'courage') && gameState.courageLevel !== runLevel(gameState)) {
+              // Triforce of Courage (v7.69.0): once a level, the first hurt bounces off.
+              courageBlocked = true;
+              strikeBlockedByShield = true;
+              lastPowerPlayResult = { message: '🔺 Triforce of Courage: that strike bounced off! (once per level)', scoreChange: 0 };
           } else {
             strikes++;
             flawlessScore = 0; // Reset flawless score on strike
@@ -1270,7 +1313,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
           }
           
           const survivorWords = gameState.survivorWords; // unused since v7.35 (Survivor pays per strike carried)
-          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, mixtapeChain: null, survivorWords, speedStreak: 0 };
+          let tempGameState = { ...gameState, ...(courageBlocked ? { courageLevel: runLevel(gameState) } : {}), strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, mixtapeChain: null, survivorWords, speedStreak: 0 };
           
           if ((actuallyGotAStrike || strikeBlockedByShield) && action.payload?.source === 'invalid_word') {
               // An invalid word costs time from the bank (not with the I'm Always Here charm).
@@ -1756,6 +1799,34 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
 
         case 'CHOOSE_CHARM': {
             const { charm, hand, allOffered, replaceId } = action.payload;
+            // Fragile charms (v7.69.0): a shard goes on the Triforce shelf, never into a slot.
+            if (charm.fragile) {
+                const id = charm.fragile;
+                const piece = TRIFORCE_PIECES[id];
+                const have = Math.min(TRIFORCE.shards, shardsOf(gameState, id) + 1);
+                const triforce = { ...(gameState.triforce ?? {}), [id]: have };
+                const charmCooldowns = { ...gameState.charmCooldowns };
+                allOffered.forEach(c => { if (!c.fragile) charmCooldowns[c.id] = 3; });
+                const done = have >= TRIFORCE.shards;
+                const allDone = done && TRIFORCE_IDS.every(t => (triforce[t] ?? 0) >= TRIFORCE.shards) && !gameState.triforceWish;
+                let score = gameState.score;
+                let badgeNew = false;
+                if (allDone) { score += TRIFORCE.wishPoints; badgeNew = earnCosmetic(TRIFORCE.badgeId); }
+                const entry: EventLogEntry = { type: 'event', id: `triforce-${id}-${Date.now()}`, name: piece.name, icon: '🔺',
+                    description: allDone ? `The Triforce is whole! Wish granted: +${TRIFORCE.wishPoints.toLocaleString()}.${badgeNew ? ' Earned the 🔺 Hero of Time badge.' : ''}`
+                      : done ? `Assembled the ${piece.name}: ${piece.does}` : `Shard ${have} of ${TRIFORCE.shards} of the ${piece.name}.`,
+                    scoreChange: allDone ? TRIFORCE.wishPoints : 0, cumulativeScore: score };
+                const card: ModalContent | null = done ? { type: 'triforce', title: allDone ? 'The Triforce' : piece.name, data: { got: id, wish: allDone, badgeNew } } : null;
+                return {
+                    ...state,
+                    modalQueue: card ? [...state.modalQueue, card] : state.modalQueue,
+                    gameState: {
+                        ...gameState, triforce, charmCooldowns, score, log: [...gameState.log, entry],
+                        ...(allDone ? { triforceWish: true } : {}),
+                        lastPowerPlayResult: { message: done ? `🔺 ${piece.name} assembled!` : `🔺 Shard ${have} of ${TRIFORCE.shards}: ${piece.name}. ${TRIFORCE.shards - have} to go.`, scoreChange: 0 },
+                    },
+                };
+            }
             let newHand = hand;
             let returnedBag = state.tileBag;
             let newGameState = { ...gameState };
@@ -3337,7 +3408,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   }, []);
 
   // 👓 Where's Waldo? (a charm): each new hand, one tile that starts a playable word glows.
-  const waldoOn = !!gameState?.activeCharms?.some(c => c.id === 'wheresWaldo');
+  const wisdomOn = triforceDone(gameState, 'wisdom');
+  const waldoOn = !wisdomOn && !!gameState?.activeCharms?.some(c => c.id === 'wheresWaldo');
   const handKey = (state.hand ?? []).map(t => t?.id ?? '-').join(',');
   useEffect(() => {
       if (!waldoOn || state.highlightedTileIds.first || state.gameState?.roundType === 'golden') return;
@@ -3351,6 +3423,23 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       });
       return () => { cancelled = true; };
   }, [waldoOn, handKey]);
+  // 🔺 Triforce of Wisdom (v7.69.0): each new hand, Zelda lights up the tiles of a long word you can play.
+  useEffect(() => {
+      if (!wisdomOn || state.highlightedTileIds.first || state.gameState?.roundType === 'golden') return;
+      const tiles = (state.hand ?? []).filter((t): t is Tile => t !== null);
+      if (tiles.length < 4) return;
+      let cancelled = false;
+      const letters = tiles.map(t => t.letter);
+      (async () => {
+          const word = (await dictionaryService.findPlayableWord(letters, { minLength: TRIFORCE.wisdomMinLetters, longest: true }))
+              ?? (await dictionaryService.findPlayableWord(letters, { minLength: 4, longest: true }));
+          if (cancelled || !word) return;
+          const idx = assignTilesToWord(word.toUpperCase(), letters) ?? [];
+          if (!idx.length) return;
+          dispatch({ type: 'SET_HIGHLIGHTED_TILES', payload: { first: tiles[idx[0]].id, rest: idx.slice(1).map(i => tiles[i].id) } });
+      })();
+      return () => { cancelled = true; };
+  }, [wisdomOn, handKey]);
 
   const isStrikeChallenge = useMemo(() => (gameState?.challengeCount ?? 0) <= 0, [gameState?.challengeCount]);
   const strikesRemaining = useMemo(() => maxStrikes - (gameState?.strikes ?? 0), [maxStrikes, gameState?.strikes]);
@@ -3674,6 +3763,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               return;
           }
           
+          // Triforce of Courage (v7.69.0): once a level, out of time means +15 seconds instead.
+          if (gameState && triforceDone(gameState, 'courage') && gameState.courageLevel !== runLevel(gameState)) {
+              dispatch({ type: 'COURAGE_CLOCK' });
+              soundService.playPowerUp();
+              return;
+          }
           // Deep Freeze (PowerPlay) check first
           if (gameState?.activePowerPlays?.deepFreeze) {
               dispatch({ type: 'PAUSE_GAME' });
@@ -4934,6 +5029,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           showToast(`💙 BLUE STEEL! x${BLUE_STEEL.multiplier}: +${extra.toLocaleString()}`, 3000);
       }
 
+      // Triforce of Power (v7.69.0): every word scores x1.5 on everything it earned above. 0 means 0 holds.
+      if (triforceDone(newState, 'power') && !wordLocked && runningScore > oldScore) {
+          const extra = Math.round((runningScore - oldScore) * (TRIFORCE.powerMultiplier - 1));
+          runningScore += extra;
+          scoreResult.bonuses.push({ name: '🔺 Triforce of Power', description: `+${extra.toLocaleString()} pts (x${TRIFORCE.powerMultiplier} whole word)` });
+      }
+
       // --- 6. Aggregate Score and Check Aggregate Bonuses ---
       const turnScorePreMilestone = runningScore - oldScore;
 
@@ -5374,7 +5476,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           );
           const charmOffer = gameUtils.getOffer(charmsToOfferFrom, 3, newState) as { offeredItems: Charm[]; offerDetails: { id: string; score: number }[] };
           // Charm sets (v7.41): with part of a set held, the last card is sometimes a missing piece.
-          const { offeredItems: offeredCharms, offerDetails } = pullSetPiece(charmOffer, charmsToOfferFrom, newState);
+          const { offeredItems: offeredCharms, offerDetails } = dealShard(pullSetPiece(charmOffer, charmsToOfferFrom, newState), newState);
 
           if(offeredCharms.length > 0) {
             if (offeredCharms.some(c => c.id === PHOENIX_DOWN.id)) newState.phoenixOffered = true;

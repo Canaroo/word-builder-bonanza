@@ -1,5 +1,8 @@
 import { Sec, withSec } from '../../components/Seconds';
 import EndRunCard from '../../components/EndRunCard';
+import TriforceEmblem from '../../components/TriforceEmblem';
+import { TRIFORCE_IDS, TRIFORCE_PIECES, anyShards, shardsOf, triforceDone } from '../../data/triforce';
+import { TRIFORCE } from '../../config/gameplay';
 import React, { useEffect, useRef, useState } from 'react';
 import ArcadeButton from '../../components/ArcadeButton';
 import ShuffleButton from '../../components/ShuffleButton';
@@ -40,7 +43,7 @@ import ModalTapGuard, { GUARDLESS_MODALS } from '../../components/ModalTapGuard'
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
-  type: 'milestone' | 'blue-steel' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'scratch' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack';
+  type: 'milestone' | 'blue-steel' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'scratch' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack' | 'triforce';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -290,6 +293,23 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
               </span>
             );
           })() : null;
+    // Fragile charms (v7.69.0): the Triforce shelf, once a shard is collected. Tap it for the details.
+    const triforceChip = anyShards(gameState) ? (() => {
+        const best = [...TRIFORCE_IDS].sort((a, b) => shardsOf(gameState, b) - shardsOf(gameState, a));
+        const done = TRIFORCE_IDS.filter(id => triforceDone(gameState, id));
+        const building = best.find(id => !triforceDone(gameState, id) && shardsOf(gameState, id) > 0);
+        const text = done.length === 3 ? 'TRIFORCE COMPLETE' : [
+            ...done.map(id => `${TRIFORCE_PIECES[id].name.replace('Triforce of ', '').toUpperCase()} ✓`),
+            ...(building ? [`${TRIFORCE_PIECES[building].name.replace('Triforce of ', '').toUpperCase()} ${shardsOf(gameState, building)}/${TRIFORCE.shards}`] : []),
+        ].join(' · ');
+        return (
+            <button type="button" data-testid="triforce-chip" onClick={() => dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'triforce', title: 'The Triforce' } })}
+              className="flex items-center gap-1 rounded-full pl-1 pr-2 py-0.5 text-xs text-white whitespace-nowrap ring-1 ring-neon-yellow/60 bg-neon-yellow/10"
+              aria-label={`Triforce: ${text}. Tap for details.`}>
+              <TriforceEmblem triforce={gameState?.triforce} size={20} /><span>🔺 {text}</span>
+            </button>
+        );
+    })() : null;
     // The Golden Tile's letter, wherever it sits (rack or word row), for the Golden Round banner.
     const goldenLetter = gameState?.goldenTileId
       ? [...(hand ?? []), ...(buildRow ?? []).map(i => i?.tile)].find(t => t?.id === gameState.goldenTileId)?.letter
@@ -386,6 +406,39 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     </div>
                 );
 
+            case 'triforce': {
+                // Fragile charms (v7.69.0): a finished piece ("item get"), the whole Triforce, or the shelf (tapped chip).
+                const got = data?.got as keyof typeof TRIFORCE_PIECES | undefined;
+                const wish = !!data?.wish;
+                return (
+                    <div className="absolute inset-0 bg-crt-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-3 animate-fade-in" role="dialog" aria-modal="true" aria-label={title}>
+                        <div className="bg-crt-900 border-4 border-neon-yellow shadow-[0_0_28px_rgba(255,216,77,0.5)] rounded-2xl px-4 py-5 max-w-md w-full flex flex-col items-center text-center gap-3 level-stage-in">
+                            <p className="osd-text text-lg tracking-[0.3em] text-neon-yellow">{wish ? 'WISH GRANTED' : got ? 'YOU GOT IT!' : 'FRAGILE CHARMS'}</p>
+                            <TriforceEmblem triforce={gameState?.triforce} size={120} className={got ? 'level-stage-in' : ''} />
+                            <h2 className="font-display text-2xl text-white leading-tight">{wish ? '🔺 THE TRIFORCE IS WHOLE!' : got ? `🔺 ${TRIFORCE_PIECES[got].name.toUpperCase()}` : '🔺 THE TRIFORCE'}</h2>
+                            {wish && <p className="font-display text-2xl text-neon-green">+{TRIFORCE.wishPoints.toLocaleString()}</p>}
+                            {wish && data?.badgeNew && <p className="text-neon-yellow text-sm">New badge: 🔺 Hero of Time</p>}
+                            {got && !wish && <p className="text-slate-200 leading-snug">{TRIFORCE_PIECES[got].does}</p>}
+                            {!got && (
+                                <p className="text-slate-300 text-sm leading-snug">Some charm offers hold a shard. Collect {TRIFORCE.shards} shards to assemble a piece. A shard does nothing on its own, and the Triforce never uses a charm slot. All three pieces in one run: +{TRIFORCE.wishPoints.toLocaleString()}.</p>
+                            )}
+                            <ul className="w-full text-left space-y-1.5">
+                                {TRIFORCE_IDS.map(id => {
+                                    const have = shardsOf(gameState, id); const done = triforceDone(gameState, id);
+                                    return (
+                                        <li key={id} className={`rounded-lg px-2.5 py-1.5 ring-1 ${done ? 'ring-neon-green/60 bg-neon-green/10' : 'ring-white/10 bg-crt-950/60'}`}>
+                                            <span className="font-display text-sm" style={{ color: TRIFORCE_PIECES[id].color }}>{TRIFORCE_PIECES[id].name}</span>
+                                            <span className="osd-text text-base ml-2 text-slate-300">{done ? '✓ ACTIVE' : `${have}/${TRIFORCE.shards} SHARDS`}</span>
+                                            <span className="block text-xs text-slate-400 leading-snug">{TRIFORCE_PIECES[id].does}</span>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                            <ArcadeButton color="yellow" className="w-full" onClick={handleCloseModal}>{got ? 'Hyaaa! Continue' : 'Close'}</ArcadeButton>
+                        </div>
+                    </div>
+                );
+            }
             case 'gem-intro': {
                 const mult = Number(data?.multiplier) || 3;
                 return (
@@ -574,6 +627,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         onChoose={(charm, replaceId) => handleChooseCharm(charm, offered, replaceId)}
                         onPass={() => handlePassCharm(offered)}
                         level={levelFor(totalWords)}
+                        triforce={gameState?.triforce}
                     />
                 );
             }
@@ -1241,7 +1295,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           </div>
         </div>
 
-        {(holdOpen || speedChip || setChip) && (
+        {(holdOpen || speedChip || setChip || triforceChip) && (
           <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
             {holdOpen && (
               <button type="button" onPointerDown={e => { e.preventDefault(); handleHoldTap?.(); }} onClick={e => { if (e.detail === 0) handleHoldTap?.(); }}
@@ -1255,6 +1309,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             )}
             {speedChip}
             {setChip}
+            {triforceChip}
           </div>
         )}
 

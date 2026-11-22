@@ -115,6 +115,8 @@ const VibezScreen: React.FC<VibezScreenProps> = ({
       action = <span className="osd-text text-base leading-none text-neon-yellow text-right">🦆 PLAY QUA<br />4x IN A RUN</span>;
     } else if (item.earnedBy === 'zoo') {
       action = <span className="osd-text text-base leading-none text-neon-cyan text-right">💙 PLAY ZOO<br />4x IN A RUN</span>;
+    } else if (item.earnedBy === 'triforce') {
+      action = <span className="osd-text text-base leading-none text-neon-yellow text-right">🔺 COMPLETE THE<br />TRIFORCE</span>;
     } else if (item.earnedBy === '70k') {
       action = <span className="osd-text text-base leading-none text-neon-cyan text-right">💎 REACH<br />70,000</span>;
     } else if (item.streakDay) {
