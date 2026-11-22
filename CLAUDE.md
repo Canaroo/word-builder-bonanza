@@ -243,6 +243,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   in the log by name, points or seconds), POCKET (with ▶ USE), RUNNING NOW (timers via `progressFor`,
   shared with the tray), CHARM SETS (pays now, what the next piece adds and which charm), TRIFORCE
   SHARDS (emblem + pieces). Tap any row: a ▶ cursor and the description box at the bottom explain it.
+  **v7.71.1 (the owner's call): above the tiles is for what changes your next word or needs a tap.**
+  The charm set, Triforce and Hadouken chips left (Gear has them; Hadouken shows ×N in the strip).
+  Kept: HOLD, Jenga, power word hint, Skill Shot, Head Start, Pop Quiz, the race, bids and calls,
+  Inception, the speed streak, Greatest Hits and Tamagotchi. The GEAR strip glows gold for 3.5 s when
+  a shard, a new charm or an upgrade lands (`gearGlow`, not on a resume).
 - **How offers are drawn (`getOffer` in `services/gameUtils.ts`; checked v7.67.2, the owner's ask).**
   Pool: everything not held or active, not shown in the last 3 words (`charmCooldowns`,
   `powerPlayCooldowns`), not a taken once-per-run PowerPlay, and not one that can't work yet

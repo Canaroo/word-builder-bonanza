@@ -89,7 +89,7 @@ const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string
     const each = prizeFor(V.inceptionPerWord, levelFor((gameState?.log ?? []).filter(e => e.type === 'word' && (e as { status?: string }).status === 'valid').length));
     chips.push(<Chip key="inception" icon="🌀" label={`Inception: every real word hiding inside your next ${a.inception.words} words pays ${each}`}>WORDS INSIDE WORDS +{each} EACH · {a.inception.words} LEFT</Chip>);
   }
-  if (a.hadouken) chips.push(<Chip key="hadouken" icon="💥" label={`Hadouken: ${a.hadouken.hits} boss hits saved`}>×{a.hadouken.hits}{gameState.boss ? '' : ' · next boss'}</Chip>);
+  // v7.71.1: Hadouken! waits for a boss on its own; it shows in the Gear strip and menu, not here.
   if (a.priceIsRight) chips.push(<Chip key="price" icon="🏷️" label={`Bid: ${a.priceIsRight.bid} or more for ${a.priceIsRight.prize}, miss and lose ${a.priceIsRight.miss ?? 0}`}>{a.priceIsRight.bid}+ → +{a.priceIsRight.prize}{a.priceIsRight.miss ? ` / -${a.priceIsRight.miss}` : ''}</Chip>);
   if (a.psychicFriends && typeof a.psychicFriends.letters === 'number') chips.push(<Chip key="psychic" icon="🔮" label={`Psychic call: ${a.psychicFriends.letters}${a.psychicFriends.orMore ? ' or more' : ''} letters for ${a.psychicFriends.prize}`}>CALLED: {a.psychicFriends.letters}{a.psychicFriends.orMore ? '+' : ''} LETTERS · +{a.psychicFriends.prize}</Chip>);
   if (!chips.length) return null;
