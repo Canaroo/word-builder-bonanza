@@ -341,6 +341,13 @@ export const FRAGILE = {
   majorAwardStep: 50,         // ...+50 more for every...
   majorAwardEvery: 10,        // ...10 words it survives...
   majorAwardMax: 300,         // ...up to +300 a word
+  // 🐷 Hamm's Piggy Bank (v7.73.0, the owner's pick): 30% of every word's score goes in, the bank
+  // earns 5% a word, up to 15,000. Hold the chip to smash it and collect; a slip loses it all.
+  // Simulated (180-point words): 679 at 10 words, 1,786 at 20, 6,523 at 40, the cap near 58.
+  piggyDeposit: 30,           // % of each word's score copied into the bank (the word keeps it all)
+  piggyInterest: 5,           // % the bank grows every valid word
+  piggyMax: 15000,
+  piggyHoldMs: 700,           // hold the 🐷 chip this long to smash it
   crystalBallSeconds: 5,      // 🔮 Crystal Ball: every valid word adds this much charm time
 } as const;
 

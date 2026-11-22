@@ -282,6 +282,7 @@ type GameAction =
     | { type: 'RESTORE_LAST_TURN' }
     | { type: 'SET_HIGHLIGHTED_TILES', payload: { first: string | null; rest: string[] } }
     | { type: 'ZELDA_PLACE', payload: { word: string; tileIds: string[] } }
+    | { type: 'SMASH_PIGGY' }
     | { type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: boolean }
     | { type: 'CHARM_PAYOUT', payload: { id: string; points: number; description: string } }
     | { type: 'RESUME_COUNTDOWN_TICK' }
@@ -720,6 +721,25 @@ export function withBuildRowReturned<T extends Pick<GameScreenState, 'hand' | 'b
     return { ...state, hand, buildRow: Array(BUILD_ROW_SIZE).fill(null) };
 }
 
+/** 🐷 Hamm's Piggy Bank after one valid word: interest first, then the word's share, up to the cap. */
+export const piggyAfterWord = (bank: number, wordScore: number): number =>
+    Math.min(FRAGILE.piggyMax, Math.round(bank * (1 + FRAGILE.piggyInterest / 100) + wordScore * FRAGILE.piggyDeposit / 100));
+
+/** Pays out Hamm's savings (smashed by the player, or the run ending with him whole) and removes him. */
+export const smashPiggy = (gs: GameState, how: 'smash' | 'end'): { gameState: GameState; points: number } | null => {
+    const charm = gs.activeCharms.find(c => c.id === 'hammPiggyBank');
+    if (!charm) return null;
+    const points = gs.piggyBank ?? 0;
+    const score = gs.score + points;
+    const entry: EventLogEntry = { type: 'event', id: `piggy-${Date.now()}`, name: charm.name, icon: '🐷',
+        description: how === 'smash' ? `Smashed Hamm: +${points.toLocaleString()} points.` : `The run ended with Hamm in one piece: +${points.toLocaleString()} points.`, scoreChange: points, cumulativeScore: score };
+    return { points, gameState: { ...gs, score, piggyBank: 0,
+        activeCharms: gs.activeCharms.filter(c => c.id !== charm.id),
+        activeBuffs: gs.activeBuffs.filter(b => b.id !== charm.id),
+        shatteredCharms: [...new Set([...(gs.shatteredCharms ?? []), charm.id])],
+        log: [...gs.log, entry] } };
+};
+
 /** Triforce of Wisdom: moves the given hand tiles, in order, into an empty word row (null if one is missing). */
 export function zeldaPlace<T extends Pick<GameScreenState, 'hand' | 'buildRow'>>(state: T, tileIds: string[]): T | null {
     const hand = [...state.hand];
@@ -758,15 +778,19 @@ function shatterFragile(state: GameScreenState, next: GameScreenState, action: G
     const ids = glass.map(c => c.id);
     const parts = glass.map(c => `${c.icon} ${c.name}`);
     const names = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
+    // 🐷 Hamm's savings spill out and are lost with him (v7.73.0).
+    const lost = ids.includes('hammPiggyBank') ? (gs.piggyBank ?? 0) : 0;
+    const lostNote = lost > 0 ? ` Hamm's ${lost.toLocaleString()} in savings went with him.` : '';
     const entry: EventLogEntry = { type: 'event', id: `shatter-${Date.now()}`, name: 'Fragile charm shattered', icon: '💥',
-        description: `${names} shattered. ${glass.length > 1 ? "They're" : "It's"} gone for the rest of the run.`, scoreChange: 0, cumulativeScore: gs.score };
+        description: `${names} shattered. ${glass.length > 1 ? "They're" : "It's"} gone for the rest of the run.${lostNote}`, scoreChange: 0, cumulativeScore: gs.score };
     const card: ModalContent = outcome({ icon: '💥', name: 'Fragile charm' }, glass.length > 1 ? '💥 FRAGILE CHARMS SHATTERED' : `💥 ${glass[0].name.toUpperCase()} SHATTERED`,
-        `${names} ${glass.length > 1 ? 'are' : 'is'} gone for the rest of the run. Fragile charms break on any invalid word or strike, and nothing protects them.`, 'lose');
+        `${names} ${glass.length > 1 ? 'are' : 'is'} gone for the rest of the run.${lostNote} Fragile charms break on any invalid word or strike, and nothing protects them.`, 'lose');
     const gameState: GameState = { ...gs,
         activeCharms: gs.activeCharms.filter(c => !c.breaks),
         activeBuffs: gs.activeBuffs.filter(b => !ids.includes(b.id)),
         charmUpgrades: (gs.charmUpgrades ?? []).filter(id => !ids.includes(id)),
         shatteredCharms: [...new Set([...(gs.shatteredCharms ?? []), ...ids])],
+        ...(lost > 0 || ids.includes('hammPiggyBank') ? { piggyBank: 0 } : {}),
         log: [...gs.log, entry] };
     return next.modalContent
         ? { ...next, gameState, modalQueue: [...next.modalQueue, card] }
@@ -1085,6 +1109,13 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             return { ...state, isPaused: true,
                 modalContent: outcome(ticket, `+${pts} POINTS`, 'Your PowerPlay pocket was full, so the ticket paid points instead.', 'win'),
                 gameState: { ...gameState, score: gameState.score + pts, log: [...gameState.log, log(`Banked +${pts} points.`, pts, gameState.score + pts)] } };
+        }
+        case 'SMASH_PIGGY': {
+            // 🐷 Hamm's Piggy Bank (v7.73.0): smash him and collect. He's gone for the rest of the run.
+            const paid = smashPiggy(gameState, 'smash');
+            if (!paid) return state;
+            return { ...state, isPaused: true, gameState: paid.gameState,
+                modalContent: outcome({ icon: '🐷', name: "Hamm's Piggy Bank" }, `🔨 SMASH! +${paid.points.toLocaleString()}`, `Hamm's savings are yours: +${paid.points.toLocaleString()} points. He's in pieces now, so he's gone for the rest of the run.`, 'win') };
         }
         case 'ZELDA_PLACE': {
             // Triforce of Wisdom (v7.72.0, the owner's design): once a level, Zelda puts the longest word
@@ -1912,6 +1943,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             // Tick-Tock Croc counts from the moment it's equipped.
             if (charm.id === 'tickTockCroc') newGameState.crocWords = 0;
             if (charm.id === 'majorAward') newGameState.majorAwardWords = 0;
+            if (charm.id === 'hammPiggyBank') newGameState.piggyBank = 0;
             let newTime = state.time;
 
             // Charm slots: a new charm beyond the limit must replace one.
@@ -3018,6 +3050,11 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         // The run is over (v7.42): Last Words first (one untimed word from the final hand, once),
         // then the Game Over summary.
         case 'END_RUN': {
+            // 🐷 Hamm's Piggy Bank (v7.73.0): a run that ends with him whole pays out his savings.
+            if (state.gameState.activeCharms.some(c => c.id === 'hammPiggyBank')) {
+                const paid = smashPiggy(state.gameState, 'end');
+                if (paid) state = { ...state, gameState: paid.gameState };
+            }
             const tilesLeft = [...state.hand, ...state.buildRow.map(b => b?.tile ?? null)].filter(Boolean).length;
             if (state.gameState.lastWordsDone || tilesLeft < 3) return gameReducer(state, { type: 'GAME_OVER_INITIATED', payload: action.payload });
             const back = withBuildRowReturned(state);
@@ -5117,6 +5154,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       // --- 6. Aggregate Score and Check Aggregate Bonuses ---
       const turnScorePreMilestone = runningScore - oldScore;
+
+      // 🐷 Hamm's Piggy Bank (v7.73.0, fragile): interest on the savings, then a share of this word's
+      // full score (after every multiplier) goes in. The word keeps its points; the bank is extra.
+      if (newState.activeCharms.some(c => c.id === 'hammPiggyBank')) {
+          newState.piggyBank = piggyAfterWord(newState.piggyBank ?? 0, Math.max(0, turnScorePreMilestone));
+      }
 
       // Quack Attack (v7.54.0): QUA's fourth play this run. The x4 starts with the next word (armed
       // after this word's countdowns, below), and the Quack Pack badge is earned for good.

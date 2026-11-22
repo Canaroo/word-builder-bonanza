@@ -45,7 +45,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | Scoring | `services/gameUtils.ts` `calculateScore` |
 | Game state, reducer, turn logic | `services/screens/GameScreen.tsx` (large) |
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
-| PowerPlays / charms (104 / 111) | `data/powerPlays.ts`, `data/charms.ts` |
+| PowerPlays / charms (104 / 112) | `data/powerPlays.ts`, `data/charms.ts` |
 | Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
 | Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Hold Slot, Grudge Match, Bones; the scratch-off ticket (v7.66, where the Fork was) | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `SCRATCH`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`, `services/scratch.ts`; cards in `components/` (`LastWordsCard`, `ScratchCard`, `BonesCard`) |
 | Secret bonuses (121 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
@@ -263,6 +263,18 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   offered again (charm offers, Lucky Charms). 💔 FRAGILE tag on offer cards, 💔 on the slot and the
   buffs tray, a "💥 ... SHATTERED" card. Not upgradable, not in sets or the scratch list. The
   Triforce pieces are now called "Triforce shards" in player text (the owner calls these fragile).
+- **🐷 Hamm's Piggy Bank (v7.73.0, the owner's pick of three designs)** (`hammPiggyBank`, a fragile
+  charm; `piggy*` in `FRAGILE`, `piggyAfterWord`/`smashPiggy` in `GameScreen.tsx`, `gameState.piggyBank`):
+  every valid word adds 30% of its full score (after every multiplier, before secrets, milestones and
+  Greatest Hits) to the bank, which first earns 5% interest, up to 15,000. The word keeps all its
+  points. Hold the 🐷 chip above the tiles (`piggyHoldMs` 700, `SMASH_PIGGY`) to smash him: he pays out
+  and is gone for the run (into `shatteredCharms`). A slip shatters him and the savings are lost (the
+  shatter card says how much). A run that ends with him whole pays out in `END_RUN`. Simulated on
+  180-point words: 679 at 10 words, 1,786 at 20, 6,523 at 40, full near 58. Best-play expected value
+  about 1,560 for a careless player (a slip every 25 words) and 8,500 for a careful one (every 100),
+  against Major Award's 3,255 / 16,866: lower, since the player picks the moment and gets the slot
+  back. The owner also chose: future fragile multipliers add their bonuses instead of multiplying
+  (x2.5 + x2 = x3.5); the Triforce of Power still multiplies on top.
 - **Your Gear menu (v7.71.0, the owner's idea and picks)** (`components/GearMenu.tsx`, `gear`
   modal): the buffs tray is now a slim strip of icons (🎒 GEAR n/5, timers and ⭐/💔 marks) that opens
   an old-school RPG menu when tapped anywhere (it used to be one info card per icon). The menu covers

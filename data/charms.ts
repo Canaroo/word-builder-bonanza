@@ -1018,6 +1018,18 @@ export const CHARMS_LIST: Charm[] = [
     activate: createPassiveBuff('majorAward'),
   },
   {
+    id: 'hammPiggyBank',
+    name: "Hamm's Piggy Bank",
+    description: `💔 FRAGILE: ${FRAGILE.piggyDeposit}% of every word's score also goes into Hamm (your word keeps all its points), and his savings grow ${FRAGILE.piggyInterest}% with every word, up to ${FRAGILE.piggyMax.toLocaleString()}. Hold the 🐷 chip above your tiles to smash him and collect. An invalid word or a strike shatters him and the savings are gone. If your run ends with him in one piece, you collect.`,
+    flavorText: "That's Mr. Evil Dr. Porkchop to you. (Toy Story)",
+    icon: '🐷',
+    subtheme: 'score',
+    effectType: 'passive',
+    durationTag: 'PERSISTENT',
+    breaks: true,
+    activate: createPassiveBuff('hammPiggyBank'),
+  },
+  {
     id: 'crystalBall',
     name: 'Crystal Ball',
     description: `💔 FRAGILE: Every word adds +${FRAGILE.crystalBallSeconds} seconds to your clock. It shatters for the rest of the run the moment you play an invalid word or take a strike. Nothing protects it.`,

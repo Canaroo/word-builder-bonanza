@@ -350,6 +350,8 @@ export interface GameState {
   shatteredCharms?: string[];
   /** Major Award: valid words played since it was equipped. */
   majorAwardWords?: number;
+  /** 🐷 Hamm's Piggy Bank (v7.73.0): what's saved in it. */
+  piggyBank?: number;
   /** Greatest Hits (v7.52.0): the word lengths whose record already paid this run (3 = GOLD...). */
   hitsClaimed?: number[];
   /** Quack Attack (v7.54.0): QUA's fourth play already paid this run. */
