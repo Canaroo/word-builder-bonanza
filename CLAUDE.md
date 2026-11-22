@@ -234,6 +234,15 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   offered again (charm offers, Lucky Charms). 💔 FRAGILE tag on offer cards, 💔 on the slot and the
   buffs tray, a "💥 ... SHATTERED" card. Not upgradable, not in sets or the scratch list. The
   Triforce pieces are now called "Triforce shards" in player text (the owner calls these fragile).
+- **Your Gear menu (v7.71.0, the owner's idea and picks)** (`components/GearMenu.tsx`, `gear`
+  modal): the buffs tray is now a slim strip of icons (🎒 GEAR n/5, timers and ⭐/💔 marks) that opens
+  an old-school RPG menu when tapped anywhere (it used to be one info card per icon). The menu covers
+  the board and pauses the clock (a modal: `isPaused`; browser-checked: 49 → 49 while open). Boxes:
+  RUN STATUS (strikes left and what protects you, fragile warning, clock speed and word-time %,
+  prize multiplier), CHARMS (each with what it earned this run: `earnedThisRun` sums its score lines
+  in the log by name, points or seconds), POCKET (with ▶ USE), RUNNING NOW (timers via `progressFor`,
+  shared with the tray), CHARM SETS (pays now, what the next piece adds and which charm), TRIFORCE
+  SHARDS (emblem + pieces). Tap any row: a ▶ cursor and the description box at the bottom explain it.
 - **How offers are drawn (`getOffer` in `services/gameUtils.ts`; checked v7.67.2, the owner's ask).**
   Pool: everything not held or active, not shown in the last 3 words (`charmCooldowns`,
   `powerPlayCooldowns`), not a taken once-per-run PowerPlay, and not one that can't work yet
