@@ -200,6 +200,15 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   HIT and STAND, the 16-card deck dealt up front and saved. It was a card per word with a chip to
   stand (picked 5 of 26 offers, used 4 times); the old per-word game and `BLACKJACK_STAND` still
   settle saved runs. Simulated: about +142 a hand on average, paying in about half of hands.
+- **Fortune's Favor is a Magic 8-Ball card (v7.72.5, the owner's ask: it told you the result
+  instantly)** (`FortuneBall` in `GambleCard.tsx`, `fortuneRoll`/`fortunePoints`/`FORTUNE_ANSWERS` in
+  `services/rules.ts`, `fortune*` in `POWER_PLAY_VALUES`): tap the ball or SHAKE IT! 3 times (it
+  wobbles, buzzes, dots fill), the window goes murky for 1.5 s ("THE ANSWER IS RISING…"), then the
+  blue triangle fades up with a real 8-Ball answer ("OUTLOOK NOT SO GOOD", "IT IS CERTAIN",
+  "WITHOUT A DOUBT"...) and Take/Continue pays through `APPLY_GAMBLE`. Same odds and amounts (40%
+  -200, 50% +250, 10% +500), rolled when the card opens and saved. Wins now grow with the level like
+  every other gamble prize (it's in `PRIZE_POWER_PLAY_IDS`): about +95 on average at level 1, +165
+  at level 6; the loss stays 200.
 - **Fragile charms: the Triforce (v7.69.0, the owner's idea and picks)** (`data/triforce.ts`,
   `TRIFORCE` in `config/gameplay.ts`, `components/TriforceEmblem.tsx`, `dealShard` in
   `GameScreen.tsx`): three pieces, each built from 3 shards taken from charm offers. A shard is

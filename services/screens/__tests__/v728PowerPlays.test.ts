@@ -360,6 +360,26 @@ describe('Chicken Dinner blackjack card and Gump Luck box (v7.67.1)', () => {
     });
 });
 
+describe("Fortune's Favor: a Magic 8-Ball card (v7.72.5)", () => {
+    test('it opens a card from the pocket, with the same odds and amounts as before', async () => {
+        const { GAMBLE_CARD_IDS } = await import('../../../components/GambleCard');
+        expect(GAMBLE_CARD_IDS).toContain('fortunesFavor');
+        const { fortuneRoll, fortunePoints } = await import('../../rules');
+        const kinds = [0, 0.39, 0.4, 0.89, 0.9, 0.99].map(r => fortuneRoll(() => r).kind);
+        expect(kinds).toEqual(['lose', 'lose', 'win', 'win', 'jackpot', 'jackpot']);
+        expect([fortunePoints('lose'), fortunePoints('win'), fortunePoints('jackpot')]).toEqual([-200, 250, 500]);
+        expect(pp('fortunesFavor').description).toContain('+250');
+    });
+    test('a win grows with the level like other gamble prizes; a loss stays 200', () => {
+        const log = Array.from({ length: 5 * 18 }, () => ({ type: 'word', word: 'CAT', status: 'valid', score: 5, baseScore: 5, bonuses: [], definition: '', cumulativeScore: 5 })) as any;
+        const s = start({ score: 1000, log });
+        const win = gameReducer(s, { type: 'APPLY_GAMBLE', payload: { powerPlay: pp('fortunesFavor'), points: 250, headline: '+250 POINTS', detail: 'x', tone: 'win' } } as any);
+        expect(win.gameState.score).toBeGreaterThan(1250);
+        const lose = gameReducer(s, { type: 'APPLY_GAMBLE', payload: { powerPlay: pp('fortunesFavor'), points: -200, headline: '-200 POINTS', detail: 'x', tone: 'lose' } } as any);
+        expect(lose.gameState.score).toBe(800);
+    });
+});
+
 describe('PowerPlays that fire on pick (v7.67.7)', () => {
     const pick = (s: GameScreenState, id: string) => gameReducer({ ...s, gameState: { ...s.gameState, powerPlayOffer: [pp(id)] } }, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp(id), allOffered: [pp(id)] } });
     test('Hadouken! arms on pick instead of going to the pocket', () => {

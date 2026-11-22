@@ -436,8 +436,8 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'fortunesFavor', 
     name: "Fortune's Favor", 
-    description: 'Shake the magic eight ball: 40% chance to lose 200 points, 50% chance to gain 250 points, or 10% chance to gain 500 points.',
-    flavorText: 'A gamble for the bold.',
+    description: `Shake the Magic 8-Ball ${POWER_PLAY_VALUES.fortuneShakes} times and read its answer: ${Math.round((1 - POWER_PLAY_VALUES.fortuneLoseChance - POWER_PLAY_VALUES.fortuneJackpotChance) * 100)}% it says yes (+${POWER_PLAY_VALUES.fortuneWin} points), ${Math.round(POWER_PLAY_VALUES.fortuneJackpotChance * 100)}% "without a doubt" (+${POWER_PLAY_VALUES.fortuneJackpot}), ${Math.round(POWER_PLAY_VALUES.fortuneLoseChance * 100)}% "outlook not so good" (you lose ${POWER_PLAY_VALUES.fortuneLose}).`,
+    flavorText: 'Reply hazy, try again. (Just kidding. Shake it.)',
     icon: '🎱',
     subtheme: 'score',
     effectType: 'immediate',
@@ -1456,7 +1456,7 @@ export const PRIZE_POWER_PLAY_IDS: ReadonlySet<string> = new Set([
   'dailyDouble', // v7.58.0: the win is a flat prize now
   'letsMakeADeal', 'dealOrNoDeal', 'noWhammies', 'minesweeper', 'cardSharks', 'plinko', 'chickenDinner',
   'fluncleIsProud', 'actClear', 'priceIsRight', 'tamagotchi', 'smellYaLater', 'popQuizHotshot',
-  'withGreatPower', 'gumpLuck', 'warioWarp', 'thanosGift', 'wildcard', 'psychicFriends',
+  'withGreatPower', 'gumpLuck', 'fortunesFavor', 'warioWarp', 'thanosGift', 'wildcard', 'psychicFriends',
   'shakeItLikeAPolaroid', 'duckHunt', 'missionImpossible',
   'inception', 'jenga', // v7.62.0
   'fifthGrader', // v7.65.0

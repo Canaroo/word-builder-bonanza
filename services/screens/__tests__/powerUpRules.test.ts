@@ -727,11 +727,11 @@ describe('closing the last pop-up after a word starts the next round', () => {
 });
 
 describe('chance PowerPlays show their result on a card that waits for Continue', () => {
-    test("Fortune's Favor opens an outcome card (no auto-close) with the roll's points", () => {
-        const after = gameReducer({ ...start({ score: 1000 }), modalContent: null }, { type: 'ACTIVATE_POWER_PLAY', payload: pp('fortunesFavor') } as any);
+    test("Fortune's Favor (an 8-Ball card since v7.72.5) shows its result on an outcome card that waits", () => {
+        const after = gameReducer({ ...start({ score: 1000 }), modalContent: null }, { type: 'APPLY_GAMBLE', payload: { powerPlay: pp('fortunesFavor'), points: -200, headline: '-200 POINTS', detail: 'x', tone: 'lose' } } as any);
         expect(after.modalContent).toMatchObject({ type: 'outcome', title: pp('fortunesFavor').name });
         expect(after.modalContent!.autoClose).toBeUndefined();
-        expect((after.modalContent!.data as any).headline).toMatch(/POINTS$/);
+        expect(after.gameState.score).toBe(800);
         expect(after.isPaused).toBe(true);
     });
     test('outcome cards start the next round when they close after a word', () => {

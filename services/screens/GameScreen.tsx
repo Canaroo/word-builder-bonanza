@@ -2220,33 +2220,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             let newModalContent: ModalContent = null;
             let shouldPause = false;
 
-            if (powerPlay.id === 'fortunesFavor') {
-                const rand = Math.random();
-                let scoreChange = 0;
-                let message = '';
-        
-                if (rand < 0.4) { // 40%
-                    scoreChange = -200;
-                    message = 'Outlook not so good... You lost 200 points.';
-                } else if (rand < 0.9) { // 50%
-                    scoreChange = 250;
-                    message = 'It is certain! You gained 250 points.';
-                } else { // 10%
-                    scoreChange = 500;
-                    message = 'As I see it, yes! You gained 500 points!';
-                }
-        
-                const newScore = Math.max(0, state.gameState.score + scoreChange);
-                const actualScoreChange = newScore - state.gameState.score;
-                newLog.push({
-                  type: 'event', id: `pp-${powerPlay.id}-${Date.now()}`, name: powerPlay.name,
-                  description: message, icon: '🎱',
-                  scoreChange: actualScoreChange, cumulativeScore: newScore
-                });
-                changes = { score: newScore, log: newLog };
-                newModalContent = outcome(powerPlay, `${actualScoreChange >= 0 ? '+' : ''}${actualScoreChange} POINTS`, message, actualScoreChange >= 0 ? 'win' : 'lose');
-                shouldPause = true;
-            }
+            // Fortune's Favor is a Magic 8-Ball card since v7.72.5 (FortuneBall in GambleCard.tsx).
 
             if (powerPlay.id === 'donkeyKongSmash') {
                 const tilesToReturn = [...state.hand, ...state.buildRow.map(item => item?.tile)].filter((t): t is Tile => t != null);
