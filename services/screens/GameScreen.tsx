@@ -281,6 +281,7 @@ type GameAction =
     | { type: 'STORE_LAST_TURN' }
     | { type: 'RESTORE_LAST_TURN' }
     | { type: 'SET_HIGHLIGHTED_TILES', payload: { first: string | null; rest: string[] } }
+    | { type: 'ZELDA_PLACE', payload: { word: string; tileIds: string[] } }
     | { type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: boolean }
     | { type: 'CHARM_PAYOUT', payload: { id: string; points: number; description: string } }
     | { type: 'RESUME_COUNTDOWN_TICK' }
@@ -719,6 +720,20 @@ export function withBuildRowReturned<T extends Pick<GameScreenState, 'hand' | 'b
     return { ...state, hand, buildRow: Array(BUILD_ROW_SIZE).fill(null) };
 }
 
+/** Triforce of Wisdom: moves the given hand tiles, in order, into an empty word row (null if one is missing). */
+export function zeldaPlace<T extends Pick<GameScreenState, 'hand' | 'buildRow'>>(state: T, tileIds: string[]): T | null {
+    const hand = [...state.hand];
+    const buildRow = Array(BUILD_ROW_SIZE).fill(null) as GameScreenState['buildRow'];
+    if (tileIds.length > BUILD_ROW_SIZE) return null;
+    for (let i = 0; i < tileIds.length; i++) {
+        const from = hand.findIndex(t => t?.id === tileIds[i]);
+        if (from < 0) return null;
+        buildRow[i] = { tile: hand[from]!, originalIndex: from };
+        hand[from] = null;
+    }
+    return { ...state, hand, buildRow };
+}
+
 /** The game reducer, plus the time ledger: clock gains from shuffles and power-ups are recorded by source. */
 export function gameReducer(state: GameScreenState, action: GameAction): GameScreenState {
     const next = shatterFragile(state, payTapeUse(state, payBackpack(state, logPowerPlayUse(state, baseGameReducer(state, action), action), action), action), action);
@@ -1068,6 +1083,17 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             return { ...state, isPaused: true,
                 modalContent: outcome(ticket, `+${pts} POINTS`, 'Your PowerPlay pocket was full, so the ticket paid points instead.', 'win'),
                 gameState: { ...gameState, score: gameState.score + pts, log: [...gameState.log, log(`Banked +${pts} points.`, pts, gameState.score + pts)] } };
+        }
+        case 'ZELDA_PLACE': {
+            // Triforce of Wisdom (v7.72.0, the owner's design): once a level, Zelda puts the longest word
+            // in the hand into the word row; the player only has to tap Submit.
+            const level = runLevel(gameState);
+            if (!triforceDone(gameState, 'wisdom') || gameState.wisdomLevel === level) return state;
+            const placed = zeldaPlace(withBuildRowReturned(state), action.payload.tileIds);
+            if (!placed) return state;
+            const entry: EventLogEntry = { type: 'event', id: `zelda-${Date.now()}`, name: 'Triforce of Wisdom', icon: '🔺', description: `Asked Zelda: she spelled ${action.payload.word}.`, scoreChange: 0, cumulativeScore: gameState.score };
+            return { ...placed, highlightedTileIds: { first: null, rest: [] },
+                gameState: { ...gameState, wisdomLevel: level, log: [...gameState.log, entry] } };
         }
         case 'COURAGE_CLOCK': {
             // Triforce of Courage (v7.69.0): once a level, the clock hitting 0 gives charm time instead.
@@ -3457,7 +3483,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
   // 👓 Where's Waldo? (a charm): each new hand, one tile that starts a playable word glows.
   const wisdomOn = triforceDone(gameState, 'wisdom');
-  const waldoOn = !wisdomOn && !!gameState?.activeCharms?.some(c => c.id === 'wheresWaldo');
+  const waldoOn = !!gameState?.activeCharms?.some(c => c.id === 'wheresWaldo');
   const handKey = (state.hand ?? []).map(t => t?.id ?? '-').join(',');
   useEffect(() => {
       if (!waldoOn || state.highlightedTileIds.first || state.gameState?.roundType === 'golden') return;
@@ -3471,23 +3497,24 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       });
       return () => { cancelled = true; };
   }, [waldoOn, handKey]);
-  // 🔺 Triforce of Wisdom (v7.69.0): each new hand, Zelda lights up the tiles of a long word you can play.
-  useEffect(() => {
-      if (!wisdomOn || state.highlightedTileIds.first || state.gameState?.roundType === 'golden') return;
-      const tiles = (state.hand ?? []).filter((t): t is Tile => t !== null);
-      if (tiles.length < 4) return;
-      let cancelled = false;
+  // 🔺 Triforce of Wisdom (v7.72.0): once a level, ask Zelda and she places the longest word in the word row.
+  const zeldaReady = wisdomOn && !!gameState && gameState.wisdomLevel !== runLevel(gameState) && gameState.roundType !== 'golden';
+  const handleAskZelda = useCallback(async () => {
+      if (!zeldaReady || isPaused || isLoading || state.modalContent || state.resumeCountdown > 0) return;
+      const tiles = [...(state.hand ?? []), ...state.buildRow.map(b => b?.tile ?? null)].filter((t): t is Tile => t !== null);
       const letters = tiles.map(t => t.letter);
-      (async () => {
-          const word = (await dictionaryService.findPlayableWord(letters, { minLength: TRIFORCE.wisdomMinLetters, longest: true }))
-              ?? (await dictionaryService.findPlayableWord(letters, { minLength: 4, longest: true }));
-          if (cancelled || !word) return;
-          const idx = assignTilesToWord(word.toUpperCase(), letters) ?? [];
-          if (!idx.length) return;
-          dispatch({ type: 'SET_HIGHLIGHTED_TILES', payload: { first: tiles[idx[0]].id, rest: idx.slice(1).map(i => tiles[i].id) } });
-      })();
-      return () => { cancelled = true; };
-  }, [wisdomOn, handKey]);
+      const word = tiles.length >= TRIFORCE.wisdomMinLetters
+          ? await dictionaryService.findPlayableWord(letters, { minLength: TRIFORCE.wisdomMinLetters, longest: true })
+          : null;
+      const idx = word ? assignTilesToWord(word.toUpperCase(), letters) : null;
+      if (!word || !idx?.length) {
+          showMessage(`🔺 Zelda: no word of ${TRIFORCE.wisdomMinLetters}+ letters in these tiles. Try a shuffle. (Your ask isn't used.)`, 3500);
+          return;
+      }
+      soundService.playModalOpen();
+      dispatch({ type: 'ZELDA_PLACE', payload: { word: word.toUpperCase(), tileIds: idx.map(i => tiles[i].id) } });
+      showMessage(`🔺 Zelda spelled ${word.toUpperCase()}. Tap Submit!`, 3000);
+  }, [zeldaReady, isPaused, isLoading, state.modalContent, state.resumeCountdown, state.hand, state.buildRow]);
 
   const isStrikeChallenge = useMemo(() => (gameState?.challengeCount ?? 0) <= 0, [gameState?.challengeCount]);
   const strikesRemaining = useMemo(() => maxStrikes - (gameState?.strikes ?? 0), [maxStrikes, gameState?.strikes]);
@@ -6444,6 +6471,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         lexCoins,
         powerHint,
         handlePowerHintInfo,
+        zeldaReady,
+        handleAskZelda,
         skillShotTileId,
         holdOpen,
         holdArmed,

@@ -209,14 +209,19 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   `nextChance` (40%) of the time, else a fresh piece's first shard `firstChance` (30%); seeded with
   `dailyRank`. Simulated on real run lengths: one piece finished in 31% of median runs (5 charm
   offers), 67% with 8, 82-90% with 10+; all three in under 1%. **Power** x1.5 on the whole word after
-  Blue Steel (0 means 0 holds, "🔺 Triforce of Power" line). **Wisdom** lights a 5+ (else 4+) letter
-  word's tiles in order each hand (`SET_HIGHLIGHTED_TILES`; Where's Waldo steps aside). **Courage**
+  Blue Steel (0 means 0 holds, "🔺 Triforce of Power" line). **Wisdom** (see v7.72.0 below). **Courage**
   once per level (`courageLevel`): blocks a strike in `ADD_STRIKE` after shields, or the clock hitting
   0 gives +15 s charm time (`COURAGE_CLOCK`). All three: +5,000 and the 🔺 Hero of Time badge
   (`b_heroOfTime`, `triforceWish`). The emblem (three triangles, 3 shards each) shows on the offer
   card with the next shard blinking, on a 🔺 chip above the tiles (tap for the shelf) and on the
   "YOU GOT IT!" card (`triforce` modal). The old Triforce of Courage charm is now **Master Sword**
   (id `triforceOfCourage` kept, still in Hyrule Heroes). Tests in `triforce.test.ts`.
+  **Wisdom reworked (v7.72.0, the owner's design):** it used to light the longest word's tiles in
+  order on every hand, which gave the answer away and wasn't explained. Now, once per level
+  (`wisdomLevel`), a 🔺 ASK ZELDA FOR YOUR LONGEST WORD chip above the tiles (`zeldaReady`,
+  `handleAskZelda`) finds the longest common 4+ letter word in the hand and word row and places it
+  in the word row in order (`ZELDA_PLACE`, `zeldaPlace`); the player taps Submit. No 4+ letter word:
+  a toast says so and the ask isn't spent. Where's Waldo no longer steps aside for it.
   **More shard sources (v7.69.1, the owner's picks):** scratch-off tickets (one square at most holds
   a shard, `TRIFORCE.scratchWeight` 0.6: about 1 ticket in 3; bank it like any prize; "ⓘ READ"
   shows the piece) and Lucky Charms (`luckyChance` 25%: a shard falls out instead of a charm, no

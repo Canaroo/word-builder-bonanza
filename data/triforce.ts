@@ -16,8 +16,8 @@ export const TRIFORCE_PIECES: Record<TriforceId, { name: string; holder: string;
   },
   wisdom: {
     name: 'Triforce of Wisdom', holder: 'Zelda', color: '#4dd2ff', glow: 'rgba(77,210,255,0.8)',
-    does: `Each new hand, Zelda lights up the tiles of a ${TRIFORCE.wisdomMinLetters}+ letter word you can play.`,
-    flavor: "Zelda's piece. She always knows the answer.",
+    does: `Once per level, tap 🔺 ASK ZELDA above your tiles: she spells the longest word your tiles can make in the word row, so you just tap Submit.`,
+    flavor: "Zelda's piece. She always knows the answer. (She just won't tell you twice.)",
   },
   courage: {
     name: 'Triforce of Courage', holder: 'Link', color: '#5dff8f', glow: 'rgba(93,255,143,0.8)',

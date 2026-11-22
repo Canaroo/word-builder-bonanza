@@ -129,6 +129,8 @@ export interface GameScreenViewProps {
   handleCrocPick?: () => void;
   /** A power word can be spelled from the tiles in play (the hint chip); tapping it explains. */
   powerHint?: { icon: string; length: number; word?: string; effect?: string } | null;
+  zeldaReady?: boolean;
+  handleAskZelda?: () => void;
   handlePowerHintInfo?: () => void;
   /** Psychic Friends Network: the next tiles in the bag, in draw order. */
   upcomingTiles?: string[];
@@ -195,7 +197,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, skillShotTileId = '', holdOpen = false, holdArmed = false, handleHoldTap, handleScratchDone, handleCrocPick, handleBonesDone, lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, skillShotTileId = '', holdOpen = false, holdArmed = false, handleHoldTap, handleScratchDone, handleCrocPick, handleBonesDone, lexCoins = 0, powerHint = null, handlePowerHintInfo, zeldaReady = false, handleAskZelda, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
@@ -1318,6 +1320,18 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
               className={`flex items-center gap-1.5 rounded-full px-3 py-1 osd-text text-lg leading-none whitespace-nowrap ring-1 ring-neon-yellow bg-neon-yellow/15 text-neon-yellow shadow-[0_0_12px_rgba(255,226,122,0.45)] hover:bg-neon-yellow/25 max-w-full overflow-hidden ${powerLit ? '' : 'animate-pulse'}`}>
               <span aria-hidden="true">⚡{powerHint.icon}</span>
               <span className="truncate">{powerLit ? `SPELL ${powerHint.length} LETTERS WITH THE LIT TILES` : `POWER WORD: ${powerPrize} · TAP`}</span>
+            </button>
+          </div>
+        )}
+
+        {zeldaReady && (
+          <div className="flex justify-center">
+            {/* v7.72.0: Triforce of Wisdom. Once a level, Zelda puts the longest word in the word row. */}
+            <button type="button" onClick={() => handleAskZelda?.()} data-testid="ask-zelda"
+              aria-label="Triforce of Wisdom: ask Zelda to spell the longest word your tiles can make. Once per level."
+              className="flex items-center gap-1.5 rounded-full px-3 py-1 osd-text text-lg leading-none whitespace-nowrap ring-1 ring-[#4dd2ff] bg-[#4dd2ff]/15 text-[#9be8ff] shadow-[0_0_12px_rgba(77,210,255,0.45)] hover:bg-[#4dd2ff]/25 max-w-full overflow-hidden">
+              <span aria-hidden="true">🔺</span>
+              <span className="truncate">ASK ZELDA FOR YOUR LONGEST WORD</span>
             </button>
           </div>
         )}

@@ -317,7 +317,7 @@ export const TRIFORCE = {
   firstChance: 0.3,
   nextChance: 0.4,
   powerMultiplier: 1.5,     // Power: every word x1.5, charm points included
-  wisdomMinLetters: 5,      // Wisdom: each new hand lights a word this long or longer (else 4)
+  wisdomMinLetters: 4,      // Wisdom (v7.72.0): once a level, Zelda places the longest word of this many letters or more
   courageSeconds: 15,       // Courage: once a level, the clock hitting 0 gives this (charm time)
   wishPoints: 5000,         // all three pieces in one run
   // v7.69.1 (the owner's picks): shards also come from scratch-off tickets and Lucky Charms.
