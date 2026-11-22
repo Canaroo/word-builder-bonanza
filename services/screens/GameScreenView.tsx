@@ -431,7 +431,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                             {wish && data?.badgeNew && <p className="text-neon-yellow text-sm">New badge: 🔺 Hero of Time</p>}
                             {got && !wish && <p className="text-slate-200 leading-snug">{TRIFORCE_PIECES[got].does}</p>}
                             {!got && (
-                                <p className="text-slate-300 text-sm leading-snug">Some charm offers hold a shard. Collect {TRIFORCE.shards} shards to assemble a piece. A shard does nothing on its own, and the Triforce never uses a charm slot. All three pieces in one run: +{TRIFORCE.wishPoints.toLocaleString()}.</p>
+                                <p className="text-slate-300 text-sm leading-snug">Some charm offers, scratch-off tickets and Lucky Charms hold a shard. Collect {TRIFORCE.shards} shards to assemble a piece. A shard does nothing on its own, and the Triforce never uses a charm slot. All three pieces in one run: +{TRIFORCE.wishPoints.toLocaleString()}.</p>
                             )}
                             <ul className="w-full text-left space-y-1.5">
                                 {TRIFORCE_IDS.map(id => {
