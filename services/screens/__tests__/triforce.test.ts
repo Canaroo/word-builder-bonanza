@@ -181,3 +181,42 @@ describe('shard stats (v7.72.6)', () => {
         expect(started.seen.power / started.n).toBeCloseTo(TRIFORCE.nextChance, 1);
     });
 });
+
+describe("🐷 Hamm's Piggy Bank (v7.73.0)", () => {
+    const hamm = () => CHARMS_LIST.find(c => c.id === 'hammPiggyBank')!;
+    test('interest first, then 30% of the word, capped; a 180-point word grows it like the design table', async () => {
+        const { piggyAfterWord } = await import('../GameScreen');
+        const { FRAGILE } = await import('../../../config/gameplay');
+        expect(piggyAfterWord(0, 200)).toBe(60);
+        expect(piggyAfterWord(1000, 200)).toBe(1110);
+        expect(piggyAfterWord(FRAGILE.piggyMax, 500)).toBe(FRAGILE.piggyMax);
+        let b = 0; for (let i = 0; i < 20; i++) b = piggyAfterWord(b, 180);
+        expect(b).toBeGreaterThan(1700); expect(b).toBeLessThan(1900);
+    });
+    test('smashing pays the savings and removes him for the run', () => {
+        const s = start({ activeCharms: [hamm()], piggyBank: 2500, score: 1000 });
+        const next = gameReducer(s, { type: 'SMASH_PIGGY' });
+        expect(next.gameState.score).toBe(3500);
+        expect(next.gameState.activeCharms).toHaveLength(0);
+        expect(next.gameState.shatteredCharms).toContain('hammPiggyBank');
+        expect(next.modalContent).toMatchObject({ type: 'outcome' });
+    });
+    test('a strike shatters him and the savings are lost', () => {
+        const s = start({ activeCharms: [hamm()], piggyBank: 2500, score: 1000, strikes: 0 });
+        const next = gameReducer(s, { type: 'ADD_STRIKE' });
+        expect(next.gameState.score).toBe(1000);
+        expect(next.gameState.piggyBank).toBe(0);
+        expect(next.gameState.activeCharms.some(c => c.id === 'hammPiggyBank')).toBe(false);
+    });
+    test('a run that ends with him whole pays out', () => {
+        const s = start({ activeCharms: [hamm()], piggyBank: 4000, score: 1000 });
+        const next = gameReducer(s, { type: 'END_RUN', payload: { reason: 'time' } } as any);
+        expect(next.gameState.score).toBe(5000);
+        expect(next.gameState.activeCharms).toHaveLength(0);
+    });
+    test('equipping him starts an empty bank', () => {
+        const s = start({ piggyBank: 999 });
+        const next = gameReducer(s, { type: 'CHOOSE_CHARM', payload: { charm: hamm(), hand: s.hand, allOffered: [hamm()] } });
+        expect(next.gameState.piggyBank).toBe(0);
+    });
+});

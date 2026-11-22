@@ -17,7 +17,7 @@ const HoldChip: React.FC<{ ms: number; onHold?: () => void; label: string; testI
   );
 };
 import type { GameState } from '../types';
-import { POWER_PLAY_VALUES as V } from '../config/gameplay';
+import { POWER_PLAY_VALUES as V, FRAGILE } from '../config/gameplay';
 import { tamagotchiPot, blackjackPayout, jengaPot, prizeFor, levelFor } from '../services/rules';
 import { hitInProgress } from '../services/greatestHits';
 
@@ -30,7 +30,7 @@ const Chip: React.FC<{ icon: string; label: string; children: React.ReactNode }>
   </span>
 );
 
-const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string[]; quizLeft?: number; raceRival?: number; onStand: () => void; onJengaCash?: () => void }> = ({ gameState, upcomingTiles = [], quizLeft, raceRival, onStand, onJengaCash }) => {
+const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string[]; quizLeft?: number; raceRival?: number; onStand: () => void; onJengaCash?: () => void; onPiggySmash?: () => void }> = ({ gameState, upcomingTiles = [], quizLeft, raceRival, onStand, onJengaCash, onPiggySmash }) => {
   const a = (gameState?.activePowerPlays ?? {}) as Record<string, any>;
   const chips: React.ReactNode[] = [];
   // Greatest Hits (v7.52.0): the word closest to its next record, once it has 2 plays.
@@ -71,6 +71,17 @@ const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string
       <button key="dinner" type="button" onClick={onStand} className="flex items-center gap-1 rounded-full bg-neon-yellow/20 ring-1 ring-neon-yellow px-2 py-0.5 text-xs text-white whitespace-nowrap hover:bg-neon-yellow/30" aria-label={`Blackjack count ${a.chickenDinner.total}. Stand${pays ? ` for ${pays}` : ''}`}>
         <span aria-hidden="true">🍗</span>{a.chickenDinner.last ? `${a.chickenDinner.last} → ` : ''}{a.chickenDinner.total}/{V.blackjackTarget} · <strong className="text-neon-yellow">STAND{pays ? ` +${pays}` : ''}</strong>
       </button>);
+  }
+  // 🐷 Hamm's Piggy Bank (v7.73.0, a fragile charm): the savings; hold to smash and collect.
+  if (gameState?.activeCharms?.some(c => c.id === 'hammPiggyBank')) {
+    const bank = gameState.piggyBank ?? 0;
+    const full = bank >= FRAGILE.piggyMax;
+    chips.push(bank > 0
+      ? <HoldChip key="piggy" ms={FRAGILE.piggyHoldMs} onHold={onPiggySmash} testId="piggy-chip"
+          label={`Hamm's Piggy Bank holds ${bank.toLocaleString()} points${full ? ', full' : `, growing ${FRAGILE.piggyInterest}% a word`}. Press and hold to smash him and collect. An invalid word or a strike loses it all.`}>
+          <span aria-hidden="true">🐷</span><strong className="text-neon-yellow">{bank.toLocaleString()}</strong>{full ? ' · FULL!' : ` · +${FRAGILE.piggyInterest}%/WORD`} · <strong>HOLD TO SMASH</strong>
+        </HoldChip>
+      : <Chip key="piggy" icon="🐷" label={`Hamm's Piggy Bank is empty. ${FRAGILE.piggyDeposit}% of every word's score goes in.`}>HAMM IS EMPTY · {FRAGILE.piggyDeposit}% OF EVERY WORD GOES IN</Chip>);
   }
   // Jenga! (v7.62.0): the tower's pot; tap to cash out once there's a block.
   if (a.jenga) {

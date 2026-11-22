@@ -187,7 +187,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             does.
           </p>
           <p>
-            <Key>💔 Fragile charms</Key> (Glass Joe, Major Award, Crystal Ball) are the strongest charms around, but the
+            <Key>💔 Fragile charms</Key> (Glass Joe, Major Award, Crystal Ball, Hamm's Piggy Bank) are the strongest charms around, but the
             moment you play an invalid word or take a strike, every fragile charm you hold shatters for the rest of the
             run. Nothing protects them: not shields, not Plot Armor, not the Triforce of Courage.
           </p>

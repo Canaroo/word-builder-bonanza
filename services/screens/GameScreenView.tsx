@@ -322,6 +322,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         if (buff.id === 'crossTheRoad') return `${gameState?.frogStreak ?? 0}/${CHARM_BONUS.crossTheRoadWords}`;
         if (buff.id === 'sesameStreet') return gameState?.sesameLetter ? `"${gameState.sesameLetter.letter}"` : '';
         if (buff.id === 'happyLittleAccidents') return gameState?.happyAccidentLevel === levelFor(totalWords) ? 'used' : 'ready';
+        if (buff.id === 'hammPiggyBank') return `🐷${(gameState?.piggyBank ?? 0).toLocaleString()}`;
         if (buff.id === 'survivor') return (gameState?.strikes ?? 0) > 0 ? `+${CHARM_BONUS.survivor * gameState.strikes}` : '';
         const countdown = (gameState?.activePowerPlays as any)?.[buff.id];
         if (countdown?.words) return `${countdown.words} ${countdown.words === 1 ? 'word' : 'words'}`;
@@ -1336,7 +1337,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           </div>
         )}
 
-        <PowerPlayTrackers gameState={gameState} upcomingTiles={upcomingTiles} quizLeft={quizLeft} raceRival={raceRival} onStand={() => dispatch({ type: 'BLACKJACK_STAND' })} onJengaCash={() => dispatch({ type: 'JENGA_CASH' })} />
+        <PowerPlayTrackers gameState={gameState} upcomingTiles={upcomingTiles} quizLeft={quizLeft} raceRival={raceRival} onStand={() => dispatch({ type: 'BLACKJACK_STAND' })} onJengaCash={() => dispatch({ type: 'JENGA_CASH' })} onPiggySmash={() => dispatch({ type: 'SMASH_PIGGY' })} />
 
         {/* --- HAND: the standard hand in a 4x2 grid; widens to all rack slots when a power-up overfills it --- */}
         {(() => {
