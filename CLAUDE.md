@@ -243,6 +243,14 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   shows the piece) and Lucky Charms (`luckyChance` 25%: a shard falls out instead of a charm, no
   slot bumped). `shardFor` picks the piece: a started one first, else a fresh one, none once all
   three are done. All sources go through `collectShard` in `GameScreen.tsx`.
+  **Rotation checked (v7.72.6, 20,000 simulated runs on real `Date.now()` seeds):** offers match the
+  design (30.0% with nothing started, split 33/33/33 over the pieces; 39.8% next shard of a started
+  piece plus 18.0% a fresh one; consecutive offers and runs 1 ms apart independent), scratch tickets
+  hold a shard 35% of the time, `shardFor` is even. Taking every shard: a piece done in 23% of runs
+  with 5 charm offers, 52% with 8, 67% with 10, 89% with 15; all three 0.3% at 10, 15% at 15, 50% at
+  20. **Stats bug fixed:** the /stats rules only allow letters and digits in `offered`/`picked`, so
+  every charm offer holding a shard (`shard_power`) was rejected and never recorded (0 of 1,315).
+  `statId` sends them as `shardPower` etc., and `/?stats` lists the three shards in the charm table.
 - **Fragile charms (v7.70.0, the owner's design after Hollow Knight's)** (`FRAGILE` in
   `config/gameplay.ts`, `breaks: true` on the charm, `shatterFragile` in the `gameReducer` wrapper):
   🥊 **Glass Joe** (every word x2, whole word, after the Triforce of Power), 🦵 **Major Award** (the
