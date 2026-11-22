@@ -74,7 +74,7 @@ describe('every pop-up renders', () => {
     test('a plain game screen renders (no pop-up)', () => {
         // v7.31: the meters share one row and the buffs tray labels itself inline.
         const html = renderToString(<GameScreenView {...props(null)} />);
-        for (const label of ['Golden', 'PowerPlay', 'Word Combo', 'Buffs']) expect(html).toContain(label);
+        for (const label of ['Golden', 'PowerPlay', 'Word Combo', 'Gear']) expect(html).toContain(label);
     });
 });
 

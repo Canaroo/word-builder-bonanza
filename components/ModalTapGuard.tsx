@@ -14,7 +14,7 @@ export const MODAL_ARM_MS = 1000;
 /** Pop-up types that open without the player asking, and so get the guard. */
 export const GUARDLESS_MODALS = new Set([
   'last-words', 'continue-offer', 'event-log', 'milestone-info', 'buff-info', 'powerplay-activation',
-  'charm-activation', 'save-confirmation',
+  'charm-activation', 'save-confirmation', 'gear',
   // The Triforce shelf opened from its chip (an assembled piece's card does get the guard: data.got).
 ]);
 

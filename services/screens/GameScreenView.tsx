@@ -1,6 +1,7 @@
 import { Sec, withSec } from '../../components/Seconds';
 import EndRunCard from '../../components/EndRunCard';
 import TriforceEmblem from '../../components/TriforceEmblem';
+import GearMenu from '../../components/GearMenu';
 import { TRIFORCE_IDS, TRIFORCE_PIECES, anyShards, shardsOf, triforceDone } from '../../data/triforce';
 import { TRIFORCE } from '../../config/gameplay';
 import React, { useEffect, useRef, useState } from 'react';
@@ -43,7 +44,7 @@ import ModalTapGuard, { GUARDLESS_MODALS } from '../../components/ModalTapGuard'
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
-  type: 'milestone' | 'blue-steel' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'scratch' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack' | 'triforce';
+  type: 'milestone' | 'blue-steel' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'scratch' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack' | 'triforce' | 'gear';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -324,6 +325,24 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     const bossCtx = { last: (lastValid?.word ?? '').toUpperCase(), score: 0, lastScore: lastValid?.score ?? 0 };
     const bossTileHint = (tile: Tile) => activeBoss?.tileHint?.(tile, rackTiles, bossCtx) ?? null;
 
+    // What a running PowerPlay or charm has left (the tray and the Gear menu, v7.71.0).
+    const progressFor = (buff: Charm | PowerPlay): string => {
+        if (buff.id === 'goldenSnitch') return `${gameState?.consecutiveSuccesses ?? 0}/${snitchTargetFor(gameState?.snitchCatches ?? 0) ?? '-'}`;
+        if (buff.id === 'drMariosCure') return `${gameState?.drMarioCureStreak ?? 0}/3`;
+        if (buff.id === 'mixtape') return gameState?.mixtapeChain?.next ? `→${gameState.mixtapeChain.next}` : '';
+        if (buff.id === 'thrillerNight') return `${totalWords % 4}/4`;
+        if (buff.id === 'gottaCatchEmAll') return `${gameState?.pokedexVowels?.length ?? 0}/5`;
+        if (buff.id === 'crossTheRoad') return `${gameState?.frogStreak ?? 0}/${CHARM_BONUS.crossTheRoadWords}`;
+        if (buff.id === 'sesameStreet') return gameState?.sesameLetter ? `"${gameState.sesameLetter.letter}"` : '';
+        if (buff.id === 'happyLittleAccidents') return gameState?.happyAccidentLevel === levelFor(totalWords) ? 'used' : 'ready';
+        if (buff.id === 'survivor') return (gameState?.strikes ?? 0) > 0 ? `+${CHARM_BONUS.survivor * gameState.strikes}` : '';
+        const countdown = (gameState?.activePowerPlays as any)?.[buff.id];
+        if (countdown?.words) return `${countdown.words} ${countdown.words === 1 ? 'word' : 'words'}`;
+        if (countdown?.rounds) return `${countdown.rounds} ${countdown.rounds === 1 ? 'round' : 'rounds'}`;
+        if (buff.id === 'groundhogsDay' && (gameState?.groundhogDayCharges ?? 0) > 1) return `×${gameState.groundhogDayCharges}`;
+        return '';
+    };
+
     const renderModal = () => {
         if (!modalContent) return null;
 
@@ -406,6 +425,11 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     </div>
                 );
 
+            case 'gear':
+                return (
+                    <GearMenu gameState={gameState!} level={levelFor(totalWords)} strikesLeft={strikesRemaining} maxStrikes={maxStrikes} progressFor={progressFor}
+                        onUse={pp => { handleCloseModal(); handleActivatePowerPlay(pp); }} onClose={handleCloseModal} />
+                );
             case 'triforce': {
                 // Fragile charms (v7.69.0): a finished piece ("item get"), the whole Triforce, or the shelf (tapped chip).
                 const got = data?.got as keyof typeof TRIFORCE_PIECES | undefined;
@@ -1169,64 +1193,36 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         );
       })()}
 
-      {/* --- ACTIVE BUFFS TRAY --- */}
+      {/* --- ACTIVE BUFFS TRAY (v7.71.0): a slim strip of icons; tap it for the full Gear menu. --- */}
       <div className="text-center w-full flex-shrink-0">
-        <div className="min-h-[2rem] bg-crt-950/60 ring-1 ring-white/5 p-0.5 pl-2 rounded-lg flex flex-wrap justify-center items-center gap-1">
-          <span className="osd-text text-sm leading-none text-neon-cyan/80 uppercase tracking-wider mr-auto" aria-label={`Active buffs. ${gameState?.activeCharms?.length ?? 0} of ${CHARM_SLOTS} charm slots used`}>
-            Buffs <span className="text-neon-purple">{gameState?.activeCharms?.length ?? 0}/{CHARM_SLOTS}</span>
+        <button type="button" data-testid="buffs-tray" onClick={() => dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gear', title: 'Your Gear' } })}
+          className="w-full min-h-[2rem] bg-crt-950/60 ring-1 ring-white/10 hover:ring-neon-cyan/50 p-0.5 pl-2 pr-1.5 rounded-lg flex items-center gap-1 text-left"
+          aria-label={`Your gear: ${gameState?.activeCharms?.length ?? 0} of ${CHARM_SLOTS} charms, ${(gameState?.activeBuffs?.length ?? 0) - (gameState?.activeCharms?.length ?? 0)} running effects. Tap to open.`}>
+          <span className="osd-text text-sm leading-none text-neon-cyan/80 uppercase tracking-wider shrink-0">
+            🎒 Gear <span className="text-neon-purple">{gameState?.activeCharms?.length ?? 0}/{CHARM_SLOTS}</span>
           </span>
-          {(gameState?.activeBuffs?.length ?? 0) > 0 ? (
-            <>
-              {(() => {
-                  const charmIds = new Set((gameState?.activeCharms ?? []).map(c => c.id));
-                  const buffs = gameState?.activeBuffs ?? [];
-                  // Running PowerPlay effects get their name (and what's left); charms are compact icons.
-                  const progressFor = (buff: Charm | PowerPlay): string => {
-                      if (buff.id === 'goldenSnitch') return `${gameState?.consecutiveSuccesses ?? 0}/${snitchTargetFor(gameState?.snitchCatches ?? 0) ?? '-'}`;
-                      if (buff.id === 'drMariosCure') return `${gameState?.drMarioCureStreak ?? 0}/3`;
-                      if (buff.id === 'mixtape') return gameState?.mixtapeChain?.next ? `→${gameState.mixtapeChain.next}` : '';
-                      if (buff.id === 'thrillerNight') return `${totalWords % 4}/4`;
-                      if (buff.id === 'gottaCatchEmAll') return `${gameState?.pokedexVowels?.length ?? 0}/5`;
-                      if (buff.id === 'crossTheRoad') return `${gameState?.frogStreak ?? 0}/${CHARM_BONUS.crossTheRoadWords}`;
-                      if (buff.id === 'sesameStreet') return gameState?.sesameLetter ? `"${gameState.sesameLetter.letter}"` : '';
-                      if (buff.id === 'happyLittleAccidents') return gameState?.happyAccidentLevel === levelFor(totalWords) ? 'used' : 'ready';
-                      if (buff.id === 'survivor') return (gameState?.strikes ?? 0) > 0 ? `+${CHARM_BONUS.survivor * gameState.strikes}` : '';
-                      const countdown = (gameState?.activePowerPlays as any)?.[buff.id];
-                      if (countdown?.words) return `${countdown.words} ${countdown.words === 1 ? 'word' : 'words'}`;
-                      if (countdown?.rounds) return `${countdown.rounds} ${countdown.rounds === 1 ? 'round' : 'rounds'}`;
-                      if (buff.id === 'groundhogsDay' && (gameState?.groundhogDayCharges ?? 0) > 1) return `×${gameState.groundhogDayCharges}`;
-                      return '';
-                  };
-                  return (
-                      <>
-                          {buffs.filter(b => !charmIds.has(b.id)).map(buff => {
-                              const progress = progressFor(buff);
-                              return (
-                                  <button key={buff.instanceId || buff.id} onClick={() => showBuffInfo(buff)} className="flex items-center gap-1 bg-neon-cyan/15 ring-1 ring-neon-cyan/50 px-2 py-1 rounded-full text-xs text-white hover:bg-neon-cyan/25 transition-colors" title={buff.name}>
-                                      <span className="text-sm">{buff.icon}</span>
-                                      <span>{buff.name}{progress ? ` (${progress})` : ''}</span>
-                                  </button>
-                              );
-                          })}
-                          {buffs.filter(b => charmIds.has(b.id)).map(buff => {
-                              const progress = progressFor(buff);
-                              return (
-                                  <button key={buff.instanceId || buff.id} onClick={() => showBuffInfo(buff)} className="flex items-center gap-0.5 bg-neon-purple/20 ring-1 ring-neon-purple/50 h-7 min-w-7 px-1.5 rounded-full text-xs text-white hover:bg-neon-purple/35 transition-colors" title={`${buff.name} (charm): tap for details`} aria-label={`Charm: ${buff.name}`}>
-                                      <span className="text-sm leading-none">{buff.icon}</span>
-                                      {(gameState?.charmUpgrades ?? []).includes(buff.id) && <span className="text-[10px] leading-none" aria-label="upgraded">⭐</span>}
-                                      {(gameState?.activeCharms ?? []).some(c => c.id === buff.id && c.breaks) && <span className="text-[10px] leading-none" aria-label="fragile: breaks on an invalid word or strike">💔</span>}
-                                      {progress && <span className="osd-text text-sm leading-none text-neon-yellow">{progress}</span>}
-                                  </button>
-                              );
-                          })}
-                      </>
-                  );
-              })()}
-            </>
-          ) : (
-            <span className="text-xs italic text-slate-500">(None Active)</span>
-          )}
-        </div>
+          <span className="flex-1 min-w-0 flex flex-wrap justify-end items-center gap-1">
+            {(() => {
+              const charmIds = new Set((gameState?.activeCharms ?? []).map(c => c.id));
+              const buffs = gameState?.activeBuffs ?? [];
+              if (buffs.length === 0) return <span className="text-xs italic text-slate-500">(nothing yet)</span>;
+              return [...buffs.filter(b => !charmIds.has(b.id)), ...buffs.filter(b => charmIds.has(b.id))].map(buff => {
+                const isCharm = charmIds.has(buff.id);
+                const progress = progressFor(buff);
+                return (
+                  <span key={buff.instanceId || buff.id} title={buff.name}
+                    className={`flex items-center gap-0.5 h-7 min-w-7 px-1.5 rounded-full text-xs text-white ring-1 ${isCharm ? 'bg-neon-purple/20 ring-neon-purple/50' : 'bg-neon-cyan/15 ring-neon-cyan/50'}`}>
+                    <span className="text-sm leading-none">{buff.icon}</span>
+                    {isCharm && (gameState?.charmUpgrades ?? []).includes(buff.id) && <span className="text-[10px] leading-none" aria-label="upgraded">⭐</span>}
+                    {isCharm && (gameState?.activeCharms ?? []).some(c => c.id === buff.id && c.breaks) && <span className="text-[10px] leading-none" aria-label="fragile">💔</span>}
+                    {progress && <span className="osd-text text-sm leading-none text-neon-yellow">{progress}</span>}
+                  </span>
+                );
+              });
+            })()}
+            <span className="osd-text text-lg leading-none text-neon-cyan ml-0.5" aria-hidden="true">▸</span>
+          </span>
+        </button>
       </div>
 
       </div>
