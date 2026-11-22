@@ -45,7 +45,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | Scoring | `services/gameUtils.ts` `calculateScore` |
 | Game state, reducer, turn logic | `services/screens/GameScreen.tsx` (large) |
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
-| PowerPlays / charms (104 / 108) | `data/powerPlays.ts`, `data/charms.ts` |
+| PowerPlays / charms (104 / 111) | `data/powerPlays.ts`, `data/charms.ts` |
 | Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
 | Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Hold Slot, Grudge Match, Bones; the scratch-off ticket (v7.66, where the Fork was) | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `SCRATCH`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`, `services/scratch.ts`; cards in `components/` (`LastWordsCard`, `ScratchCard`, `BonesCard`) |
 | Secret bonuses (121 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
@@ -222,6 +222,18 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   shows the piece) and Lucky Charms (`luckyChance` 25%: a shard falls out instead of a charm, no
   slot bumped). `shardFor` picks the piece: a started one first, else a fresh one, none once all
   three are done. All sources go through `collectShard` in `GameScreen.tsx`.
+- **Fragile charms (v7.70.0, the owner's design after Hollow Knight's)** (`FRAGILE` in
+  `config/gameplay.ts`, `breaks: true` on the charm, `shatterFragile` in the `gameReducer` wrapper):
+  🥊 **Glass Joe** (every word x2, whole word, after the Triforce of Power), 🦵 **Major Award** (the
+  leg lamp: +50 a word, +50 more for every 10 words it survives, up to +300; `majorAwardWords`) and
+  🔮 **Crystal Ball** (+5 s charm time every valid word, the owner's number). The owner's rule: ANY
+  invalid word or strike shatters every fragile charm held, for the rest of the run, even when a
+  shield, Plot Armor, the Triforce of Courage, a waiting Chubbs/Turn Back Time or Happy Little
+  Accidents stops the strike (so strong players can't cheese them); Jackass, With Great Power and
+  WILDCARD strikes too (their cards warn). Shattered ids go to `shatteredCharms` and are never
+  offered again (charm offers, Lucky Charms). 💔 FRAGILE tag on offer cards, 💔 on the slot and the
+  buffs tray, a "💥 ... SHATTERED" card. Not upgradable, not in sets or the scratch list. The
+  Triforce pieces are now called "Triforce shards" in player text (the owner calls these fragile).
 - **How offers are drawn (`getOffer` in `services/gameUtils.ts`; checked v7.67.2, the owner's ask).**
   Pool: everything not held or active, not shown in the last 3 words (`charmCooldowns`,
   `powerPlayCooldowns`), not a taken once-per-run PowerPlay, and not one that can't work yet

@@ -170,11 +170,16 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             shows your best set.
           </p>
           <p>
-            <Key>🔺 Fragile charms: the Triforce</Key>. Some charm offers hold a <Key>shard</Key> instead of a charm.
+            <Key>🔺 Triforce shards</Key>. Some charm offers hold a <Key>shard</Key> instead of a charm.
             Collect {TRIFORCE.shards} shards to assemble a piece. A shard does nothing on its own, but it never uses a
             charm slot, and neither does the finished piece. Power: every word scores x{TRIFORCE.powerMultiplier}.
             Wisdom: each new hand lights up a long word you can play. Courage: once per level, a strike or running out
             of time bounces off. All three in one run: +{TRIFORCE.wishPoints.toLocaleString()} and the Hero of Time badge.
+          </p>
+          <p>
+            <Key>💔 Fragile charms</Key> (Glass Joe, Major Award, Crystal Ball) are the strongest charms around, but the
+            moment you play an invalid word or take a strike, every fragile charm you hold shatters for the rest of the
+            run. Nothing protects them: not shields, not Plot Armor, not the Triforce of Courage.
           </p>
           <p>
             <Key>PowerPlays</Key> are a button you press once, at the moment you choose. Fill the meter by playing{' '}

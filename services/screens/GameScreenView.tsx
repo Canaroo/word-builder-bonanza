@@ -413,7 +413,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 return (
                     <div className="absolute inset-0 bg-crt-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-3 animate-fade-in" role="dialog" aria-modal="true" aria-label={title}>
                         <div className="bg-crt-900 border-4 border-neon-yellow shadow-[0_0_28px_rgba(255,216,77,0.5)] rounded-2xl px-4 py-5 max-w-md w-full flex flex-col items-center text-center gap-3 level-stage-in">
-                            <p className="osd-text text-lg tracking-[0.3em] text-neon-yellow">{wish ? 'WISH GRANTED' : got ? 'YOU GOT IT!' : 'FRAGILE CHARMS'}</p>
+                            <p className="osd-text text-lg tracking-[0.3em] text-neon-yellow">{wish ? 'WISH GRANTED' : got ? 'YOU GOT IT!' : 'TRIFORCE SHARDS'}</p>
                             <TriforceEmblem triforce={gameState?.triforce} size={120} className={got ? 'level-stage-in' : ''} />
                             <h2 className="font-display text-2xl text-white leading-tight">{wish ? '🔺 THE TRIFORCE IS WHOLE!' : got ? `🔺 ${TRIFORCE_PIECES[got].name.toUpperCase()}` : '🔺 THE TRIFORCE'}</h2>
                             {wish && <p className="font-display text-2xl text-neon-green">+{TRIFORCE.wishPoints.toLocaleString()}</p>}
@@ -1214,6 +1214,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                                   <button key={buff.instanceId || buff.id} onClick={() => showBuffInfo(buff)} className="flex items-center gap-0.5 bg-neon-purple/20 ring-1 ring-neon-purple/50 h-7 min-w-7 px-1.5 rounded-full text-xs text-white hover:bg-neon-purple/35 transition-colors" title={`${buff.name} (charm): tap for details`} aria-label={`Charm: ${buff.name}`}>
                                       <span className="text-sm leading-none">{buff.icon}</span>
                                       {(gameState?.charmUpgrades ?? []).includes(buff.id) && <span className="text-[10px] leading-none" aria-label="upgraded">⭐</span>}
+                                      {(gameState?.activeCharms ?? []).some(c => c.id === buff.id && c.breaks) && <span className="text-[10px] leading-none" aria-label="fragile: breaks on an invalid word or strike">💔</span>}
                                       {progress && <span className="osd-text text-sm leading-none text-neon-yellow">{progress}</span>}
                                   </button>
                               );
