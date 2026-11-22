@@ -342,6 +342,8 @@ export interface GameState {
   triforce?: Partial<Record<'power' | 'wisdom' | 'courage', number>>;
   /** Triforce of Courage: the level its once-a-level rescue last fired on. */
   courageLevel?: number;
+  /** Triforce of Wisdom (v7.72.0): the level Zelda last placed a word on (once a level). */
+  wisdomLevel?: number;
   /** The full Triforce's wish was granted this run. */
   triforceWish?: boolean;
   /** Fragile charms that shattered this run (never offered again). */

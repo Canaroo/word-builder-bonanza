@@ -167,7 +167,7 @@ const GearMenu: React.FC<{
                   const done = triforceDone(gs, id);
                   return (
                     <Row key={id} selected={sel === `tri-${id}`} icon="🔺" label={TRIFORCE_PIECES[id].name.replace('Triforce of ', '')} right={done ? '✓' : `${shardsOf(gs, id)}/${TRIFORCE.shards}`} dim={!done && shardsOf(gs, id) === 0}
-                      onClick={() => choose(`tri-${id}`, { icon: '🔺', name: TRIFORCE_PIECES[id].name, tag: done ? 'Active' : `${shardsOf(gs, id)} of ${TRIFORCE.shards} shards`, text: TRIFORCE_PIECES[id].does, flavor: TRIFORCE_PIECES[id].flavor })} />
+                      onClick={() => choose(`tri-${id}`, { icon: '🔺', name: TRIFORCE_PIECES[id].name, tag: !done ? `${shardsOf(gs, id)} of ${TRIFORCE.shards} shards` : id === 'wisdom' ? (gs.wisdomLevel === level ? 'Used this level' : 'Ready: tap ASK ZELDA') : 'Active', text: TRIFORCE_PIECES[id].does, flavor: TRIFORCE_PIECES[id].flavor })} />
                   );
                 })}
               </div>

@@ -122,3 +122,32 @@ describe('fragile charms shatter on any invalid word or strike (v7.70.0)', () =>
         expect(c('glassJoe').description).toContain(`x${2}`);
     });
 });
+
+describe('Triforce of Wisdom: ask Zelda (v7.72.0)', () => {
+    const withTiles = (overrides: Partial<GameState> = {}) => {
+        const s = start({ triforce: { wisdom: 3 }, ...overrides });
+        const letters = 'STAREXQZ'.split('');
+        const hand = s.hand.map((t, i) => (i < 8 ? { ...(t as any), id: `t${i}`, letter: letters[i] } : t));
+        return { ...s, hand } as GameScreenState;
+    };
+    test('places the tiles in spelling order in the word row and is spent for the level', () => {
+        const s = withTiles();
+        const next = gameReducer(s, { type: 'ZELDA_PLACE', payload: { word: 'RATES', tileIds: ['t3', 't2', 't1', 't4', 't0'] } });
+        expect(next.buildRow.filter(Boolean).map(b => b!.tile.letter).join('')).toBe('RATES');
+        expect(next.hand.filter(Boolean)).toHaveLength(3);
+        expect(next.gameState.wisdomLevel).toBe(1);
+        const again = gameReducer(next, { type: 'ZELDA_PLACE', payload: { word: 'STAR', tileIds: ['t0', 't1', 't2', 't3'] } });
+        expect(again).toBe(next);
+    });
+    test('tiles already in the word row go back first', () => {
+        let s = withTiles();
+        s = gameReducer(s, { type: 'MOVE_TILE_TO_BUILD', payload: { tile: s.hand[7]!, fromIndex: 7 } });
+        const next = gameReducer(s, { type: 'ZELDA_PLACE', payload: { word: 'STAR', tileIds: ['t0', 't1', 't2', 't3'] } });
+        expect(next.buildRow.filter(Boolean).map(b => b!.tile.letter).join('')).toBe('STAR');
+        expect(next.hand.some(t => t?.id === 't7')).toBe(true);
+    });
+    test('does nothing without the piece', () => {
+        const s = withTiles({ triforce: { wisdom: 2 } });
+        expect(gameReducer(s, { type: 'ZELDA_PLACE', payload: { word: 'STAR', tileIds: ['t0', 't1', 't2', 't3'] } })).toBe(s);
+    });
+});
