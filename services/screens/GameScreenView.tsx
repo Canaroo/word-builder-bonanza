@@ -2,7 +2,7 @@ import { Sec, withSec } from '../../components/Seconds';
 import EndRunCard from '../../components/EndRunCard';
 import TriforceEmblem from '../../components/TriforceEmblem';
 import GearMenu from '../../components/GearMenu';
-import { TRIFORCE_IDS, TRIFORCE_PIECES, anyShards, shardsOf, triforceDone } from '../../data/triforce';
+import { TRIFORCE_IDS, TRIFORCE_PIECES, shardsOf, triforceDone } from '../../data/triforce';
 import { TRIFORCE } from '../../config/gameplay';
 import React, { useEffect, useRef, useState } from 'react';
 import ArcadeButton from '../../components/ArcadeButton';
@@ -38,7 +38,6 @@ import GambleCard, { type GambleResult } from '../../components/GambleCard';
 import PowerPlayTrackers from '../../components/PowerPlayTrackers';
 import MiniGameCard from '../../components/MiniGames';
 import CharmTimeNote from '../../components/CharmTimeNote';
-import { leadingSet, setPayFor } from '../../data/charmSets';
 import { nextGateFor, previousGateFor, powerWordInfo, prizeFor, speedStreakPoints } from '../rules';
 import ModalTapGuard, { GUARDLESS_MODALS } from '../../components/ModalTapGuard';
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
@@ -279,38 +278,23 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       </span>
     ) : null;
     const nextGate = gameState?.roundType === 'golden' ? null : nextGateFor(gameState);
-    // v7.61.0: the best charm set the player has started, so sets aren't a secret.
-    const lead = leadingSet((gameState?.activeCharms ?? []).map(c => c.id));
-    const setChip = lead ? (() => {
-            const n = lead.set.members.length;
-            const next = setPayFor(lead.set, lead.held + 1);
-            const text = lead.complete ? `${lead.set.name.toUpperCase()} · +${lead.points} A WORD`
-              : lead.points > 0 ? `${lead.held}/${n} · +${lead.points} A WORD · +${next} AT ${n}/${n}`
-              : `${lead.set.name.toUpperCase()} ${lead.held}/${n} · +${next} AT ${lead.held + 1}/${n}`;
-            return (
-              <span data-testid="set-chip" className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs text-white whitespace-nowrap ring-1 max-w-full overflow-hidden ${lead.points > 0 ? 'ring-neon-green/70 bg-neon-green/10' : 'ring-neon-cyan/50 bg-crt-950/70'}`}
-                aria-label={`Charm set ${lead.set.name}: ${lead.held} of ${n} held. ${lead.points > 0 ? `Pays ${lead.points} a word.` : ''} ${lead.complete ? '' : `${next} a word with ${lead.held + 1}.`}`}>
-                <span aria-hidden="true">🧩{lead.set.icon}</span><span className="truncate">{text}</span>
-              </span>
-            );
-          })() : null;
-    // Fragile charms (v7.69.0): the Triforce shelf, once a shard is collected. Tap it for the details.
-    const triforceChip = anyShards(gameState) ? (() => {
-        const best = [...TRIFORCE_IDS].sort((a, b) => shardsOf(gameState, b) - shardsOf(gameState, a));
-        const done = TRIFORCE_IDS.filter(id => triforceDone(gameState, id));
-        const building = best.find(id => !triforceDone(gameState, id) && shardsOf(gameState, id) > 0);
-        const text = done.length === 3 ? 'TRIFORCE COMPLETE' : [
-            ...done.map(id => `${TRIFORCE_PIECES[id].name.replace('Triforce of ', '').toUpperCase()} ✓`),
-            ...(building ? [`${TRIFORCE_PIECES[building].name.replace('Triforce of ', '').toUpperCase()} ${shardsOf(gameState, building)}/${TRIFORCE.shards}`] : []),
-        ].join(' · ');
-        return (
-            <button type="button" data-testid="triforce-chip" onClick={() => dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'triforce', title: 'The Triforce' } })}
-              className="flex items-center gap-1 rounded-full pl-1 pr-2 py-0.5 text-xs text-white whitespace-nowrap ring-1 ring-neon-yellow/60 bg-neon-yellow/10"
-              aria-label={`Triforce: ${text}. Tap for details.`}>
-              <TriforceEmblem triforce={gameState?.triforce} size={20} /><span>🔺 {text}</span>
-            </button>
-        );
-    })() : null;
+    // v7.71.1 (the owner's call): the charm set and Triforce chips left the area above the tiles;
+    // both live in the Gear menu now, and the GEAR strip glows when something new lands there.
+    const shardTotal = TRIFORCE_IDS.reduce((t, id) => t + shardsOf(gameState, id), 0);
+    const gearIds = (gameState?.activeCharms ?? []).map(c => c.id);
+    const upgradeCount = (gameState?.charmUpgrades ?? []).length;
+    const gearSeen = React.useRef<{ shards: number; ids: string[]; upgrades: number } | null>(null);
+    const [gearGlow, setGearGlow] = React.useState(false);
+    React.useEffect(() => {
+        const prev = gearSeen.current;
+        gearSeen.current = { shards: shardTotal, ids: gearIds, upgrades: upgradeCount };
+        if (!prev) return; // not on the first render (a resumed run)
+        const gained = shardTotal > prev.shards || upgradeCount > prev.upgrades || gearIds.some(id => !prev.ids.includes(id));
+        if (!gained) return;
+        setGearGlow(true);
+        const t = setTimeout(() => setGearGlow(false), 3500);
+        return () => clearTimeout(t);
+    }, [shardTotal, gearIds.join(','), upgradeCount]); // eslint-disable-line react-hooks/exhaustive-deps
     // The Golden Tile's letter, wherever it sits (rack or word row), for the Golden Round banner.
     const goldenLetter = gameState?.goldenTileId
       ? [...(hand ?? []), ...(buildRow ?? []).map(i => i?.tile)].find(t => t?.id === gameState.goldenTileId)?.letter
@@ -327,6 +311,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
     // What a running PowerPlay or charm has left (the tray and the Gear menu, v7.71.0).
     const progressFor = (buff: Charm | PowerPlay): string => {
+        if (buff.id === 'hadouken') { const h = (gameState?.activePowerPlays as any)?.hadouken?.hits; return h ? `×${h}` : ''; }
         if (buff.id === 'goldenSnitch') return `${gameState?.consecutiveSuccesses ?? 0}/${snitchTargetFor(gameState?.snitchCatches ?? 0) ?? '-'}`;
         if (buff.id === 'drMariosCure') return `${gameState?.drMarioCureStreak ?? 0}/3`;
         if (buff.id === 'mixtape') return gameState?.mixtapeChain?.next ? `→${gameState.mixtapeChain.next}` : '';
@@ -1196,7 +1181,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       {/* --- ACTIVE BUFFS TRAY (v7.71.0): a slim strip of icons; tap it for the full Gear menu. --- */}
       <div className="text-center w-full flex-shrink-0">
         <button type="button" data-testid="buffs-tray" onClick={() => dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gear', title: 'Your Gear' } })}
-          className="w-full min-h-[2rem] bg-crt-950/60 ring-1 ring-white/10 hover:ring-neon-cyan/50 p-0.5 pl-2 pr-1.5 rounded-lg flex items-center gap-1 text-left"
+          className={`w-full min-h-[2rem] bg-crt-950/60 p-0.5 pl-2 pr-1.5 rounded-lg flex items-center gap-1 text-left transition-shadow ${gearGlow ? 'ring-2 ring-neon-yellow shadow-[0_0_16px_rgba(255,216,77,0.6)] animate-pulse' : 'ring-1 ring-white/10 hover:ring-neon-cyan/50'}`}
+          data-glow={gearGlow ? '1' : undefined}
           aria-label={`Your gear: ${gameState?.activeCharms?.length ?? 0} of ${CHARM_SLOTS} charms, ${(gameState?.activeBuffs?.length ?? 0) - (gameState?.activeCharms?.length ?? 0)} running effects. Tap to open.`}>
           <span className="osd-text text-sm leading-none text-neon-cyan/80 uppercase tracking-wider shrink-0">
             🎒 Gear <span className="text-neon-purple">{gameState?.activeCharms?.length ?? 0}/{CHARM_SLOTS}</span>
@@ -1292,7 +1278,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           </div>
         </div>
 
-        {(holdOpen || speedChip || setChip || triforceChip) && (
+        {(holdOpen || speedChip) && (
           <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
             {holdOpen && (
               <button type="button" onPointerDown={e => { e.preventDefault(); handleHoldTap?.(); }} onClick={e => { if (e.detail === 0) handleHoldTap?.(); }}
@@ -1305,8 +1291,6 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
               </button>
             )}
             {speedChip}
-            {setChip}
-            {triforceChip}
           </div>
         )}
 
