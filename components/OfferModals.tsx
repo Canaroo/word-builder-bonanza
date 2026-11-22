@@ -58,7 +58,9 @@ const ItemCard: React.FC<{
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-display text-sm text-white leading-tight">{item.name}</span>
-            <DurationBadge tag={item.durationTag} />
+            {'breaks' in item && item.breaks
+              ? <span className="osd-text text-sm leading-none px-1.5 py-0.5 rounded-md ring-1 ring-neon-red text-neon-red whitespace-nowrap">💔 FRAGILE</span>
+              : <DurationBadge tag={item.durationTag} />}
             {'oncePerRun' in item && item.oncePerRun && (
               <span className="osd-text text-sm leading-none px-1.5 py-0.5 rounded-md ring-1 ring-neon-orange text-neon-orange whitespace-nowrap">1× PER RUN</span>
             )}
@@ -217,6 +219,7 @@ const SlotRow: React.FC<{ charms: Charm[]; highlightId?: string; upgradedIds?: s
         >
           {charm ? charm.icon : ''}
           {charm && upgradedIds.includes(charm.id) && <span className="absolute -top-1.5 -right-1.5 text-xs leading-none" aria-hidden="true">⭐</span>}
+          {charm?.breaks && <span className="absolute -bottom-1.5 -left-1.5 text-xs leading-none" aria-hidden="true">💔</span>}
           {charm && upgradableIds.includes(charm.id) && (
             <span className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full bg-neon-yellow text-crt-900 text-[10px] font-bold leading-none grid place-items-center" aria-hidden="true">▲</span>
           )}

@@ -38,6 +38,8 @@ export interface Charm {
   activate: (gameState: GameState, options?: any) => Partial<GameState>;
   /** A fragile charm's shard (v7.69.0): which Triforce piece it builds. Never equipped. */
   fragile?: 'power' | 'wisdom' | 'courage';
+  /** A fragile charm (v7.70.0): shatters for the run on any invalid word or strike. */
+  breaks?: true;
 }
 
 
@@ -342,6 +344,10 @@ export interface GameState {
   courageLevel?: number;
   /** The full Triforce's wish was granted this run. */
   triforceWish?: boolean;
+  /** Fragile charms that shattered this run (never offered again). */
+  shatteredCharms?: string[];
+  /** Major Award: valid words played since it was equipped. */
+  majorAwardWords?: number;
   /** Greatest Hits (v7.52.0): the word lengths whose record already paid this run (3 = GOLD...). */
   hitsClaimed?: number[];
   /** Quack Attack (v7.54.0): QUA's fourth play already paid this run. */

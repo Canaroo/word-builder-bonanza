@@ -1,7 +1,7 @@
 import { PHOENIX_DOWN } from '../config/progression';
 import { Charm, GameState, EventLogEntry } from '../types';
 import { labelize } from '../services/durationTags';
-import { BOSS, CHARM_BONUS, CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS, SHINE_BRIGHT_GEMS, GEM_TILES, GATES } from '../config/gameplay';
+import { BOSS, CHARM_BONUS, CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS, SHINE_BRIGHT_GEMS, GEM_TILES, GATES , FRAGILE } from '../config/gameplay';
 
 // The 'activate' function is for effects that happen immediately upon selection for passive buffs.
 // For selection buffs, it's called after the player makes their choice.
@@ -992,6 +992,43 @@ export const CHARMS_LIST: Charm[] = [
     durationTag: 'PERSISTENT',
     activate: createPassiveBuff('hammerTime'),
   },
+  // --- v7.70.0 fragile charms: strong, and they shatter for the run on any invalid word or strike ---
+  {
+    id: 'glassJoe',
+    name: 'Glass Joe',
+    description: `💔 FRAGILE: Every word scores x${FRAGILE.glassJoeMultiplier}. It shatters for the rest of the run the moment you play an invalid word or take a strike. Nothing protects it.`,
+    flavorText: 'Punch-Out!! taught us: a glass jaw never lasts.',
+    icon: '🥊',
+    subtheme: 'score',
+    effectType: 'passive',
+    durationTag: 'PERSISTENT',
+    breaks: true,
+    activate: createPassiveBuff('glassJoe'),
+  },
+  {
+    id: 'majorAward',
+    name: 'Major Award',
+    description: `💔 FRAGILE: Every word earns +${FRAGILE.majorAwardBase}, and +${FRAGILE.majorAwardStep} more for every ${FRAGILE.majorAwardEvery} words it survives (up to +${FRAGILE.majorAwardMax} a word). It shatters for the rest of the run the moment you play an invalid word or take a strike. Nothing protects it.`,
+    flavorText: 'Fra-gee-lay! It must be Italian!',
+    icon: '🦵',
+    subtheme: 'score',
+    effectType: 'passive',
+    durationTag: 'PERSISTENT',
+    breaks: true,
+    activate: createPassiveBuff('majorAward'),
+  },
+  {
+    id: 'crystalBall',
+    name: 'Crystal Ball',
+    description: `💔 FRAGILE: Every word adds +${FRAGILE.crystalBallSeconds} seconds to your clock. It shatters for the rest of the run the moment you play an invalid word or take a strike. Nothing protects it.`,
+    flavorText: "Labyrinth: it's only forever, until you drop it.",
+    icon: '🔮',
+    subtheme: 'utility',
+    effectType: 'passive',
+    durationTag: 'PERSISTENT',
+    breaks: true,
+    activate: createPassiveBuff('crystalBall'),
+  },
   {
     id: 'mrGlass',
     name: 'Mr. Glass',
@@ -1257,4 +1294,5 @@ export const CHARM_TIME_SECONDS: Readonly<Record<string, number>> = {
     wileECoyote: TIME_BONUS.wileECoyote,
     tickTockCroc: TIME_BONUS.tickTockCroc,
     ctuSafeHouse: TIME_BONUS.ctuSafeHouse,
+    crystalBall: FRAGILE.crystalBallSeconds,
 };

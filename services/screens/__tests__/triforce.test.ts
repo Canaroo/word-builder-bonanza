@@ -94,3 +94,31 @@ describe('shards from scratch-off tickets and Lucky Charms (v7.69.1)', () => {
         expect(POWER_PLAYS_LIST.find(p => p.id === 'luckyCharms')!.description).toContain('Triforce shard');
     });
 });
+
+describe('fragile charms shatter on any invalid word or strike (v7.70.0)', () => {
+    const c = (id: string) => CHARMS_LIST.find(x => x.id === id)!;
+    test('a strike shatters every fragile charm held, and they never come back this run', () => {
+        const s = start({ activeCharms: [c('glassJoe'), c('crystalBall'), c('stonks')], activeBuffs: [c('glassJoe'), c('crystalBall'), c('stonks')] });
+        const hit = gameReducer(s, { type: 'ADD_STRIKE' });
+        expect(hit.gameState.activeCharms.map(x => x.id)).toEqual(['stonks']);
+        expect(hit.gameState.shatteredCharms).toEqual(expect.arrayContaining(['glassJoe', 'crystalBall']));
+        expect(hit.modalContent?.type).toBe('outcome');
+    });
+    test('nothing protects them: a shield blocks the strike, but the charm still shatters', () => {
+        const s = start({ activeCharms: [c('majorAward')], activePowerPlays: { strikeShield: true }, strikes: 0 });
+        const hit = gameReducer(s, { type: 'ADD_STRIKE' });
+        expect(hit.gameState.strikes).toBe(0);               // the shield did its job
+        expect(hit.gameState.activeCharms).toHaveLength(0);  // the charm didn't survive
+    });
+    test('the Triforce of Courage and Happy Little Accidents do not save them either', () => {
+        const courage = gameReducer(start({ activeCharms: [c('glassJoe')], triforce: { courage: 3 } }), { type: 'ADD_STRIKE' });
+        expect(courage.gameState.strikes).toBe(0);
+        expect(courage.gameState.activeCharms).toHaveLength(0);
+        const accident = gameReducer(start({ activeCharms: [c('glassJoe'), c('happyLittleAccidents')] }), { type: 'ADD_STRIKE', payload: { source: 'invalid_word' } });
+        expect(accident.gameState.activeCharms.map(x => x.id)).toEqual(['happyLittleAccidents']);
+    });
+    test('descriptions say it plainly', () => {
+        for (const id of ['glassJoe', 'majorAward', 'crystalBall']) expect(c(id).description).toContain('Nothing protects it');
+        expect(c('glassJoe').description).toContain(`x${2}`);
+    });
+});

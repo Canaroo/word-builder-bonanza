@@ -1026,7 +1026,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'withGreatPower',
     name: 'With Great Power',
-    description: "Take a strike for +500 points. Can't be used when you're one strike from game over.",
+    description: "Take a strike for +500 points. Can't be used when you're one strike from game over. The strike breaks any 💔 fragile charm you hold.",
     flavorText: 'With great power comes great responsibility… and great points.',
     icon: '🕷️',
     subtheme: 'strike',
@@ -1305,7 +1305,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'jackass',
     name: 'Jackass',
-    description: `Take a strike on purpose: +${TIME_BONUS.jackass} seconds and your next word scores x${POWER_PLAY_VALUES.jackassMultiplier}. Shields don't stop it, and you can't use it when a strike would end your run.`,
+    description: `Take a strike on purpose: +${TIME_BONUS.jackass} seconds and your next word scores x${POWER_PLAY_VALUES.jackassMultiplier}. Shields don't stop it, and you can't use it when a strike would end your run. The strike breaks any 💔 fragile charm you hold.`,
     flavorText: 'Hi, I’m Johnny Knoxville, and this is Jackass.',
     icon: '🛒',
     subtheme: 'strike',

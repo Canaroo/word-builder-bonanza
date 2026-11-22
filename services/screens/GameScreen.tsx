@@ -25,7 +25,7 @@ import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
 import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, charmLengthPoints, charmLengthBoostFor, charmMultiplierPoints, itemMultiplierIn, prizeFor, prizeScaleFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, charmTimeAt, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, rivalRateFor, redrumReverse , missionById } from '../rules';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES, GEM_INTRO_SHOWS, QUACK_ATTACK, BLUE_STEEL , TRIFORCE } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES, GEM_INTRO_SHOWS, QUACK_ATTACK, BLUE_STEEL , TRIFORCE , FRAGILE } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
 import { currentStreak, powerWordBonusFor, recordBossBadge, earnCosmetic } from '../progression';
@@ -721,11 +721,41 @@ export function withBuildRowReturned<T extends Pick<GameScreenState, 'hand' | 'b
 
 /** The game reducer, plus the time ledger: clock gains from shuffles and power-ups are recorded by source. */
 export function gameReducer(state: GameScreenState, action: GameAction): GameScreenState {
-    const next = payTapeUse(state, payBackpack(state, logPowerPlayUse(state, baseGameReducer(state, action), action), action), action);
+    const next = shatterFragile(state, payTapeUse(state, payBackpack(state, logPowerPlayUse(state, baseGameReducer(state, action), action), action), action), action);
     const source = TIME_GAIN_SOURCE[action.type];
     const gained = next.time - state.time;
     if (!source || gained <= 0 || !next.gameState || state.gameState?.roundType === 'golden' || next.gameState.roundType === 'golden') return next;
     return { ...next, gameState: creditTime(next.gameState, source, gained) };
+}
+
+/**
+ * Fragile charms (v7.70.0, the owner's rule): any invalid word or strike shatters every fragile charm
+ * held, for the rest of the run, even when a shield, Plot Armor, the Triforce of Courage, a waiting
+ * Chubbs or Happy Little Accidents stops the strike itself. ADD_STRIKE runs for every invalid word
+ * and every strike; Jackass and With Great Power add theirs directly, so a rising strike count counts too.
+ */
+function shatterFragile(state: GameScreenState, next: GameScreenState, action: GameAction): GameScreenState {
+    const gs = next.gameState;
+    if (!gs) return next;
+    const hit = action.type === 'ADD_STRIKE' || gs.strikes > (state.gameState?.strikes ?? 0);
+    const glass = gs.activeCharms.filter(c => c.breaks);
+    if (!hit || glass.length === 0) return next;
+    const ids = glass.map(c => c.id);
+    const parts = glass.map(c => `${c.icon} ${c.name}`);
+    const names = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
+    const entry: EventLogEntry = { type: 'event', id: `shatter-${Date.now()}`, name: 'Fragile charm shattered', icon: '💥',
+        description: `${names} shattered. ${glass.length > 1 ? "They're" : "It's"} gone for the rest of the run.`, scoreChange: 0, cumulativeScore: gs.score };
+    const card: ModalContent = outcome({ icon: '💥', name: 'Fragile charm' }, glass.length > 1 ? '💥 FRAGILE CHARMS SHATTERED' : `💥 ${glass[0].name.toUpperCase()} SHATTERED`,
+        `${names} ${glass.length > 1 ? 'are' : 'is'} gone for the rest of the run. Fragile charms break on any invalid word or strike, and nothing protects them.`, 'lose');
+    const gameState: GameState = { ...gs,
+        activeCharms: gs.activeCharms.filter(c => !c.breaks),
+        activeBuffs: gs.activeBuffs.filter(b => !ids.includes(b.id)),
+        charmUpgrades: (gs.charmUpgrades ?? []).filter(id => !ids.includes(id)),
+        shatteredCharms: [...new Set([...(gs.shatteredCharms ?? []), ...ids])],
+        log: [...gs.log, entry] };
+    return next.modalContent
+        ? { ...next, gameState, modalQueue: [...next.modalQueue, card] }
+        : { ...next, gameState, modalContent: card, isPaused: true };
 }
 
 /**
@@ -1851,6 +1881,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             newGameState.charmUpgrades = (newGameState.charmUpgrades ?? []).filter(id => id !== replaceId && id !== charm.id);
             // Tick-Tock Croc counts from the moment it's equipped.
             if (charm.id === 'tickTockCroc') newGameState.crocWords = 0;
+            if (charm.id === 'majorAward') newGameState.majorAwardWords = 0;
             let newTime = state.time;
 
             // Charm slots: a new charm beyond the limit must replace one.
@@ -4467,6 +4498,20 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           newState.mixtapeChain = { next: upper.slice(-1), links: linked ? prev!.links + 1 : 0 };
       }
 
+      // 🦵 Major Award (v7.70.0, fragile): +50 a word, +50 more for every 10 words it has survived.
+      if (newState.activeCharms.some(c => c.id === 'majorAward')) {
+          const held = newState.majorAwardWords ?? 0;
+          const bonus = Math.min(FRAGILE.majorAwardMax, FRAGILE.majorAwardBase + FRAGILE.majorAwardStep * Math.floor(held / FRAGILE.majorAwardEvery));
+          scoreResult.totalScore += bonus;
+          scoreResult.bonuses.push({ name: 'Major Award', description: `+${bonus} pts (${held} ${held === 1 ? 'word' : 'words'} survived)` });
+          newState.majorAwardWords = held + 1;
+      }
+      // 🔮 Crystal Ball (v7.70.0, fragile): every word adds charm time.
+      if (newState.activeCharms.some(c => c.id === 'crystalBall')) {
+          newState.multiverseTimeBonus = (newState.multiverseTimeBonus || 0) + FRAGILE.crystalBallSeconds;
+          scoreResult.bonuses.push({ name: 'Crystal Ball', description: `+${FRAGILE.crystalBallSeconds}s on your clock` });
+      }
+
       // Execute Order 66 check
       if (newState.activeCharms.some(c => c.id === 'executeOrder66')) {
         const hasDoubleLetter = /(.)\1/i.test(word);
@@ -5053,6 +5098,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           scoreResult.bonuses.push({ name: '🔺 Triforce of Power', description: `+${extra.toLocaleString()} pts (x${TRIFORCE.powerMultiplier} whole word)` });
       }
 
+      // 🥊 Glass Joe (v7.70.0, fragile): every word x2 on everything it earned above. 0 means 0 holds.
+      if (newState.activeCharms.some(c => c.id === 'glassJoe') && !wordLocked && runningScore > oldScore) {
+          const extra = Math.round((runningScore - oldScore) * (FRAGILE.glassJoeMultiplier - 1));
+          runningScore += extra;
+          scoreResult.bonuses.push({ name: '🥊 Glass Joe', description: `+${extra.toLocaleString()} pts (x${FRAGILE.glassJoeMultiplier} whole word)` });
+      }
+
       // --- 6. Aggregate Score and Check Aggregate Bonuses ---
       const turnScorePreMilestone = runningScore - oldScore;
 
@@ -5489,7 +5541,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               !(c.id === 'mrGlass' && newState.strikes >= maxStrikesFor({ ...newState, activeCharms: [...newState.activeCharms, c] })) &&
               // v7.62.0: charms that do nothing yet aren't offered until they can work.
               !(c.id === 'keymaster' && (newState.score < CHARM_BONUS.keymasterFromScore || (newState.gatesPassed ?? []).length >= 4)) &&
-              !newState.charmCooldowns[c.id]
+              !newState.charmCooldowns[c.id] &&
+              // v7.70.0: a shattered fragile charm is gone for the run.
+              !(newState.shatteredCharms ?? []).includes(c.id)
           );
           const charmOffer = gameUtils.getOffer(charmsToOfferFrom, 3, newState) as { offeredItems: Charm[]; offerDetails: { id: string; score: number }[] };
           // Charm sets (v7.41): with part of a set held, the last card is sometimes a missing piece.
@@ -6091,6 +6145,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             const pool = CHARMS_LIST.filter(c =>
                 c.effectType !== 'selection' && !gameState.activeCharms.some(a => a.id === c.id) &&
                 c.id !== PHOENIX_DOWN.id && // only ever from a charm offer
+                !(gameState.shatteredCharms ?? []).includes(c.id) &&
                 !(c.id === 'goldenSnitch' && snitchTargetFor(gameState.snitchCatches ?? 0) === null) &&
                 !(c.id === 'gottaCatchEmAll' && gameState.pokedexComplete) &&
                 !(c.id === 'mrGlass' && gameState.strikes >= maxStrikesFor({ ...gameState, activeCharms: [...gameState.activeCharms, c] })));

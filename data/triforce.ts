@@ -30,7 +30,7 @@ export const SHARD_ID_PREFIX = 'shard_';
 export const shardCharm = (id: TriforceId): Charm => ({
   id: `${SHARD_ID_PREFIX}${id}`,
   name: `Shard: ${TRIFORCE_PIECES[id].name}`,
-  description: `A fragile charm: collect all ${TRIFORCE.shards} shards to assemble the ${TRIFORCE_PIECES[id].name}. ${TRIFORCE_PIECES[id].does} A shard does nothing on its own, and the Triforce never uses a charm slot.`,
+  description: `A Triforce shard: collect all ${TRIFORCE.shards} shards to assemble the ${TRIFORCE_PIECES[id].name}. ${TRIFORCE_PIECES[id].does} A shard does nothing on its own, and the Triforce never uses a charm slot.`,
   flavorText: TRIFORCE_PIECES[id].flavor,
   icon: '🔺',
   subtheme: 'game',

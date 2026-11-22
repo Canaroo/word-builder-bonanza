@@ -326,6 +326,19 @@ export const TRIFORCE = {
   badgeId: 'b_heroOfTime',
 } as const;
 
+// Fragile charms (v7.70.0, the owner's design, after Hollow Knight's): very strong charms that
+// shatter for the rest of the run on ANY invalid word or strike. Nothing protects them (shields,
+// Plot Armor, the Triforce of Courage, Chubbs, Happy Little Accidents), so strong players can't
+// cheese them, and every fragile charm held breaks together.
+export const FRAGILE = {
+  glassJoeMultiplier: 2,      // 🥊 Glass Joe: every word x2
+  majorAwardBase: 50,         // 🦵 Major Award: +50 a word...
+  majorAwardStep: 50,         // ...+50 more for every...
+  majorAwardEvery: 10,        // ...10 words it survives...
+  majorAwardMax: 300,         // ...up to +300 a word
+  crystalBallSeconds: 5,      // 🔮 Crystal Ball: every valid word adds this much charm time
+} as const;
+
 export const TIME_BONUS = {
   timeTurner: 10,          // per word, for 2 words
   timeBoost: 10,
