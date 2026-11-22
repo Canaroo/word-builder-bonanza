@@ -320,6 +320,9 @@ export const TRIFORCE = {
   wisdomMinLetters: 5,      // Wisdom: each new hand lights a word this long or longer (else 4)
   courageSeconds: 15,       // Courage: once a level, the clock hitting 0 gives this (charm time)
   wishPoints: 5000,         // all three pieces in one run
+  // v7.69.1 (the owner's picks): shards also come from scratch-off tickets and Lucky Charms.
+  scratchWeight: 0.6,       // weight of a shard square (points 3, time 2...): about 1 ticket in 3 has one; max 1 a ticket
+  luckyChance: 0.25,        // Lucky Charms: a shard falls out instead of a charm
   badgeId: 'b_heroOfTime',
 } as const;
 

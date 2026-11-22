@@ -217,6 +217,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   card with the next shard blinking, on a 🔺 chip above the tiles (tap for the shelf) and on the
   "YOU GOT IT!" card (`triforce` modal). The old Triforce of Courage charm is now **Master Sword**
   (id `triforceOfCourage` kept, still in Hyrule Heroes). Tests in `triforce.test.ts`.
+  **More shard sources (v7.69.1, the owner's picks):** scratch-off tickets (one square at most holds
+  a shard, `TRIFORCE.scratchWeight` 0.6: about 1 ticket in 3; bank it like any prize; "ⓘ READ"
+  shows the piece) and Lucky Charms (`luckyChance` 25%: a shard falls out instead of a charm, no
+  slot bumped). `shardFor` picks the piece: a started one first, else a fresh one, none once all
+  three are done. All sources go through `collectShard` in `GameScreen.tsx`.
 - **How offers are drawn (`getOffer` in `services/gameUtils.ts`; checked v7.67.2, the owner's ask).**
   Pool: everything not held or active, not shown in the last 3 words (`charmCooldowns`,
   `powerPlayCooldowns`), not a taken once-per-run PowerPlay, and not one that can't work yet
