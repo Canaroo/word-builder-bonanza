@@ -1020,7 +1020,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'hammPiggyBank',
     name: "Hamm's Piggy Bank",
-    description: `💔 FRAGILE: ${FRAGILE.piggyDeposit}% of every word's score also goes into Hamm (your word keeps all its points), and his savings grow ${FRAGILE.piggyInterest}% with every word, up to ${FRAGILE.piggyMax.toLocaleString()}. Hold the 🐷 chip above your tiles to smash him and collect. An invalid word or a strike shatters him and the savings are gone. If your run ends with him in one piece, you collect.`,
+    description: `💔 FRAGILE: ${FRAGILE.piggyDeposit}% of every word's score also goes into Hamm (your word keeps all its points), and his savings grow ${FRAGILE.piggyInterest}% with every word, up to ${FRAGILE.piggyMax.toLocaleString()}. Hold the 🐷 chip above your tiles to smash him and collect. An invalid word or a strike shatters him and the savings are gone, and so does running out of time: smash him before the clock hits 0.`,
     flavorText: "That's Mr. Evil Dr. Porkchop to you. (Toy Story)",
     icon: '🐷',
     subtheme: 'score',

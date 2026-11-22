@@ -208,11 +208,14 @@ describe("🐷 Hamm's Piggy Bank (v7.73.0)", () => {
         expect(next.gameState.piggyBank).toBe(0);
         expect(next.gameState.activeCharms.some(c => c.id === 'hammPiggyBank')).toBe(false);
     });
-    test('a run that ends with him whole pays out', () => {
+    test('running out of time with him whole loses the savings (v7.73.1)', () => {
         const s = start({ activeCharms: [hamm()], piggyBank: 4000, score: 1000 });
         const next = gameReducer(s, { type: 'END_RUN', payload: { reason: 'time' } } as any);
-        expect(next.gameState.score).toBe(5000);
+        expect(next.gameState.score).toBe(1000);
+        expect(next.gameState.piggyBank).toBe(0);
         expect(next.gameState.activeCharms).toHaveLength(0);
+        expect((next.gameState.log.at(-1) as any)?.description).toContain('4,000 in savings lost');
+        expect((next.modalContent?.data as any)?.piggyLost).toBe(4000);
     });
     test('equipping him starts an empty bank', () => {
         const s = start({ piggyBank: 999 });

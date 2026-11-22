@@ -269,7 +269,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Greatest Hits) to the bank, which first earns 5% interest, up to 15,000. The word keeps all its
   points. Hold the 🐷 chip above the tiles (`piggyHoldMs` 700, `SMASH_PIGGY`) to smash him: he pays out
   and is gone for the run (into `shatteredCharms`). A slip shatters him and the savings are lost (the
-  shatter card says how much). A run that ends with him whole pays out in `END_RUN`. Simulated on
+  shatter card says how much). v7.73.1 (the owner's call): running out of time loses the savings too
+  (`END_RUN` logs "Time ran out before you smashed Hamm" and the Last Words card says how much was lost, `piggyLost`), so smash him before the clock hits 0. Simulated on
   180-point words: 679 at 10 words, 1,786 at 20, 6,523 at 40, full near 58. Best-play expected value
   about 1,560 for a careless player (a slip every 25 words) and 8,500 for a careful one (every 100),
   against Major Award's 3,255 / 16,866: lower, since the player picks the moment and gets the slot

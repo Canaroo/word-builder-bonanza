@@ -725,14 +725,14 @@ export function withBuildRowReturned<T extends Pick<GameScreenState, 'hand' | 'b
 export const piggyAfterWord = (bank: number, wordScore: number): number =>
     Math.min(FRAGILE.piggyMax, Math.round(bank * (1 + FRAGILE.piggyInterest / 100) + wordScore * FRAGILE.piggyDeposit / 100));
 
-/** Pays out Hamm's savings (smashed by the player, or the run ending with him whole) and removes him. */
-export const smashPiggy = (gs: GameState, how: 'smash' | 'end'): { gameState: GameState; points: number } | null => {
+/** Pays out Hamm's savings when the player smashes him, and removes him for the run. */
+export const smashPiggy = (gs: GameState): { gameState: GameState; points: number } | null => {
     const charm = gs.activeCharms.find(c => c.id === 'hammPiggyBank');
     if (!charm) return null;
     const points = gs.piggyBank ?? 0;
     const score = gs.score + points;
     const entry: EventLogEntry = { type: 'event', id: `piggy-${Date.now()}`, name: charm.name, icon: '🐷',
-        description: how === 'smash' ? `Smashed Hamm: +${points.toLocaleString()} points.` : `The run ended with Hamm in one piece: +${points.toLocaleString()} points.`, scoreChange: points, cumulativeScore: score };
+        description: `Smashed Hamm: +${points.toLocaleString()} points.`, scoreChange: points, cumulativeScore: score };
     return { points, gameState: { ...gs, score, piggyBank: 0,
         activeCharms: gs.activeCharms.filter(c => c.id !== charm.id),
         activeBuffs: gs.activeBuffs.filter(b => b.id !== charm.id),
@@ -1112,7 +1112,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         }
         case 'SMASH_PIGGY': {
             // 🐷 Hamm's Piggy Bank (v7.73.0): smash him and collect. He's gone for the rest of the run.
-            const paid = smashPiggy(gameState, 'smash');
+            const paid = smashPiggy(gameState);
             if (!paid) return state;
             return { ...state, isPaused: true, gameState: paid.gameState,
                 modalContent: outcome({ icon: '🐷', name: "Hamm's Piggy Bank" }, `🔨 SMASH! +${paid.points.toLocaleString()}`, `Hamm's savings are yours: +${paid.points.toLocaleString()} points. He's in pieces now, so he's gone for the rest of the run.`, 'win') };
@@ -3050,10 +3050,19 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         // The run is over (v7.42): Last Words first (one untimed word from the final hand, once),
         // then the Game Over summary.
         case 'END_RUN': {
-            // 🐷 Hamm's Piggy Bank (v7.73.0): a run that ends with him whole pays out his savings.
+            // 🐷 Hamm's Piggy Bank (v7.73.1, the owner's call): a run that ends with him still whole
+            // (the clock ran out) loses his savings. Smash him before time's up.
+            let piggyLost = 0;
             if (state.gameState.activeCharms.some(c => c.id === 'hammPiggyBank')) {
-                const paid = smashPiggy(state.gameState, 'end');
-                if (paid) state = { ...state, gameState: paid.gameState };
+                const gs0 = state.gameState;
+                const lost = gs0.piggyBank ?? 0;
+                piggyLost = lost;
+                const entry: EventLogEntry = { type: 'event', id: `piggy-lost-${Date.now()}`, name: "Hamm's Piggy Bank", icon: '🐷',
+                    description: `Time ran out before you smashed Hamm: ${lost.toLocaleString()} in savings lost.`, scoreChange: 0, cumulativeScore: gs0.score };
+                state = { ...state, gameState: { ...gs0, piggyBank: 0,
+                    activeCharms: gs0.activeCharms.filter(c => c.id !== 'hammPiggyBank'),
+                    activeBuffs: gs0.activeBuffs.filter(b => b.id !== 'hammPiggyBank'),
+                    log: [...gs0.log, entry] } };
             }
             const tilesLeft = [...state.hand, ...state.buildRow.map(b => b?.tile ?? null)].filter(Boolean).length;
             if (state.gameState.lastWordsDone || tilesLeft < 3) return gameReducer(state, { type: 'GAME_OVER_INITIATED', payload: action.payload });
@@ -3067,7 +3076,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 isPaused: true,
                 modalQueue: [],
                 gameState: { ...state.gameState, lastWordsDone: true, holdTile: held && freeSlot !== -1 ? null : held },
-                modalContent: { type: 'last-words', title: 'Last Words', data: { reason: action.payload.reason } },
+                modalContent: { type: 'last-words', title: 'Last Words', data: { reason: action.payload.reason, ...(piggyLost > 0 ? { piggyLost } : {}) } },
             };
         }
 

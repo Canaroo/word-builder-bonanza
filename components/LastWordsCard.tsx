@@ -24,8 +24,10 @@ const LastWordsCard: React.FC<{
   reason: 'strikes' | 'time';
   tiles: Tile[];
   gameState: GameState;
+  /** 🐷 Hamm's savings lost because time ran out (v7.73.1). */
+  piggyLost?: number;
   onDone: (r: LastWordsResult | null) => void;
-}> = ({ reason, tiles, gameState, onDone }) => {
+}> = ({ reason, tiles, gameState, piggyLost = 0, onDone }) => {
   const [picked, setPicked] = useState<number[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,6 +56,7 @@ const LastWordsCard: React.FC<{
       <div className="bg-crt-900 border-4 border-neon-orange shadow-[0_0_28px_rgba(255,140,60,0.5)] rounded-2xl px-4 py-5 max-w-md w-full flex flex-col items-center text-center gap-3 level-stage-in">
         <p className="osd-text text-lg tracking-[0.3em] text-neon-red">{reason === 'strikes' ? 'STRUCK OUT' : "TIME'S UP"}</p>
         <h2 className="font-display text-3xl text-neon-orange leading-none">🎤 LAST WORDS</h2>
+        {piggyLost > 0 && <p className="text-sm text-neon-red leading-snug" data-testid="piggy-lost">🐷 Time ran out before you smashed Hamm: his {piggyLost.toLocaleString()} in savings are gone.</p>}
         {result ? (
           <>
             <p className="font-tile font-extrabold text-3xl tracking-widest text-white">{result.word}</p>
