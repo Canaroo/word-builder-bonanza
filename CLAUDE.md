@@ -222,6 +222,9 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   `handleAskZelda`) finds the longest common 4+ letter word in the hand and word row and places it
   in the word row in order (`ZELDA_PLACE`, `zeldaPlace`); the player taps Submit. No 4+ letter word:
   a toast says so and the ask isn't spent. Where's Waldo no longer steps aside for it.
+  v7.72.1: How to Play explains Ask Zelda, the shard sources (offers, scratch-offs, Lucky Charms) and
+  the 🎒 Gear menu; its old lines about the 🧩 set chip and the "Buffs tray" now point to Gear and the
+  green ▶ USE pocket button. The Triforce shelf card lists all shard sources too.
   **More shard sources (v7.69.1, the owner's picks):** scratch-off tickets (one square at most holds
   a shard, `TRIFORCE.scratchWeight` 0.6: about 1 ticket in 3; bank it like any prize; "ⓘ READ"
   shows the piece) and Lucky Charms (`luckyChance` 25%: a shard falls out instead of a charm, no

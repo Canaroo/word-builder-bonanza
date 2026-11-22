@@ -166,15 +166,24 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             charm points: +{CHARM_LENGTH_BOOST[5]}% on 5 letters, +{CHARM_LENGTH_BOOST[6]}% on 6, +{CHARM_LENGTH_BOOST[7]}% on 7
             and +{CHARM_LENGTH_BOOST[8]}% on 8. <Key>🧩 Charm sets</Key>: some charms belong together (the offer card
             says which). A full pair pays +{CHARM_SET_BONUS.pair} on every word. A three-charm set starts paying at two
-            (+{CHARM_SET_BONUS.trioPartial}) and pays +{CHARM_SET_BONUS.trio} with all three. The 🧩 chip above your tiles
-            shows your best set.
+            (+{CHARM_SET_BONUS.trioPartial}) and pays +{CHARM_SET_BONUS.trio} with all three. Your 🎒 Gear menu shows
+            which sets you've started and what the next piece adds.
           </p>
           <p>
-            <Key>🔺 Triforce shards</Key>. Some charm offers hold a <Key>shard</Key> instead of a charm.
-            Collect {TRIFORCE.shards} shards to assemble a piece. A shard does nothing on its own, but it never uses a
-            charm slot, and neither does the finished piece. Power: every word scores x{TRIFORCE.powerMultiplier}.
-            Wisdom: each new hand lights up a long word you can play. Courage: once per level, a strike or running out
-            of time bounces off. All three in one run: +{TRIFORCE.wishPoints.toLocaleString()} and the Hero of Time badge.
+            <Key>🔺 Triforce shards</Key>. Some charm offers, scratch-off tickets and Lucky Charms hold a{' '}
+            <Key>shard</Key>. Collect {TRIFORCE.shards} shards to assemble a piece. A shard does nothing on its own, but it
+            never uses a charm slot, and neither does the finished piece. <Key>Power</Key>: every word scores
+            x{TRIFORCE.powerMultiplier}. <Key>Wisdom</Key>: once per level, tap <Key>🔺 ASK ZELDA</Key> above your tiles
+            and she puts the longest word your tiles can make ({TRIFORCE.wisdomMinLetters}+ letters) in the word row, so
+            you just tap Submit. If there isn't one, she says so and you keep your ask for later (try a shuffle).{' '}
+            <Key>Courage</Key>: once per level, a strike or running out of time bounces off. All three in one run:
+            +{TRIFORCE.wishPoints.toLocaleString()} and the Hero of Time badge.
+          </p>
+          <p>
+            <Key>🎒 Your Gear</Key>. Tap the Gear strip under the meters to open your gear menu (the clock pauses while
+            it's open). It lists your strikes and what protects you, every charm and what it has earned this run, your
+            pocket PowerPlay, anything running, your charm sets and your Triforce shards. Tap any line to read what it
+            does.
           </p>
           <p>
             <Key>💔 Fragile charms</Key> (Glass Joe, Major Award, Crystal Ball) are the strongest charms around, but the
@@ -185,7 +194,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             <Key>PowerPlays</Key> are a button you press once, at the moment you choose. Fill the meter by playing{' '}
             <Key>{GAMEPLAY.powerPlayMeterLetters} letters</Key> (or every {GAMEPLAY.powerPlayEveryWords} words) to pick one of
             three. From level {GAMEPLAY.powerPlayMeterGrowth.fromLevel} the meter gets longer each level, up to{' '}
-            {GAMEPLAY.powerPlayMeterGrowth.max} letters. You can <Key>hold one</Key> in your Buffs tray; tap it to use it. Earn another while holding one and
+            {GAMEPLAY.powerPlayMeterGrowth.max} letters. You can <Key>hold one</Key> in your pocket: tap its green <Key>▶ USE</Key> button above the word row when you want it (it's in your 🎒 Gear menu too). Earn another while holding one and
             you choose: <Key>keep</Key> yours or <Key>swap</Key>. Either way you still hold just one: <Key>Instant</Key> ones fire right away and replace
             the one in your pocket too. The biggest lifesavers (like Happy Place) are marked <Key>1× PER RUN</Key>: once you
             take one, it won't be offered again that run. <Key>Point prizes</Key> (gambles, Pop Quiz and the like) grow{' '}
