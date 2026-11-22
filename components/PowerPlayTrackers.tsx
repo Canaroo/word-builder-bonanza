@@ -78,7 +78,7 @@ const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string
     const full = bank >= FRAGILE.piggyMax;
     chips.push(bank > 0
       ? <HoldChip key="piggy" ms={FRAGILE.piggyHoldMs} onHold={onPiggySmash} testId="piggy-chip"
-          label={`Hamm's Piggy Bank holds ${bank.toLocaleString()} points${full ? ', full' : `, growing ${FRAGILE.piggyInterest}% a word`}. Press and hold to smash him and collect. An invalid word or a strike loses it all.`}>
+          label={`Hamm's Piggy Bank holds ${bank.toLocaleString()} points${full ? ', full' : `, growing ${FRAGILE.piggyInterest}% a word`}. Press and hold to smash him and collect. An invalid word, a strike or running out of time loses it all.`}>
           <span aria-hidden="true">🐷</span><strong className="text-neon-yellow">{bank.toLocaleString()}</strong>{full ? ' · FULL!' : ` · +${FRAGILE.piggyInterest}%/WORD`} · <strong>HOLD TO SMASH</strong>
         </HoldChip>
       : <Chip key="piggy" icon="🐷" label={`Hamm's Piggy Bank is empty. ${FRAGILE.piggyDeposit}% of every word's score goes in.`}>HAMM IS EMPTY · {FRAGILE.piggyDeposit}% OF EVERY WORD GOES IN</Chip>);
