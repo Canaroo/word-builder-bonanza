@@ -8,6 +8,7 @@ import { createTile, createTileBag, shuffleArray } from '../services/gameUtils';
 import { timesProblem, type TimesProblem } from '../services/miniGameRules';
 import type { Tile } from '../types';
 import { CHARMS_LIST } from '../data/charms';
+import { SHARD_CHARMS } from '../data/triforce';
 import { soundService } from '../services/soundService';
 
 // The PowerPlays where the player makes the call (v7.25): pick a door, take the Banker's deal,
@@ -769,7 +770,7 @@ const HotTub: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve 
  */
 const MARSHMALLOWS = ['⭐', '🌈', '💖', '🍀', '🎈', '🌙', '🐴', '⚡'];
 const LuckyCharms: React.FC<{ onResolve: (r: GambleResult) => void; extra?: Record<string, unknown> }> = ({ onResolve, extra }) => {
-  const charm = CHARMS_LIST.find(c => c.id === extra?.charmId);
+  const charm = [...CHARMS_LIST, ...SHARD_CHARMS].find(c => c.id === extra?.charmId); // v7.69.1: a shard can fall out
   const replaced = CHARMS_LIST.find(c => c.id === extra?.replaceId);
   const [phase, setPhase] = useSaved<'box' | 'shaking' | 'out'>('phase', 'box');
   const [flipped, setFlipped] = useState(phase === 'out');
@@ -831,7 +832,7 @@ const LuckyCharms: React.FC<{ onResolve: (r: GambleResult) => void; extra?: Reco
         </div>
       )}
       {phase === 'box' && <ArcadeButton color="green" className="w-full" onClick={() => { soundService.playPowerUp(); setPhase('shaking'); }}>🍀 Shake the Box</ArcadeButton>}
-      {phase === 'out' && flipped && <ArcadeButton color="purple" className="w-full" onClick={take}><NamedLabel action="Equip" icon={charm.icon} name={charm.name} /></ArcadeButton>}
+      {phase === 'out' && flipped && <ArcadeButton color="purple" className="w-full" onClick={take}>{charm.fragile ? '🔺 Take the shard' : <NamedLabel action="Equip" icon={charm.icon} name={charm.name} />}</ArcadeButton>}
     </>
   );
 };

@@ -6,7 +6,7 @@ import * as gameUtils from '../gameUtils';
 import { MILESTONES_LIST } from '../../data/milestones';
 import { CHARMS_LIST, UPGRADABLE_CHARM_IDS, NO_LENGTH_BOOST_CHARM_IDS } from '../../data/charms';
 import { GAMBLE_CARD_IDS, type GambleResult } from '../../components/GambleCard';
-import { TRIFORCE_IDS, TRIFORCE_PIECES, SHARD_CHARMS, shardCharm, shardsOf, triforceDone, type TriforceId } from '../../data/triforce';
+import { TRIFORCE_IDS, TRIFORCE_PIECES, SHARD_CHARMS, shardCharm, shardsOf, triforceDone, shardFor, type TriforceId } from '../../data/triforce';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, TIME_CARD_IDS } from '../../data/powerPlays';
 import { MINI_GAMES } from '../../data/miniGames';
 import { gatePassword, RECENT_PASSWORDS } from '../../data/gates';
@@ -437,6 +437,7 @@ const scratchModal = (wordsBefore: number, gs: GameState): ModalContent | null =
         heldCharmIds: gs.activeCharms.map(c => c.id),
         slotOpen: gs.activeCharms.length < CHARM_SLOTS,
         pocketEmpty: gs.availablePowerPlays.length === 0,
+        shard: shardFor(gs, Math.random),
     });
     return { type: 'scratch', title: 'Scratch-Off', data: { level, squares } };
 };
@@ -614,6 +615,34 @@ export const pullSetPiece = (
     return {
         offeredItems: offer.offeredItems.map((c, i) => (i === last ? piece : c)),
         offerDetails: offer.offerDetails.map((d, i) => (i === last ? { id: piece.id, score: d.score } : d)),
+    };
+};
+
+/**
+ * Fragile charms (v7.69.0): one more shard of a Triforce piece, from a charm offer, a scratch-off
+ * ticket or Lucky Charms. The third assembles the piece (its "YOU GOT IT!" card comes back to show),
+ * and the last of all three grants the wish once (+5,000 and the Hero of Time badge).
+ */
+const collectShard = (gameState: GameState, id: TriforceId): { gameState: GameState; card: ModalContent | null } => {
+    const piece = TRIFORCE_PIECES[id];
+    const have = Math.min(TRIFORCE.shards, shardsOf(gameState, id) + 1);
+    const triforce = { ...(gameState.triforce ?? {}), [id]: have };
+    const done = have >= TRIFORCE.shards;
+    const allDone = done && TRIFORCE_IDS.every(t => (triforce[t] ?? 0) >= TRIFORCE.shards) && !gameState.triforceWish;
+    let score = gameState.score;
+    let badgeNew = false;
+    if (allDone) { score += TRIFORCE.wishPoints; badgeNew = earnCosmetic(TRIFORCE.badgeId); }
+    const entry: EventLogEntry = { type: 'event', id: `triforce-${id}-${Date.now()}`, name: piece.name, icon: '🔺',
+        description: allDone ? `The Triforce is whole! Wish granted: +${TRIFORCE.wishPoints.toLocaleString()}.${badgeNew ? ' Earned the 🔺 Hero of Time badge.' : ''}`
+          : done ? `Assembled the ${piece.name}: ${piece.does}` : `Shard ${have} of ${TRIFORCE.shards} of the ${piece.name}.`,
+        scoreChange: allDone ? TRIFORCE.wishPoints : 0, cumulativeScore: score };
+    return {
+        card: done ? { type: 'triforce', title: allDone ? 'The Triforce' : piece.name, data: { got: id, wish: allDone, badgeNew } } : null,
+        gameState: {
+            ...gameState, triforce, score, log: [...gameState.log, entry],
+            ...(allDone ? { triforceWish: true } : {}),
+            lastPowerPlayResult: { message: done ? `🔺 ${piece.name} assembled!` : `🔺 Shard ${have} of ${TRIFORCE.shards}: ${piece.name}. ${TRIFORCE.shards - have} to go.`, scoreChange: 0 },
+        },
     };
 };
 
@@ -973,6 +1002,14 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 return { ...state, time, isPaused: true, timeGain: { seconds: got, key: Date.now() },
                     modalContent: outcome(ticket, `+${got} SECONDS`, got < prize.amount ? `Your clock was nearly full: +${got} of ${prize.amount}.` : 'Straight onto your clock.', 'win'),
                     gameState: { ...gameState, log: [...gameState.log, log(`Banked +${got} seconds.`)] } };
+            }
+            if (prize.kind === 'shard') {
+                const got = collectShard(gameState, prize.id);
+                const piece = TRIFORCE_PIECES[prize.id];
+                const have = shardsOf(got.gameState, prize.id);
+                return { ...state, isPaused: true,
+                    modalContent: got.card ?? outcome(ticket, `🔺 SHARD ${have} OF ${TRIFORCE.shards}`, `A shard of the ${piece.name}. ${TRIFORCE.shards - have} more and it's yours: ${piece.does}`, 'win'),
+                    gameState: { ...got.gameState, log: [...got.gameState.log, log(`Banked a shard of the ${piece.name}.`)] } };
             }
             if (prize.kind === 'shuffle') {
                 return { ...state, isPaused: true,
@@ -1800,32 +1837,12 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         case 'CHOOSE_CHARM': {
             const { charm, hand, allOffered, replaceId } = action.payload;
             // Fragile charms (v7.69.0): a shard goes on the Triforce shelf, never into a slot.
+            // Fragile charms (v7.69.0): a shard goes on the Triforce shelf, never into a slot.
             if (charm.fragile) {
-                const id = charm.fragile;
-                const piece = TRIFORCE_PIECES[id];
-                const have = Math.min(TRIFORCE.shards, shardsOf(gameState, id) + 1);
-                const triforce = { ...(gameState.triforce ?? {}), [id]: have };
                 const charmCooldowns = { ...gameState.charmCooldowns };
                 allOffered.forEach(c => { if (!c.fragile) charmCooldowns[c.id] = 3; });
-                const done = have >= TRIFORCE.shards;
-                const allDone = done && TRIFORCE_IDS.every(t => (triforce[t] ?? 0) >= TRIFORCE.shards) && !gameState.triforceWish;
-                let score = gameState.score;
-                let badgeNew = false;
-                if (allDone) { score += TRIFORCE.wishPoints; badgeNew = earnCosmetic(TRIFORCE.badgeId); }
-                const entry: EventLogEntry = { type: 'event', id: `triforce-${id}-${Date.now()}`, name: piece.name, icon: '🔺',
-                    description: allDone ? `The Triforce is whole! Wish granted: +${TRIFORCE.wishPoints.toLocaleString()}.${badgeNew ? ' Earned the 🔺 Hero of Time badge.' : ''}`
-                      : done ? `Assembled the ${piece.name}: ${piece.does}` : `Shard ${have} of ${TRIFORCE.shards} of the ${piece.name}.`,
-                    scoreChange: allDone ? TRIFORCE.wishPoints : 0, cumulativeScore: score };
-                const card: ModalContent | null = done ? { type: 'triforce', title: allDone ? 'The Triforce' : piece.name, data: { got: id, wish: allDone, badgeNew } } : null;
-                return {
-                    ...state,
-                    modalQueue: card ? [...state.modalQueue, card] : state.modalQueue,
-                    gameState: {
-                        ...gameState, triforce, charmCooldowns, score, log: [...gameState.log, entry],
-                        ...(allDone ? { triforceWish: true } : {}),
-                        lastPowerPlayResult: { message: done ? `🔺 ${piece.name} assembled!` : `🔺 Shard ${have} of ${TRIFORCE.shards}: ${piece.name}. ${TRIFORCE.shards - have} to go.`, scoreChange: 0 },
-                    },
-                };
+                const got = collectShard({ ...gameState, charmCooldowns }, charm.fragile);
+                return { ...state, modalQueue: got.card ? [...state.modalQueue, got.card] : state.modalQueue, gameState: got.gameState };
             }
             let newHand = hand;
             let returnedBag = state.tileBag;
@@ -5948,7 +5965,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         if (r.tile) dispatch({ type: 'ADD_FREE_TILE', payload: { letter: r.tile } });
         // Lucky Charms: the charm from the box goes on (bumping the picked one when slots are full).
         if (r.charm) {
-            const charm = CHARMS_LIST.find(c => c.id === r.charm!.id);
+            const charm = [...CHARMS_LIST, ...SHARD_CHARMS].find(c => c.id === r.charm!.id);
             if (charm) dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand: hand ?? [], allOffered: [charm], replaceId: r.charm.replaceId } });
         }
     };
@@ -6077,9 +6094,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 !(c.id === 'goldenSnitch' && snitchTargetFor(gameState.snitchCatches ?? 0) === null) &&
                 !(c.id === 'gottaCatchEmAll' && gameState.pokedexComplete) &&
                 !(c.id === 'mrGlass' && gameState.strikes >= maxStrikesFor({ ...gameState, activeCharms: [...gameState.activeCharms, c] })));
-            const charm = pool[Math.floor(Math.random() * pool.length)];
+            // v7.69.1: sometimes a Triforce shard falls out instead (it never needs a slot).
+            const shardId = shardFor(gameState) && Math.random() < TRIFORCE.luckyChance ? shardFor(gameState) : null;
+            const charm = shardId ? shardCharm(shardId) : pool[Math.floor(Math.random() * pool.length)];
             if (!charm) { showMessage('🍀 No charms left to give!', 2500); return; }
-            const replaced = gameState.activeCharms.length >= CHARM_SLOTS ? gameState.activeCharms[Math.floor(Math.random() * gameState.activeCharms.length)] : undefined;
+            const replaced = !shardId && gameState.activeCharms.length >= CHARM_SLOTS ? gameState.activeCharms[Math.floor(Math.random() * gameState.activeCharms.length)] : undefined;
             // Picked now and carried in the pop-up's data (saved with the run), so the box can't be re-shaken.
             soundService.playPowerUp();
             dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gamble', title: powerPlay.name, data: { id: powerPlay.id, icon: powerPlay.icon, charmId: charm.id, replaceId: replaced?.id } } });

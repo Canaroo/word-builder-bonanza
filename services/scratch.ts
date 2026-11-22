@@ -1,6 +1,7 @@
 // Scratch-off ticket (v7.66.0, the owner's design): the card dealt at levels 4, 7 and 11, where the
 // Fork used to be. Pure rules here; the card is components/ScratchCard.tsx. Values in SCRATCH.
-import { SCRATCH } from '../config/gameplay';
+import { SCRATCH, TRIFORCE } from '../config/gameplay';
+import type { TriforceId } from '../data/triforce';
 
 export type ScratchPrize =
   | { kind: 'points'; amount: number }
@@ -9,6 +10,7 @@ export type ScratchPrize =
   | { kind: 'challenge'; amount: number }
   | { kind: 'charm'; id: string }
   | { kind: 'powerplay'; id: string }
+  | { kind: 'shard'; id: TriforceId }
   | { kind: 'skull' };
 
 const pick = <T,>(list: readonly T[], rand: () => number): T => list[Math.floor(rand() * list.length)];
@@ -20,17 +22,20 @@ const pick = <T,>(list: readonly T[], rand: () => number): T => list[Math.floor(
  */
 export const dealScratch = (
   rand: () => number,
-  opts: { heldCharmIds: readonly string[]; slotOpen: boolean; pocketEmpty: boolean },
+  opts: { heldCharmIds: readonly string[]; slotOpen: boolean; pocketEmpty: boolean; shard?: TriforceId | null },
 ): ScratchPrize[] => {
   const charms = SCRATCH.charms.filter(id => !opts.heldCharmIds.includes(id));
   const pps: string[] = [...SCRATCH.powerPlays];
   const usedCharms = new Set<string>(), usedPPs = new Set<string>();
   const kinds = (Object.keys(SCRATCH.weights) as (keyof typeof SCRATCH.weights)[]).filter(k =>
     k === 'charm' ? opts.slotOpen && charms.length > 0 : k === 'powerplay' ? opts.pocketEmpty : true);
-  const total = kinds.reduce((t, k) => t + SCRATCH.weights[k], 0);
   const prizes: ScratchPrize[] = [];
+  // v7.69.1: one square at most can hold a Triforce shard (for the piece shardFor picked).
+  let shardLeft = opts.shard ? 1 : 0;
   while (prizes.length < SCRATCH.squares - SCRATCH.skulls) {
+    const total = kinds.reduce((t, k) => t + SCRATCH.weights[k], 0) + (shardLeft ? TRIFORCE.scratchWeight : 0);
     let r = rand() * total;
+    if (shardLeft && (r -= TRIFORCE.scratchWeight) < 0) { shardLeft = 0; prizes.push({ kind: 'shard', id: opts.shard! }); continue; }
     const kind = kinds.find(k => (r -= SCRATCH.weights[k]) < 0) ?? 'points';
     if (kind === 'charm') {
       const left = charms.filter(id => !usedCharms.has(id));

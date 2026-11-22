@@ -64,3 +64,33 @@ describe('fragile charms: the Triforce (v7.69.0)', () => {
         for (const sh of SHARD_CHARMS) expect(CHARMS_LIST.some(c => c.id === sh.id)).toBe(false);
     });
 });
+
+describe('shards from scratch-off tickets and Lucky Charms (v7.69.1)', () => {
+    test('about 1 ticket in 3 has a shard square, never more than one, and none once all are finished', async () => {
+        const { dealScratch } = await import('../../scratch');
+        let withShard = 0; const n = 5000;
+        for (let i = 0; i < n; i++) {
+            const t = dealScratch(Math.random, { heldCharmIds: [], slotOpen: true, pocketEmpty: true, shard: 'power' });
+            const shards = t.filter(s => s.kind === 'shard').length;
+            expect(shards).toBeLessThanOrEqual(1);
+            if (shards) withShard++;
+        }
+        expect(withShard / n).toBeGreaterThan(0.28); expect(withShard / n).toBeLessThan(0.4);
+        const { shardFor } = await import('../../../data/triforce');
+        expect(shardFor({ triforce: { power: 3, wisdom: 3, courage: 3 } })).toBeNull();
+        expect(shardFor({ triforce: { power: 1 } })).toBe('power'); // a started piece comes first
+    });
+    test('banking a shard square adds it to the shelf; the third opens the assembled card', () => {
+        const s = start({ triforce: { wisdom: 1 } });
+        const one = gameReducer({ ...s, modalContent: { type: 'scratch', title: 'x' } } as GameScreenState, { type: 'SCRATCH_RESULT', payload: { prize: { kind: 'shard', id: 'wisdom' } } });
+        expect(one.gameState.triforce?.wisdom).toBe(2);
+        expect(one.modalContent?.type).toBe('outcome');
+        const two = gameReducer(one, { type: 'SCRATCH_RESULT', payload: { prize: { kind: 'shard', id: 'wisdom' } } });
+        expect(triforceDone(two.gameState, 'wisdom')).toBe(true);
+        expect(two.modalContent).toMatchObject({ type: 'triforce', data: { got: 'wisdom' } });
+    });
+    test('Lucky Charms says shards can fall out', async () => {
+        const { POWER_PLAYS_LIST } = await import('../../../data/powerPlays');
+        expect(POWER_PLAYS_LIST.find(p => p.id === 'luckyCharms')!.description).toContain('Triforce shard');
+    });
+});

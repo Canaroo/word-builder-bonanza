@@ -44,3 +44,12 @@ export const SHARD_CHARMS: Charm[] = TRIFORCE_IDS.map(shardCharm);
 export const shardsOf = (gs: Pick<GameState, 'triforce'> | null | undefined, id: TriforceId): number => gs?.triforce?.[id] ?? 0;
 export const triforceDone = (gs: Pick<GameState, 'triforce'> | null | undefined, id: TriforceId): boolean => shardsOf(gs, id) >= TRIFORCE.shards;
 export const anyShards = (gs: Pick<GameState, 'triforce'> | null | undefined): boolean => TRIFORCE_IDS.some(id => shardsOf(gs, id) > 0);
+
+/** v7.69.1: the shard a ticket or Lucky Charms would give: the next shard of a started piece, else a
+ * piece not started yet; null once all three are finished. */
+export const shardFor = (gs: Pick<GameState, 'triforce'> | null | undefined, rand: () => number = Math.random): TriforceId | null => {
+  const started = TRIFORCE_IDS.filter(id => shardsOf(gs, id) > 0 && !triforceDone(gs, id));
+  const fresh = TRIFORCE_IDS.filter(id => shardsOf(gs, id) === 0);
+  const from = started.length ? started : fresh;
+  return from.length ? from[Math.floor(rand() * from.length)] : null;
+};
