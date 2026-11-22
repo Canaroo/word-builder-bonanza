@@ -124,6 +124,11 @@ export const POWER_PLAY_VALUES = {
   blueShellLoss: 100,
   doubleOrNothingWinChance: 0.6, // otherwise the word scores 0
   nuclearOptionMultiplier: 3,    // next word, on top of the fresh hand
+  // Fortune's Favor (v7.72.5: a Magic 8-Ball card, shake it 3 times): same odds and amounts as before.
+  fortuneLose: 200, fortuneLoseChance: 0.4,       // "Outlook not so good"
+  fortuneWin: 250,                               // 50%
+  fortuneJackpot: 500, fortuneJackpotChance: 0.1, // "Without a doubt"
+  fortuneShakes: 3,
   gumpLuckPoints: 75,            // one of Gump Luck's four outcomes
   gumpLuckChocolates: 6,         // v7.67.1: chocolates in the box (tap one to unwrap it)
   spaceInvaderMultiplier: 3,     // Space Invader: 50% for this...

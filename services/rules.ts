@@ -559,6 +559,24 @@ export const blackjackResult = (player: number[], dealer: number[]): BlackjackRe
 /** Chicken Dinner: the listed prize for a result (before the level boost). */
 export const blackjackPrize = (r: BlackjackResult): number =>
     r === 'natural' ? POWER_PLAY_VALUES.blackjackNatural : r === 'win' ? POWER_PLAY_VALUES.blackjackWin : r === 'push' ? POWER_PLAY_VALUES.blackjackPush : 0;
+/**
+ * Fortune's Favor (v7.72.5): the Magic 8-Ball's answer, rolled when the card opens. Each outcome has
+ * real 8-Ball answers to float up in the window; `answer` picks one of them.
+ */
+export type FortuneKind = 'lose' | 'win' | 'jackpot';
+export const FORTUNE_ANSWERS: Record<FortuneKind, readonly string[]> = {
+    lose: ['OUTLOOK NOT SO GOOD', 'MY REPLY IS NO', 'VERY DOUBTFUL', "DON'T COUNT ON IT"],
+    win: ['IT IS CERTAIN', 'SIGNS POINT TO YES', 'YES, DEFINITELY', 'MOST LIKELY'],
+    jackpot: ['WITHOUT A DOUBT', 'AS I SEE IT, YES!'],
+};
+export const fortuneRoll = (rand: () => number = Math.random): { kind: FortuneKind; answer: number } => {
+    const r = rand();
+    const kind: FortuneKind = r < POWER_PLAY_VALUES.fortuneLoseChance ? 'lose' : r < 1 - POWER_PLAY_VALUES.fortuneJackpotChance ? 'win' : 'jackpot';
+    return { kind, answer: Math.floor(rand() * FORTUNE_ANSWERS[kind].length) };
+};
+export const fortunePoints = (kind: FortuneKind): number =>
+    kind === 'lose' ? -POWER_PLAY_VALUES.fortuneLose : kind === 'win' ? POWER_PLAY_VALUES.fortuneWin : POWER_PLAY_VALUES.fortuneJackpot;
+
 /** Gump Luck (v7.67.1): what's in the chocolate, 25% each. */
 export type GumpPrize = 'time' | 'points' | 'shuffle' | 'empty';
 export const gumpRoll = (rand: () => number = Math.random): GumpPrize => (['time', 'points', 'shuffle', 'empty'] as const)[Math.min(3, Math.floor(rand() * 4))];

@@ -3,7 +3,7 @@ import { Sec } from './Seconds';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import ArcadeButton, { NamedLabel } from './ArcadeButton';
 import { POWER_PLAY_VALUES as V, TIME_BONUS } from '../config/gameplay';
-import { dealDoors, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, WHAMMY_BOARD, whammySpin, whammySquareFor, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout, blackjackHands, blackjackTotal, blackjackResult, blackjackPrize, gumpRoll, type GumpPrize } from '../services/rules';
+import { dealDoors, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, WHAMMY_BOARD, whammySpin, whammySquareFor, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout, blackjackHands, blackjackTotal, blackjackResult, blackjackPrize, gumpRoll, type GumpPrize, fortuneRoll, fortunePoints, FORTUNE_ANSWERS, type FortuneKind } from '../services/rules';
 import { createTile, createTileBag, shuffleArray } from '../services/gameUtils';
 import { timesProblem, type TimesProblem } from '../services/miniGameRules';
 import type { Tile } from '../types';
@@ -1367,12 +1367,77 @@ const GumpBox: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve
   );
 };
 
+/**
+ * Fortune's Favor (v7.72.5, the owner's ask: shake it, don't just tell me): a Magic 8-Ball. Shake it
+ * (tap the ball or the button) 3 times, the answer floats up through the murk in its window, then
+ * take it. The answer is rolled when the card opens and saved, so a quit can't reroll it.
+ */
+const FortuneBall: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
+  const [roll] = useSaved<{ kind: FortuneKind; answer: number }>('roll', () => fortuneRoll());
+  const [shakes, setShakes] = useSaved<number>('shakes', 0);
+  const [shaking, setShaking] = useState(false);
+  const [risen, setRisen] = useState(shakes >= V.fortuneShakes);
+  const done = shakes >= V.fortuneShakes;
+  const answer = FORTUNE_ANSWERS[roll.kind][roll.answer % FORTUNE_ANSWERS[roll.kind].length];
+  const points = fortunePoints(roll.kind);
+  useEffect(() => {
+    if (!done || risen) return;
+    const t = setTimeout(() => { setRisen(true); if (points > 0) soundService.playMilestone(); }, 1500);
+    return () => clearTimeout(t);
+  }, [done, risen, points]);
+  const shake = () => {
+    if (done || shaking) return;
+    soundService.playTileClick(); try { navigator.vibrate?.(30); } catch { /* */ }
+    setShaking(true); setTimeout(() => setShaking(false), 450);
+    setShakes(shakes + 1);
+  };
+  const headline = points < 0 ? `${points} POINTS` : `+${points} POINTS`;
+  const detail = roll.kind === 'lose' ? `"${answer.toLowerCase().replace(/^./, c => c.toUpperCase())}." The ball takes ${-points} points.`
+    : `"${answer.toLowerCase().replace(/^./, c => c.toUpperCase())}." You gain ${points} points.`;
+  return (
+    <>
+      <p className="text-slate-200 text-sm leading-snug">Ask it anything, then shake it {V.fortuneShakes} times. Yes pays +{V.fortuneWin}, "without a doubt" +{V.fortuneJackpot}, and "outlook not so good" costs {V.fortuneLose}.</p>
+      <button type="button" data-testid="eight-ball" onClick={shake} disabled={done} aria-label={done ? `The 8-Ball says: ${answer}` : `Shake the 8-Ball (${shakes} of ${V.fortuneShakes})`}
+        className={`relative w-44 h-44 rounded-full select-none bg-[radial-gradient(circle_at_32%_28%,#5b6170,#1b1d24_45%,#050507_75%)] shadow-[0_12px_28px_rgba(0,0,0,0.7),inset_0_-10px_24px_rgba(0,0,0,0.8)] ring-2 ring-white/10 ${shaking ? 'cereal-shake' : ''} ${done ? '' : 'active:scale-95'}`}>
+        <span className="absolute top-5 left-9 w-10 h-5 rounded-full bg-white/25 blur-[3px] rotate-[-25deg]" aria-hidden="true" />
+        <span className="absolute inset-0 m-auto w-24 h-24 rounded-full bg-[radial-gradient(circle,#0b1f4d,#030712_75%)] ring-4 ring-black flex items-center justify-center overflow-hidden" aria-hidden="true">
+          {!done && <span className="w-14 h-14 rounded-full bg-white text-black font-display text-4xl leading-none flex items-center justify-center">8</span>}
+          {done && (
+            <span className={`relative flex items-center justify-center transition-all duration-[1400ms] ease-out ${risen ? 'opacity-100 scale-100 blur-0' : 'opacity-0 scale-75 blur-sm'}`}
+              style={{ width: 84, height: 74 }}>
+              <span className="absolute inset-0 bg-[#2f5bd6]" style={{ clipPath: 'polygon(50% 100%, 0 0, 100% 0)' }} />
+              <span className="relative -mt-4 px-3 text-center font-display text-[9px] leading-[1.05] text-white/90">{answer}</span>
+            </span>
+          )}
+        </span>
+      </button>
+      {!done ? (
+        <>
+          <div className="flex items-center gap-2" aria-hidden="true">
+            {Array.from({ length: V.fortuneShakes }, (_, i) => <span key={i} className={`w-3 h-3 rounded-full ${i < shakes ? 'bg-neon-cyan shadow-[0_0_8px_rgba(0,229,255,0.8)]' : 'bg-white/15'}`} />)}
+          </div>
+          <ArcadeButton color="cyan" className="w-full" onClick={shake}>🎱 Shake it! ({shakes}/{V.fortuneShakes})</ArcadeButton>
+        </>
+      ) : !risen ? (
+        <p className="osd-text text-lg text-slate-300 animate-pulse">THE ANSWER IS RISING…</p>
+      ) : (
+        <>
+          <p className={`font-display text-2xl ${points > 0 ? 'text-neon-green' : 'text-neon-red'}`}>{headline}</p>
+          <ArcadeButton color={points > 0 ? 'green' : 'pink'} className="w-full" onClick={() => onResolve({ points, headline, detail, tone: points > 0 ? 'win' : 'lose' })}>
+            {points > 0 ? `Take +${points}` : 'Continue'}
+          </ArcadeButton>
+        </>
+      )}
+    </>
+  );
+};
+
 const GAMES: Record<string, React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[]; extra?: Record<string, unknown> }>> = {
   letsMakeADeal: Doors, dealOrNoDeal: Deal, noWhammies: Whammies, minesweeper: Mines,
   priceIsRight: PriceIsRight, psychicFriends: PsychicCall, draftDay: DraftDay, cardSharks: CardSharks, plinko: Plinko,
   hotTubTimeMachine: HotTub, luckyCharms: LuckyCharms, wildcard: Wildcard,
   shakeItLikeAPolaroid: Polaroid, duckHunt: DuckHunt, scroogeSwipe: MoneyBin, warioWarp: WarioBags, missionImpossible: Mission,
-  fifthGrader: FifthGrader, chickenDinner: Blackjack, gumpLuck: GumpBox,
+  fifthGrader: FifthGrader, chickenDinner: Blackjack, gumpLuck: GumpBox, fortunesFavor: FortuneBall,
 };
 
 /** The interactive part of a gamble PowerPlay. */
