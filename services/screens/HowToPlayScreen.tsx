@@ -272,6 +272,11 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             <Key>+{GATES.password.solve.toLocaleString()}</Key>.
           </p>
           <p>
+            <Key>{GATES.winners.score.toLocaleString()}</Key> 🔺 Winner's Circle: {GATES.winners.rungs.length} clues in {GATES.winners.seconds}<Sec />.
+            Spell the word each clue describes from your tiles to climb the pyramid, up to{' '}
+            <Key>+{(GATES.winners.rungs.reduce((a, b) => a + b, 0) + GATES.winners.sweep).toLocaleString()}</Key> for all three.
+          </p>
+          <p>
             <Key>{GATES.bonusStage.score.toLocaleString()}</Key> 🌟 Bonus Stage: {GATES.bonusStage.seconds}<Sec /> with a fresh hand, every word x{GATES.bonusStage.multiplier}.
           </p>
           <p>

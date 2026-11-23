@@ -729,13 +729,13 @@ export const missionById = (id: string | undefined) => MISSIONS.find(m => m.id =
 /** v7.61.0: the next Score Gate this run hasn't crossed (for the marker under the score), or null. */
 export const nextGateFor = (gs: { score: number; gatesPassed?: number[] } | null | undefined): number | null => {
     if (!gs) return null;
-    const scores = [GATES.password.score, GATES.bonusStage.score, GATES.ladder.score, GATES.bigOne.score];
+    const scores = [GATES.password.score, GATES.winners.score, GATES.bonusStage.score, GATES.ladder.score, GATES.bigOne.score];
     return scores.find(s => !(gs.gatesPassed ?? []).includes(s) && s > gs.score) ?? null;
 };
 
 /** The gate before `next` (0 for the first), so the marker's bar runs between the two. */
 export const previousGateFor = (next: number): number => {
-    const scores = [0, GATES.password.score, GATES.bonusStage.score, GATES.ladder.score, GATES.bigOne.score];
+    const scores = [0, GATES.password.score, GATES.winners.score, GATES.bonusStage.score, GATES.ladder.score, GATES.bigOne.score];
     return scores[Math.max(0, scores.indexOf(next) - 1)] ?? 0;
 };
 
