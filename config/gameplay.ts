@@ -729,6 +729,11 @@ export const GATES = {
   // v7.61.0: the marker under the score lights up this many points before the next gate.
   markerGlowWithin: 2000,
   password: { score: 10000, seconds: 20, solve: 1000, hint: 500, miss: 250 },
+  // v7.76.0: 🔺 Winner's Circle (the $25,000 Pyramid), the owner's pick for the open 20,000 spot (36% of
+  // runs reach it, against 47% at 10,000 and 27% at 30,000). Three clues from the game's own
+  // definitions; spell each answer from an 8-tile board (its letters + extras) in `seconds` total.
+  // Each clue pays its rung; all three pay `sweep` more (2,000 total). PASS skips a clue for nothing.
+  winners: { score: 20000, seconds: 40, rungs: [200, 400, 600], sweep: 800, extraTiles: 4 },
   bonusStage: { score: 30000, seconds: 30, multiplier: 3, handSize: 10, perLetter: 25 }, // each word: (its score + 25 a letter) x3
   // v7.49: 9% of Nov 12-15 runs passed 50,000 and 2% passed 70,000. Points (and a badge), never
   // time: late runs are clock-limited, and time would undo Overtime.

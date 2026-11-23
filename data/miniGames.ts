@@ -51,6 +51,12 @@ export const MINI_GAMES: Record<MiniGameId, MiniGameInfo> = {
     rules: `The gate is locked. Unscramble the 6-letter password in ${G.password.seconds} seconds. Any real word that uses all six letters opens it.`,
     prize: `Solve +${G.password.solve.toLocaleString()} · with the hint +${G.password.hint} · miss +${G.password.miss}`,
   },
+  winners: {
+    name: "Winner's Circle", icon: '🔺',
+    rules: `Three clues, ${G.winners.seconds} seconds. Each clue describes a word hidden in your tiles: spell it to climb the pyramid. A wrong word costs nothing; PASS skips a clue but gives up its prize.`,
+    prize: `${G.winners.rungs.map(p => `+${p}`).join(', ')} · all three: +${G.winners.sweep} more (${(G.winners.rungs.reduce((a, b) => a + b, 0) + G.winners.sweep).toLocaleString()} in all)`,
+    flavor: 'Things a contestant says before the clock runs out…',
+  },
   bonusStage: {
     name: 'Bonus Stage', icon: '🌟',
     rules: `Your clock is paused. ${G.bonusStage.seconds} seconds with a fresh ${G.bonusStage.handSize}-tile hand. Every word gets +${G.bonusStage.perLetter} a letter, then scores x${G.bonusStage.multiplier} (your charms count).`,

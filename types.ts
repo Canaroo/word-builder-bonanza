@@ -126,6 +126,8 @@ export type MiniGameId = 'pong' | 'mole' | 'claw' | 'darts' | 'goal' | 'dice' | 
   | 'wheel'
   /** v7.49: the 50,000 and 70,000 gates. */
   | 'ladder' | 'bigOne'
+  /** v7.76.0: the 20,000 gate. */
+  | 'winners'
   /** Score gates (v7.39.0), opened by crossing a score rather than by a word. */
   | 'password' | 'bonusStage';
 

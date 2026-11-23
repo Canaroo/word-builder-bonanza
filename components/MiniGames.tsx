@@ -5,6 +5,7 @@ import { MINI_GAMES } from '../data/miniGames';
 import type { GameState, MiniGameId, Tile } from '../types';
 import { scramble, BIG_ONE_WORDS, LADDER_FALLBACK } from '../data/gates';
 import { wheelLetterPay, wheelBoard, wheelSolved } from '../services/rules';
+import { WINNERS_CIRCLE_CLUES } from '../data/winnersCircle';
 import { dictionaryService } from '../services/dictionaryService';
 import { calculateScore } from '../services/gameUtils';
 import { TILE_DISTRIBUTION } from '../constants';
@@ -1894,10 +1895,102 @@ const Wheel: React.FC<GameProps> = ({ finish }) => {
   );
 };
 
+// 20,000 (v7.76.0): 🔺 Winner's Circle, the $25,000 Pyramid. Three clues, one shared clock. Each
+// answer is hidden in an 8-tile board (its letters plus extras, never dealt in order). The clues and
+// boards are dealt once and saved with progress, so a quit can't redeal them.
+type WinnersClue = { word: string; clue: string; letters: string[] };
+type WinnersState = { clues: WinnersClue[]; idx: number; solved: boolean[]; left: number; over: boolean };
+export const dealWinners = (rand: () => number = Math.random): WinnersClue[] => {
+  const W = GATES.winners;
+  const pool = [...WINNERS_CIRCLE_CLUES];
+  const picked: (readonly [string, string])[] = [];
+  while (picked.length < W.rungs.length && pool.length) picked.push(pool.splice(Math.floor(rand() * pool.length), 1)[0]);
+  return picked.map(([word, clue]) => {
+    let letters: string[] = [];
+    for (let k = 0; k < 20; k++) {
+      const extras = Array.from({ length: W.extraTiles }, () => BAG[Math.floor(rand() * BAG.length)]);
+      letters = [...word, ...extras];
+      for (let i = letters.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [letters[i], letters[j]] = [letters[j], letters[i]]; }
+      if (!letters.join('').includes(word)) break;
+    }
+    return { word, clue, letters };
+  });
+};
+const Winners: React.FC<GameProps> = ({ finish }) => {
+  const W = GATES.winners;
+  const [state, setState] = useSaved<WinnersState>('winners', () => ({ clues: dealWinners(), idx: 0, solved: [], left: W.seconds * 1000, over: false }));
+  const live = useRef<WinnersState>(state);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [, setFrame] = useState(0);
+  const save = () => setState({ ...live.current });
+  const total = (s: WinnersState) => s.solved.reduce((t, ok, i) => t + (ok ? W.rungs[i] : 0), 0) + (s.solved.length === W.rungs.length && s.solved.every(Boolean) ? W.sweep : 0);
+  const end = () => {
+    const s = live.current; if (s.over) return;
+    s.over = true; save();
+    const pts = total(s);
+    const sweep = s.solved.length === W.rungs.length && s.solved.every(Boolean);
+    const right = s.solved.filter(Boolean).length;
+    if (pts) soundService.playMilestone(); else soundService.playInvalidWord();
+    finish({ points: pts, headline: sweep ? `TOP OF THE PYRAMID! +${pts.toLocaleString()}` : pts ? `${right} OF ${W.rungs.length}: +${pts.toLocaleString()}` : "TIME'S UP",
+      detail: `The answers: ${s.clues.map((c, i) => `${c.word}${s.solved[i] ? ' ✔' : ''}`).join(', ')}.${sweep ? ` All three: +${W.sweep} more.` : ''}` });
+  };
+  useEffect(() => {
+    let last = performance.now(), saveIn = 1000;
+    const t = setInterval(() => {
+      const s = live.current; if (s.over) return;
+      const now = performance.now(); s.left = Math.max(0, s.left - (now - last)); saveIn -= now - last; last = now;
+      if (saveIn <= 0) { saveIn = 1000; save(); }
+      if (s.left <= 0) end(); else setFrame(f => f + 1);
+    }, 100);
+    return () => clearInterval(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const next = (ok: boolean) => {
+    const s = live.current;
+    s.solved = [...s.solved, ok]; s.idx += 1; save();
+    if (s.idx >= s.clues.length) end();
+  };
+  const submit = (word: string) => {
+    const s = live.current; if (s.over) return;
+    const c = s.clues[s.idx];
+    if (word === c.word) { tick(); buzz([15, 30, 15]); setFlash(`✔ ${word}! +${W.rungs[s.idx]}`); next(true); }
+    else { buzz(40); setFlash(`${word}? Not it. Read the clue again.`); }
+  };
+  const s = live.current;
+  const c = s.clues[Math.min(s.idx, s.clues.length - 1)];
+  const tiles = React.useMemo(() => gateTiles(c.letters), [s.idx]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <>
+      <div className="w-full flex justify-between items-baseline">
+        <span className="font-display text-xl text-neon-yellow">+{total(s)}</span>
+        <Secs ms={s.left} warnBelow={10000} />
+      </div>
+      <TimeBar ms={s.left} total={W.seconds * 1000} warnBelow={10000} />
+      <div className="flex flex-col items-center gap-1 w-full" data-testid="winners-pyramid" aria-label={`Clue ${Math.min(s.idx + 1, W.rungs.length)} of ${W.rungs.length}`}>
+        {[...W.rungs.keys()].reverse().map(i => (
+          <div key={i} style={{ width: `${45 + (W.rungs.length - 1 - i) * 18}%` }}
+            className={`rounded-md py-1 text-center font-display text-sm ${s.solved[i] === true ? 'bg-neon-green text-crt-900' : s.solved[i] === false ? 'bg-crt-950 text-slate-500 ring-1 ring-white/10 line-through' : i === s.idx ? 'bg-neon-yellow text-crt-900 animate-pulse' : 'bg-crt-950 text-slate-400 ring-1 ring-white/15'}`}>
+            {i === W.rungs.length - 1 ? '🔺 ' : ''}+{W.rungs[i]}
+          </div>
+        ))}
+      </div>
+      {!s.over && (
+        <>
+          <div className="w-full rounded-lg bg-[#0b2a6b] ring-2 ring-neon-cyan px-3 py-2" data-testid="winners-clue">
+            <p className="osd-text text-base text-neon-cyan leading-none">CLUE {s.idx + 1} OF {W.rungs.length} · {c.word.length} LETTERS</p>
+            <p className="text-white text-base leading-snug">{c.clue}</p>
+          </div>
+          <WordPad tiles={tiles} flash={flash} onSubmit={submit} />
+          <ArcadeButton color="slate" variant="text" onClick={() => { setFlash(`Passed. It was ${c.word}.`); buzz(30); next(false); }}>Pass (gives up this clue's prize)</ArcadeButton>
+        </>
+      )}
+    </>
+  );
+};
+
 const GAMES: Record<MiniGameId, React.FC<GameProps>> = { pong: Pong, mole: Mole, claw: Claw, darts: Darts, goal: Goal, dice: Dice, bowl: Bowl, golf: Golf, hoops: Hoops, password: Password, bonusStage: BonusStage,
   ringToss: RingToss, riff: Riff, striker: Striker, pitStop: PitStop, coaster: Coaster, seal: Seal, monte: Monte,
   lure: Lure, dial: Dial, wire: Wire, nest: Nest, leap: Leap, math: MathQuiz, wheel: Wheel,
-  ladder: Ladder, bigOne: BigOne };
+  ladder: Ladder, bigOne: BigOne, winners: Winners };
 
 /** The arcade card: intro (Play or Skip), the game, then the result. */
 const MiniGameCard: React.FC<{

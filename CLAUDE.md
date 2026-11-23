@@ -738,6 +738,16 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   **💎 70K Club** badge (`b_seventyKClub`) for good: `earnedBy` on a cosmetic marks a run reward
   (not sold, shown as "💎 REACH 70,000" in the shop), granted by `earnCosmetic()` in
   `services/progression.ts`. Gates pay points, never time.
+- **🔺 Winner's Circle, the 20,000 gate (v7.76.0, the owner's pick for the open spot; 36% of runs
+  reach 20k against 47% at 10k and 27% at 30k)** (`GATES.winners`, `Winners` and `dealWinners` in
+  `MiniGames.tsx`, clues in `data/winnersCircle.ts`, tests in `winnersCircle.test.ts`): the $25,000
+  Pyramid. Three clues, 40 s total. Each clue is one of the game's own definitions (502 everyday 4-6
+  letter words whose definition doesn't contain the word, generated from `data/internalWords.ts`;
+  edit the file freely, the test checks every entry); its answer is hidden in an 8-tile board (its
+  letters + 4 extras, never in order). The pyramid pays +200, +400, +600 per clue and +800 for all
+  three (2,000 in all, flat like every gate; Keymaster adds 50%). A wrong word costs nothing; PASS
+  skips a clue and its prize. Clues and boards are dealt once and saved. Gates are now 10k, 20k,
+  30k, 50k, 70k (`GATE_LIST`, `nextGateFor`; Keymaster stops being offered once all 5 are passed).
 - **Four features from the 146-run stats review (v7.41.0).** The stats showed 15 names ever, three
   regulars, 47% of runs ending by level 3 (17 of 40 on strikes), 52% of charm offers passed after
   level 6, 25 PowerPlays picked under 12%, and power words firing 14 times in 146 runs.

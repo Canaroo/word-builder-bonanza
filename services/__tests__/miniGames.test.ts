@@ -16,7 +16,7 @@ describe('arcade words', () => {
     for (const b of arcade) expect(b.points ?? 0).toBe(0);
     // Every arcade game has a word (LANE shares Bowling with BOWL); the two gate games open by score instead.
     const games = new Set(arcade.map(b => b.miniGame));
-    for (const id of Object.keys(MINI_GAMES)) if (!['password', 'bonusStage', 'ladder', 'bigOne'].includes(id)) expect(games.has(id as any), id).toBe(true);
+    for (const id of Object.keys(MINI_GAMES)) if (!['password', 'winners', 'bonusStage', 'ladder', 'bigOne'].includes(id)) expect(games.has(id as any), id).toBe(true);
     expect(arcade.filter(b => b.miniGame === 'bowl').map(b => b.word).sort()).toEqual(['BOWL', 'LANE']);
   });
 

@@ -409,8 +409,8 @@ const bonesModal = (gs: GameState, wordsBefore: number): ModalContent | null => 
  * Score gates (v7.39.0): the first word at or past a gate opens its event, once per run. v7.60.0:
  * shared by normal and Golden words (a Golden word that crossed a gate used to open it a word late).
  */
-const GATE_LIST = [['password', GATES.password], ['bonusStage', GATES.bonusStage], ['ladder', GATES.ladder], ['bigOne', GATES.bigOne]] as const;
-const GATE_NAMES = { password: 'the password challenge', bonusStage: 'the bonus stage', ladder: 'the Word Ladder', bigOne: 'the Big One' } as const;
+const GATE_LIST = [['password', GATES.password], ['winners', GATES.winners], ['bonusStage', GATES.bonusStage], ['ladder', GATES.ladder], ['bigOne', GATES.bigOne]] as const;
+const GATE_NAMES = { password: 'the password challenge', winners: "the Winner's Circle", bonusStage: 'the bonus stage', ladder: 'the Word Ladder', bigOne: 'the Big One' } as const;
 const openGates = (gs: GameState, modalQueue: ModalContent[], logQueue: EventLogEntry[], now: number): void => {
     for (const [kind, gate] of GATE_LIST) {
         if (gs.score >= gate.score && !(gs.gatesPassed ?? []).includes(gate.score)) {
@@ -5637,7 +5637,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               // Mr. Glass takes a strike slot away: never offer it when that would end the run.
               !(c.id === 'mrGlass' && newState.strikes >= maxStrikesFor({ ...newState, activeCharms: [...newState.activeCharms, c] })) &&
               // v7.62.0: charms that do nothing yet aren't offered until they can work.
-              !(c.id === 'keymaster' && (newState.score < CHARM_BONUS.keymasterFromScore || (newState.gatesPassed ?? []).length >= 4)) &&
+              !(c.id === 'keymaster' && (newState.score < CHARM_BONUS.keymasterFromScore || (newState.gatesPassed ?? []).length >= GATE_LIST.length)) &&
               !newState.charmCooldowns[c.id] &&
               // v7.70.0: a shattered fragile charm is gone for the run.
               !(newState.shatteredCharms ?? []).includes(c.id)
