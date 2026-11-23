@@ -135,6 +135,13 @@ export const MINI_GAMES: Record<MiniGameId, MiniGameInfo> = {
     prize: `+${M.math.perRight} a right answer, +${M.math.streakStep} more for each one in a row (5 in a row: +${[1, 2, 3, 4, 5].reduce((t, k) => t + M.math.perRight + M.math.streakStep * (k - 1), 0)})`,
     flavor: 'The limit does not exist!',
   },
+  // v7.74.0
+  wheel: {
+    name: 'Spin & Solve', icon: '🎡',
+    rules: `A hidden word, ${M.wheel.seconds} seconds. Tap SPIN, then pick a consonant: every time it's in the word pays the wedge. Buy a vowel for ${M.wheel.vowelCost}. Tap SOLVE when you know it. BANKRUPT wipes your pot, and only a solved puzzle pays.`,
+    prize: `wedges pay ${Math.min(...M.wheel.wedges.filter(v => v > 0))} to ${Math.max(...M.wheel.wedges)} a letter · solve it for +${M.wheel.solveBonus} more`,
+    flavor: "I'd like to solve the puzzle!",
+  },
   ladder: {
     name: 'The Word Ladder', icon: '🪜',
     rules: `Climb rungs of ${G.ladder.rungs.join(', ')}+ letters, ${G.ladder.secondsPerRung} seconds each. Every rung doubles the pot. Bank it whenever you like; miss a rung and the pot is gone.`,

@@ -18,7 +18,7 @@ const HoldChip: React.FC<{ ms: number; onHold?: () => void; label: string; testI
 };
 import type { GameState } from '../types';
 import { POWER_PLAY_VALUES as V, FRAGILE } from '../config/gameplay';
-import { tamagotchiPot, blackjackPayout, jengaPot, prizeFor, levelFor } from '../services/rules';
+import { tamagotchiPot, blackjackPayout, jengaPot, prizeFor, levelFor, CENTER_SQUARES, centerSquareLines } from '../services/rules';
 import { hitInProgress } from '../services/greatestHits';
 
 // Small chips above the hand for PowerPlays that play out over several words (v7.28): the
@@ -29,6 +29,33 @@ const Chip: React.FC<{ icon: string; label: string; children: React.ReactNode }>
     <span aria-hidden="true">{icon}</span>{children}
   </span>
 );
+
+/**
+ * ⭕ Center Square (v7.74.0): a chip with the board's progress; tap it to show or hide the 3x3 board
+ * (it starts open, so the first word can aim). The clock keeps running: it's a glance, not a pop-up.
+ */
+const CenterSquareBoard: React.FC<{ board: string[]; got: boolean[]; words: number }> = ({ board, got, words }) => {
+  const [open, setOpen] = useState(true);
+  const lines = centerSquareLines(got);
+  return (
+    <div className="w-full flex flex-col items-center gap-1">
+      <button type="button" data-testid="center-square-chip" onClick={() => setOpen(o => !o)}
+        aria-label={`Center Square: ${got.filter(Boolean).length} of 9 squares, ${lines} lines, ${words} words left. Tap to ${open ? 'hide' : 'show'} the board.`}
+        className="flex items-center gap-1 rounded-full bg-crt-950/80 ring-1 ring-neon-cyan/50 px-2 py-0.5 text-xs text-white whitespace-nowrap">
+        <span aria-hidden="true">⭕</span>{got.filter(Boolean).length}/9 · {lines} {lines === 1 ? 'LINE' : 'LINES'} +{V.centerSquareLine} EACH · {words} {words === 1 ? 'WORD' : 'WORDS'} LEFT · {open ? 'HIDE ▲' : 'BOARD ▼'}
+      </button>
+      {open && (
+        <div className="grid grid-cols-3 gap-1 w-full max-w-[22rem]" data-testid="center-square-board">
+          {board.map((id, i) => (
+            <div key={i} className={`rounded-md px-1 py-1 text-center text-[10px] leading-tight font-semibold ${got[i] ? 'bg-neon-cyan/25 ring-1 ring-neon-cyan text-white' : i === 4 ? 'bg-neon-yellow/15 ring-1 ring-neon-yellow/70 text-neon-yellow' : 'bg-crt-950/80 ring-1 ring-white/15 text-slate-300'}`}>
+              {got[i] ? '⭕ ' : ''}{CENTER_SQUARES[id]?.label ?? id}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string[]; quizLeft?: number; raceRival?: number; onStand: () => void; onJengaCash?: () => void; onPiggySmash?: () => void }> = ({ gameState, upcomingTiles = [], quizLeft, raceRival, onStand, onJengaCash, onPiggySmash }) => {
   const a = (gameState?.activePowerPlays ?? {}) as Record<string, any>;
@@ -100,6 +127,7 @@ const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string
     const each = prizeFor(V.inceptionPerWord, levelFor((gameState?.log ?? []).filter(e => e.type === 'word' && (e as { status?: string }).status === 'valid').length));
     chips.push(<Chip key="inception" icon="🌀" label={`Inception: every real word hiding inside your next ${a.inception.words} words pays ${each}`}>WORDS INSIDE WORDS +{each} EACH · {a.inception.words} LEFT</Chip>);
   }
+  if (a.centerSquare?.board) chips.push(<CenterSquareBoard key="centerSquare" board={a.centerSquare.board} got={a.centerSquare.got} words={a.centerSquare.words} />);
   // v7.71.1: Hadouken! waits for a boss on its own; it shows in the Gear strip and menu, not here.
   if (a.priceIsRight) chips.push(<Chip key="price" icon="🏷️" label={`Bid: ${a.priceIsRight.bid} or more for ${a.priceIsRight.prize}, miss and lose ${a.priceIsRight.miss ?? 0}`}>{a.priceIsRight.bid}+ → +{a.priceIsRight.prize}{a.priceIsRight.miss ? ` / -${a.priceIsRight.miss}` : ''}</Chip>);
   if (a.psychicFriends && typeof a.psychicFriends.letters === 'number') chips.push(<Chip key="psychic" icon="🔮" label={`Psychic call: ${a.psychicFriends.letters}${a.psychicFriends.orMore ? ' or more' : ''} letters for ${a.psychicFriends.prize}`}>CALLED: {a.psychicFriends.letters}{a.psychicFriends.orMore ? '+' : ''} LETTERS · +{a.psychicFriends.prize}</Chip>);

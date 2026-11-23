@@ -124,6 +124,21 @@ export const POWER_PLAY_VALUES = {
   blueShellLoss: 100,
   doubleOrNothingWinChance: 0.6, // otherwise the word scores 0
   nuclearOptionMultiplier: 3,    // next word, on top of the fresh hand
+  // ⭕ Center Square (v7.74.0, Hollywood Squares): a 3x3 board of conditions for your next 10
+  // words. Each word claims one open square it matches (one per word, so a full board needs 9
+  // words); the center is always 6+ letters. Each line pays, the full board pays more. Simulated
+  // (one square per word): a casual player ~2.9 lines (~225), a full board 1% of the time; a player
+  // who plays for the board ~7 lines, full 63% (~845). Prizes grow with the level.
+  centerSquareWords: 10,
+  centerSquareLine: 75,
+  centerSquareFull: 500,
+  // 📊 Survey Says! (v7.74.0, Family Feud): spell the board's answers from your tiles. The board's
+  // slots are the lengths of the longest everyday words the tiles can spell (top answer first).
+  surveySeconds: 25,
+  surveyStrikes: 3,
+  surveyPrizes: [200, 150, 100, 75, 50],   // by slot, top answer first
+  surveyClear: 200,                        // all five found
+  surveyMinTop: 5,                         // a board's top answer has at least this many letters (else a fresh board is dealt)
   // Fortune's Favor (v7.72.5: a Magic 8-Ball card, shake it 3 times): same odds and amounts as before.
   fortuneLose: 200, fortuneLoseChance: 0.4,       // "Outlook not so good"
   fortuneWin: 250,                               // 50%
@@ -692,6 +707,10 @@ export const MINI_GAME_VALUES = {
   // costs nothing but resets the streak. Single digits first, two digits after hardAfter right.
   // At 1.5-2 s an answer: 5 right in a row +500, 6 +660, 7 +840.
   math: { seconds: 10, perRight: 60, streakStep: 20, hardAfter: 3 },
+  // SPIN (v7.74.0): 🎡 Spin & Solve, Wheel of Fortune. Wedges pay per letter found; 0 is BANKRUPT
+  // (the pot is wiped), -1 is a FREE SPIN. Only a solved puzzle pays. Simulated (solving at half the
+  // letters shown): about 247 on average, 425+ for the best 10%, solved 94% of the time.
+  wheel: { seconds: 45, wedges: [50, 75, 100, 150, 0, 50, 75, 100, 200, -1], vowelCost: 25, solveBonus: 100 },
 } as const;
 
 /**

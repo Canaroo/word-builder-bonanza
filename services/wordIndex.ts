@@ -14,6 +14,8 @@ export interface WordIndex {
     findPlayable: (letters: readonly string[], options?: FindWordOptions) => string | null;
     /** v7.62.0 (Inception): everyday words of 3+ letters hiding inside this word, in its letters' order. */
     hiddenWords: (word: string) => string[];
+    /** v7.74.0 (Survey Says!): every everyday word of minLength+ letters these tiles can spell, longest first. */
+    allPlayable: (letters: readonly string[], minLength?: number) => string[];
 }
 
 /** Everyday words of minLength+ letters spelled by consecutive letters of `word` (not the word itself). */
@@ -72,5 +74,13 @@ export const createWordIndex = (words: Iterable<string>, commonWords?: Iterable<
         has: (word: string) => set.has(word.toLowerCase()),
         findPlayable,
         hiddenWords: (word: string) => hiddenWordsIn(word, w => commonSet.has(w)),
+        allPlayable: (letters: readonly string[], minLength = 3) => {
+            const out: string[] = [];
+            const maxLength = Math.min(rackLetterLength(letters), commonByLength.length - 1);
+            for (let length = maxLength; length >= minLength; length--) {
+                for (const w of commonByLength[length] ?? []) if (canBeMadeFromLetters(w, letters)) out.push(w.toUpperCase());
+            }
+            return out;
+        },
     };
 };

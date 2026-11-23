@@ -45,10 +45,10 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | Scoring | `services/gameUtils.ts` `calculateScore` |
 | Game state, reducer, turn logic | `services/screens/GameScreen.tsx` (large) |
 | Game UI and pop-ups | `services/screens/GameScreenView.tsx` |
-| PowerPlays / charms (104 / 112) | `data/powerPlays.ts`, `data/charms.ts` |
+| PowerPlays / charms (106 / 112) | `data/powerPlays.ts`, `data/charms.ts` |
 | Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
 | Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Hold Slot, Grudge Match, Bones; the scratch-off ticket (v7.66, where the Fork was) | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `SCRATCH`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`, `services/scratch.ts`; cards in `components/` (`LastWordsCard`, `ScratchCard`, `BonesCard`) |
-| Secret bonuses (121 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
+| Secret bonuses (122 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
 | Hidden desktop pages | `/?stats` and `/?bonuses` (tabs: `&tab=words`, `scores`, `counts`, `charms`, `powerPlays`) render full-width outside the phone frame (`showToolPage` in `App.tsx`) |
 | Bosses (24) and Boss Badges | `data/bosses.ts` (villains, rules), `BOSS` in `config/gameplay.ts` (timing, rewards); badges in the profile (`recordBossBadge`) |
 | Cosmetics, streak milestones, themes, missions | `data/cosmetics.ts`, `data/packs.ts`, `data/missions.ts` |
@@ -209,6 +209,32 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   -200, 50% +250, 10% +500), rolled when the card opens and saved. Wins now grow with the level like
   every other gamble prize (it's in `PRIZE_POWER_PLAY_IDS`): about +95 on average at level 1, +165
   at level 6; the loss stays 200.
+- **Game-show drop (v7.74.0, the owner's picks from six pitches)** (`services/__tests__/gameShows.test.ts`):
+  **📊 Survey Says!** (`surveySays`, a pocket gamble card, `SurveySays` in `GambleCard.tsx`,
+  `surveyBoard`/`surveySlotFor`/`surveyPayout` in `services/rules.ts`, `survey*` in `POWER_PLAY_VALUES`):
+  the board hides 5 words your tiles can spell, one of each length longest first (8, 7, 6, 5, 4;
+  lengths repeat only when they run out), shown as letter counts. Spell them in 25 s with the tiles
+  (`WordPad` and `gateTiles`, exported from `MiniGames.tsx`); a word fills the first open slot of its
+  length. A fake word or one that fits no open slot is a ❌; 3 end it. Pays 200/150/100/75/50 by slot,
+  +200 for all five (a prize). Thin tiles (under 5 answers or a top answer under 5 letters: 4% of
+  hands) get a fresh dealt board. Needs `dictionaryService.playableWords` (a worker `all` request,
+  `allPlayable` in `wordIndex.ts`). The first version used the 5 longest words (8, 7, 7, 7, 7 on a rich
+  hand), which was too hard. **⭕ Center Square** (`centerSquare`, fires on pick, `CENTER_SQUARES`,
+  `centerSquareDeal`/`centerSquareClaim`/`centerSquareLines`/`centerSquarePrize` in `rules.ts`, settled in
+  `completeSubmission`, `CenterSquareBoard` in `PowerPlayTrackers.tsx`): Hollywood Squares for the next
+  10 words. A 3x3 board of conditions (center always 6+ letters, 8 dealt from 12); **each word claims
+  ONE open square** (the one that finishes a line, else the center/most-started line), so a full board
+  needs 9 words and there are 10 (the owner's question). Simulated: letting a word claim every square
+  it matched gave a line 97% of the time in 8 words, so one per word it is. +75 a line, +500 for the
+  full board (a prize): casual ~2.9 lines (~225), full 1%; a player aiming for it ~7 lines, full 63%
+  (~845). The chip opens/closes a 3x3 grid above the tiles (the clock runs). **🎡 SPIN, Spin & Solve**
+  (`spinAndSolve` secret word, mini-game `wheel`, `Wheel` in `MiniGames.tsx`, `MINI_GAME_VALUES.wheel`,
+  `wheelLetterPay`/`wheelBoard`/`wheelSolved`): a hidden 8-letter word from `BIG_ONE_WORDS`, 45 s; SPIN
+  (wedges 50-200 a letter, BANKRUPT wipes the pot, FREE SPIN), call a consonant, buy a vowel for 25,
+  SOLVE by typing the missing letters. Only a solved puzzle pays (pot + 100); a wrong solve or the
+  clock pays 0. Simulated: ~247 on average, 425+ for the best 10%. SPIN was unused (no secret, power
+  word or item on it). Held back for later: Winner's Circle (a score gate; open spots 20k / 40k / 60k),
+  Lingo and Final Round (the owner wants other ways to fit them).
 - **Fragile charms: the Triforce (v7.69.0, the owner's idea and picks)** (`data/triforce.ts`,
   `TRIFORCE` in `config/gameplay.ts`, `components/TriforceEmblem.tsx`, `dealShard` in
   `GameScreen.tsx`): three pieces, each built from 3 shards taken from charm offers. A shard is

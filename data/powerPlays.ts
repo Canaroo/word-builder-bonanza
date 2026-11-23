@@ -2,7 +2,7 @@
 import { PowerPlay, GameState, EventLogEntry } from '../types';
 import { labelize } from '../services/durationTags';
 import { TIME_BONUS, POWER_PLAY_VALUES , TRIFORCE } from '../config/gameplay';
-import { tamagotchiPot, dailyDoubleWager, levelFor, prizeFor, jengaPot } from '../services/rules';
+import { tamagotchiPot, dailyDoubleWager, levelFor, prizeFor, jengaPot, centerSquareDeal } from '../services/rules';
 
 // The 'activate' function is for declaring the state change that should happen upon activation.
 // The actual logic is handled in the GameScreen reducer based on the power play's `effectType` and ID.
@@ -68,6 +68,7 @@ export const TIME_CARD_IDS = new Set([
 /** PowerPlays that fire the moment you pick them, so you also keep the one you're holding. */
 export const INSTANT_POWER_PLAY_IDS = new Set([
   'thwomped', 'fluncleIsProud',
+  'centerSquare', // v7.74.0: the board starts with your next word, so there's nothing to wait for
   'strikeShield', 'plotArmor', 'saveByTheBell', 'timeTurner', 'mutationProtocol',
   'deepFreeze', 'groundhogsDay', 'lifeFindsAWay', 'wildcardWake', 'continueScreen',
   // v7.67.7 (the owner's call): these waited in the pocket for no reason. Hadouken! already waits
@@ -647,6 +648,28 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     effectType: 'immediate',
     durationTag: 'ONE_TIME',
     activate: (gameState) => ({...gameState}) // Handled in GameScreen
+  },
+  {
+    id: 'centerSquare',
+    name: 'Center Square',
+    description: `Hollywood Squares for your next ${POWER_PLAY_VALUES.centerSquareWords} words. You get a 3x3 board of squares like "ends in S" or "starts with a vowel"; the center square is 6+ letters. Each word claims one open square it fits. Every line of three pays +${POWER_PLAY_VALUES.centerSquareLine}, and the whole board pays +${POWER_PLAY_VALUES.centerSquareFull} more.`,
+    flavorText: 'I\'ll take Paul Lynde to block! (Hollywood Squares)',
+    icon: '⭕',
+    subtheme: 'score',
+    effectType: 'passive',
+    durationTag: 'LIMITED',
+    activate: (gameState) => arm('centerSquare', { board: centerSquareDeal(), got: Array(9).fill(false), words: POWER_PLAY_VALUES.centerSquareWords })(gameState),
+  },
+  {
+    id: 'surveySays',
+    name: 'Survey Says!',
+    description: `We surveyed your tiles. The board hides ${POWER_PLAY_VALUES.surveyPrizes.length} words they can spell, shown only as letter counts, longest on top. Spell them in ${POWER_PLAY_VALUES.surveySeconds} seconds: the top answer pays +${POWER_PLAY_VALUES.surveyPrizes[0]}, then ${POWER_PLAY_VALUES.surveyPrizes.slice(1).map(p => `+${p}`).join(', ')}, and clearing the board pays +${POWER_PLAY_VALUES.surveyClear} more. A fake word, or one that fits no open slot, is a strike: ${POWER_PLAY_VALUES.surveyStrikes} and you're out.`,
+    flavorText: 'Good answer! Good answer! (Family Feud)',
+    icon: '📊',
+    subtheme: 'score',
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: (gameState) => ({...gameState}) // A gamble card (SurveySays in GambleCard.tsx)
   },
   {
     id: 'gumpLuck',
@@ -1456,7 +1479,7 @@ export const PRIZE_POWER_PLAY_IDS: ReadonlySet<string> = new Set([
   'dailyDouble', // v7.58.0: the win is a flat prize now
   'letsMakeADeal', 'dealOrNoDeal', 'noWhammies', 'minesweeper', 'cardSharks', 'plinko', 'chickenDinner',
   'fluncleIsProud', 'actClear', 'priceIsRight', 'tamagotchi', 'smellYaLater', 'popQuizHotshot',
-  'withGreatPower', 'gumpLuck', 'fortunesFavor', 'warioWarp', 'thanosGift', 'wildcard', 'psychicFriends',
+  'withGreatPower', 'gumpLuck', 'fortunesFavor', 'surveySays', 'centerSquare', 'warioWarp', 'thanosGift', 'wildcard', 'psychicFriends',
   'shakeItLikeAPolaroid', 'duckHunt', 'missionImpossible',
   'inception', 'jenga', // v7.62.0
   'fifthGrader', // v7.65.0
