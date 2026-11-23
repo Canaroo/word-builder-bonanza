@@ -87,6 +87,15 @@ async function renderSong(song) {
         tone(st, d + spb * 0.4, f * 2, { wave: 'triangle', vol: 0.025, pan: -0.1, e: { a: 0.002, d: 0.25, s: 0.1, r: 0.25 } });
         // The music box doubles the tune an octave up from the middle section on.
         if (bar >= song.musicBoxFrom) tone(st, spb * 0.9, f * 2, { wave: 'sine', vol: 0.045, pan: 0.35, verb: 0.55, dly: 0.3, e: { a: 0.001, d: 0.35, s: 0, r: 0.3 } });
+      } else if (song.style === 'golden') {
+        // Bright pulse lead, a sine an octave up for sparkle, and a bell on each bar's first note.
+        tone(st, d, f, { wave: P25, vol: 0.08, vib: 0.008, verb: 0.35, dly: 0.25, pan: -0.05, e: { a: 0.004, d: 0.1, s: 0.7, r: 0.1 } });
+        tone(st, d, f * 2, { wave: 'sine', vol: 0.018, pan: 0.2, e: { a: 0.004, d: 0.1, s: 0.4, r: 0.1 } });
+        if (beat === 0) { tone(st, spb * 2, f * 2, { wave: 'sine', vol: 0.04, pan: 0.35, verb: 0.6, dly: 0.3, e: { a: 0.001, d: 0.9, s: 0, r: 0.6 } }); tone(st, spb * 0.4, f * 5.4, { wave: 'sine', vol: 0.01, pan: 0.35, e: { a: 0.001, d: 0.25, s: 0, r: 0.2 } }); }
+      } else if (song.style === 'boss') {
+        // Staccato square lead with a detuned pulse behind it.
+        tone(st, d * 0.8, f, { wave: P50, vol: 0.07, vib: 0.006, verb: 0.25, dly: 0.15, pan: 0.05, e: { a: 0.003, d: 0.08, s: 0.6, r: 0.06 } });
+        tone(st, d * 0.8, f, { wave: P25, vol: 0.035, detune: 9, pan: -0.25, e: { a: 0.003, d: 0.08, s: 0.5, r: 0.06 } });
       } else if (song.style === 'town') {
         tone(st, d, f, { wave: P25, vol: 0.085, pan: -0.05, vib: 0.012, verb: 0.35, dly: 0.25, e: { a: 0.006, d: 0.12, s: 0.7, r: 0.1 } });
         tone(st, d, f, { wave: 'triangle', vol: 0.05, detune: 6, pan: 0.15, e: { a: 0.006, d: 0.1, s: 0.6, r: 0.1 } });
@@ -112,6 +121,20 @@ async function renderSong(song) {
         tone(t(bar, 0), spb * 1.6, hz(root + 12), { wave: 'sine', vol: 0.05, e: { a: 0.004, d: 0.5, s: 0.2, r: 0.3 } });
         [1, 2].forEach(b => upper.forEach((m, i) => tone(t(bar, b), spb * 0.55, hz(m), { wave: 'sine', vol: 0.03, pan: i % 2 ? 0.25 : -0.25, verb: 0.35, e: { a: 0.003, d: 0.3, s: 0.2, r: 0.2 } })));
         if (bar >= song.stringsFrom) upper.forEach((m, i) => tone(t(bar, 0), spb * bpb, hz(m), { wave: 'sawtooth', vol: 0.012, lp: 1100, detune: i % 2 ? 7 : -7, pan: i % 2 ? 0.45 : -0.45, verb: 0.6, e: { a: 0.45, d: 0.2, s: 0.9, r: 0.5 } }));
+      } else if (song.style === 'golden') {
+        // Bouncy octave bass in 8ths.
+        for (let k = 0; k < len * 2; k++) tone(t(bar, from + k / 2), spb * 0.42, hz(root + (k % 2 ? 12 : 0)), { wave: 'triangle', vol: 0.19, e: { a: 0.004, d: 0.1, s: 0.7, r: 0.05 } });
+        // Harp sparkle: the chord rising in 16ths, two octaves of it.
+        const harp = [...upper, ...upper.map(m => m + 12)];
+        for (let k = 0; k < len * 4; k++) tone(t(bar, from + k / 4), spb * 0.5, hz(harp[k % harp.length] + 12), { wave: 'triangle', vol: 0.024, pan: (k % 8) / 8 - 0.45, verb: 0.45, dly: 0.2, e: { a: 0.002, d: 0.2, s: 0, r: 0.2 } });
+        // Soft held pad.
+        upper.forEach((m, i) => tone(t(bar, from), len * spb, hz(m), { wave: P50, vol: 0.012, lp: 1600, detune: i % 2 ? 6 : -6, pan: i % 2 ? 0.4 : -0.4, verb: 0.5, e: { a: 0.2, d: 0.2, s: 0.8, r: 0.3 } }));
+      } else if (song.style === 'boss') {
+        // Driving octave bass: 8ths with a climb at the end of the bar.
+        const steps = [0, 0, 12, 0, 0, 12, 10, 12];
+        for (let k = 0; k < len * 2; k++) { const m = root + steps[k % 8]; tone(t(bar, from + k / 2), spb * 0.4, hz(m), { wave: P50, vol: 0.09, lp: 900, e: { a: 0.003, d: 0.08, s: 0.6, r: 0.04 } }); tone(t(bar, from + k / 2), spb * 0.4, hz(m), { wave: 'triangle', vol: 0.12, e: { a: 0.003, d: 0.08, s: 0.6, r: 0.04 } }); }
+        // Brass stabs on 1 and the 'and' of 2.
+        [0, 1.5].filter(b => b >= from && b < from + len).forEach(b => upper.forEach((m, i) => tone(t(bar, b), spb * 0.3, hz(m), { wave: 'sawtooth', vol: 0.022, lp: 2000, detune: i % 2 ? 8 : -8, pan: i % 2 ? 0.35 : -0.35, verb: 0.3, e: { a: 0.004, d: 0.12, s: 0.4, r: 0.08 } })));
       } else if (song.style === 'town') {
         // Bouncy bass: root, fifth, octave, fifth.
         [[0, root], [1, root + 7], [2, root + 12], [3, root + 7]].filter(([b]) => b >= from && b < from + len)
@@ -143,6 +166,18 @@ async function renderSong(song) {
       kick(t(bar, 0), 0.5); kick(t(bar, 1.75), 0.25); kick(t(bar, 2.5), 0.42);
       [1, 3].forEach(b => { noise(t(bar, b), 0.2, { vol: 0.085, type: 'bandpass', f: 1700, q: 0.8, verb: 0.35 }); tone(t(bar, b), 0.06, 185, { wave: 'sine', vol: 0.06, e: { a: 0.001, d: 0.06, s: 0, r: 0.04 } }); });
       for (let k = 0; k < 16; k++) noise(t(bar, k / 4), k % 2 ? 0.025 : 0.04, { vol: k % 4 === 2 ? 0.026 : k % 2 ? 0.01 : 0.018, f: 8500, pan: 0.25 });
+    } else if (song.style === 'golden') {
+      kick(t(bar, 0), 0.38); kick(t(bar, 2), 0.3);
+      [1, 3].forEach(b => noise(t(bar, b), 0.12, { vol: 0.06, type: 'bandpass', f: 2200, q: 0.9, verb: 0.3 }));
+      for (let k = 0; k < 16; k++) noise(t(bar, k / 4), 0.025, { vol: k % 2 ? 0.008 : 0.014, f: 9500, pan: 0.3 });
+      if (bar % 8 === 0) noise(t(bar, 0), 1.4, { vol: 0.05, f: 6000, verb: 0.5 }); // a cymbal at each section
+    } else if (song.style === 'boss') {
+      for (let b = 0; b < 4; b++) kick(t(bar, b), 0.42);
+      [1, 3].forEach(b => { noise(t(bar, b), 0.14, { vol: 0.085, type: 'bandpass', f: 1900, q: 0.9, verb: 0.25 }); tone(t(bar, b), 0.07, 200, { wave: 'sine', vol: 0.06, e: { a: 0.001, d: 0.06, s: 0, r: 0.04 } }); });
+      for (let k = 0; k < 8; k++) noise(t(bar, k / 2), 0.04, { vol: k % 2 ? 0.02 : 0.012, f: 8500, pan: -0.2 });
+      // Tom fill into each section.
+      if (bar % 8 === 7) [3, 3.25, 3.5, 3.75].forEach((b, i) => { const s0 = t(bar, b), o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(220 - i * 35, s0); o.frequency.exponentialRampToValueAtTime(70, s0 + 0.18); env(g, s0, 0.18, { a: 0.002, d: 0.16, s: 0, r: 0.05, peak: 0.35 }); o.connect(g); out(g, i % 2 ? 0.3 : -0.3, 1, 0.2); o.start(s0); o.stop(s0 + 0.3); });
+      if (bar % 8 === 0) noise(t(bar, 0), 1.2, { vol: 0.05, f: 5000, verb: 0.4 });
     } else if (song.style === 'town') {
       kick(t(bar, 0), 0.28); kick(t(bar, 2), 0.2);
       for (let k = 0; k < 8; k++) noise(t(bar, k / 2), 0.035, { vol: k % 2 ? 0.012 : 0.02, f: 8000 });
