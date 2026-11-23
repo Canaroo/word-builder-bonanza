@@ -39,7 +39,7 @@ import { currentPlayer } from '../players';
 import { BONES } from '../../config/gameplay';
 import { SCRATCH, HOLD_SLOT, GRUDGE, SKILL_SHOT } from '../../config/gameplay';
 import { dealScratch, type ScratchPrize } from '../scratch';
-import { gemMultiplierFor, skillShotPoints, freakyFridayMatch, jengaPot, nextSpeedStreak, speedStreakPoints } from '../rules';
+import { gemMultiplierFor, skillShotPoints, freakyFridayMatch, jengaPot, nextSpeedStreak, speedStreakPoints, CENTER_SQUARES, centerSquareClaim, centerSquareLines, centerSquarePrize } from '../rules';
 import { findPowerWordHint, powerWordHintStands } from '../powerWordHint';
 import { BOSSES, bossById, pickBoss } from '../../data/bosses';
 import { sendStat, statId } from '../stats';
@@ -4665,8 +4665,33 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           scoreResult.totalScore = 0;
           showMessage(`📦 ${word.toUpperCase()} is buried. It comes back as +${buried} in ${V28.timeCapsuleWords} words.`, 3000);
       }
+      // ⭕ Center Square (v7.74.0): this word claims one open square it fits; after the last word (or
+      // a full board) the lines pay, outside the word.
+      let centerPaid = 0, centerLines = 0;
+      const squares = newState.activePowerPlays.centerSquare as { board: string[]; got: boolean[]; words: number } | undefined;
+      if (squares) {
+          const slot = centerSquareClaim(squares.board, squares.got, word);
+          const got = slot === null ? squares.got : squares.got.map((g, i) => g || i === slot);
+          const words = squares.words - 1;
+          const full = got.every(Boolean);
+          scoreResult.bonuses.push({ name: '⭕ Center Square', description: slot === null ? `no open square fits ${word.toUpperCase()}` : `claimed ${CENTER_SQUARES[squares.board[slot]].label}${full ? ' (full board!)' : ''}` });
+          if (words <= 0 || full) {
+              dropPP('centerSquare');
+              centerLines = centerSquareLines(got);
+              centerPaid = prizeFor(centerSquarePrize(got), prizeLevel);
+              const grid = [0, 3, 6].map(r => [r, r + 1, r + 2].map(i => (got[i] ? '⭕' : '⬛')).join('')).join('\n');
+              modalQueue.push(outcome(ppById('centerSquare'), full ? `FULL BOARD! +${centerPaid}` : centerLines ? `${centerLines} ${centerLines === 1 ? 'LINE' : 'LINES'}: +${centerPaid}` : 'NO LINES THIS TIME',
+                  `${grid}\n\n${got.filter(Boolean).length} of 9 squares claimed, ${centerLines} ${centerLines === 1 ? 'line' : 'lines'} of three.${full ? ` The full board pays +${POWER_PLAY_VALUES.centerSquareFull} more.` : ''}`, centerPaid ? 'win' : 'neutral'));
+          } else {
+              setPP('centerSquare', { ...squares, got, words }, `${got.filter(Boolean).length}/9 squares, ${centerSquareLines(got)} lines, ${words} words left.`);
+          }
+      }
       runningScore += scoreResult.totalScore;
       const wordPoints = scoreResult.totalScore;
+      if (centerPaid) {
+          runningScore += centerPaid;
+          eventLogQueue.push({ type: 'event', id: `pp-centerSquare-${now}`, name: 'Center Square', icon: '⭕', description: `${centerLines} ${centerLines === 1 ? 'line' : 'lines'} on the board: +${centerPaid}.`, scoreChange: centerPaid, cumulativeScore: runningScore });
+      }
       if (pricePaid) {
           runningScore += pricePaid;
           eventLogQueue.push({ type: 'event', id: `pp-priceIsRight-${now}`, name: 'The Price Is Right', icon: '🏷️', description: `Bid ${priceBid!.bid}+, ${word.toUpperCase()} made it: +${pricePaid}.`, scoreChange: pricePaid, cumulativeScore: runningScore });

@@ -1425,4 +1425,15 @@ export const SECRET_BONUSES: SecretBonus[] = [
     media: "arcade",
     source: "Mean Girls",
   },
+  {
+    id: "spinAndSolve",
+    word: "SPIN",
+    name: "🎡 “I'd Like to Solve the Puzzle” 🎡",
+    description: "When you submit the word \"SPIN\": a Wheel of Fortune puzzle. Spin, call letters, solve.",
+    miniGame: "wheel",
+    message: "Big money! Big money!",
+    hint: "What the wheel does on game-show night, and what Dead or Alive wanted you to do right round, baby.",
+    media: "arcade",
+    source: "Wheel of Fortune",
+  },
 ];

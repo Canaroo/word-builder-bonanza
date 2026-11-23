@@ -122,6 +122,8 @@ export type MiniGameId = 'pong' | 'mole' | 'claw' | 'darts' | 'goal' | 'dice' | 
   | 'lure' | 'dial' | 'wire' | 'nest' | 'leap'
   /** v7.64.0: MATH, a 10-second quiz. */
   | 'math'
+  /** v7.74.0: SPIN, a Wheel of Fortune puzzle. */
+  | 'wheel'
   /** v7.49: the 50,000 and 70,000 gates. */
   | 'ladder' | 'bigOne'
   /** Score gates (v7.39.0), opened by crossing a score rather than by a word. */

@@ -10,9 +10,9 @@ import { dartPoints, dicePrize, bowlFirstBall, bowlSecondBall, bowlPrize, hoopSh
   lureCatch, lurePrize, dialDistance, dialCombo, dialPrize, wireBomb, wirePrize, eggKind, eggPoints, leapPrize, leapHit, LEAP_FROG } from '../miniGameRules';
 
 describe('arcade words', () => {
-  test('twenty-three words open a mini-game, pay no flat points, and every game has a word', () => {
+  test('twenty-four words open a mini-game, pay no flat points, and every game has a word', () => {
     const arcade = SECRET_BONUSES.filter(b => b.miniGame);
-    expect(arcade.map(b => b.word).sort()).toEqual(['BOWL', 'CLAW', 'DART', 'DEAL', 'DIAL', 'DICE', 'GAME', 'GOAL', 'LANE', 'LEAP', 'LURE', 'MATH', 'MOLE', 'NAIL', 'NEST', 'NET', 'NOTE', 'RIDE', 'RING', 'SEAL', 'TEE', 'TIRE', 'WIRE']);
+    expect(arcade.map(b => b.word).sort()).toEqual(['BOWL', 'CLAW', 'DART', 'DEAL', 'DIAL', 'DICE', 'GAME', 'GOAL', 'LANE', 'LEAP', 'LURE', 'MATH', 'MOLE', 'NAIL', 'NEST', 'NET', 'NOTE', 'RIDE', 'RING', 'SEAL', 'SPIN', 'TEE', 'TIRE', 'WIRE']);
     for (const b of arcade) expect(b.points ?? 0).toBe(0);
     // Every arcade game has a word (LANE shares Bowling with BOWL); the two gate games open by score instead.
     const games = new Set(arcade.map(b => b.miniGame));

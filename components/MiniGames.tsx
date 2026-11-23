@@ -4,6 +4,7 @@ import { MINI_GAME_VALUES as M, GATES } from '../config/gameplay';
 import { MINI_GAMES } from '../data/miniGames';
 import type { GameState, MiniGameId, Tile } from '../types';
 import { scramble, BIG_ONE_WORDS, LADDER_FALLBACK } from '../data/gates';
+import { wheelLetterPay, wheelBoard, wheelSolved } from '../services/rules';
 import { dictionaryService } from '../services/dictionaryService';
 import { calculateScore } from '../services/gameUtils';
 import { TILE_DISTRIBUTION } from '../constants';
@@ -1072,7 +1073,7 @@ const BonusStage: React.FC<GameProps> = ({ finish, gameState }) => {
 // --- 50,000 and 70,000 gates (v7.49) -------------------------------------------------------------
 
 /** Tiles for a gate hand, from letters. */
-const gateTiles = (letters: string[]): Tile[] =>
+export const gateTiles = (letters: string[]): Tile[] =>
   letters.map(l => ({ id: `g-${Math.random().toString(36).slice(2)}`, letter: l, points: TILE_DISTRIBUTION[l]?.points ?? 1 }));
 const shuffled = <T,>(xs: T[]): T[] => { const a = [...xs]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -1090,7 +1091,7 @@ const dealLadderHand = async (min: number, size: number): Promise<string[]> => {
 };
 
 /** Shared word builder for the gate games: tap tiles, Clear, Submit. */
-const WordPad: React.FC<{ tiles: Tile[]; disabled?: boolean; onSubmit: (word: string) => void; busy?: boolean; flash?: string | null }> = ({ tiles, disabled, onSubmit, busy, flash }) => {
+export const WordPad: React.FC<{ tiles: Tile[]; disabled?: boolean; onSubmit: (word: string) => void; busy?: boolean; flash?: string | null }> = ({ tiles, disabled, onSubmit, busy, flash }) => {
   const [picked, setPicked] = useState<number[]>([]);
   useEffect(() => setPicked([]), [tiles]);
   const word = picked.map(i => tiles[i].letter).join('');
@@ -1748,9 +1749,154 @@ const MathQuiz: React.FC<{ finish: Finish }> = ({ finish }) => {
   );
 };
 
+// SPIN (v7.74.0): 🎡 Spin & Solve, a Wheel of Fortune puzzle. The word and every spin are saved,
+// so a quit can't reroll them. Only a solved puzzle pays; BANKRUPT wipes the pot.
+type WheelState = { word: string; shown: string[]; pot: number; left: number; phase: 'spin' | 'spinning' | 'call' | 'vowel' | 'solve' | 'done';
+  wedge: number; rot: number; guess: string[]; spins: number; result?: 'solved' | 'wrong' | 'time' };
+const WHEEL_CONSONANTS = 'BCDFGHJKLMNPQRSTVWXYZ'.split('');
+const VOWEL_KEYS = 'AEIOU'.split('');
+const WEDGE_LABEL = (v: number) => (v === 0 ? 'BANKRUPT' : v < 0 ? 'FREE SPIN' : String(v));
+const WEDGE_COLORS = ['#ff4d6d', '#ffb347', '#4dd2ff', '#7cff6b', '#111111', '#c77dff', '#ffe066', '#ff8fab', '#3dffa0', '#ffffff'];
+const Wheel: React.FC<GameProps> = ({ finish }) => {
+  const W = M.wheel;
+  const [state, setState] = useSaved<WheelState>('wheel', () => ({
+    word: BIG_ONE_WORDS[Math.floor(Math.random() * BIG_ONE_WORDS.length)], shown: [], pot: 0, left: W.seconds * 1000,
+    phase: 'spin', wedge: -1, rot: 0, guess: [], spins: 0 }));
+  const live = useRef<WheelState>(state.phase === 'spinning' ? { ...state, phase: 'call' } : state);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [, setFrame] = useState(0);
+  const save = () => setState({ ...live.current });
+  const done = (result: 'solved' | 'wrong' | 'time') => {
+    const s = live.current; if (s.phase === 'done') return;
+    s.phase = 'done'; s.result = result; s.shown = [...new Set([...s.shown, ...s.word])]; save();
+    const pts = result === 'solved' ? s.pot + W.solveBonus : 0;
+    if (result === 'solved') { soundService.playMilestone(); buzz([20, 40, 20]); } else { soundService.playInvalidWord(); buzz(80); }
+    finish({ points: pts,
+      headline: result === 'solved' ? `SOLVED! +${pts}` : result === 'wrong' ? 'NOT THE PUZZLE' : "TIME'S UP",
+      detail: result === 'solved' ? `${s.word}: your ${s.pot} pot plus ${W.solveBonus} for solving.` : `The puzzle was ${s.word}.${s.pot ? ` The ${s.pot} pot only pays when you solve.` : ''}` });
+  };
+  // The clock.
+  useEffect(() => {
+    let last = performance.now(), saveIn = 1000;
+    const t = setInterval(() => {
+      const s = live.current; if (s.phase === 'done') return;
+      const now = performance.now(); s.left = Math.max(0, s.left - (now - last)); saveIn -= now - last; last = now;
+      if (saveIn <= 0) { saveIn = 1000; save(); }
+      if (s.left <= 0) done('time'); else setFrame(f => f + 1);
+    }, 100);
+    return () => clearInterval(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const spin = () => {
+    const s = live.current; if (s.phase !== 'spin') return;
+    const i = Math.floor(Math.random() * W.wedges.length);
+    const slice = 360 / W.wedges.length;
+    // Land wedge i under the pointer at the top: a few full turns, then its middle at 0°.
+    const target = s.rot - (s.rot % 360) + 360 * 4 + (360 - (i * slice + slice / 2));
+    s.wedge = i; s.rot = target; s.phase = 'spinning'; s.spins += 1; save(); tick(); buzz(15);
+    setTimeout(() => {
+      const v = W.wedges[i];
+      if (v === 0) { s.pot = 0; s.phase = 'spin'; setFlash('💸 BANKRUPT! Your pot is gone.'); soundService.playInvalidWord(); buzz(120); }
+      else if (v < 0) { s.phase = 'spin'; setFlash('🎟️ FREE SPIN! Go again.'); soundService.playPowerUp(); }
+      else { s.phase = 'call'; setFlash(`${v} a letter: pick a consonant`); }
+      save();
+    }, 1700);
+  };
+  const call = (c: string) => {
+    const s = live.current; if (s.phase !== 'call' || s.shown.includes(c)) return;
+    const pay = wheelLetterPay(s.word, c, W.wedges[s.wedge]);
+    const n = [...s.word].filter(x => x === c).length;
+    s.shown = [...s.shown, c]; s.pot += pay; s.phase = 'spin';
+    setFlash(n ? `${n} ${c}${n > 1 ? "'s" : ''}! +${pay}` : `No ${c}'s. Spin again.`);
+    if (n) { tick(); buzz(15); } else buzz(40);
+    save();
+    if (wheelSolved(s.word, s.shown)) done('solved');
+  };
+  const vowel = (v: string) => {
+    const s = live.current; if (s.phase !== 'vowel' || s.shown.includes(v)) return;
+    const n = [...s.word].filter(x => x === v).length;
+    s.shown = [...s.shown, v]; s.pot -= W.vowelCost; s.phase = 'spin';
+    setFlash(n ? `${n} ${v}${n > 1 ? "'s" : ''}! (-${W.vowelCost})` : `No ${v}'s. (-${W.vowelCost})`);
+    save();
+    if (wheelSolved(s.word, s.shown)) done('solved');
+  };
+  const typeGuess = (c: string) => {
+    const s = live.current; if (s.phase !== 'solve') return;
+    const blanks = wheelBoard(s.word, s.shown).filter(x => !x).length;
+    if (s.guess.length >= blanks) return;
+    s.guess = [...s.guess, c]; tick(); save();
+    if (s.guess.length === blanks) {
+      let k = 0;
+      const attempt = wheelBoard(s.word, s.shown).map(x => x || s.guess[k++]).join('');
+      done(attempt === s.word ? 'solved' : 'wrong');
+    }
+  };
+  const s = live.current;
+  const board = wheelBoard(s.word, s.shown);
+  let gi = 0;
+  const shownBoard = board.map(x => x || (s.phase === 'solve' ? s.guess[gi++] ?? '' : ''));
+  const slice = 360 / W.wedges.length;
+  return (
+    <>
+      <div className="w-full flex justify-between items-baseline">
+        <span className="font-display text-xl text-neon-yellow">POT {s.pot}</span>
+        <Secs ms={s.left} warnBelow={10000} />
+      </div>
+      <TimeBar ms={s.left} total={W.seconds * 1000} warnBelow={10000} />
+      <div className="flex gap-1 justify-center w-full" data-testid="wheel-board" aria-label={`Puzzle: ${board.map(x => x || 'blank').join(' ')}`}>
+        {shownBoard.map((x, i) => (
+          <span key={i} className={`w-9 h-11 rounded grid place-items-center font-tile font-extrabold text-2xl ${board[i] ? 'bg-white text-crt-900' : x ? 'bg-neon-yellow text-crt-900' : 'bg-[#0f7a5c] ring-2 ring-[#33d6a0]'}`}>{x}</span>
+        ))}
+      </div>
+      <div className="relative w-40 h-40" aria-hidden="true">
+        <span className="absolute left-1/2 -translate-x-1/2 -top-2 z-10 text-2xl leading-none">🔻</span>
+        <div className="w-40 h-40 rounded-full ring-4 ring-neon-yellow shadow-[0_0_20px_rgba(255,226,122,0.5)] relative overflow-hidden"
+          style={{ transform: `rotate(${s.rot}deg)`, transition: s.phase === 'spinning' ? 'transform 1.6s cubic-bezier(0.15, 0.85, 0.25, 1)' : 'none',
+            background: `conic-gradient(${W.wedges.map((_, i) => `${WEDGE_COLORS[i % WEDGE_COLORS.length]} ${i * slice}deg ${(i + 1) * slice}deg`).join(', ')})` }}>
+          {W.wedges.map((v, i) => (
+            <span key={i} className={`absolute left-1/2 top-1/2 font-display leading-none ${v === 0 ? 'text-white text-[8px]' : v < 0 ? 'text-crt-900 text-[8px]' : 'text-crt-900 text-[11px]'}`}
+              style={{ transform: `translate(-50%, -50%) rotate(${i * slice + slice / 2}deg) translateY(-56px)` }}>{WEDGE_LABEL(v)}</span>
+          ))}
+        </div>
+      </div>
+      <p className="osd-text text-lg text-neon-cyan min-h-[1.5rem]" data-testid="arcade-hint" aria-live="polite">
+        {flash ?? (s.phase === 'spin' ? 'TAP SPIN, THEN PICK A CONSONANT' : '')}
+      </p>
+      {s.phase === 'call' && (
+        <div className="grid grid-cols-7 gap-1 w-full" data-testid="wheel-consonants">
+          {WHEEL_CONSONANTS.map(c => <button key={c} type="button" disabled={s.shown.includes(c)} onClick={() => call(c)}
+            className="rounded-md py-1.5 font-tile font-extrabold text-lg bg-[#f6e7c1] text-crt-900 disabled:opacity-25 active:scale-95">{c}</button>)}
+        </div>
+      )}
+      {s.phase === 'vowel' && (
+        <div className="grid grid-cols-5 gap-1 w-full">
+          {VOWEL_KEYS.map(c => <button key={c} type="button" disabled={s.shown.includes(c)} onClick={() => vowel(c)}
+            className="rounded-md py-2 font-tile font-extrabold text-xl bg-neon-cyan/20 ring-1 ring-neon-cyan text-white disabled:opacity-25 active:scale-95">{c}</button>)}
+        </div>
+      )}
+      {s.phase === 'solve' && (
+        <>
+          <p className="text-slate-200 text-sm">Type the missing letters, left to right.</p>
+          <div className="grid grid-cols-7 gap-1 w-full" data-testid="wheel-solve-keys">
+            {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(c => <button key={c} type="button" onClick={() => typeGuess(c)}
+              className="rounded-md py-1.5 font-tile font-extrabold text-lg bg-[#f6e7c1] text-crt-900 active:scale-95">{c}</button>)}
+          </div>
+          <ArcadeButton color="slate" variant="outline" className="w-full" onClick={() => { s.guess = s.guess.slice(0, -1); save(); }}>⌫ Back</ArcadeButton>
+        </>
+      )}
+      {(s.phase === 'spin' || s.phase === 'spinning') && (
+        <div className="grid grid-cols-3 gap-2 w-full">
+          <ArcadeButton color="yellow" onClick={spin} disabled={s.phase !== 'spin'}>🎡 Spin</ArcadeButton>
+          <ArcadeButton color="cyan" variant="outline" onClick={() => { s.phase = 'vowel'; save(); }} disabled={s.phase !== 'spin' || s.pot < W.vowelCost || VOWEL_KEYS.every(v => s.shown.includes(v))}>Vowel -{W.vowelCost}</ArcadeButton>
+          <ArcadeButton color="green" variant="outline" onClick={() => { s.phase = 'solve'; s.guess = []; save(); }} disabled={s.phase !== 'spin'}>Solve</ArcadeButton>
+        </div>
+      )}
+    </>
+  );
+};
+
 const GAMES: Record<MiniGameId, React.FC<GameProps>> = { pong: Pong, mole: Mole, claw: Claw, darts: Darts, goal: Goal, dice: Dice, bowl: Bowl, golf: Golf, hoops: Hoops, password: Password, bonusStage: BonusStage,
   ringToss: RingToss, riff: Riff, striker: Striker, pitStop: PitStop, coaster: Coaster, seal: Seal, monte: Monte,
-  lure: Lure, dial: Dial, wire: Wire, nest: Nest, leap: Leap, math: MathQuiz,
+  lure: Lure, dial: Dial, wire: Wire, nest: Nest, leap: Leap, math: MathQuiz, wheel: Wheel,
   ladder: Ladder, bigOne: BigOne };
 
 /** The arcade card: intro (Play or Skip), the game, then the result. */

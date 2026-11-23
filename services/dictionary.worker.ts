@@ -5,7 +5,8 @@ import { createWordIndex, parseWordList, WordIndex, FindWordOptions } from './wo
 export type DictionaryRequest =
     | { id: number; type: 'has'; word: string }
     | { id: number; type: 'find'; letters: string[]; options?: FindWordOptions }
-    | { id: number; type: 'hidden'; word: string };
+    | { id: number; type: 'hidden'; word: string }
+    | { id: number; type: 'all'; letters: string[]; minLength?: number };
 
 export type DictionaryResponse =
     | { type: 'ready'; size: number }
@@ -43,6 +44,7 @@ self.onmessage = (event: MessageEvent<DictionaryRequest | { type: 'load'; url: s
         return;
     }
     if (!index) return; // The client only sends lookups after 'ready'.
-    const result = msg.type === 'has' ? index.has(msg.word) : msg.type === 'hidden' ? index.hiddenWords(msg.word) : index.findPlayable(msg.letters, msg.options);
+    const result = msg.type === 'has' ? index.has(msg.word) : msg.type === 'hidden' ? index.hiddenWords(msg.word)
+        : msg.type === 'all' ? index.allPlayable(msg.letters, msg.minLength) : index.findPlayable(msg.letters, msg.options);
     self.postMessage({ id: msg.id, type: 'result', result } satisfies DictionaryResponse);
 };

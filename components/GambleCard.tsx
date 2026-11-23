@@ -3,8 +3,10 @@ import { Sec } from './Seconds';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import ArcadeButton, { NamedLabel } from './ArcadeButton';
 import { POWER_PLAY_VALUES as V, TIME_BONUS } from '../config/gameplay';
-import { dealDoors, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, WHAMMY_BOARD, whammySpin, whammySquareFor, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout, blackjackHands, blackjackTotal, blackjackResult, blackjackPrize, gumpRoll, type GumpPrize, fortuneRoll, fortunePoints, FORTUNE_ANSWERS, type FortuneKind } from '../services/rules';
-import { createTile, createTileBag, shuffleArray } from '../services/gameUtils';
+import { dealDoors, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, WHAMMY_BOARD, whammySpin, whammySquareFor, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout, blackjackHands, blackjackTotal, blackjackResult, blackjackPrize, gumpRoll, type GumpPrize, surveyBoard, surveySlotFor, surveyPayout, fortuneRoll, fortunePoints, FORTUNE_ANSWERS, type FortuneKind } from '../services/rules';
+import { createTile, createTileBag, shuffleArray, dealNewHand } from '../services/gameUtils';
+import { dictionaryService } from '../services/dictionaryService';
+import { WordPad, gateTiles } from './MiniGames';
 import { timesProblem, type TimesProblem } from '../services/miniGameRules';
 import type { Tile } from '../types';
 import { CHARMS_LIST } from '../data/charms';
@@ -1432,12 +1434,125 @@ const FortuneBall: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onRes
   );
 };
 
+/**
+ * 📊 Survey Says! (v7.74.0, Family Feud): "We surveyed your tiles..." The board hides the top 5
+ * answers (the longest everyday words the tiles can spell), shown only as letter counts. Spell
+ * words to flip them: a word fills an open slot of its length. A word that isn't real, or fits no
+ * open slot, is a strike (❌); three strikes or the clock ends it. Uses your own tiles, or deals a
+ * fresh board when they're too thin. The board and progress are saved, so a quit can't redeal.
+ */
+type SurveyDeal = { letters: string[]; lengths: number[]; examples: string[]; fresh: boolean };
+type SurveyProgress = { left: number; found: (string | null)[]; xs: number; over: boolean };
+const SurveySays: React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[] }> = ({ onResolve, hand }) => {
+  const [deal, setDeal] = useSaved<SurveyDeal | null>('surveyDeal', null);
+  const [progress, setProgress] = useSaved<SurveyProgress | null>('survey', null);
+  const live = useRef<SurveyProgress | null>(progress);
+  const [busy, setBusy] = useState(false);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [, setFrame] = useState(0);
+  // Deal the board: your tiles if they can fill it, else a fresh 8-tile board that can.
+  useEffect(() => {
+    if (deal) return;
+    let alive = true;
+    (async () => {
+      const own = (hand ?? []).filter((t): t is Tile => !!t).map(t => t.letter);
+      let letters = own, fresh = false;
+      let board = own.length >= 3 ? surveyBoard(await dictionaryService.playableWords(own)) : null;
+      for (let k = 0; !board && k < 30; k++) {
+        letters = dealNewHand(createTileBag()).hand.map(t => t.letter); fresh = true;
+        board = surveyBoard(await dictionaryService.playableWords(letters));
+      }
+      if (!alive || !board) return;
+      setDeal({ letters, lengths: board.lengths, examples: board.examples, fresh });
+      const p: SurveyProgress = { left: V.surveySeconds * 1000, found: board.lengths.map(() => null), xs: 0, over: false };
+      live.current = p; setProgress(p);
+    })();
+    return () => { alive = false; };
+  }, [deal]); // eslint-disable-line react-hooks/exhaustive-deps
+  const end = () => { const s = live.current; if (!s || s.over) return; s.over = true; setProgress({ ...s }); soundService.playMilestone(); };
+  // The clock (saved every second, so a resume keeps the time left).
+  useEffect(() => {
+    if (!progress || progress.over) return;
+    let last = performance.now(), saveIn = 1000;
+    const t = setInterval(() => {
+      const s = live.current; if (!s || s.over) return;
+      const now = performance.now(); s.left = Math.max(0, s.left - (now - last)); saveIn -= now - last; last = now;
+      if (saveIn <= 0) { saveIn = 1000; setProgress({ ...s }); }
+      if (s.left <= 0) end(); else setFrame(f => f + 1);
+    }, 100);
+    return () => clearInterval(t);
+  }, [!!progress, progress?.over]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tiles = React.useMemo(() => (deal ? gateTiles(deal.letters) : []), [deal]);
+  const strike = (why: string) => {
+    const s = live.current!; s.xs += 1; soundService.playInvalidWord(); buzz(80);
+    setFlash(`❌ ${why}`); setProgress({ ...s });
+    if (s.xs >= V.surveyStrikes) end();
+  };
+  const submit = async (word: string) => {
+    const s = live.current; if (!s || s.over || !deal) return;
+    if (s.found.includes(word)) { setFlash(`${word} is already up there`); return; }
+    setBusy(true);
+    const ok = await dictionaryService.isValidWord(word.toLowerCase());
+    setBusy(false);
+    if (s.over) return;
+    if (!ok) { strike(`${word}? Not a word`); return; }
+    const slot = surveySlotFor(deal.lengths, s.found, word);
+    if (slot < 0) { strike(`${word}: not on the board`); return; }
+    s.found = s.found.map((w, i) => (i === slot ? word : w));
+    soundService.playTileClick(); buzz([15, 30, 15]);
+    setFlash(`📊 SURVEY SAYS... ${word}! +${V.surveyPrizes[slot]}`);
+    setProgress({ ...s });
+    if (s.found.every(Boolean)) end();
+  };
+  if (!deal || !progress) return <p className="osd-text text-lg text-slate-300 animate-pulse">WE SURVEYED 100 TILES…</p>;
+  const s = live.current ?? progress;
+  const pay = surveyPayout(s.found);
+  const cleared = s.found.every(Boolean);
+  return (
+    <>
+      <p className="text-slate-200 text-sm leading-snug">{deal.fresh ? 'Your tiles were a little thin, so here\'s a fresh board. ' : ''}The board hides {deal.lengths.length} words these tiles can spell, longest on top. Spell a word with that many letters to flip its slot. A fake word, or one that fits no open slot, is a strike. {V.surveyStrikes} strikes and you're out.</p>
+      <div className="w-full flex justify-between items-baseline">
+        <span className="font-display text-xl text-neon-yellow">+{pay}</span>
+        <span className="text-xl tracking-widest" aria-label={`${s.xs} of ${V.surveyStrikes} strikes`}>{Array.from({ length: V.surveyStrikes }, (_, i) => <span key={i} className={i < s.xs ? 'opacity-100' : 'opacity-20'}>❌</span>)}</span>
+        {!s.over && <span className="osd-text text-xl text-white tabular-nums">{Math.ceil(s.left / 1000)}<Sec /></span>}
+      </div>
+      <ol className="w-full grid gap-1.5" data-testid="survey-board">
+        {deal.lengths.map((len, i) => {
+          const w = s.found[i];
+          const missed = s.over && !w;
+          return (
+            <li key={i} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 ring-2 ${w ? 'bg-[#1d4ed8] ring-neon-yellow level-stage-in' : missed ? 'bg-crt-950 ring-white/15' : 'bg-[#0b2a6b] ring-[#4d7cff]'}`}>
+              <span className="w-6 h-6 rounded-full bg-neon-yellow text-crt-900 font-display text-sm grid place-items-center shrink-0">{i + 1}</span>
+              <span className={`flex-1 font-tile font-extrabold tracking-widest ${w ? 'text-white text-xl' : missed ? 'text-slate-400 text-lg' : 'text-[#9db7ff] text-lg'}`}>
+                {w ?? (missed ? deal.examples[i] : `${len} LETTERS`)}
+              </span>
+              <span className={`font-display text-lg ${w ? 'text-neon-yellow' : 'text-slate-500'}`}>{V.surveyPrizes[i]}</span>
+            </li>
+          );
+        })}
+      </ol>
+      {!s.over ? (
+        <WordPad tiles={tiles} busy={busy} flash={flash} onSubmit={submit} />
+      ) : (
+        <>
+          <p className="font-display text-2xl text-neon-green">{cleared ? `CLEAN SWEEP! +${pay}` : pay ? `+${pay} POINTS` : 'THE BOARD STAYS DARK'}</p>
+          {!cleared && <p className="text-slate-300 text-sm leading-snug">The grey answers are examples of what fit: any real word of that length would have counted.</p>}
+          <ArcadeButton color={pay ? 'green' : 'pink'} className="w-full" onClick={() => onResolve({ points: pay,
+            headline: cleared ? `CLEAN SWEEP! +${pay}` : pay ? `+${pay} POINTS` : 'NO ANSWERS',
+            detail: `${s.found.filter(Boolean).length} of ${deal.lengths.length} answers found${cleared ? `, plus +${V.surveyClear} for clearing the board` : ''}.${s.found.some(Boolean) ? ` ${s.found.filter(Boolean).join(', ')}.` : ''}`,
+            tone: pay ? 'win' : 'lose' })}>{pay ? `Take +${pay}` : 'Continue'}</ArcadeButton>
+        </>
+      )}
+    </>
+  );
+};
+
 const GAMES: Record<string, React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[]; extra?: Record<string, unknown> }>> = {
   letsMakeADeal: Doors, dealOrNoDeal: Deal, noWhammies: Whammies, minesweeper: Mines,
   priceIsRight: PriceIsRight, psychicFriends: PsychicCall, draftDay: DraftDay, cardSharks: CardSharks, plinko: Plinko,
   hotTubTimeMachine: HotTub, luckyCharms: LuckyCharms, wildcard: Wildcard,
   shakeItLikeAPolaroid: Polaroid, duckHunt: DuckHunt, scroogeSwipe: MoneyBin, warioWarp: WarioBags, missionImpossible: Mission,
-  fifthGrader: FifthGrader, chickenDinner: Blackjack, gumpLuck: GumpBox, fortunesFavor: FortuneBall,
+  fifthGrader: FifthGrader, chickenDinner: Blackjack, gumpLuck: GumpBox, fortunesFavor: FortuneBall, surveySays: SurveySays,
 };
 
 /** The interactive part of a gamble PowerPlay. */

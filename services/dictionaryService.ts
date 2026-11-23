@@ -197,6 +197,17 @@ async function hiddenWords(word: string): Promise<string[]> {
 }
 
 /**
+ * Survey Says! (v7.74.0): every everyday word of minLength+ letters the tiles can spell, longest
+ * first. Falls back to the curated internal words if the word lists couldn't load.
+ */
+async function playableWords(letters: string[], minLength = 3): Promise<string[]> {
+    const fromList = await ask<string[]>({ type: 'all', letters: letters.map(l => l.toUpperCase()), minLength });
+    if (Array.isArray(fromList)) return fromList;
+    return [...suggestableWords.keys()].filter(w => w.length >= minLength && canBeMadeFromLetters(w, letters))
+        .sort((a, b) => b.length - a.length).map(w => w.toUpperCase());
+}
+
+/**
  * Words from the curated internal dictionary only. Used for synchronous setup tasks
  * such as finding 3-letter words when balancing a rack.
  */
@@ -212,5 +223,6 @@ export const dictionaryService = {
     lookupWord,
     findPlayableWord,
     hiddenWords,
+    playableWords,
     getDictionaryWords,
 };

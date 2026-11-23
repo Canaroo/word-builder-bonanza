@@ -560,6 +560,91 @@ export const blackjackResult = (player: number[], dealer: number[]): BlackjackRe
 export const blackjackPrize = (r: BlackjackResult): number =>
     r === 'natural' ? POWER_PLAY_VALUES.blackjackNatural : r === 'win' ? POWER_PLAY_VALUES.blackjackWin : r === 'push' ? POWER_PLAY_VALUES.blackjackPush : 0;
 /**
+ * ⭕ Center Square (v7.74.0): the squares. The center is always 6+ letters; the other 8 are dealt
+ * from the outer pool. Each condition matches roughly 10-35% of the words players play (simulated).
+ */
+export const CENTER_SQUARES: Record<string, { label: string; test: (w: string) => boolean }> = {
+    six: { label: '6+ LETTERS', test: w => w.length >= 6 },
+    five: { label: '5+ LETTERS', test: w => w.length >= 5 },
+    three: { label: 'EXACTLY 3 LETTERS', test: w => w.length === 3 },
+    endsS: { label: 'ENDS IN S', test: w => w.endsWith('S') },
+    vowelStart: { label: 'STARTS WITH A VOWEL', test: w => /^[AEIOU]/.test(w) },
+    double: { label: 'A DOUBLE LETTER', test: w => /(.)\1/.test(w) },
+    rare: { label: 'J, K, Q, X, Z, V OR W', test: w => /[JKQXZVW]/.test(w) },
+    oneVowel: { label: 'ONLY ONE VOWEL', test: w => (w.match(/[AEIOU]/g) ?? []).length === 1 },
+    vowelEnd: { label: 'ENDS IN A VOWEL', test: w => /[AEIOU]$/.test(w) },
+    twoVowels: { label: 'TWO VOWELS IN A ROW', test: w => /[AEIOU]{2}/.test(w) },
+    bcmp: { label: 'B, C, M OR P', test: w => /[BCMP]/.test(w) },
+    fhw: { label: 'F, H OR W', test: w => /[FHW]/.test(w) },
+    stStart: { label: 'STARTS WITH S OR T', test: w => /^[ST]/.test(w) },
+};
+export const CENTER_SQUARE_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+/** A fresh board: 8 outer squares dealt at random, the center (index 4) always 6+ letters. */
+export const centerSquareDeal = (rand: () => number = Math.random): string[] => {
+    const outer = Object.keys(CENTER_SQUARES).filter(id => id !== 'six');
+    for (let i = outer.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [outer[i], outer[j]] = [outer[j], outer[i]]; }
+    return [...outer.slice(0, 4), 'six', ...outer.slice(4, 8)];
+};
+/**
+ * Which open square a word claims (one per word): of the open squares it matches, the one that
+ * finishes a line, else the one on the most started lines, the center first. Null when none.
+ */
+export const centerSquareClaim = (board: readonly string[], got: readonly boolean[], word: string): number | null => {
+    const w = word.toUpperCase();
+    const open = board.map((id, i) => i).filter(i => !got[i] && CENTER_SQUARES[board[i]]?.test(w));
+    if (!open.length) return null;
+    const value = (i: number) => CENTER_SQUARE_LINES.filter(l => l.includes(i)).reduce((v, l) => v + (l.every(j => got[j] || j === i) ? 100 : l.filter(j => got[j]).length * 3), 0) + (i === 4 ? 1 : 0);
+    return open.reduce((best, i) => (value(i) > value(best) ? i : best), open[0]);
+};
+export const centerSquareLines = (got: readonly boolean[]): number => CENTER_SQUARE_LINES.filter(l => l.every(i => got[i])).length;
+/** What the board pays before the level boost: each line, plus the full-board bonus. */
+export const centerSquarePrize = (got: readonly boolean[]): number =>
+    centerSquareLines(got) * POWER_PLAY_VALUES.centerSquareLine + (got.length === 9 && got.every(Boolean) ? POWER_PLAY_VALUES.centerSquareFull : 0);
+
+/**
+ * 🎡 Spin & Solve (v7.74.0): what a wedge pays for a called letter, and the board as the player sees it.
+ * Wedge values from MINI_GAME_VALUES.wheel: 0 is BANKRUPT, -1 a FREE SPIN, anything else per letter.
+ */
+export const wheelLetterPay = (word: string, letter: string, wedge: number): number =>
+    wedge > 0 ? wedge * [...word.toUpperCase()].filter(c => c === letter.toUpperCase()).length : 0;
+export const wheelBoard = (word: string, shown: readonly string[]): string[] =>
+    [...word.toUpperCase()].map(c => (shown.includes(c) ? c : ''));
+export const wheelSolved = (word: string, shown: readonly string[]): boolean => wheelBoard(word, shown).every(Boolean);
+
+/**
+ * Survey Says! (v7.74.0): the board for a list of playable words: one answer of each length, longest
+ * first (8, 7, 6, 5, 4...), so the top answer is the longest word and the rest step down. With fewer
+ * different lengths than slots, the most plentiful lengths fill the rest. Each slot carries an
+ * example word for the reveal. Null when the tiles can't fill a board (fewer answers than slots, or
+ * a top answer under `surveyMinTop` letters).
+ */
+export const surveyBoard = (words: readonly string[], slots = POWER_PLAY_VALUES.surveyPrizes.length): { lengths: number[]; examples: string[] } | null => {
+    const sorted = [...new Set(words.map(w => w.toUpperCase()))].sort((a, b) => b.length - a.length || a.localeCompare(b));
+    if (sorted.length < slots || sorted[0].length < POWER_PLAY_VALUES.surveyMinTop) return null;
+    const byLength = new Map<number, string[]>();
+    for (const w of sorted) byLength.set(w.length, [...(byLength.get(w.length) ?? []), w]);
+    const picked: string[] = [];
+    for (const len of [...byLength.keys()].sort((a, b) => b - a)) if (picked.length < slots) picked.push(byLength.get(len)![0]);
+    // Not enough lengths: take more from the lengths with the most words left, shortest first on ties.
+    while (picked.length < slots) {
+        const [, list] = [...byLength.entries()].map(([l, ws]) => [l, ws.filter(w => !picked.includes(w))] as const)
+            .filter(([, ws]) => ws.length).sort((a, b) => b[1].length - a[1].length || a[0] - b[0])[0];
+        picked.push(list[0]);
+    }
+    picked.sort((a, b) => b.length - a.length);
+    return { lengths: picked.map(w => w.length), examples: picked };
+};
+/** Which open slot a word fills (the first one of its length), or -1 when none is open. */
+export const surveySlotFor = (lengths: readonly number[], found: readonly (string | null)[], word: string): number =>
+    lengths.findIndex((len, i) => len === word.length && !found[i]);
+/** What a Survey Says! board pays: each found slot's prize, plus the clear bonus for all of them. */
+export const surveyPayout = (found: readonly (string | null)[]): number => {
+    const V = POWER_PLAY_VALUES;
+    const sum = found.reduce((t, w, i) => t + (w ? V.surveyPrizes[i] ?? 0 : 0), 0);
+    return sum + (found.length > 0 && found.every(Boolean) ? V.surveyClear : 0);
+};
+
+/**
  * Fortune's Favor (v7.72.5): the Magic 8-Ball's answer, rolled when the card opens. Each outcome has
  * real 8-Ball answers to float up in the window; `answer` picks one of them.
  */
