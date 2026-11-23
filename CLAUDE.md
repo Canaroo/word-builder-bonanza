@@ -779,6 +779,19 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   pays as an event, not a word: no level, offers or time. Order at the end of a run: free rescues,
   Phoenix Down, Last Words, Game Over. Both end-of-run cards ignore taps for 1.5 s while a bar
   fills (`useArmDelay`, v7.47.1): players still tapping the board skipped them by accident.
+  **💡 Final Jeopardy (v7.75.0, the owner's design after Lingo and a fresh-tiles version were
+  dropped as too much):** Last Words keeps the real final hand, face up. Before a tile can be tapped
+  (after the 1.5 s guard), the card asks for a bet: 5% or 10% of the score (`FINAL_JEOPARDY`, rounded
+  to 10, capped at 3,000 so one bet can't swing the Top 50), or "No bet, just play". Then a category
+  flips over (`FINAL_CATEGORIES`, `finalCategoryDeal`, `finalBet` in `services/rules.ts`): 6+ letters,
+  J/K/Q/X/Z/V/W, a double letter, B/C/M/P, starts with S or T, one vowel in 4+ letters, 5+ letters.
+  A random final hand can meet them 48-86% of the time (about 60% overall), so you see your tiles
+  but not the category when you bet. A last word that fits wins the bet; one that doesn't, or no
+  last word, loses it (never below 0). The category is dealt in `END_RUN` and the bet saved with the
+  card (`SET_GAMBLE_STATE` key `fjBet`, now allowed on `last-words`), so a quit can't reroll either.
+  The card shows ✔ FITS / ✘ DOESN'T FIT as you spell; the payout is a separate "Final Jeopardy" log
+  entry in `handleLastWords`. Browser-checked: 12,345, bet 1,230, BALLOONS on A DOUBLE LETTER →
+  13,665 on Game Over.
   **Head Start** (`services/headStart.ts`, per player): a run ending before level 4 adds 3 s to the
   next starting clock (max 15), reaching level 4 clears it; a chip shows it until the first word.
   Never applied on the scored Daily Run.

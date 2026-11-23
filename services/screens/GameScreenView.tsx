@@ -526,7 +526,11 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     onSave={(key, value) => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key, value } })} onDone={p => handleScratchDone?.(p)} />;
 
             case 'last-words':
-                return <LastWordsCard reason={data?.reason === 'strikes' ? 'strikes' : 'time'} tiles={(hand ?? []).filter((t): t is Tile => !!t)} gameState={gameState} piggyLost={Number(data?.piggyLost) || 0} onDone={r => handleLastWords?.(r)} />;
+                return <LastWordsCard reason={data?.reason === 'strikes' ? 'strikes' : 'time'} tiles={(hand ?? []).filter((t): t is Tile => !!t)} gameState={gameState} piggyLost={Number(data?.piggyLost) || 0}
+                    category={typeof data?.category === 'string' ? data.category : undefined}
+                    bet={typeof (data?.saved as Record<string, unknown> | undefined)?.fjBet === 'number' ? (data!.saved as Record<string, number>).fjBet : undefined}
+                    onBet={b => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key: 'fjBet', value: b } })}
+                    onDone={r => handleLastWords?.(r)} />;
 
             case 'outcome':
                 return <OutcomeCard name={title} detail={typeof content === 'string' ? content : undefined} data={data} onClose={handleCloseModal} />;

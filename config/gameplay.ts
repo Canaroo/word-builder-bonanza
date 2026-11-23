@@ -604,6 +604,13 @@ export const CHARM_SET_BONUS = { pair: 50, trio: 150, trioPartial: 50, pullChanc
  *   gem (6 letters x3, 7 x4, 8+ x5). Natural x2 tiles show up on 15% of draws, so a gem has to beat that.
  */
 export const LAST_WORDS = { multiplier: 3 } as const;
+/**
+ * 💡 Final Jeopardy (v7.75.0, the owner's design): on the Last Words card, before a tile can be
+ * tapped, bet 5% or 10% of your score (never more than `cap`), or don't. Then a category flips over;
+ * a last word that fits it wins the bet, anything else (or no last word) loses it. Simulated (random
+ * final hands): the categories can be met 48-86% of the time, about 60% overall.
+ */
+export const FINAL_JEOPARDY = { percents: [5, 10], cap: 3000, roundTo: 10 } as const;
 export const HEAD_START = { perRun: 3, max: 15, untilLevel: 4 } as const;
 // fromLevel: the first level that lights a tile (a run's opening hand never does: v7.44.6).
 // introShows: times a player sees the explainer card.

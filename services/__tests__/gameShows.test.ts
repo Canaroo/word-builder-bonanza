@@ -94,3 +94,22 @@ describe('🎡 Spin & Solve (SPIN)', () => {
         expect(wheelSolved('BALLOON', ['B', 'A', 'L', 'O', 'N'])).toBe(true);
     });
 });
+
+describe('💡 Final Jeopardy on Last Words (v7.75.0)', () => {
+    test('bets are 5% or 10% of the score, rounded, never more than 3,000', async () => {
+        const { finalBet } = await import('../rules');
+        expect(finalBet(12345, 5)).toBe(620);
+        expect(finalBet(12345, 10)).toBe(1230);
+        expect(finalBet(100000, 10)).toBe(3000);
+        expect(finalBet(0, 10)).toBe(0);
+    });
+    test('categories check the word, and the deal picks one of them', async () => {
+        const { FINAL_CATEGORIES, finalCategoryDeal } = await import('../rules');
+        expect(FINAL_CATEGORIES.double.test('BALLOON')).toBe(true);
+        expect(FINAL_CATEGORIES.double.test('TRAIN')).toBe(false);
+        expect(FINAL_CATEGORIES.oneVowel.test('STRAND')).toBe(true);
+        expect(FINAL_CATEGORIES.oneVowel.test('CAT')).toBe(false); // needs 4+ letters
+        expect(FINAL_CATEGORIES.stStart.test('TRAIN')).toBe(true);
+        for (let i = 0; i < 30; i++) expect(FINAL_CATEGORIES[finalCategoryDeal()]).toBeDefined();
+    });
+});
