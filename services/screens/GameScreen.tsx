@@ -39,7 +39,7 @@ import { currentPlayer } from '../players';
 import { BONES } from '../../config/gameplay';
 import { SCRATCH, HOLD_SLOT, GRUDGE, SKILL_SHOT } from '../../config/gameplay';
 import { dealScratch, type ScratchPrize } from '../scratch';
-import { gemMultiplierFor, skillShotPoints, freakyFridayMatch, jengaPot, nextSpeedStreak, speedStreakPoints, CENTER_SQUARES, centerSquareClaim, centerSquareLines, centerSquarePrize } from '../rules';
+import { gemMultiplierFor, skillShotPoints, freakyFridayMatch, jengaPot, nextSpeedStreak, speedStreakPoints, finalCategoryDeal, FINAL_CATEGORIES, CENTER_SQUARES, centerSquareClaim, centerSquareLines, centerSquarePrize } from '../rules';
 import { findPowerWordHint, powerWordHintStands } from '../powerWordHint';
 import { BOSSES, bossById, pickBoss } from '../../data/bosses';
 import { sendStat, statId } from '../stats';
@@ -886,7 +886,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         // A gamble card's board, kept in its pop-up so the auto-save stores it (v7.28.9).
         case 'SET_GAMBLE_STATE': {
             const m = state.modalContent;
-            if (m?.type !== 'gamble' && m?.type !== 'minigame' && m?.type !== 'croc' && m?.type !== 'scratch') return state;
+            if (m?.type !== 'gamble' && m?.type !== 'minigame' && m?.type !== 'croc' && m?.type !== 'scratch' && m?.type !== 'last-words') return state;
             return { ...state, modalContent: { ...m, data: { ...m.data, saved: { ...(m.data?.saved ?? {}), [action.payload.key]: action.payload.value } } } };
         }
         case 'SET_HAND_AND_BAG': return { ...state, hand: action.payload.hand, tileBag: action.payload.tileBag };
@@ -3076,7 +3076,8 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 isPaused: true,
                 modalQueue: [],
                 gameState: { ...state.gameState, lastWordsDone: true, holdTile: held && freeSlot !== -1 ? null : held },
-                modalContent: { type: 'last-words', title: 'Last Words', data: { reason: action.payload.reason, ...(piggyLost > 0 ? { piggyLost } : {}) } },
+                // 💡 Final Jeopardy (v7.75.0): the category is dealt now and saved with the card, so a quit can't reroll it.
+                modalContent: { type: 'last-words', title: 'Last Words', data: { reason: action.payload.reason, category: finalCategoryDeal(), ...(piggyLost > 0 ? { piggyLost } : {}) } },
             };
         }
 
@@ -3699,17 +3700,26 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     if (!card || lastWordsAnswered.current === card) return;
     lastWordsAnswered.current = card;
     const reason: 'strikes' | 'time' = card.data?.reason === 'strikes' ? 'strikes' : 'time';
+    let score = gameState.score;
+    const log = [...gameState.log];
     if (r && r.points > 0) {
-      const score = gameState.score + r.points;
-      dispatch({ type: 'UPDATE_GAME_STATE', payload: {
-          score,
-          log: [...gameState.log, {
-              type: 'event', id: `last-words-${Date.now()}`, name: 'Last Words', icon: '🎤',
-              description: `${r.word} as a parting shot, at x${LAST_WORDS.multiplier}: +${r.points} points.`,
-              scoreChange: r.points, cumulativeScore: score,
-          } as EventLogEntry],
-      } });
+      score += r.points;
+      log.push({ type: 'event', id: `last-words-${Date.now()}`, name: 'Last Words', icon: '🎤',
+          description: `${r.word} as a parting shot, at x${LAST_WORDS.multiplier}: +${r.points} points.`,
+          scoreChange: r.points, cumulativeScore: score } as EventLogEntry);
     }
+    // 💡 Final Jeopardy (v7.75.0): the bet saved on the card wins if the last word fits the category.
+    const bet = Number((card.data?.saved as Record<string, unknown> | undefined)?.fjBet) || 0;
+    const category = FINAL_CATEGORIES[String(card.data?.category ?? '')];
+    if (bet > 0 && category) {
+      const won = !!r && category.test(r.word);
+      const change = won ? bet : -Math.min(bet, score);
+      score += change;
+      log.push({ type: 'event', id: `final-jeopardy-${Date.now()}`, name: 'Final Jeopardy', icon: '💡',
+          description: won ? `Bet ${bet.toLocaleString()} on ${category.label}: ${r!.word} fits. +${bet.toLocaleString()}.` : `Bet ${bet.toLocaleString()} on ${category.label}: ${r ? `${r.word} doesn't fit` : 'no last word'}. -${bet.toLocaleString()}.`,
+          scoreChange: change, cumulativeScore: score } as EventLogEntry);
+    }
+    if (score !== gameState.score || log.length !== gameState.log.length) dispatch({ type: 'UPDATE_GAME_STATE', payload: { score, log } });
     dispatch({ type: 'GAME_OVER_INITIATED', payload: { reason } });
   }, [gameState]);
 

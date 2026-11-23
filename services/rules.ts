@@ -1,5 +1,5 @@
 // Pure gameplay rules. No React, no DOM: easy to test and to tune via config/gameplay.ts.
-import { BOSS, CHARM_BONUS, CHARM_LENGTH_BOOST, CHARM_UPGRADE, GAMEPLAY, PRIZE_GROWTH, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS, GEM_TILES, SKILL_SHOT, GATES, SHINE_BRIGHT_GEMS } from '../config/gameplay';
+import { BOSS, CHARM_BONUS, CHARM_LENGTH_BOOST, CHARM_UPGRADE, GAMEPLAY, PRIZE_GROWTH, POWER_GLOVE_BANK_MAX, POWER_PLAY_VALUES, POWER_WORD_EFFECTS, GEM_TILES, SKILL_SHOT, GATES, SHINE_BRIGHT_GEMS, FINAL_JEOPARDY } from '../config/gameplay';
 import { BossRound, PowerWordEffect, ScoreCalculationResult } from '../types';
 
 const lookupByLength = (table: Record<number, number>, length: number, below: number): number => {
@@ -559,6 +559,28 @@ export const blackjackResult = (player: number[], dealer: number[]): BlackjackRe
 /** Chicken Dinner: the listed prize for a result (before the level boost). */
 export const blackjackPrize = (r: BlackjackResult): number =>
     r === 'natural' ? POWER_PLAY_VALUES.blackjackNatural : r === 'win' ? POWER_PLAY_VALUES.blackjackWin : r === 'push' ? POWER_PLAY_VALUES.blackjackPush : 0;
+/**
+ * 💡 Final Jeopardy (v7.75.0): the categories a last word must fit, and how often a random final
+ * hand can make one (simulated): 6+ letters 48%, J/K/Q/X/Z/V/W 48%, a double letter 51%, B/C/M/P
+ * 52%, starts with S or T 60%, one vowel in 4+ letters 78%, 5+ letters 86%.
+ */
+export const FINAL_CATEGORIES: Record<string, { label: string; test: (w: string) => boolean }> = {
+    six: { label: '6+ LETTERS', test: w => w.length >= 6 },
+    rare: { label: 'J, K, Q, X, Z, V OR W', test: w => /[JKQXZVW]/i.test(w) },
+    double: { label: 'A DOUBLE LETTER', test: w => /(.)\1/i.test(w) },
+    bcmp: { label: 'B, C, M OR P', test: w => /[BCMP]/i.test(w) },
+    stStart: { label: 'STARTS WITH S OR T', test: w => /^[ST]/i.test(w) },
+    oneVowel: { label: 'ONLY ONE VOWEL (4+ LETTERS)', test: w => w.length >= 4 && (w.match(/[AEIOU]/gi) ?? []).length === 1 },
+    five: { label: '5+ LETTERS', test: w => w.length >= 5 },
+};
+export const finalCategoryDeal = (rand: () => number = Math.random): string => {
+    const ids = Object.keys(FINAL_CATEGORIES);
+    return ids[Math.min(ids.length - 1, Math.floor(rand() * ids.length))];
+};
+/** A Final Jeopardy bet: this percent of the score, rounded, never more than the cap. */
+export const finalBet = (score: number, percent: number): number =>
+    Math.min(FINAL_JEOPARDY.cap, Math.round((Math.max(0, score) * percent / 100) / FINAL_JEOPARDY.roundTo) * FINAL_JEOPARDY.roundTo);
+
 /**
  * ⭕ Center Square (v7.74.0): the squares. The center is always 6+ letters; the other 8 are dealt
  * from the outer pool. Each condition matches roughly 10-35% of the words players play (simulated).

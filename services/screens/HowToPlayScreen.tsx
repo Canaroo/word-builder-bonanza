@@ -1,7 +1,7 @@
 import { Sec } from '../../components/Seconds';
 import React from 'react';
 import { soundService } from '../soundService';
-import { SCRATCH, GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, HEAD_START, SKILL_SHOT, GEM_TILES, HOLD_SLOT, GRUDGE, BONES, GATES, GREATEST_HITS , TRIFORCE } from '../../config/gameplay';
+import { SCRATCH, GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, FINAL_JEOPARDY, HEAD_START, SKILL_SHOT, GEM_TILES, HOLD_SLOT, GRUDGE, BONES, GATES, GREATEST_HITS , TRIFORCE } from '../../config/gameplay';
 import { PHOENIX_DOWN } from '../../config/progression';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import ArcadeButton from '../../components/ArcadeButton';
@@ -59,7 +59,10 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
           </p>
           <p>
             <Key>🎤 Last Words:</Key> when the run does end, the clock stops and you get one more word from your final
-            hand, no rush, scored <Key>x{LAST_WORDS.multiplier}</Key>.
+            hand, no rush, scored <Key>x{LAST_WORDS.multiplier}</Key>. <Key>💡 Final Jeopardy:</Key> before you play it,
+            you can bet {FINAL_JEOPARDY.percents.join('% or ')}% of your score (up to {FINAL_JEOPARDY.cap.toLocaleString()}). Then a
+            category is revealed, like "a double letter" or "6+ letters". If your last word fits it, you win the bet; if not, you
+            lose it. Or skip the bet and just play.
           </p>
           <p>
             <Key>🎟️ Scratch-off ticket:</Key> at levels {SCRATCH.levels.join(', ')} you get a lucky ticket. Scratch a square

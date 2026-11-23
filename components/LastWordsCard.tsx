@@ -5,7 +5,8 @@ import { soundService } from '../services/soundService';
 import { dictionaryService } from '../services/dictionaryService';
 import { calculateScore } from '../services/gameUtils';
 import { assignTilesToWord } from '../services/rackMatch';
-import { LAST_WORDS } from '../config/gameplay';
+import { LAST_WORDS, FINAL_JEOPARDY } from '../config/gameplay';
+import { FINAL_CATEGORIES, finalBet } from '../services/rules';
 import { useArmDelay, END_CARD_ARM_MS } from './useArmDelay';
 
 // Last Words (v7.42): the run is over, but the clock is stopped and the final hand is still on the
@@ -26,8 +27,12 @@ const LastWordsCard: React.FC<{
   gameState: GameState;
   /** 🐷 Hamm's savings lost because time ran out (v7.73.1). */
   piggyLost?: number;
+  /** 💡 Final Jeopardy (v7.75.0): the category dealt when the run ended, and the bet once it's made (0 = no bet). */
+  category?: string;
+  bet?: number;
+  onBet?: (bet: number) => void;
   onDone: (r: LastWordsResult | null) => void;
-}> = ({ reason, tiles, gameState, piggyLost = 0, onDone }) => {
+}> = ({ reason, tiles, gameState, piggyLost = 0, category, bet, onBet, onDone }) => {
   const [picked, setPicked] = useState<number[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -36,6 +41,12 @@ const LastWordsCard: React.FC<{
   const armed = useArmDelay();
 
   const word = picked.map(i => tiles[i].letter).join('');
+  // 💡 Final Jeopardy: bet before a tile can be tapped; the category only shows after the bet.
+  const cat = category ? FINAL_CATEGORIES[category] : undefined;
+  const bets = FINAL_JEOPARDY.percents.map(p => ({ percent: p, amount: finalBet(gameState.score, p) })).filter(b => b.amount > 0);
+  const betting = !!cat && !!onBet && bet === undefined && bets.length > 0;
+  const placed = cat && bet && bet > 0 ? bet : 0;
+  const fits = placed && word.length >= 3 ? cat!.test(word) : null;
   const submit = async () => {
     if (busy || result || word.length < 3) return;
     setBusy(true);
@@ -62,10 +73,43 @@ const LastWordsCard: React.FC<{
             <p className="font-tile font-extrabold text-3xl tracking-widest text-white">{result.word}</p>
             <p className="font-display text-3xl text-neon-green leading-tight" aria-live="polite">+{result.points.toLocaleString()}</p>
             <p className="text-slate-200">A parting shot at x{LAST_WORDS.multiplier}. Mic dropped.</p>
+            {placed > 0 && (cat!.test(result.word)
+              ? <p className="font-display text-2xl text-neon-green" data-testid="fj-result">💡 FINAL JEOPARDY: +{placed.toLocaleString()}</p>
+              : <p className="font-display text-2xl text-neon-red" data-testid="fj-result">💡 FINAL JEOPARDY: -{placed.toLocaleString()}</p>)}
             <ArcadeButton color="green" className="w-full" onClick={() => onDone(result)}>Take the {result.points.toLocaleString()}</ArcadeButton>
+          </>
+        ) : betting ? (
+          // 💡 Final Jeopardy: the bet comes first. The tiles show (you've seen them), the category doesn't.
+          <>
+            <p className="osd-text text-lg tracking-[0.2em] text-neon-cyan">💡 FINAL JEOPARDY</p>
+            <p className="text-slate-200 leading-snug">Bet on your last word? After you bet, a <strong className="text-white">category</strong> is revealed. If your last word fits it, you win the bet. If not, you lose it.</p>
+            <div className="grid grid-cols-4 gap-1.5 w-full opacity-80" aria-label="Your final hand">
+              {tiles.map(t => (
+                <div key={t.id} className="relative h-12 rounded-lg grid place-items-center font-tile font-extrabold text-xl bg-[#f6e7c1] text-crt-900">
+                  {t.letter}<span className="absolute bottom-0.5 right-1 font-osd text-xs">{t.points}</span>
+                </div>
+              ))}
+            </div>
+            {!armed && <ArmBar />}
+            <div className="w-full grid gap-2">
+              {bets.map(b => (
+                <ArcadeButton key={b.percent} color="cyan" variant={b.percent === bets[bets.length - 1].percent ? undefined : 'outline'} disabled={!armed}
+                  onClick={() => { if (!armed) return; soundService.playPowerUp(); onBet!(b.amount); }}>
+                  Bet {b.amount.toLocaleString()} ({b.percent}%{b.amount === FINAL_JEOPARDY.cap ? ', the max' : ''})
+                </ArcadeButton>
+              ))}
+              <ArcadeButton color="slate" variant="outline" disabled={!armed} onClick={() => { if (armed) onBet!(0); }}>No bet, just play</ArcadeButton>
+            </div>
           </>
         ) : (
           <>
+            {placed > 0 && (
+              <div className="w-full rounded-lg bg-[#0b2a6b] ring-2 ring-neon-cyan px-3 py-2 level-stage-in" data-testid="fj-category">
+                <p className="osd-text text-base text-neon-cyan leading-none">💡 CATEGORY</p>
+                <p className="font-display text-xl text-white leading-tight">{cat!.label}</p>
+                <p className="text-xs text-slate-200 leading-snug">Your bet: {placed.toLocaleString()}. Fit the category to win it, miss and lose it.</p>
+              </div>
+            )}
             <p className="text-slate-200 leading-snug">
               The clock is stopped. Play <strong className="text-white">one more word</strong> from your final hand and it scores{' '}
               <strong className="text-neon-yellow">x{LAST_WORDS.multiplier}</strong>. No rush, and a wrong guess costs nothing.
@@ -73,7 +117,7 @@ const LastWordsCard: React.FC<{
             <div className="w-full min-h-[3rem] rounded-lg bg-crt-950 ring-1 ring-white/15 flex items-center justify-center gap-1 px-2 font-tile font-extrabold text-2xl tracking-widest text-white">
               {word || <span className="text-slate-600 text-base font-sans font-normal">Tap tiles to build a word</span>}
             </div>
-            <p className="osd-text text-lg text-neon-yellow min-h-[1.5rem]" aria-live="polite">{!armed ? 'GET READY…' : busy ? 'Checking…' : flash ?? ''}</p>
+            <p className="osd-text text-lg text-neon-yellow min-h-[1.5rem]" aria-live="polite">{!armed ? 'GET READY…' : busy ? 'Checking…' : flash ?? (fits === true ? '✔ FITS THE CATEGORY' : fits === false ? "✘ DOESN'T FIT THE CATEGORY" : '')}</p>
             {!armed && <ArmBar />}
             <div className="grid grid-cols-4 gap-1.5 w-full">
               {tiles.map((t, i) => (
@@ -90,7 +134,7 @@ const LastWordsCard: React.FC<{
               <ArcadeButton color="slate" variant="outline" onClick={() => { setPicked([]); setFlash(null); }}>Clear</ArcadeButton>
               <ArcadeButton color="green" onClick={submit} disabled={!armed || word.length < 3 || busy || !canSpell(word)}>Submit</ArcadeButton>
             </div>
-            <ArcadeButton variant="text" color="slate" disabled={!armed} onClick={() => armed && onDone(null)}>No last words, end the run</ArcadeButton>
+            <ArcadeButton variant="text" color="slate" disabled={!armed} onClick={() => armed && onDone(null)}>{placed > 0 ? `No last words (lose the ${placed.toLocaleString()} bet)` : 'No last words, end the run'}</ArcadeButton>
           </>
         )}
       </div>
