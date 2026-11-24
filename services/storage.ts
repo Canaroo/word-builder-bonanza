@@ -37,6 +37,8 @@ export const STORAGE_KEYS = {
     dailyChooserDay: 'wordNerdDailyChooserDay',
     /** Names (lowercase) that were offered the 1-minute tour or took it (v7.78.0). */
     tourSeen: 'wordNerdTourSeen',
+    /** Names (lowercase) that finished the tour (v7.78.1): their pill shrinks to a ❓ in the top bar. */
+    tourDone: 'wordNerdTourDone',
     musicOwned: 'wordNerdMusicOwned',
     musicTrack: 'wordNerdMusicTrack',
     eventMusic: 'wordNerdEventMusic',

@@ -29,7 +29,7 @@ import { levelFor } from '../rules';
 import StreakPanel from '../../components/StreakPanel';
 import { BadgeIcon, TitleText } from '../../components/PlayerPlate';
 import { getCareer } from '../career';
-import { tourSeenBy, markTourSeen } from '../tour';
+import { tourSeenBy, markTourSeen, tourFinishedBy } from '../tour';
 import { getProfile, currentStreak, playedToday, powerWordBonusFor } from '../progression';
 
 
@@ -248,6 +248,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
     playAfterTourCheck();
   };
   const [showTourOffer, setShowTourOffer] = useState(false);
+  // v7.78.1: once this player has finished the tour, the pill under the logo shrinks to a ❓ in the top bar.
+  const tourDone = !!name.trim() && !showNameEntry && tourFinishedBy(name);
   const answerTourOffer = (take: boolean) => {
     setShowTourOffer(false);
     markTourSeen(name);
@@ -682,6 +684,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <span className="text-lg leading-none" aria-hidden="true">🪙</span>
               <span className="osd-text text-xl leading-none text-neon-yellow">{lexCoins}</span>
             </button>
+            {tourDone && (
+              <button type="button" onClick={() => { soundService.playUIClick(); onShowTour(name.trim(), false); }} data-testid="tour-icon"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-base ring-1 ring-neon-cyan/50 bg-crt-950/70 hover:ring-neon-cyan"
+                aria-label="How to play: replay the 1-minute tour">❓</button>
+            )}
             <button onClick={() => { soundService.initialize(); soundService.playUIClick(); setShowSound(true); }} className="text-xl text-slate-400 hover:text-white p-1.5" aria-label={`Sound and music (${isMuted ? 'sound off' : 'sound on'})`}>
               {isMuted ? '🔇' : '🔊'}
             </button>
@@ -703,12 +710,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <h2 className="font-display text-6xl min-[375px]:text-7xl [@media(min-height:760px)]:text-8xl tracking-normal marquee-3d animate-bounce-in-up leading-none" style={{ animationDelay: '0.1s' }}>NERD</h2>
             <p className="osd-text text-lg text-neon-pink mt-1 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>SERIOUS WORDS. RIDICULOUS FUN.</p>
             <p className="osd-text text-sm leading-none text-slate-500 mt-1">VER {__APP_VERSION__}</p>
-            <button type="button" onClick={() => { soundService.playUIClick(); onShowTour(name.trim(), false); }} data-testid="tour-pill"
+            {!tourDone && <button type="button" onClick={() => { soundService.playUIClick(); onShowTour(name.trim(), false); }} data-testid="tour-pill"
               className="mt-3 flex items-center gap-1.5 rounded-full ring-1 ring-neon-cyan/60 bg-crt-950/70 hover:bg-neon-cyan/10 hover:ring-neon-cyan px-3 py-1.5 animate-fade-in"
               aria-label="How to play: a 1-minute tour">
               <span className="text-base leading-none" aria-hidden="true">❓</span>
               <span className="osd-text text-lg leading-none text-neon-cyan">HOW TO PLAY · 1-MIN TOUR</span>
-            </button>
+            </button>}
           </div>
 
           {/* Play card: one main action. A saved run makes it CONTINUE; New Game drops to an outline button. */}

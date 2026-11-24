@@ -29,14 +29,21 @@ export const TOUR_LONG_WORD = 'CLOSET';
 export const TOUR_FAKE_WORD = 'TOLC';
 export const TOUR_CLOCK_START = 30;
 
-// Names (lowercase) that were offered the tour or took it, so a new player is asked once.
-const names = (): string[] => {
-    const v = storage.getJSON<unknown>(STORAGE_KEYS.tourSeen, []);
+// Names (lowercase) kept per device: who was offered the tour (asked once), and who finished it
+// (v7.78.1: their pill shrinks to a ❓ in the top bar).
+type TourList = typeof STORAGE_KEYS.tourSeen | typeof STORAGE_KEYS.tourDone;
+const names = (key: TourList): string[] => {
+    const v = storage.getJSON<unknown>(key, []);
     return Array.isArray(v) ? v.filter((n): n is string => typeof n === 'string') : [];
 };
-export const tourSeenBy = (name: string): boolean => names().includes(name.trim().toLowerCase());
-export const markTourSeen = (name: string) => {
-    const key = name.trim().toLowerCase();
-    if (!key || tourSeenBy(key)) return;
-    storage.setJSON(STORAGE_KEYS.tourSeen, [...names(), key].slice(-50));
+const has = (key: TourList, name: string) => names(key).includes(name.trim().toLowerCase());
+const add = (key: TourList, name: string) => {
+    const n = name.trim().toLowerCase();
+    if (!n || has(key, n)) return;
+    storage.setJSON(key, [...names(key), n].slice(-50));
 };
+export const tourSeenBy = (name: string): boolean => has(STORAGE_KEYS.tourSeen, name);
+export const markTourSeen = (name: string) => add(STORAGE_KEYS.tourSeen, name);
+/** Finished = tapped "I'm ready" on the last screen (Skip doesn't count). */
+export const tourFinishedBy = (name: string): boolean => has(STORAGE_KEYS.tourDone, name);
+export const markTourFinished = (name: string) => add(STORAGE_KEYS.tourDone, name);
