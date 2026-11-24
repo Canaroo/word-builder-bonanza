@@ -3,7 +3,7 @@ import { Sec } from './Seconds';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import ArcadeButton, { NamedLabel } from './ArcadeButton';
 import { POWER_PLAY_VALUES as V, TIME_BONUS } from '../config/gameplay';
-import { dealDoors, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, WHAMMY_BOARD, whammySpin, whammySquareFor, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout, blackjackHands, blackjackTotal, blackjackResult, blackjackPrize, gumpRoll, type GumpPrize, surveyBoard, surveySlotFor, surveyPayout, fortuneRoll, fortunePoints, FORTUNE_ANSWERS, type FortuneKind } from '../services/rules';
+import { dealDoors, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, WHAMMY_BOARD, whammySpin, whammySquareFor, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout, blackjackHands, blackjackTotal, blackjackResult, blackjackPrize, gumpRoll, type GumpPrize, surveyBoard, surveySlotFor, surveyPayout, CENTER_SQUARES, centerSquareDeal, centerSquareFill, centerSquarePay, fortuneRoll, fortunePoints, FORTUNE_ANSWERS, type FortuneKind } from '../services/rules';
 import { createTile, createTileBag, shuffleArray, dealNewHand } from '../services/gameUtils';
 import { dictionaryService } from '../services/dictionaryService';
 import { WordPad, gateTiles } from './MiniGames';
@@ -1547,12 +1547,123 @@ const SurveySays: React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile 
   );
 };
 
+// ⭕ Center Square (v7.79.0, the owner's redesign): Hollywood Squares in its own card. A 3x3 board, a
+// fresh 8-tile hand (used tiles refill from the bag, no shuffle), 9 words and 60 seconds while the
+// run's clock waits. Each word fills the hardest open square it fits; a fake word or one that fits
+// nothing uses the turn. Every filled square pays a flat amount (a prize: grows with the level).
+interface SquaresDeal { board: string[]; hand: string[]; bag: string[] }
+interface SquaresProgress { left: number; got: boolean[]; words: (string | null)[]; turns: number; over: boolean }
+const CenterSquareCard: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
+  const [deal, setDeal] = useSaved<SquaresDeal | null>('squaresDeal', null);
+  const [progress, setProgress] = useSaved<SquaresProgress | null>('squares', null);
+  const live = useRef<SquaresProgress | null>(progress);
+  const [busy, setBusy] = useState(false);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [lit, setLit] = useState<number | null>(null);
+  const [, setFrame] = useState(0);
+  useEffect(() => {
+    if (deal) return;
+    const { hand, tileBag } = dealNewHand(createTileBag());
+    setDeal({ board: centerSquareDeal(), hand: hand.map(t => t.letter), bag: tileBag });
+    const p: SquaresProgress = { left: V.centerSquareSeconds * 1000, got: Array(9).fill(false), words: Array(9).fill(null), turns: 0, over: false };
+    live.current = p; setProgress(p);
+  }, [deal]); // eslint-disable-line react-hooks/exhaustive-deps
+  const end = () => { const s = live.current; if (!s || s.over) return; s.over = true; setProgress({ ...s }); soundService.playMilestone(); };
+  useEffect(() => {
+    if (!progress || progress.over) return;
+    let last = performance.now(), saveIn = 1000;
+    const t = setInterval(() => {
+      const s = live.current; if (!s || s.over) return;
+      const now = performance.now(); s.left = Math.max(0, s.left - (now - last)); saveIn -= now - last; last = now;
+      if (saveIn <= 0) { saveIn = 1000; setProgress({ ...s }); }
+      if (s.left <= 0) end(); else setFrame(f => f + 1);
+    }, 100);
+    return () => clearInterval(t);
+  }, [!!progress, progress?.over]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tiles = React.useMemo(() => (deal ? gateTiles(deal.hand) : []), [deal]);
+  // Used tiles go; the hand tops back up to 8 from the bag (no shuffles in here).
+  const refill = (word: string) => {
+    if (!deal) return;
+    const hand = [...deal.hand];
+    for (const l of word) { const i = hand.indexOf(l); if (i >= 0) hand.splice(i, 1); }
+    const bag = [...deal.bag];
+    while (hand.length < 8 && bag.length) hand.push(bag.shift()!);
+    setDeal({ ...deal, hand, bag });
+  };
+  const spendTurn = (s: SquaresProgress) => {
+    s.turns += 1;
+    setProgress({ ...s });
+    if (s.turns >= V.centerSquareTurns || s.got.every(Boolean)) end();
+  };
+  const submit = async (word: string) => {
+    const s = live.current; if (!s || s.over || !deal) return;
+    setBusy(true);
+    const ok = await dictionaryService.isValidWord(word.toLowerCase());
+    setBusy(false);
+    if (s.over) return;
+    if (!ok) { soundService.playInvalidWord(); buzz(80); setFlash(`❌ ${word}? Not a word. That's a turn.`); spendTurn(s); return; }
+    refill(word);
+    const slot = centerSquareFill(deal.board, s.got, word);
+    if (slot === null) { soundService.playInvalidWord(); setFlash(`${word} fits no open square. That's a turn.`); spendTurn(s); return; }
+    s.got = s.got.map((g, i) => g || i === slot);
+    s.words = s.words.map((w, i) => (i === slot ? word : w));
+    soundService.playTileClick(); buzz([15, 30, 15]);
+    setLit(slot); setTimeout(() => setLit(l => (l === slot ? null : l)), 900);
+    setFlash(`⭕ ${word}: ${CENTER_SQUARES[deal.board[slot]].label} +${V.centerSquarePerSquare}`);
+    spendTurn(s);
+  };
+  if (!deal || !progress) return <p className="osd-text text-lg text-slate-300 animate-pulse">TAKING OUR SEATS…</p>;
+  const s = live.current ?? progress;
+  const filled = s.got.filter(Boolean).length;
+  const pay = centerSquarePay(s.got);
+  const full = filled === 9;
+  return (
+    <>
+      <p className="text-slate-200 text-sm leading-snug">Fill the squares. You have {V.centerSquareTurns} words, {V.centerSquareSeconds} seconds and no shuffles; your run's clock waits. Each word fills one open square it fits (the hardest one), and every square pays +{V.centerSquarePerSquare}. A fake word, or one that fits no open square, still uses a word.</p>
+      <div className="w-full flex justify-between items-baseline">
+        <span className="font-display text-xl text-neon-yellow" data-testid="squares-pay">+{pay}</span>
+        <span className="osd-text text-xl text-slate-200" data-testid="squares-turns">WORD {Math.min(s.turns + 1, V.centerSquareTurns)}/{V.centerSquareTurns}</span>
+        {!s.over && <span className="osd-text text-xl text-white tabular-nums">{Math.ceil(s.left / 1000)}<Sec /></span>}
+      </div>
+      <div className="w-full grid grid-cols-3 gap-1.5" data-testid="squares-board">
+        {deal.board.map((id, i) => {
+          const done = s.got[i];
+          return (
+            <div key={i} aria-label={`${CENTER_SQUARES[id].label}${done ? `: filled by ${s.words[i]}` : ': open'}`}
+              className={`min-h-[3.75rem] rounded-lg px-1 py-1.5 flex flex-col items-center justify-center text-center ring-2 transition-transform ${done ? 'bg-neon-yellow/20 ring-neon-yellow' : i === 4 ? 'bg-[#0b2a6b] ring-neon-pink/70' : 'bg-[#0b2a6b] ring-[#4d7cff]/70'} ${lit === i ? 'scale-105 level-stage-in' : ''}`}>
+              {done ? (
+                <>
+                  <span className="font-display text-2xl leading-none text-neon-yellow" aria-hidden="true">⭕</span>
+                  <span className="font-tile font-extrabold text-xs leading-tight text-white mt-0.5 break-all">{s.words[i]}</span>
+                </>
+              ) : (
+                <span className={`osd-text text-[15px] leading-[1.05] ${i === 4 ? 'text-neon-pink' : 'text-[#c7d6ff]'}`}>{CENTER_SQUARES[id].label}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {!s.over ? (
+        <WordPad tiles={tiles} busy={busy} flash={flash} onSubmit={submit} />
+      ) : (
+        <>
+          <p className="font-display text-2xl text-neon-green">{full ? `FULL BOARD! +${pay}` : pay ? `${filled} SQUARES: +${pay}` : 'NOT ONE SQUARE'}</p>
+          <ArcadeButton color={pay ? 'green' : 'pink'} className="w-full" onClick={() => onResolve({ points: pay,
+            headline: full ? `FULL BOARD! +${pay}` : pay ? `${filled} SQUARES: +${pay}` : 'NO SQUARES',
+            detail: `${filled} of 9 squares filled, +${V.centerSquarePerSquare} each.${s.words.some(Boolean) ? ` ${s.words.filter(Boolean).join(', ')}.` : ''}`,
+            tone: pay ? 'win' : 'lose' })}>{pay ? `Take +${pay}` : 'Continue'}</ArcadeButton>
+        </>
+      )}
+    </>
+  );
+};
+
 const GAMES: Record<string, React.FC<{ onResolve: (r: GambleResult) => void; hand?: (Tile | null)[]; extra?: Record<string, unknown> }>> = {
   letsMakeADeal: Doors, dealOrNoDeal: Deal, noWhammies: Whammies, minesweeper: Mines,
   priceIsRight: PriceIsRight, psychicFriends: PsychicCall, draftDay: DraftDay, cardSharks: CardSharks, plinko: Plinko,
   hotTubTimeMachine: HotTub, luckyCharms: LuckyCharms, wildcard: Wildcard,
   shakeItLikeAPolaroid: Polaroid, duckHunt: DuckHunt, scroogeSwipe: MoneyBin, warioWarp: WarioBags, missionImpossible: Mission,
-  fifthGrader: FifthGrader, chickenDinner: Blackjack, gumpLuck: GumpBox, fortunesFavor: FortuneBall, surveySays: SurveySays,
+  fifthGrader: FifthGrader, chickenDinner: Blackjack, gumpLuck: GumpBox, fortunesFavor: FortuneBall, surveySays: SurveySays, centerSquare: CenterSquareCard,
 };
 
 /** The interactive part of a gamble PowerPlay. */

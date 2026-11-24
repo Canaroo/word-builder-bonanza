@@ -2,7 +2,7 @@
 import { PowerPlay, GameState, EventLogEntry } from '../types';
 import { labelize } from '../services/durationTags';
 import { TIME_BONUS, POWER_PLAY_VALUES , TRIFORCE } from '../config/gameplay';
-import { tamagotchiPot, dailyDoubleWager, levelFor, prizeFor, jengaPot, centerSquareDeal } from '../services/rules';
+import { tamagotchiPot, dailyDoubleWager, levelFor, prizeFor, jengaPot } from '../services/rules';
 
 // The 'activate' function is for declaring the state change that should happen upon activation.
 // The actual logic is handled in the GameScreen reducer based on the power play's `effectType` and ID.
@@ -68,7 +68,6 @@ export const TIME_CARD_IDS = new Set([
 /** PowerPlays that fire the moment you pick them, so you also keep the one you're holding. */
 export const INSTANT_POWER_PLAY_IDS = new Set([
   'thwomped', 'fluncleIsProud',
-  'centerSquare', // v7.74.0: the board starts with your next word, so there's nothing to wait for
   'strikeShield', 'plotArmor', 'saveByTheBell', 'timeTurner', 'mutationProtocol',
   'deepFreeze', 'groundhogsDay', 'lifeFindsAWay', 'wildcardWake', 'continueScreen',
   // v7.67.7 (the owner's call): these waited in the pocket for no reason. Hadouken! already waits
@@ -85,6 +84,8 @@ export const INSTANT_POWER_PLAY_IDS = new Set([
   'psychicFriends',
   // Are You Smarter Than a 5th Grader? (v7.65.0): class starts the moment it's picked.
   'fifthGrader',
+  // Center Square (v7.79.0): its board card opens on pick (it used to arm a board above the tiles).
+  'centerSquare',
 ]);
 
 export const POWER_PLAYS_LIST: PowerPlay[] = [
@@ -652,13 +653,13 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'centerSquare',
     name: 'Center Square',
-    description: `Hollywood Squares for your next ${POWER_PLAY_VALUES.centerSquareWords} words. You get a 3x3 board of squares like "ends in S" or "starts with a vowel"; the center square is 6+ letters. Each word claims one open square it fits. Every line of three pays +${POWER_PLAY_VALUES.centerSquareLine}, and the whole board pays +${POWER_PLAY_VALUES.centerSquareFull} more.`,
+    description: `Hollywood Squares, played the moment you pick it. A 3x3 board of squares like "ends in S" or "starts with a vowel" (the center is 6+ letters) and a fresh hand of tiles. You get ${POWER_PLAY_VALUES.centerSquareTurns} words and ${POWER_PLAY_VALUES.centerSquareSeconds} seconds, no shuffles: each word fills one open square it fits, and every square pays +${POWER_PLAY_VALUES.centerSquarePerSquare}. Your run's clock waits while you play.`,
     flavorText: 'I\'ll take Paul Lynde to block! (Hollywood Squares)',
     icon: '⭕',
     subtheme: 'score',
-    effectType: 'passive',
-    durationTag: 'LIMITED',
-    activate: (gameState) => arm('centerSquare', { board: centerSquareDeal(), got: Array(9).fill(false), words: POWER_PLAY_VALUES.centerSquareWords })(gameState),
+    effectType: 'immediate',
+    durationTag: 'ONE_TIME',
+    activate: () => ({}), // Handled in GameScreen (fires on pick: the board card). v7.74-7.78 armed a 10-word board above the tiles; old saves still settle it.
   },
   {
     id: 'surveySays',

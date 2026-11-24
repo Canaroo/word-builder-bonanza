@@ -1,6 +1,6 @@
 // v7.74.0: game-show features. 📊 Survey Says!, ⭕ Center Square and 🎡 Spin & Solve (SPIN).
 import { describe, test, expect } from 'vitest';
-import { surveyBoard, surveySlotFor, surveyPayout, CENTER_SQUARES, centerSquareDeal, centerSquareClaim, centerSquareLines, centerSquarePrize, wheelLetterPay, wheelBoard, wheelSolved } from '../rules';
+import { surveyBoard, surveySlotFor, surveyPayout, CENTER_SQUARES, centerSquareDeal, centerSquareClaim, centerSquareLines, centerSquarePrize, centerSquareFill, centerSquarePay, CENTER_SQUARE_ORDER, wheelLetterPay, wheelBoard, wheelSolved } from '../rules';
 import { POWER_PLAY_VALUES as V, MINI_GAME_VALUES as M } from '../../config/gameplay';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, PRIZE_POWER_PLAY_IDS } from '../../data/powerPlays';
 import { SECRET_BONUSES } from '../../data/secretBonuses';
@@ -58,18 +58,38 @@ describe('⭕ Center Square', () => {
         expect(centerSquareClaim(board, Array(9).fill(true), 'TRAINS')).toBeNull();
         expect(centerSquareClaim(board, Array(9).fill(false), 'EAT')).not.toBeNull();
     });
-    test('lines and prizes; a full board needs 9 words, and there are 10', () => {
+    test('legacy boards (saved runs from v7.74-7.78) still settle by lines', () => {
         expect(centerSquareLines([true, true, true, false, false, false, false, false, false])).toBe(1);
         expect(centerSquarePrize([true, true, true, false, false, false, false, false, false])).toBe(V.centerSquareLine);
         expect(centerSquarePrize(Array(9).fill(true))).toBe(8 * V.centerSquareLine + V.centerSquareFull);
         expect(V.centerSquareWords).toBeGreaterThanOrEqual(9);
     });
-    test('fires on pick and deals a fresh board', () => {
+    test('v7.79.0: fires on pick as its own card and arms nothing above the tiles', () => {
         const pp = POWER_PLAYS_LIST.find(p => p.id === 'centerSquare')!;
         expect(INSTANT_POWER_PLAY_IDS.has('centerSquare')).toBe(true);
-        const armed = pp.activate({ activePowerPlays: {}, activeBuffs: [] } as any) as any;
-        expect(armed.activePowerPlays.centerSquare.board).toHaveLength(9);
-        expect(armed.activePowerPlays.centerSquare.words).toBe(V.centerSquareWords);
+        expect(GAMBLE_CARD_IDS).toContain('centerSquare');
+        expect(PRIZE_POWER_PLAY_IDS.has('centerSquare')).toBe(true);
+        const after = pp.activate({ activePowerPlays: {}, activeBuffs: [] } as any) as any;
+        expect(after.activePowerPlays?.centerSquare).toBeUndefined();
+        expect(V.centerSquareTurns).toBe(9);
+        expect(pp.description).toContain(`${V.centerSquareTurns} words`);
+        expect(pp.description).toContain(`+${V.centerSquarePerSquare}`);
+    });
+    test('v7.79.0: a word fills the hardest open square it fits; flat pay per square', () => {
+        const board = ['three', 'five', 'endsS', 'vowelStart', 'six', 'double', 'rare', 'oneVowel', 'bcmp'];
+        const none = Array(9).fill(false);
+        // TRAINS fits 5+, 6+ and ENDS IN S: ENDS IN S is the hardest (28% of hands), so it goes there.
+        expect(centerSquareFill(board, none, 'TRAINS')).toBe(2);
+        const got = [...none]; got[2] = true;
+        expect(centerSquareFill(board, got, 'TRAINS')).toBe(4); // then 6+ letters
+        expect(centerSquareFill(board, Array(9).fill(true), 'TRAINS')).toBeNull();
+        expect(centerSquareFill(board, none, 'TEA')).toBe(0); // only EXACTLY 3 LETTERS fits
+        expect(centerSquareFill(board, none, 'TOO')).toBe(5); // fits 3 letters and a double letter: the double is harder
+        expect(centerSquarePay(none)).toBe(0);
+        expect(centerSquarePay(got)).toBe(V.centerSquarePerSquare);
+        expect(centerSquarePay(Array(9).fill(true))).toBe(9 * V.centerSquarePerSquare);
+        // every square has a difficulty rank
+        for (const id of Object.keys(CENTER_SQUARES)) expect(CENTER_SQUARE_ORDER).toContain(id);
     });
 });
 

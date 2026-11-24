@@ -227,7 +227,20 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   needs 9 words and there are 10 (the owner's question). Simulated: letting a word claim every square
   it matched gave a line 97% of the time in 8 words, so one per word it is. +75 a line, +500 for the
   full board (a prize): casual ~2.9 lines (~225), full 1%; a player aiming for it ~7 lines, full 63%
-  (~845). The chip opens/closes a 3x3 grid above the tiles (the clock runs). **🎡 SPIN, Spin & Solve**
+  (~845). The chip opens/closes a 3x3 grid above the tiles (the clock runs).
+  **v7.79.0, Center Square is its own card (the owner's redesign: the board crowded the screen and
+  its squares were hard to read):** it fires on pick (`CARD_ON_PICK`) and opens `CenterSquareCard`
+  in `GambleCard.tsx`: a small 3x3 board, a fresh 8-tile hand dealt from a new bag (used tiles refill
+  from it; no shuffles), 9 words (`centerSquareTurns`) and 60 s (`centerSquareSeconds`) while the
+  run's clock waits (a modal). Each word fills the hardest open square it fits (`centerSquareFill`,
+  `CENTER_SQUARE_ORDER`: ENDS IN S 28% of hands ... EXACTLY 3 LETTERS 99%); a fake word or one that
+  fits nothing uses the turn, never a run strike. Flat +60 a square (`centerSquarePerSquare`,
+  `centerSquarePay`; a prize, grows with the level), no line or full-board bonus (the owner's picks).
+  Simulated 9 turns, no clock: any-word play 5.6 squares (~340), aiming 7.6 (~460), full 44% (540);
+  the old board paid ~225 / ~845. Deal and progress are saved (`useSaved`). Browser-checked: 7 of 9
+  → +420, the run's clock 50 → 50. Boards armed in older saves still settle the old way
+  (`centerSquareClaim`/`Lines`/`Prize`, `centerSquareWords/Line/Full`, the tracker chip).
+  **🎡 SPIN, Spin & Solve**
   (`spinAndSolve` secret word, mini-game `wheel`, `Wheel` in `MiniGames.tsx`, `MINI_GAME_VALUES.wheel`,
   `wheelLetterPay`/`wheelBoard`/`wheelSolved`): a hidden 8-letter word from `BIG_ONE_WORDS`, 45 s; SPIN
   (wedges 50-200 a letter, BANKRUPT wipes the pot, FREE SPIN), call a consonant, buy a vowel for 25,

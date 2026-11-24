@@ -618,6 +618,21 @@ export const centerSquareClaim = (board: readonly string[], got: readonly boolea
     const value = (i: number) => CENTER_SQUARE_LINES.filter(l => l.includes(i)).reduce((v, l) => v + (l.every(j => got[j] || j === i) ? 100 : l.filter(j => got[j]).length * 3), 0) + (i === 4 ? 1 : 0);
     return open.reduce((best, i) => (value(i) > value(best) ? i : best), open[0]);
 };
+/**
+ * v7.79.0: hardest first, by the share of 8-tile hands that can fill each square (simulated on the
+ * common-word list: ENDS IN S 28%, F/H/W 39%, 6+ letters 43% ... EXACTLY 3 LETTERS 99%).
+ */
+export const CENTER_SQUARE_ORDER = ['endsS', 'fhw', 'six', 'double', 'bcmp', 'rare', 'stStart', 'five', 'vowelEnd', 'twoVowels', 'vowelStart', 'oneVowel', 'three'];
+/** The card version (v7.79.0): a word fills the hardest open square it fits, so the easy ones stay open. Null when none. */
+export const centerSquareFill = (board: readonly string[], got: readonly boolean[], word: string): number | null => {
+    const w = word.toUpperCase();
+    const open = board.map((_, i) => i).filter(i => !got[i] && CENTER_SQUARES[board[i]]?.test(w));
+    if (!open.length) return null;
+    const rank = (i: number) => { const r = CENTER_SQUARE_ORDER.indexOf(board[i]); return r < 0 ? 99 : r; };
+    return open.reduce((best, i) => (rank(i) < rank(best) ? i : best), open[0]);
+};
+/** What the card pays before the level boost: a flat amount per filled square. */
+export const centerSquarePay = (got: readonly boolean[]): number => got.filter(Boolean).length * POWER_PLAY_VALUES.centerSquarePerSquare;
 export const centerSquareLines = (got: readonly boolean[]): number => CENTER_SQUARE_LINES.filter(l => l.every(i => got[i])).length;
 /** What the board pays before the level boost: each line, plus the full-board bonus. */
 export const centerSquarePrize = (got: readonly boolean[]): number =>

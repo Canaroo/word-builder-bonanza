@@ -543,7 +543,7 @@ const powerPlaySeconds = (seconds: number): number => seconds;
 export type CharmTimeCut = { full: number; paid: number; percent: number; halved: boolean };
 
 /** Fire-on-pick PowerPlays that open a card in the offer's place (v7.39.2): the bid, the mission, Fluncle, Thwomped. */
-const CARD_ON_PICK = new Set(['priceIsRight', 'psychicFriends', 'missionImpossible', 'fluncleIsProud', 'thwomped', 'fifthGrader']);
+const CARD_ON_PICK = new Set(['priceIsRight', 'psychicFriends', 'missionImpossible', 'fluncleIsProud', 'thwomped', 'fifthGrader', 'centerSquare']);
 
 /** Seconds of 3-2-1 before a resumed run continues. */
 export const RESUME_COUNTDOWN = 3;
@@ -2209,7 +2209,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 // The Price Is Right (v7.36.5): the bid card opens as the offer closes, before any tiles move.
                 // v7.36.6: the bid card takes the offer's place directly. Queued behind the offer, it was
                 // skipped: closing the offer saw an empty queue and started the next round.
-                if (powerPlay.id === 'priceIsRight' || powerPlay.id === 'psychicFriends' || powerPlay.id === 'missionImpossible' || powerPlay.id === 'fifthGrader') {
+                if (powerPlay.id === 'priceIsRight' || powerPlay.id === 'psychicFriends' || powerPlay.id === 'missionImpossible' || powerPlay.id === 'fifthGrader' || powerPlay.id === 'centerSquare') {
                     newGameState.lastPowerPlayResult = null;
                     return {
                         ...state,
