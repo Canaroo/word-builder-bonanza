@@ -58,7 +58,7 @@ import { pickNextHint, RunRecap } from './services/runRecap';
 import { recordRunFinished, buyCosmetic, equipCosmetic, buyFreeze, publicFlair, type StreakUpdate } from './services/progression';
 import { cosmeticById, type CosmeticKind } from './data/cosmetics';
 import { applyUpdate, isUpdateReady, onUpdateReady, takeUpdatedNote } from './services/appUpdate';
-import { markTourSeen } from './services/tour';
+import { markTourSeen, markTourFinished } from './services/tour';
 
 export enum Screen {
   Start,
@@ -620,7 +620,7 @@ const App: React.FC = () => {
       case Screen.HowToPlay:
         return <HowToPlayScreen onBack={handleGoToMenu} />;
       case Screen.Tour:
-        return <QuickTour tileClass={selectedPack.tileClass} hasSavedRun={!!tourSaved?.playerName} onPlay={handleTourPlay} onFullGuide={handleShowHowToPlay} onMenu={handleGoToMenu} />;
+        return <QuickTour tileClass={selectedPack.tileClass} hasSavedRun={!!tourSaved?.playerName} onPlay={handleTourPlay} onFullGuide={handleShowHowToPlay} onMenu={handleGoToMenu} onFinished={() => { if (tour?.name.trim()) markTourFinished(tour.name); }} />;
       case Screen.Collection:
         return <CollectionScreen onBack={handleGoToMenu} onTab={handleTab} onShowBadgeCase={handleShowBadgeCase} lexCoins={lexCoins} />;
       case Screen.BadgeCase:

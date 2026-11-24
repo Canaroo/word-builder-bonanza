@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, test, expect, beforeEach } from 'vitest';
-import { tourWordScore, TOUR_HAND, TOUR_FIRST_WORD, TOUR_LONG_WORD, TOUR_FAKE_WORD, tourSeenBy, markTourSeen } from '../tour';
+import { tourWordScore, TOUR_HAND, TOUR_FIRST_WORD, TOUR_LONG_WORD, TOUR_FAKE_WORD, tourSeenBy, markTourSeen, tourFinishedBy, markTourFinished } from '../tour';
 import { calculateScore } from '../gameUtils';
 import { createInitialGameState } from '../screens/GameScreen';
 import { readFileSync } from 'node:fs';
@@ -41,6 +41,13 @@ describe('the 1-minute tour (v7.78.0)', () => {
             markTourSeen('Ada');
             expect(tourSeenBy('ADA ')).toBe(true);
             expect(tourSeenBy('Bob')).toBe(false);
+        });
+        test('finishing is tracked apart from being offered (v7.78.1)', () => {
+            markTourSeen('Ada');
+            expect(tourFinishedBy('Ada')).toBe(false);
+            markTourFinished('ada');
+            expect(tourFinishedBy(' ADA')).toBe(true);
+            expect(tourFinishedBy('Bob')).toBe(false);
         });
     });
 });

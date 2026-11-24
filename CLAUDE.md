@@ -577,8 +577,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Then "YOU'RE READY!": ▶ Play now (▶ Back to my run when a run is saved and the tour came from the
   pill), 📖 Full How to Play, 🏠 Main menu; SKIP TOUR on every screen goes there. Scores come from
   `tourWordScore` (tile points x length bonus; a test checks it against `calculateScore`), so change
-  the words in `services/tour.ts` and the text follows. Later idea (the owner's): shrink the pill to
-  a ❓ icon once a player has finished the tour.
+  the words in `services/tour.ts` and the text follows. **v7.78.1 (the owner's ask):** once a player
+  finishes the tour (taps "I'm ready ▶" on screen 4; SKIP TOUR doesn't count), the pill under the logo
+  is replaced by a small ❓ in the top bar next to 🔊 (`tour-icon`) that replays it. Per name on the
+  device (`tourDone`, `tourFinishedBy`/`markTourFinished`), apart from `tourSeen` (offered once).
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

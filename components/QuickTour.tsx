@@ -22,6 +22,8 @@ interface QuickTourProps {
   onPlay: () => void;
   onFullGuide: () => void;
   onMenu: () => void;
+  /** Called once when the player finishes all four screens (not on Skip). */
+  onFinished?: () => void;
 }
 
 const STEPS = 4;
@@ -43,7 +45,7 @@ const CARDS = [
 /** A tile that flies from a hand slot to the word row. */
 interface Flight { tile: Tile; from: DOMRect; to: DOMRect; go: boolean }
 
-const QuickTour: React.FC<QuickTourProps> = ({ tileClass, hasSavedRun, onPlay, onFullGuide, onMenu }) => {
+const QuickTour: React.FC<QuickTourProps> = ({ tileClass, hasSavedRun, onPlay, onFullGuide, onMenu, onFinished }) => {
   const [step, setStep] = useState(1); // 5 = finish
   const [hand, setHand] = useState<(Tile | null)[]>(() => handFor(TOUR_HAND));
   const [row, setRow] = useState<Tile[]>([]);
@@ -339,7 +341,7 @@ const QuickTour: React.FC<QuickTourProps> = ({ tileClass, hasSavedRun, onPlay, o
       {/* Footer: back and next. */}
       <footer className="shrink-0 flex items-center gap-2 px-4 pt-2 pb-4">
         {step > 1 && <ArcadeButton color="cyan" variant="text" onClick={() => goTo(step - 1)}>◀ Back</ArcadeButton>}
-        <ArcadeButton color="yellow" className="flex-1" disabled={!canNext} onClick={() => goTo(step + 1)} data-testid="tour-next">
+        <ArcadeButton color="yellow" className="flex-1" disabled={!canNext} onClick={() => { if (step === STEPS) onFinished?.(); goTo(step + 1); }} data-testid="tour-next">
           {step === STEPS ? "I'm ready ▶" : 'Next ▶'}
         </ArcadeButton>
       </footer>
