@@ -23,7 +23,7 @@ export const scratchLabel = (p: ScratchPrize, level: number): { icon: string; bi
     case 'points': { const n = prizeFor(p.amount, level); return { icon: '💰', big: `+${n}`, small: 'POINTS', plain: `+${n} points` }; }
     case 'time': return { icon: '⏱️', big: <>+{p.amount}<Sec /></>, small: 'TIME', plain: `+${p.amount} seconds` };
     case 'shuffle': return { icon: '🔀', big: `+${p.amount}`, small: p.amount === 1 ? 'SHUFFLE' : 'SHUFFLES', plain: `+${p.amount} ${p.amount === 1 ? 'shuffle' : 'shuffles'}` };
-    case 'challenge': return { icon: '⚔️', big: `+${p.amount}`, small: 'CHALLENGE', plain: `+${p.amount} Challenge` };
+    case 'challenge': return { icon: '🤔', big: `+${p.amount}`, small: 'STUCK?', plain: `+${p.amount} STUCK? check${p.amount > 1 ? 's' : ''}` };
     case 'charm': { const c = charmById(p.id); return { icon: c?.icon ?? '🍀', big: c?.name ?? 'Charm', small: 'CHARM', plain: `the ${c?.name ?? 'charm'} charm` }; }
     case 'powerplay': { const pp = ppById(p.id); return { icon: pp?.icon ?? '⚡', big: pp?.name ?? 'PowerPlay', small: 'POWERPLAY', plain: `the ${pp?.name ?? ''} PowerPlay` }; }
     case 'shard': { const name = TRIFORCE_PIECES[p.id].name.replace('Triforce of ', ''); return { icon: '🔺', big: `${name} shard`, small: 'TRIFORCE SHARD', plain: `a ${name} shard` }; }

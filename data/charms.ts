@@ -573,7 +573,7 @@ export const CHARMS_LIST: Charm[] = [
   { 
     id: 'finalFrontier', 
     name: 'The Final Frontier', 
-    description: `Every 1,000 points earns a free Challenge (bank up to ${CHARM_BONUS.maxBankedChallenges}).`, 
+    description: `Every 1,000 points earns a free STUCK? check (bank up to ${CHARM_BONUS.maxBankedChallenges}).`, 
     flavorText: 'To boldly go where no vocabulary has gone before.',
     icon: '🧑‍🚀',
     subtheme: 'game',
@@ -1121,7 +1121,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'doubleDare',
     name: 'Double Dare',
-    description: `Every Challenge you use pays +${CHARM_BONUS.doubleDare} points, win or lose. Comes with +${CHARM_BONUS.doubleDareChallenges} Challenge.`,
+    description: `Every time you tap STUCK? it pays +${CHARM_BONUS.doubleDare} points, win or lose. Comes with +${CHARM_BONUS.doubleDareChallenges} STUCK? check.`,
     flavorText: 'Physical challenge!',
     icon: '🥧',
     subtheme: 'game',

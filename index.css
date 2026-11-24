@@ -1265,3 +1265,51 @@ body {
 }
 .door-swing { animation: door-swing 0.45s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .door-swing { animation: none; } }
+
+/* --- v7.81.0: the stage, where the word you're building lives. --- */
+.stage-panel {
+  background: linear-gradient(180deg, rgba(10, 8, 28, 0.78), rgba(24, 16, 58, 0.78));
+  box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(180, 92, 255, 0.25);
+}
+.stage-panel::after {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 0;
+  height: 45%;
+  background: radial-gradient(60% 80% at 50% 100%, rgba(180, 92, 255, 0.16), transparent 70%);
+  pointer-events: none;
+}
+/* Word tiles stand higher than rack tiles: a longer shadow and a faint purple glow. */
+.stage-tile .tile-3d {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(0, 0, 0, 0.12),
+    0 5px 0 var(--tile-edge, rgba(0, 0, 0, 0.5)), 0 6px 0 rgba(0, 0, 0, 0.35), 0 16px 22px rgba(0, 0, 0, 0.55), 0 0 18px rgba(180, 92, 255, 0.25);
+}
+.stage-tile .tile-letter { font-size: clamp(1.25rem, 6.5vw, 1.9rem); }
+.stage-cursor {
+  aspect-ratio: 1 / 2;
+  max-height: 3.5rem;
+  border-radius: 10px;
+  border: 2px dashed rgba(180, 92, 255, 0.45);
+  animation: blink-soft 1.1s steps(2) infinite;
+}
+@keyframes blink-soft { 50% { opacity: 0.25; } }
+.submit-ready { animation: submit-glow 1.2s ease-in-out infinite; }
+@keyframes submit-glow {
+  50% { filter: brightness(1.1); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), 0 5px 0 var(--btn-edge), 0 0 22px rgba(255, 210, 63, 0.75); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-cursor, .submit-ready { animation: none; }
+}
+/* v7.81.0: the stage's content centers when there's room and never spills over the top when there isn't. */
+.stage-body { justify-content: safe center; }
+.stage-effects { scrollbar-width: none; }
+.stage-effects::-webkit-scrollbar { display: none; }
+@media (max-height: 700px) {
+  .stage-readout .font-display { font-size: 1.5rem; }
+}
+@media (max-height: 700px) {
+  [data-testid="stage"] { --stage-tile-max: 3rem; }
+  .icons-bar button { font-size: 1.15rem; line-height: 1.6rem; }
+}
