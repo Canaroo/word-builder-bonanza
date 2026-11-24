@@ -72,9 +72,12 @@ describe('every pop-up renders', () => {
     });
 
     test('a plain game screen renders (no pop-up)', () => {
-        // v7.31: the meters share one row and the buffs tray labels itself inline.
+        // v7.84.0: a clean top: score, clock, strikes and the 🎒 button; the meters are one slim row.
         const html = renderToString(<GameScreenView {...props(null)} />);
-        for (const label of ['Golden', 'PowerPlay', 'Word Combo', 'Gear']) expect(html).toContain(label);
+        for (const id of ['hud-score', 'meters', 'golden-streak', 'gear-button', 'gear-count', 'stage']) expect(html).toContain(`data-testid="${id}"`);
+        expect(html).toContain('PowerPlay meter');
+        // The old icon row and Gear strip are gone from the board.
+        expect(html).not.toContain('data-testid="buffs-tray"');
     });
 });
 
