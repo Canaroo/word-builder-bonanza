@@ -20,7 +20,7 @@ export const PACKS_LIST: Pack[] = [
     themeClass: 'theme-the-library',
     frameClass: 'frame-rustic-workbench',
     previewClass: 'theme-the-library',
-    description: 'Wood grain, warm lamps and tiles that smell faintly of old paperbacks. Shh… genius at work.'
+    description: 'Wood grain, warm lamps and the smell of old paperbacks. Shh… genius at work.'
   },
   {
     id: 'future',
@@ -101,6 +101,6 @@ export const PACKS_LIST: Pack[] = [
     themeClass: 'theme-arcade theme-midnight',
     frameClass: 'frame-arcade frame-midnight',
     previewClass: 'theme-arcade theme-midnight',
-    description: 'After hours, when only the regulars are left. Chrome tiles, a moonlit grid. Earned with a 30-day streak.'
+    description: 'After hours, when only the regulars are left. Chrome trim, a moonlit grid. Earned with a 30-day streak.'
   },
 ];

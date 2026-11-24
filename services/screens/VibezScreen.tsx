@@ -45,17 +45,18 @@ const TABS: { id: Tab; label: string }[] = [
 
 const PREVIEW_TILES: [string, number][] = [['N', 1], ['E', 1], ['R', 1], ['D', 2]];
 
-/** The pack's background with a row of its tiles on top. */
+/** The pack's background with a row of tiles on top (v7.80.0: every theme shares the keycap tile). */
 const PackPreview: React.FC<{ pack: Pack }> = ({ pack }) => (
   <div className={`relative isolate overflow-hidden rounded-lg h-20 flex items-center justify-center gap-1.5 px-2 ${pack.previewClass}`}>
     {PREVIEW_TILES.map(([letter, points]) => (
       <div
         key={letter}
-        className={`tile-3d relative z-10 w-11 h-11 rounded-lg flex items-center justify-center ${pack.tileClass}`}
+        className="tile-3d tile-key relative z-10 w-11 h-11 rounded-lg flex items-center justify-center"
         aria-hidden="true"
       >
-        <span className="font-tile font-extrabold text-2xl leading-none">{letter}</span>
-        <span className="absolute bottom-0.5 right-1 font-osd text-xs leading-none">{points}</span>
+        <span className="tile-face" />
+        <span className="tile-letter relative z-10 -mt-0.5 font-tile font-extrabold text-2xl leading-none">{letter}</span>
+        <span className="absolute z-10 bottom-1.5 right-1.5 font-osd text-xs leading-none">{points}</span>
       </div>
     ))}
   </div>

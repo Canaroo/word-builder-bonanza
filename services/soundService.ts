@@ -123,26 +123,83 @@ const playWhiteNoise = (ctx: AudioContext, startTime: number, duration: number, 
 };
 
 
+/**
+ * v7.80.0: the wooden "tock" of a keycap: a short band-passed click for the contact, plus a soft note
+ * that bends down a touch, like plastic settling.
+ */
+const tock = (ctx: AudioContext, t: number, freq: number, volume = 0.16, clickHz = 2200, bend = 0.985) => {
+    const n = Math.max(1, Math.floor(ctx.sampleRate * 0.02));
+    const buffer = ctx.createBuffer(1, n, ctx.sampleRate);
+    const d = buffer.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
+    const src = ctx.createBufferSource();
+    const filter = ctx.createBiquadFilter();
+    const clickGain = ctx.createGain();
+    filter.type = 'bandpass'; filter.frequency.value = clickHz; filter.Q.value = 1.2;
+    clickGain.gain.value = volume;
+    src.buffer = buffer; src.connect(filter); filter.connect(clickGain); clickGain.connect(ctx.destination); src.start(t);
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(40, freq * bend), t + 0.12);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(volume, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    osc.connect(g); g.connect(ctx.destination); osc.start(t); osc.stop(t + 0.14);
+};
+/** A major pentatonic ladder, so placing tiles climbs and a long word sounds like it's building. */
+const LADDER = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
+const semi = (n: number, base = 392) => base * Math.pow(2, n / 12);
+
+/** Short vibrations on phones that support them (Android; iPhones ignore web vibration). Off with the sound. */
+const haptic = (pattern: number | number[]) => {
+    if (isMuted) return;
+    try { (navigator as any)?.vibrate?.(pattern); } catch { /* not supported */ }
+};
+
 export const soundService = {
+    haptic,
     initialize,
     toggleMute,
     getMuteState,
     
     playTileClick: () => playSound(ctx => {
-        // A short, high-pitched tick.
-        playNote(ctx, 1200, ctx.currentTime, 0.05, 0.2, 'triangle');
+        // v7.80.0: a neutral keycap tock (it was a high beep).
+        tock(ctx, ctx.currentTime, semi(7), 0.13);
     }),
-    
-    playValidWord: () => playSound(ctx => {
-        // An ascending two-tone sound for success.
+
+    /** A tile goes into the word: the tock climbs a scale with each letter (index 0 = first letter). */
+    playTilePlace: (index: number) => playSound(ctx => {
+        const step = LADDER[Math.max(0, Math.min(LADDER.length - 1, index))];
+        tock(ctx, ctx.currentTime, semi(step), 0.16);
+        playNote(ctx, semi(step) * 2, ctx.currentTime, 0.05, 0.035, 'sine');
+    }),
+
+    /** A tile goes back to the rack: a lower tock that falls, clearly "undo". */
+    playTileReturn: () => playSound(ctx => {
+        tock(ctx, ctx.currentTime, 330, 0.12, 1200, 0.7);
+    }),
+
+    /** A good word: a chord that grows with its length (3 letters short and bright, 6+ adds a sparkle). */
+    playValidWord: (length = 3) => playSound(ctx => {
         const now = ctx.currentTime;
-        playNote(ctx, 600, now, 0.1, 0.3, 'sine');
-        playNote(ctx, 900, now + 0.1, 0.1, 0.3, 'sine');
+        const notes = [0, 4, 7, 12, 16, 19, 24].slice(0, Math.max(3, Math.min(7, length)));
+        notes.forEach((n, k) => playNote(ctx, semi(n, 523), now + k * 0.055, Math.max(0.12, 0.32 - k * 0.02), 0.13, k % 2 ? 'triangle' : 'sine'));
+        if (length >= 6) for (let k = 0; k < 5; k++) playNote(ctx, semi(24 + LADDER[k], 523), now + 0.4 + k * 0.04, 0.12, 0.05, 'sine');
     }),
 
     playInvalidWord: () => playSound(ctx => {
-        // A low, harsh buzz for an error.
-        playNote(ctx, 150, ctx.currentTime, 0.25, 0.2, 'sawtooth');
+        // v7.80.0: a soft low thud and a wobble: still clearly "no", less punishing than the old buzz.
+        const now = ctx.currentTime;
+        tock(ctx, now, 140, 0.2, 400, 0.6);
+        playNote(ctx, 120, now + 0.12, 0.2, 0.15, 'triangle');
+    }),
+
+    /** A meter is about to fill (the word on the stage will fill PowerPlay or Golden). */
+    playShimmer: () => playSound(ctx => {
+        const now = ctx.currentTime;
+        [0, 4, 7, 11, 14].forEach((n, k) => playNote(ctx, semi(n + 12, 659), now + k * 0.04, 0.25, 0.05, 'sine'));
     }),
 
     playMilestone: () => playSound(ctx => {
@@ -154,8 +211,10 @@ export const soundService = {
     }),
 
     playShuffle: () => playSound(ctx => {
-        // A short burst of white noise.
-        playWhiteNoise(ctx, ctx.currentTime, 0.15, 0.1);
+        // v7.80.0: a rattle as the tiles are swept up, then they clatter back in one by one.
+        const now = ctx.currentTime;
+        playWhiteNoise(ctx, now, 0.12, 0.05);
+        for (let k = 0; k < 8; k++) tock(ctx, now + 0.12 + k * 0.05, semi(LADDER[k % 5] - 5), 0.07, 2000 + k * 120);
     }),
 
     playClear: () => playSound(ctx => {

@@ -119,7 +119,8 @@ const QuickTour: React.FC<QuickTourProps> = ({ tileClass, hasSavedRun, onPlay, o
     }
     const from = slotRefs.current[i]?.getBoundingClientRect();
     const to = rowRefs.current[row.length]?.getBoundingClientRect();
-    soundService.playTileClick();
+    soundService.playTilePlace(row.length);
+    soundService.haptic(8);
     setNudge(null);
     const h = hand.slice(); h[i] = null; setHand(h);
     if (!from || !to) { setRow(r => [...r, tile]); return; }
@@ -161,7 +162,7 @@ const QuickTour: React.FC<QuickTourProps> = ({ tileClass, hasSavedRun, onPlay, o
       return;
     }
     const s = tourWordScore(spelled);
-    soundService.playValidWord();
+    soundService.playValidWord(s.word.length);
     setScored(s);
     if (step === 1) setFirstScore(s);
     addTime(s.seconds);

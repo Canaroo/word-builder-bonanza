@@ -602,6 +602,19 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   finishes the tour (taps "I'm ready ▶" on screen 4; SKIP TOUR doesn't count), the pill under the logo
   is replaced by a small ❓ in the top bar next to 🔊 (`tour-icon`) that replays it. Per name on the
   device (`tourDone`, `tourFinishedBy`/`markTourFinished`), apart from `tourSeen` (offered once).
+- **Play board redesign (v7.80-7.82, the owner's asks after a design review; the proposal with a
+  playable prototype is the "Word Nerd Play Board" artifact).** **v7.80.0 Feel:** one signature tile
+  for every theme (the owner's call: themes change only the background and frame, never the tiles,
+  no glow either): a sculpted keycap from an 80s home computer (`.tile-key` and `.tile-face` in
+  `index.css`, `TileComponent` ignores `packTileClass` now; `Pack.tileClass` is unused for tiles).
+  A darker sloped skirt, a cream dished face, faint grain, a 5 px edge (`--tile-edge`) and a cast
+  shadow; a tap sinks it 4 px. Special tiles keep their colours with a see-through dish. Empty rack
+  spots are sunken sockets (`.tile-socket`); placed tiles land with a settle (`.tile-land`), new ones
+  drop in one after another (`.tile-deal`, 45 ms apart). Shop theme previews show the keycap; Library
+  Card and Midnight Arcade no longer promise tiles. Sounds (`soundService`): `playTilePlace(index)`
+  climbs a pentatonic scale per letter, `playTileReturn` falls, `playValidWord(length)` grows with the
+  word, a softer `playInvalidWord`, a rattle for Shuffle, `playShimmer`; `soundService.haptic()`
+  vibrates (Android) and is off with the sound. Tiles stay tap-only (the owner: no dragging).
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

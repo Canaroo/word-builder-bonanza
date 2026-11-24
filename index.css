@@ -740,18 +740,80 @@ body {
   color: #1b1530;
 }
 
-/* Every tile gets a 3D edge and presses down when tapped (no sticky hover on touch screens). */
+/* Every tile gets a 3D edge and presses down when tapped (no sticky hover on touch screens).
+   v7.80.0: a thicker 5 px edge and a soft cast shadow, so a tile stands on the table; a tap sinks it
+   the full 4 px, like a key. --tile-edge colours the edge (the keycap sets its own). */
 .tile-3d {
   /* No long-press menu or text selection on tiles: a long press should still count as a tap. */
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.55), inset 0 -3px 0 rgba(0, 0, 0, 0.18), 0 4px 0 rgba(0, 0, 0, 0.45);
-  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(0, 0, 0, 0.12),
+    0 5px 0 var(--tile-edge, rgba(0, 0, 0, 0.5)), 0 6px 0 rgba(0, 0, 0, 0.35), 0 9px 14px rgba(0, 0, 0, 0.45);
+  transition: transform 70ms ease-out, box-shadow 70ms ease-out;
 }
 .tile-3d:active:not(:disabled) {
-  transform: translateY(3px);
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 0 rgba(0, 0, 0, 0.18), 0 1px 0 rgba(0, 0, 0, 0.45);
+  transform: translateY(4px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(0, 0, 0, 0.12),
+    0 1px 0 var(--tile-edge, rgba(0, 0, 0, 0.5)), 0 2px 0 rgba(0, 0, 0, 0.35), 0 3px 5px rgba(0, 0, 0, 0.45);
+}
+
+/* v7.80.0, the owner's call: one signature tile for every theme, a sculpted keycap from an 80s home
+   computer. Themes change the background and frame only. A darker sloped skirt (the tile itself), a
+   cream dished face on top (.tile-face) and faint grain. Special tiles keep their own colours, and
+   their .tile-face is a soft see-through dish instead. */
+.tile-key {
+  --tile-edge: #8f7f5a;
+  background: linear-gradient(180deg, #e6dbc0 0%, #c9bb98 100%);
+  color: #241a3c;
+}
+.tile-face {
+  position: absolute;
+  inset: 3px 4px 7px 4px;
+  border-radius: 7px;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 30%, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.08) 60%, rgba(0, 0, 0, 0.06) 100%);
+  box-shadow: inset 0 -1px 2px rgba(255, 255, 255, 0.25), inset 0 2px 3px rgba(0, 0, 0, 0.1);
+}
+.tile-key .tile-face {
+  background: radial-gradient(120% 90% at 50% 32%, #fffdf5 0%, #f7efdc 55%, #ebdfc2 100%);
+  box-shadow: inset 0 -2px 3px rgba(255, 255, 255, 0.6), inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 1px rgba(0, 0, 0, 0.18);
+}
+.tile-key::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.16;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .4 0 0 0 0 .3 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='80' height='80' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.tile-key .tile-letter { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7); }
+.tile-3d.bg-purple-600 { --tile-edge: #3b0f8a; }
+.tile-3d.bg-red-600 { --tile-edge: #6f0d0d; }
+.tile-3d.bg-green-500 { --tile-edge: #0b4a24; }
+.tile-3d.bg-amber-400 { --tile-edge: #7a4a00; }
+
+/* An empty spot in the rack is a recessed socket, so you can see where a tile came from. */
+.tile-socket {
+  background: rgba(4, 3, 12, 0.75);
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.85), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+/* A tile lands in the word row with a squash and settle; new tiles drop into the rack. */
+.tile-land { animation: tile-land 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.35); }
+@keyframes tile-land {
+  0% { transform: translateY(-14px) scale(1.12); }
+  60% { transform: translateY(2px) scale(0.97); }
+  100% { transform: none; }
+}
+.tile-deal { animation: tile-deal 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+@keyframes tile-deal {
+  from { transform: translateY(-22px) rotate(-6deg); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile-land, .tile-deal { animation: none; }
 }
 @media (hover: hover) {
   .tile-3d:hover:not(:disabled) {
