@@ -502,6 +502,12 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   this run x `rivalPace`, floor 15/s, stamped as `rate` on the race at pick time); at a flat 3/s he
   scored about 37 to the player's 380 (median pace in the stats: 31 points a second). Multiplicity shows what it would copy on the offer
   card, the pocket button ("▶ COPY 🍫 Gump Luck", or NOTHING TO COPY) and its info pop-up.
+  **v7.84.1 (the owner: too many taps):** Multiplicity's read-first card's main button is "▶ Use [copy]
+  now" (`multiplicity-use`): it copies and fires the copy in one go (2 taps, was 3). The copy lands in
+  the pocket first and fires once the pocket has updated (`copyThenUse` ref and an effect in
+  `GameScreen.tsx`), so it acts on the new pocket. "👯 Keep the copy for later" (`multiplicity-keep`)
+  still puts it in the pocket. Browser-checked: Most Excellent Detour 30 → 40 s with the pocket empty;
+  Gump Luck opens its card at once.
   The Price Is Right fires on pick too (v7.36.5): its bid card opens in the offer's place, so a
   player can't build a word, read its score and then bid. Fire-on-pick PowerPlays with a card
   (`CARD_ON_PICK`: Price Is Right, Mission: Impossible, Fluncle, Thwomped) set `modalContent`
