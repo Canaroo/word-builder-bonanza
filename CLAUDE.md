@@ -630,6 +630,17 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   scratch prize, Thwomped, Final Frontier, Double Dare, messages); ids (`challengeCount`) are unchanged.
   Under 700 px tall the stage tightens (smaller word tiles, one scrolling chip row, slimmer icons, the
   stage scrolls inside itself instead of overlapping). Browser-checked at 390x844 and 360x640.
+  **v7.82.0 The notice rail:** nothing sits between the stage and the tiles any more. At the top of the
+  stage (`notice-rail`), after the pocket PowerPlay: the "tap me / read me" notices are cards
+  (`NoticeRail`, `Notice` in `GameScreenView.tsx`: icon, title, one plain line, a labelled button),
+  one at a time with dots; a new one jumps to the front and pulses (`.notice-new`). Cards: the power
+  word hint (LIGHT IT, then SPELL THE LIT TILES · MORE; `data-testid="power-hint"` kept), Skill Shot,
+  Ask Zelda (`ask-zelda` kept), Head Start. Live counters stay visible in a strip under the card
+  (Hold, the speed streak, `PowerPlayTrackers`: Jenga, Hamm, races, bets, quizzes) because some need a
+  hold and shouldn't hide behind dots. New "above the tiles" items from the v7.71.1 rule now go in
+  the rail: a card if it explains or offers one tap, the strip if it counts down or needs a hold.
+  Under 700 px tall the cards show their title only. Browser-checked at 390x844 and 360x640 with a
+  pocket PowerPlay, two notices, Jenga and a word on the stage at once.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
