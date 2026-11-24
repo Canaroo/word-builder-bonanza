@@ -112,6 +112,58 @@ const BackspaceButton: React.FC<{ disabled: boolean; onBack: () => void; onClear
   );
 };
 
+interface Notice { id: string; icon: string; title: React.ReactNode; text: string; tone: 'yellow' | 'pink' | 'sky' | 'green'; action?: string; onTap?: () => void; label: string; testId?: string }
+const NOTICE_TONES: Record<Notice['tone'], { box: string; title: string; btn: string }> = {
+  yellow: { box: 'bg-neon-yellow/10 ring-neon-yellow/60', title: 'text-neon-yellow', btn: 'bg-neon-yellow text-crt-900' },
+  pink: { box: 'bg-neon-pink/10 ring-neon-pink/60', title: 'text-neon-pink', btn: 'bg-neon-pink text-white' },
+  sky: { box: 'bg-[#4dd2ff]/10 ring-[#4dd2ff]/60', title: 'text-[#9be8ff]', btn: 'bg-[#4dd2ff] text-crt-900' },
+  green: { box: 'bg-neon-green/10 ring-neon-green/50', title: 'text-neon-green', btn: 'bg-neon-green text-crt-900' },
+};
+/**
+ * v7.82.0: the notice rail's cards. One notice at a time (icon, title, one plain line, a labelled
+ * button when it does something); dots flip between several. A new notice jumps to the front and
+ * pulses once.
+ */
+const NoticeRail: React.FC<{ notices: Notice[] }> = ({ notices }) => {
+  const [pick, setPick] = useState<string | null>(null);
+  const seen = useRef<Set<string>>(new Set());
+  const [fresh, setFresh] = useState<string | null>(null);
+  useEffect(() => {
+    const added = notices.find(n => !seen.current.has(n.id));
+    notices.forEach(n => seen.current.add(n.id));
+    for (const id of [...seen.current]) if (!notices.some(n => n.id === id)) seen.current.delete(id);
+    if (added) { setPick(added.id); setFresh(added.id); const t = setTimeout(() => setFresh(f => (f === added.id ? null : f)), 1600); return () => clearTimeout(t); }
+  }, [notices.map(n => n.id).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const n = notices.find(x => x.id === pick) ?? notices[0];
+  const tone = NOTICE_TONES[n.tone];
+  const body = (
+    <>
+      <span className="text-xl leading-none shrink-0 w-8 text-center" aria-hidden="true">{n.icon}</span>
+      <span className="flex-1 min-w-0 text-left">
+        <span className={`block osd-text text-lg leading-none tracking-wide truncate ${tone.title}`}>{n.title}</span>
+        <span className="block text-[11.5px] leading-snug text-slate-100 line-clamp-2 [@media(max-height:700px)]:hidden">{n.text}</span>
+      </span>
+      {n.action && <span className={`shrink-0 osd-text text-base leading-none rounded-md px-2 py-1.5 ${tone.btn}`}>{n.action}</span>}
+    </>
+  );
+  const cls = `w-full flex items-center gap-2 rounded-xl ring-1 px-2 py-1.5 ${tone.box} ${fresh === n.id ? 'notice-new' : ''}`;
+  return (
+    <div>
+      {n.onTap
+        ? <button type="button" key={n.id} onClick={n.onTap} className={`${cls} hover:brightness-110`} aria-label={n.label} data-testid={n.testId ?? `notice-${n.id}`}>{body}</button>
+        : <div key={n.id} className={cls} role="note" aria-label={n.label} data-testid={n.testId ?? `notice-${n.id}`}>{body}</div>}
+      {notices.length > 1 && (
+        <div className="flex justify-center gap-1.5 mt-1 [@media(max-height:700px)]:mt-0.5" role="tablist" aria-label="Notices">
+          {notices.map(x => (
+            <button key={x.id} type="button" role="tab" aria-selected={x.id === n.id} aria-label={`Notice: ${typeof x.title === 'string' ? x.title : x.id}`}
+              onClick={() => setPick(x.id)} className={`h-2 rounded-full transition-all ${x.id === n.id ? 'w-5 bg-neon-yellow' : 'w-2 bg-white/25'}`} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /** v7.81.0: a short shimmer the moment the word on the stage would fill the PowerPlay meter or start a Golden Round. */
 const StageSounds: React.FC<{ effects: string[] }> = ({ effects }) => {
   const fills = effects.some(e => e.includes('READY') || e.includes('GOLDEN ROUND NEXT'));
@@ -1309,6 +1361,59 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             ))}
               </div>
             )}
+            {/* --- THE NOTICE RAIL (v7.82.0): what used to be squeezed between the word and the tiles. The
+                "tap me / read me" notices are cards, one at a time with dots; live counters (Hold, the speed
+                streak, Jenga, Hamm, races, bets, quizzes) stay visible in a strip under them. --- */}
+            {(() => {
+              const notices: Notice[] = [];
+              if (powerHint) notices.push({
+                id: 'power', icon: `⚡${powerHint.icon}`, tone: 'yellow', testId: 'power-hint',
+                title: powerLit ? 'SPELL THE LIT TILES' : 'A POWER WORD IS HIDING',
+                text: powerLit ? `Spell ${powerHint.length} letters using the lit tiles, in any order.` : `Your tiles can spell a ${powerHint.length}-letter power word: ${powerPrize.toLowerCase()}.`,
+                action: powerLit ? 'MORE' : 'LIGHT IT',
+                onTap: () => { if (powerLitWord === powerHint.word) handlePowerHintInfo?.(); else setPowerLitWord(powerHint.word ?? ''); },
+                label: `Hint: a ${powerHint.length}-letter power word is hiding in this hand. Prize: ${powerPrize}. ${powerLit ? 'Its tiles are lit. Tap for more.' : 'Tap to light its tiles.'}`,
+              });
+              if (skillShotTileId) notices.push({
+                id: 'skill', icon: '🎯', tone: 'pink', title: `SKILL SHOT +${skillShotPrize}`,
+                text: `Use the pink +${skillShotPrize} tile in your next word.`,
+                label: `Skill Shot: use the lit tile in your next word for ${skillShotPrize} points`,
+              });
+              if (zeldaReady) notices.push({
+                id: 'zelda', icon: '🔺', tone: 'sky', testId: 'ask-zelda', title: 'ASK ZELDA',
+                text: 'Once this level, she spells your longest word for you.', action: 'ASK',
+                onTap: () => handleAskZelda?.(),
+                label: 'Triforce of Wisdom: ask Zelda to spell the longest word your tiles can make. Once per level.',
+              });
+              if ((gameState?.headStart ?? 0) > 0 && totalWords === 0) notices.push({
+                id: 'head', icon: '🛠️', tone: 'green', title: <>HEAD START +{gameState?.headStart}<Sec /></>,
+                text: 'A bonus from your last run, already on your clock.',
+                label: `Head Start: ${gameState?.headStart} extra seconds on the clock this run`,
+              });
+              return (
+                <div className="relative z-10 flex-shrink-0 flex flex-col gap-1.5 mt-1 [@media(max-height:700px)]:gap-1 [@media(max-height:700px)]:mt-0.5" data-testid="notice-rail">
+                  {notices.length > 0 && <NoticeRail notices={notices} />}
+          {(holdOpen || speedChip) && (
+            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+              {holdOpen && (
+                <button type="button" onPointerDown={e => { e.preventDefault(); handleHoldTap?.(); }} onClick={e => { if (e.detail === 0) handleHoldTap?.(); }}
+                  aria-label={gameState?.holdTile ? `Hold slot: ${gameState.holdTile.letter}. Tap to take it back.` : holdArmed ? 'Hold slot: tap a tile to park it' : 'Hold slot, empty. Tap, then tap a tile to park it.'}
+                  className={`flex items-center gap-1.5 rounded-xl pl-1 pr-2.5 py-1 ring-2 select-none touch-none ${gameState?.holdTile ? 'ring-neon-purple bg-neon-purple/15' : holdArmed ? 'ring-neon-yellow bg-neon-yellow/15 animate-pulse' : 'ring-white/20 bg-crt-950/70'}`}>
+                  <span className={`w-9 h-9 rounded-lg grid place-items-center font-tile font-extrabold text-xl ${gameState?.holdTile ? 'bg-[#f6e7c1] text-crt-900 tile-3d' : 'bg-crt-950 text-slate-600 border border-dashed border-white/20'}`}>
+                    {gameState?.holdTile ? gameState.holdTile.letter : '🧲'}
+                  </span>
+                  <span className="osd-text text-base leading-none text-slate-200">{gameState?.holdTile ? 'HELD · TAP TO USE' : holdArmed ? 'TAP A TILE' : 'HOLD'}</span>
+                </button>
+              )}
+              {speedChip}
+            </div>
+          )}
+                  <div className="[&>div]:justify-center">
+                    <PowerPlayTrackers gameState={gameState} upcomingTiles={upcomingTiles} quizLeft={quizLeft} raceRival={raceRival} onStand={() => dispatch({ type: 'BLACKJACK_STAND' })} onJengaCash={() => dispatch({ type: 'JENGA_CASH' })} onPiggySmash={() => dispatch({ type: 'SMASH_PIGGY' })} />
+                  </div>
+                </div>
+              );
+            })()}
             <div className="stage-body relative flex-1 min-h-0 flex flex-col items-center gap-2 [@media(max-height:700px)]:gap-1">
               {message && (
                 <div className={`absolute inset-x-0 flex justify-center pointer-events-none z-20 ${n ? 'top-0' : 'top-1/2 -translate-y-1/2'}`} role="status" aria-live="polite">
@@ -1362,64 +1467,6 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
       {/* --- PLAY AREA (always visible) --- */}
       <div className="relative flex-shrink-0 flex flex-col gap-2 w-full max-w-sm mx-auto">
-        {(holdOpen || speedChip) && (
-          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-            {holdOpen && (
-              <button type="button" onPointerDown={e => { e.preventDefault(); handleHoldTap?.(); }} onClick={e => { if (e.detail === 0) handleHoldTap?.(); }}
-                aria-label={gameState?.holdTile ? `Hold slot: ${gameState.holdTile.letter}. Tap to take it back.` : holdArmed ? 'Hold slot: tap a tile to park it' : 'Hold slot, empty. Tap, then tap a tile to park it.'}
-                className={`flex items-center gap-1.5 rounded-xl pl-1 pr-2.5 py-1 ring-2 select-none touch-none ${gameState?.holdTile ? 'ring-neon-purple bg-neon-purple/15' : holdArmed ? 'ring-neon-yellow bg-neon-yellow/15 animate-pulse' : 'ring-white/20 bg-crt-950/70'}`}>
-                <span className={`w-9 h-9 rounded-lg grid place-items-center font-tile font-extrabold text-xl ${gameState?.holdTile ? 'bg-[#f6e7c1] text-crt-900 tile-3d' : 'bg-crt-950 text-slate-600 border border-dashed border-white/20'}`}>
-                  {gameState?.holdTile ? gameState.holdTile.letter : '🧲'}
-                </span>
-                <span className="osd-text text-base leading-none text-slate-200">{gameState?.holdTile ? 'HELD · TAP TO USE' : holdArmed ? 'TAP A TILE' : 'HOLD'}</span>
-              </button>
-            )}
-            {speedChip}
-          </div>
-        )}
-
-        {(skillShotTileId || ((gameState?.headStart ?? 0) > 0 && totalWords === 0)) && (
-          <div className="flex flex-wrap justify-center gap-1">
-            {(gameState?.headStart ?? 0) > 0 && totalWords === 0 && (
-              <span className="flex items-center gap-1 rounded-full bg-crt-950/80 ring-1 ring-neon-green/60 px-2 py-0.5 text-xs text-white whitespace-nowrap" aria-label={`Head Start: ${gameState.headStart} extra seconds on the clock this run`}>
-                <span aria-hidden="true">🛠️</span>HEAD START +{gameState.headStart}<Sec />
-              </span>
-            )}
-            {skillShotTileId && (
-              <span className="flex items-center gap-1 rounded-full bg-neon-pink/15 ring-1 ring-neon-pink px-2.5 py-1 text-xs font-semibold text-white whitespace-nowrap" aria-label={`Skill Shot: use the lit tile in your next word for ${skillShotPrize} points`}>
-                <span aria-hidden="true">🎯</span>SKILL SHOT: USE THE <span className="text-neon-pink">+{skillShotPrize} TILE</span> IN YOUR NEXT WORD
-              </span>
-            )}
-          </div>
-        )}
-
-        {powerHint && (
-          <div className="flex justify-center">
-            {/* v7.61.0: the chip names the prize; a tap lights the word's tiles (in no order). */}
-            <button type="button" onClick={() => { if (powerLitWord === powerHint.word) handlePowerHintInfo?.(); else setPowerLitWord(powerHint.word ?? ''); }}
-              aria-label={`Hint: a ${powerHint.length}-letter power word is hiding in this hand. Prize: ${powerPrize}. ${powerLit ? 'Its tiles are lit. Tap for more.' : 'Tap to light its tiles.'}`}
-              data-testid="power-hint"
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 osd-text text-lg leading-none whitespace-nowrap ring-1 ring-neon-yellow bg-neon-yellow/15 text-neon-yellow shadow-[0_0_12px_rgba(255,226,122,0.45)] hover:bg-neon-yellow/25 max-w-full overflow-hidden ${powerLit ? '' : 'animate-pulse'}`}>
-              <span aria-hidden="true">⚡{powerHint.icon}</span>
-              <span className="truncate">{powerLit ? `SPELL ${powerHint.length} LETTERS WITH THE LIT TILES` : `POWER WORD: ${powerPrize} · TAP`}</span>
-            </button>
-          </div>
-        )}
-
-        {zeldaReady && (
-          <div className="flex justify-center">
-            {/* v7.72.0: Triforce of Wisdom. Once a level, Zelda puts the longest word in the word row. */}
-            <button type="button" onClick={() => handleAskZelda?.()} data-testid="ask-zelda"
-              aria-label="Triforce of Wisdom: ask Zelda to spell the longest word your tiles can make. Once per level."
-              className="flex items-center gap-1.5 rounded-full px-3 py-1 osd-text text-lg leading-none whitespace-nowrap ring-1 ring-[#4dd2ff] bg-[#4dd2ff]/15 text-[#9be8ff] shadow-[0_0_12px_rgba(77,210,255,0.45)] hover:bg-[#4dd2ff]/25 max-w-full overflow-hidden">
-              <span aria-hidden="true">🔺</span>
-              <span className="truncate">ASK ZELDA FOR YOUR LONGEST WORD</span>
-            </button>
-          </div>
-        )}
-
-        <PowerPlayTrackers gameState={gameState} upcomingTiles={upcomingTiles} quizLeft={quizLeft} raceRival={raceRival} onStand={() => dispatch({ type: 'BLACKJACK_STAND' })} onJengaCash={() => dispatch({ type: 'JENGA_CASH' })} onPiggySmash={() => dispatch({ type: 'SMASH_PIGGY' })} />
-
         {/* --- HAND: the standard hand in a 4x2 grid; widens to all rack slots when a power-up overfills it --- */}
         {(() => {
           const rack = hand ?? Array(RACK_SIZE).fill(null);
