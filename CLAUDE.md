@@ -615,6 +615,21 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   climbs a pentatonic scale per letter, `playTileReturn` falls, `playValidWord(length)` grows with the
   word, a softer `playInvalidWord`, a rattle for Shuffle, `playShimmer`; `soundService.haptic()`
   vibrates (Android) and is off with the sound. Tiles stay tap-only (the owner: no dragging).
+  **v7.81.0 The stage:** the status area (icons, meters, Gear) no longer takes the spare height; a
+  stage (`data-testid="stage"`, `.stage-panel`) fills the middle. It holds the pocket PowerPlay, the
+  word as big keycaps growing from the center (`word-stage`, `.stage-tile`, a dashed cursor, tap a
+  tile to send it back), the live payoff under it (`stage-readout`: `potentialScore` and
+  `timeForWordAtLevel` seconds) and chips for what the word will fill (`stage-effects`: PowerPlay
+  letters, Golden streak, Combo, the next length bonus; a shimmer when it fills a meter,
+  `StageSounds`), plus game messages. The meters show a pulsing ghost fill for the word
+  (`meter-ghost`). Buttons: SHUFFLE (compact `ShuffleButton`) · SUBMIT (glows when ready) · **STUCK?**
+  (the Challenge, renamed by the owner: it clashed with Daily Challenge and didn't fit): icon, word,
+  "NO WORD?" / "RISK A STRIKE" (red, out of checks) and the count as a corner badge. Its first tap per
+  player explains it and spends nothing (`stuckTip`). Clear is gone: ⌫ on the stage (`BackspaceButton`)
+  sends back the last letter, hold 450 ms to clear. Player text says STUCK? check (How to Play, the
+  scratch prize, Thwomped, Final Frontier, Double Dare, messages); ids (`challengeCount`) are unchanged.
+  Under 700 px tall the stage tightens (smaller word tiles, one scrolling chip row, slimmer icons, the
+  stage scrolls inside itself instead of overlapping). Browser-checked at 390x844 and 360x640.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

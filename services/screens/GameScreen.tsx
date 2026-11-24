@@ -1090,7 +1090,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             }
             if (prize.kind === 'challenge') {
                 return { ...state, isPaused: true,
-                    modalContent: outcome(ticket, `+${prize.amount} CHALLENGE`, 'Stuck on a hand? Challenge it.', 'win'),
+                    modalContent: outcome(ticket, `+${prize.amount} STUCK?`, 'One more free check when your tiles look hopeless.', 'win'),
                     gameState: { ...gameState, challengeCount: gameState.challengeCount + prize.amount, log: [...gameState.log, log(`Banked +${prize.amount} Challenge.`)] } };
             }
             if (prize.kind === 'charm') {
@@ -2123,7 +2123,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 const changes = { challengeCount: newChallengeCount };
                 const newLogEntry: EventLogEntry = {
                     type: 'event', id: `pp-thwomped-${Date.now()}`, name: powerPlay.name,
-                    description: 'Gained an extra Challenge.', icon: '🧱',
+                    description: 'Gained an extra STUCK? check.', icon: '🧱',
                     scoreChange: 0, cumulativeScore: newGameState.score
                 };
                 const newLog = [...newGameState.log, newLogEntry];
@@ -2136,7 +2136,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     powerPlayProgress: resetProgress,
                     powerPlayCooldowns: newPowerPlayCooldowns,
                 };
-                const newModalContent: ModalContent = { type: 'info', title: 'Thwomped!', content: `You got an extra Challenge!${swappedOut}` };
+                const newModalContent: ModalContent = { type: 'info', title: 'Thwomped!', content: `You got an extra STUCK? check!${swappedOut}` };
                 // The card takes the offer's place (see CARD_ON_PICK): queued, it was wiped by the next round.
                 return {
                     ...state,
@@ -3744,7 +3744,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     
     const wasLastInQueue = state.modalQueue.length === 0;
 
-    if (lastModalTitle === '❌ Strike Challenge Lost') {
+    if (lastModalTitle === '❌ There was a word' || lastModalTitle === '❌ Strike Challenge Lost') {
         dispatch({ type: 'CLOSE_MODAL' });
         if (state.gameState.strikes < maxStrikes) {
             // Not game over yet, so reset the round.
@@ -5452,7 +5452,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           const added = Math.min(earned, room);
           if (added > 0) {
               newState.challengeCount = Math.max(0, newState.challengeCount) + added;
-              showMessage(`🧑‍🚀 Final Frontier! +${added} Challenge${added > 1 ? 's' : ''}.`, 3000);
+              showMessage(`🧑‍🚀 Final Frontier! +${added} STUCK? ${added > 1 ? 'checks' : 'check'}.`, 3000);
               soundService.playMilestone();
           }
       }
@@ -5851,7 +5851,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         // When a challenge is lost, the streak is always reset, regardless of success
         newState.consecutiveValidWords = 0;
         
-        const message = `Challenge lost. Word "${word.toUpperCase()}" submitted for 0 points.`;
+        const message = `There was a word: ${word.toUpperCase()}, played for 0 points.`;
         showMessage(message, 3000);
 
         if (state.challengeWordData) {
@@ -5861,9 +5861,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 score: 0,
                 baseScore: 0,
                 status: 'valid',
-                definition: `(From Challenge) ${state.challengeWordData.definition || ''}`.trim(),
+                definition: `(From STUCK?) ${state.challengeWordData.definition || ''}`.trim(),
                 cumulativeScore: newState.score,
-                bonuses: [{ name: 'Challenge Lost', description: '0 pts'}]
+                bonuses: [{ name: 'Stuck? (0 points)', description: '0 pts'}]
             };
             newState.log = [...newState.log, challengedWordLogEntry];
         }
@@ -5998,6 +5998,19 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     if (isLoading || isPaused || (buildRow ?? []).some(t => t !== null) || isChallengeLock || gameState?.roundType === 'golden') return;
     if (!isStrikeChallenge && (state.gameState?.challengeCount ?? 0) <= 0) return;
     if (isStrikeChallenge && strikesRemaining <= 0) return;
+    // v7.81.0: the first tap explains STUCK? instead of spending it, so nobody loses one by surprise.
+    if (!storage.getString(playerKey(STORAGE_KEYS.stuckTip))) {
+        storage.setString(playerKey(STORAGE_KEYS.stuckTip), '1');
+        soundService.playModalOpen();
+        dispatch({ type: 'SET_MODAL_CONTENT', payload: {
+            type: 'info',
+            title: '🤔 Stuck?',
+            content: isStrikeChallenge
+                ? `Tap STUCK? when you think your tiles can't make any word.\n\nThe game checks. If there's no word, you get free new tiles. If there is one, it shows you the word and you take a strike.\n\nTap STUCK? again to check.`
+                : `Tap STUCK? when you think your tiles can't make any word.\n\nThe game checks. If there's no word, you get free new tiles and keep your STUCK?. If there is one, it goes in your word row and you play it for 0 points (that uses one).\n\nTap STUCK? again to check.`,
+        } });
+        return;
+    }
 
     soundService.playChallenge();
 
@@ -6037,7 +6050,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 baseScore: 0,
                 cumulativeScore: state.gameState.score,
                 definition: wordDef,
-                bonuses: [{ name: 'Strike Challenge Lost', description: 'A strike was issued because a valid word was found.' }],
+                bonuses: [{ name: 'Stuck? (a strike)', description: 'There was a word after all, so it cost a strike.' }],
             };
 
             dispatch({ type: 'ADD_STRIKE', payload: { source: 'challenge' } });
@@ -6045,8 +6058,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             
             dispatch({ type: 'SET_MODAL_CONTENT', payload: { 
                 type: 'info', 
-                title: '❌ Strike Challenge Lost', 
-                content: `A word was found: ${foundWordUpper}. You receive a strike.`
+                title: '❌ There was a word', 
+                content: `Your tiles could make ${foundWordUpper}, so that's a strike.`
             }});
 
         } else {
@@ -6061,7 +6074,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 missedWordsService.addMissedWord(foundWordUpper, wordDefForLog);
                 dispatch({ type: 'SET_CHALLENGE_WORD_DATA', payload: { word: foundWordUpper, score: 0, definition: wordDefForLog, status: 'valid' } });
                 soundService.playInvalidWord();
-                showMessage(`A word was found: ${foundWordUpper}! Submit it for 0 points.`, 3000);
+                showMessage(`There was a word: ${foundWordUpper}! Play it for 0 points.`, 3000);
                 dispatch({ type: 'UPDATE_GAME_STATE', payload: { challengeCount: (state.gameState?.challengeCount ?? 0) - 1, consecutiveValidWords: 0 } });
                 dispatch({ type: 'CHALLENGE_FAILED', payload: { tilesToMove } });
             } else {
@@ -6075,16 +6088,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       soundService.playMilestone();
       let messageText;
       if (isStrikeChallenge) {
-        messageText = 'Challenge successful! No word found. Free shuffle!';
+        messageText = 'No word in your tiles: free new tiles!';
       } else {
-        messageText = 'Challenge successful! No word found. Challenge not consumed.';
+        messageText = 'No word in your tiles: free new tiles, and you keep your STUCK?';
       }
       showMessage(messageText, 3000);
       handleShuffle(true, true); // Free shuffle on win, and from challenge
     }
 
     if (state.gameState?.activeCharms.some(c => c.id === 'doubleDare')) {
-      dispatch({ type: 'CHARM_PAYOUT', payload: { id: 'doubleDare', points: CHARM_BONUS.doubleDare, description: `Challenge taken: +${CHARM_BONUS.doubleDare} points.` } });
+      dispatch({ type: 'CHARM_PAYOUT', payload: { id: 'doubleDare', points: CHARM_BONUS.doubleDare, description: `STUCK? used: +${CHARM_BONUS.doubleDare} points.` } });
     }
     dispatch({ type: 'SET_IS_LOADING', payload: false });
   };

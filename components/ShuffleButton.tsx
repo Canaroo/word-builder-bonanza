@@ -12,6 +12,8 @@ interface ShuffleButtonProps {
   /** Where the "+5" flies to when the button is tapped. */
   timerRef: React.RefObject<HTMLElement | null>;
   onShuffle: () => void;
+  /** v7.81.0: the side-slot look beside SUBMIT: icon, one word, "+5 SEC" and the count as a corner badge. */
+  compact?: boolean;
 }
 
 /**
@@ -24,7 +26,7 @@ interface ShuffleButtonProps {
  * stray brush on the way to a tile can't spend one. Letting go early cancels (and says "Hold it").
  * The clock keeps running throughout. Keyboard Enter/Space still shuffles right away.
  */
-const ShuffleButton: React.FC<ShuffleButtonProps> = ({ count, seconds, disabled, lowTime, timerRef, onShuffle }) => {
+const ShuffleButton: React.FC<ShuffleButtonProps> = ({ count, seconds, disabled, lowTime, timerRef, onShuffle, compact = false }) => {
   const [fly, setFly] = useState<{ key: number; x: number; y: number; dx: number; dy: number } | null>(null);
 
   const holdMs = GAMEPLAY.timeBank.shuffleHoldMs;
@@ -87,7 +89,7 @@ const ShuffleButton: React.FC<ShuffleButtonProps> = ({ count, seconds, disabled,
         onClick={handleClick}
         onContextMenu={e => e.preventDefault()}
         disabled={disabled}
-        className={`relative overflow-hidden !flex-col !gap-1 !py-1.5 ${lowTime && !disabled ? 'lifeline-pulse' : ''}`}
+        className={`relative overflow-hidden !flex-col ${compact ? '!gap-0.5 !px-1 !py-1 h-full w-full' : '!gap-1 !py-1.5'} ${lowTime && !disabled ? 'lifeline-pulse' : ''}`}
         aria-label={`Shuffle (press and hold): new hand and plus ${seconds} seconds. ${count} left.`}
       >
         {holding !== null && (
@@ -98,12 +100,21 @@ const ShuffleButton: React.FC<ShuffleButtonProps> = ({ count, seconds, disabled,
             aria-hidden="true"
           />
         )}
+        {compact ? (
+          <>
+            <span className="relative text-xl leading-none" aria-hidden="true">{nudge ? '✋' : '🔀'}</span>
+            <span className="relative text-xs leading-none">{nudge ? 'HOLD IT' : 'SHUFFLE'}</span>
+            <span className={`relative font-osd normal-case text-sm leading-none ${disabled ? 'text-slate-400' : 'text-crt-900/80'}`}>+{seconds} SEC</span>
+            <span className={`absolute top-1 right-1 min-w-[1.25rem] h-5 px-1 rounded-full font-osd text-base leading-5 text-center ${disabled ? 'bg-crt-600 text-slate-400' : 'bg-crt-900 text-white'}`} data-testid="shuffle-count">{count}</span>
+          </>
+        ) : (<>
         <span className="relative leading-none">{nudge ? '✋ Hold it' : holding !== null ? '🔀 Shuffling…' : `🔀 Shuffle (${count})`}</span>
         <span className="relative flex items-center leading-none">
           <span className={`font-osd normal-case text-base leading-none px-1.5 py-0.5 rounded-md ${disabled ? 'bg-crt-600 text-slate-400' : 'bg-crt-900 text-neon-green'}`}>
             ⏱ +{seconds} SEC
           </span>
         </span>
+        </>)}
       </ArcadeButton>
       {fly && (
         <span

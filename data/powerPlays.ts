@@ -841,7 +841,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'thwomped',
     name: 'Thwomped!',
-    description: 'Get an extra Challenge right now. Apparently you like a good challenge.',
+    description: 'Get an extra STUCK? check right now (the button that checks whether your tiles can make a word). Apparently you like a good challenge.',
     flavorText: 'You’ve been Mario Kart’d.',
     icon: '🧱',
     subtheme: 'utility',

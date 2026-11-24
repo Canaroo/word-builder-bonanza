@@ -20,7 +20,8 @@ import DurationBadge from '../../ui/DurationBadge';
 import { RACK_SIZE, HAND_SIZE } from '../../constants';
 import { GAMEPLAY, CHARM_SLOTS, CHARM_UPGRADE, TIME_BONUS, BOSS, CHARM_BONUS, GEM_TILES, QUACK_ATTACK, BLUE_STEEL } from '../../config/gameplay';
 import { bossById } from '../../data/bosses';
-import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor, bossHitsToWin, prizeScaleFor } from '../rules';
+import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor, bossHitsToWin, prizeScaleFor, timeForWordAtLevel, lengthMultiplier } from '../rules';
+import { soundService } from '../soundService';
 import LevelBadge from '../../components/LevelBadge';
 import LevelUpCard from '../../components/LevelUpCard';
 import OutcomeCard from '../../components/OutcomeCard';
@@ -88,6 +89,35 @@ const LetterPicker: React.FC<{ onConfirm: (letter: string) => void; tone?: 'gree
       </button>
     </>
   );
+};
+
+/**
+ * v7.81.0: ⌫ on the stage. A tap sends the last letter back; holding it (450 ms) clears the whole word,
+ * like a keyboard's delete key.
+ */
+const BackspaceButton: React.FC<{ disabled: boolean; onBack: () => void; onClearAll: () => void }> = ({ disabled, onBack, onClearAll }) => {
+  const hold = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cleared = useRef(false);
+  useEffect(() => () => { if (hold.current) clearTimeout(hold.current); }, []);
+  return (
+    <button type="button" disabled={disabled} data-testid="backspace"
+      aria-label="Delete the last letter. Hold to clear the word."
+      className="absolute bottom-2 right-2 z-10 w-11 h-11 rounded-xl grid place-items-center text-xl text-slate-200 bg-crt-950/80 ring-1 ring-white/20 hover:ring-neon-cyan/60 active:translate-y-0.5 disabled:opacity-40 select-none touch-none"
+      onPointerDown={e => { if (disabled || e.button !== 0) return; e.preventDefault(); cleared.current = false; hold.current = setTimeout(() => { hold.current = null; cleared.current = true; onClearAll(); }, 450); }}
+      onPointerUp={() => { if (hold.current) { clearTimeout(hold.current); hold.current = null; onBack(); } }}
+      onPointerLeave={() => { if (hold.current) { clearTimeout(hold.current); hold.current = null; } }}
+      onClick={e => { if (e.detail === 0 && !disabled) onBack(); }}
+      onContextMenu={e => e.preventDefault()}
+    >⌫</button>
+  );
+};
+
+/** v7.81.0: a short shimmer the moment the word on the stage would fill the PowerPlay meter or start a Golden Round. */
+const StageSounds: React.FC<{ effects: string[] }> = ({ effects }) => {
+  const fills = effects.some(e => e.includes('READY') || e.includes('GOLDEN ROUND NEXT'));
+  const was = useRef(false);
+  useEffect(() => { if (fills && !was.current) soundService.playShimmer(); was.current = fills; }, [fills]);
+  return null;
 };
 
 // A hand tile inside a "pick a tile" pop-up. Picked tiles lift, get a green ring and a check mark;
@@ -971,7 +1001,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     // Layout: a fixed top bar, a status area that takes the leftover height (and scrolls inside
     // itself on short phones), and the play area pinned to the bottom so it's always in reach.
     return (
-    <div className="flex flex-col h-full min-h-0 p-3 text-slate-200 gap-2">
+    <div className="flex flex-col h-full min-h-0 p-3 text-slate-200 gap-2 [@media(max-height:700px)]:gap-1.5 [@media(max-height:700px)]:py-2">
       {/* --- MODALS --- */}
       {renderModal()}
       {endRun && <EndRunCard summary={endRun.summary} onCancel={endRun.onCancel} onConfirm={endRun.onConfirm} />}
@@ -1117,9 +1147,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       )}
 
       {/* --- STATUS AREA --- */}
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col gap-1.5">
+      {/* v7.81.0: the status area keeps its own height; the spare height goes to the stage below. */}
+      <div className="flex-shrink-0 flex flex-col gap-1.5">
       {/* --- ICONS BAR --- */}
-      <div className="flex justify-between items-center bg-crt-950/60 ring-1 ring-white/5 px-1 py-0.5 rounded-lg flex-shrink-0">
+      <div className="icons-bar flex justify-between items-center bg-crt-950/60 ring-1 ring-white/5 px-1 py-0.5 rounded-lg flex-shrink-0">
         <div className="flex gap-2 sm:gap-3">
           {MILESTONES_LIST.map(m => (
             <button key={m.id} onClick={() => handleShowMilestoneInfo(m)} disabled={!(gameState?.unlockedMilestoneIds ?? []).includes(m.id)} className="text-2xl transition-opacity disabled:opacity-30 enabled:hover:scale-110" title={m.name}>
@@ -1142,6 +1173,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         const combo = gameState?.powerSurgeProgress ?? 0;
         const comboReady = combo >= 4;
         const chain = gameState?.perfectChainProgress ?? 0;
+        // v7.81.0: what the word on the stage would add, as a faint ghost fill and a glow.
+        const stageLen = (wordFromBuildRow?.length ?? 0) >= (gameState?.gameConfig?.minWordLength ?? 3) && (gameState?.roundType ?? 'normal') === 'normal' ? (wordFromBuildRow?.length ?? 0) : 0;
+        const ghost = (pct: number, color: string) => stageLen > 0 ? <div className={`absolute inset-y-0 left-0 rounded-full opacity-40 animate-pulse ${color}`} style={{ width: `${Math.min(100, pct)}%` }} data-testid="meter-ghost" /> : null;
         const cell = 'bg-crt-950/60 ring-1 ring-white/5 rounded-lg px-1.5 py-1 flex flex-col justify-center gap-1 min-w-0';
         const label = 'osd-text text-sm leading-none text-neon-cyan/80 uppercase tracking-wider whitespace-nowrap';
         return (
@@ -1154,23 +1188,25 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 const left = Math.max(0, need - have);
                 const close = left > 0 && left <= GAMEPLAY.goldenRound.chipFrom;
                 return (
-                  <div className={`${cell} ${close ? '!ring-neon-yellow shadow-glow-yellow' : ''}`} data-testid="golden-streak"
+                  <div className={`${cell} ${close ? '!ring-neon-yellow shadow-glow-yellow' : stageLen ? '!ring-neon-yellow/60' : ''}`} data-testid="golden-streak"
                     aria-label={`Golden Round streak ${have} of ${need}. ${left} more valid words in a row for a Golden Round; a strike resets it.`}>
                     <span className={`${label} flex justify-between ${close ? '!text-neon-yellow animate-pulse' : ''}`}>
                       <span>{close ? `★ ${left} more!` : '★ Golden'}</span>
                       <span className="text-slate-300 tabular-nums">{have}/{need}</span>
                     </span>
-                    <div className="h-2 rounded-full bg-crt-600 overflow-hidden">
-                      <div className="h-full rounded-full bg-neon-yellow transition-all duration-500" style={{ width: `${Math.min(100, (have / need) * 100)}%` }} />
+                    <div className="relative h-2 rounded-full bg-crt-600 overflow-hidden">
+                      {ghost(((have + 1) / need) * 100, 'bg-neon-yellow')}
+                      <div className="relative h-full rounded-full bg-neon-yellow transition-all duration-500" style={{ width: `${Math.min(100, (have / need) * 100)}%` }} />
                     </div>
                   </div>
                 );
               })()
             )}
-            <div className={cell} aria-label={`PowerPlay meter ${letters} of ${needed} letters`}>
+            <div className={`${cell} ${stageLen ? '!ring-neon-purple/70' : ''}`} aria-label={`PowerPlay meter ${letters} of ${needed} letters`}>
               <span className={`${label} flex justify-between`}><span>PowerPlay</span><span className="text-slate-300 tabular-nums">{letters}/{needed}</span></span>
-              <div className="h-2 rounded-full bg-crt-600 overflow-hidden">
-                <div className={`h-full rounded-full transition-all duration-500 ${ppFull ? 'bg-neon-green shadow-glow-cyan animate-pulse' : 'bg-neon-purple'}`} style={{ width: `${ppPct}%` }} />
+              <div className="relative h-2 rounded-full bg-crt-600 overflow-hidden">
+                {ghost(((letters + stageLen) / needed) * 100, 'bg-neon-purple')}
+                <div className={`relative h-full rounded-full transition-all duration-500 ${ppFull ? 'bg-neon-green shadow-glow-cyan animate-pulse' : 'bg-neon-purple'}`} style={{ width: `${ppPct}%` }} />
               </div>
             </div>
             <div className={`${cell} ${comboReady ? 'ring-neon-yellow/70' : ''}`} role="meter" aria-valuenow={combo} aria-valuemin={0} aria-valuemax={5} aria-valuetext={`Word Combo ${combo} of 5${comboReady ? ', next word scores x2' : ''}`}>
@@ -1220,18 +1256,39 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
       </div>
 
-      {/* --- PLAY AREA (always visible) --- */}
-      <div className="relative flex-shrink-0 flex flex-col gap-2 w-full max-w-sm mx-auto">
-        {/* Game messages float just above the play area, where the player is looking. */}
-        {message && (
-          <div className="absolute bottom-full inset-x-0 mb-2 flex justify-center pointer-events-none z-20" role="status" aria-live="polite">
-            <div key={message} className="message-pop max-w-full px-3 py-1.5 rounded-lg bg-crt-950/95 ring-1 ring-neon-cyan/60 shadow-glow-cyan osd-text text-xl leading-tight text-neon-cyan text-center whitespace-pre-line">
-              {withSec(message ?? '')}
-            </div>
-          </div>
-        )}
-        {/* Held PowerPlay (always in reach) + potential score */}
-        <div className={`flex-shrink-0 h-8 flex items-center gap-2 ${(gameState?.availablePowerPlays?.length ?? 0) > 0 ? 'justify-between' : 'justify-center'}`}>
+      {/* --- THE STAGE (v7.81.0, the owner's redesign): the middle of the screen is where your word lives.
+          It grows from the center in big keycaps, with the points and seconds it will earn right under it
+          and chips for what it will fill (PowerPlay, Golden, Combo, the next length bonus). --- */}
+      {(() => {
+        const placed = (buildRow ?? []).map((it, i) => (it ? { ...it, index: i } : null)).filter((x): x is NonNullable<typeof x> => x !== null);
+        const n = placed.length;
+        const minLen = gameState?.gameConfig?.minWordLength ?? 3;
+        const level = levelFor(totalWords ?? 0);
+        const normal = (gameState?.roundType ?? 'normal') === 'normal';
+        const secs = n >= minLen ? timeForWordAtLevel(n, level) : 0;
+        const effects: { text: string; tone: string }[] = [];
+        if (n >= minLen && normal) {
+          const letters = gameState?.powerPlayProgress?.letters ?? 0;
+          const needed = meterLettersFor(level, gameState);
+          effects.push(letters + n >= needed ? { text: '⚡ POWERPLAY READY!', tone: 'ring-neon-purple text-neon-purple bg-neon-purple/15' } : { text: `⚡ +${n} → ${letters + n}/${needed}`, tone: 'ring-neon-purple/70 text-[#d9b6ff]' });
+          const have = (gameState?.consecutiveValidWords ?? 0) + 1;
+          const need = gameState?.goldenRoundThreshold ?? 11;
+          effects.push(have >= need ? { text: '★ GOLDEN ROUND NEXT!', tone: 'ring-neon-yellow text-neon-yellow bg-neon-yellow/15' } : { text: `★ ${have}/${need}`, tone: 'ring-neon-yellow/70 text-neon-yellow' });
+          const combo = gameState?.powerSurgeProgress ?? 0;
+          effects.push(combo >= 4 ? { text: '🔗 COMBO x2!', tone: 'ring-neon-cyan text-neon-cyan bg-neon-cyan/15' } : { text: `🔗 COMBO ${combo + 1}/5${combo + 1 === 4 ? ' · NEXT x2' : ''}`, tone: 'ring-neon-cyan/70 text-neon-cyan' });
+        }
+        const nextLen = n >= 1 && n < BUILD_ROW_SIZE ? Math.max(minLen, n + 1) : 0;
+        const nextMult = nextLen ? lengthMultiplier(nextLen) : 1;
+        if (nextLen && n >= minLen && nextMult > lengthMultiplier(n)) {
+          const nextSecs = timeForWordAtLevel(nextLen, level);
+          effects.push({ text: `📏 ${nextLen - n} MORE = x${nextMult}${nextSecs > secs ? ` · +${nextSecs} SEC` : ''}`, tone: 'ring-white/25 text-slate-300 border-dashed' });
+        }
+        const tileW = `min(var(--stage-tile-max, 3.6rem), calc((100% - ${Math.max(0, n) * 6}px) / ${Math.max(1, n + (n < BUILD_ROW_SIZE ? 0.55 : 0))}))`;
+        return (
+          <div className="stage-panel relative flex-1 min-h-[9rem] w-full max-w-sm mx-auto rounded-2xl flex flex-col px-2 pt-1.5 pb-2 overflow-y-auto overscroll-contain" data-testid="stage">
+            <StageSounds effects={effects.map(e => e.text)} />
+            {(gameState?.availablePowerPlays?.length ?? 0) > 0 && (
+              <div className="relative z-10 flex-shrink-0 h-8 flex items-center justify-center gap-2">
             {(gameState?.availablePowerPlays ?? []).slice(0, 1).map((pp) => (
                 pp.id === 'multiplicity' ? (
                     // Multiplicity (v7.36.1) says what it will become, or that there's nothing to copy yet.
@@ -1250,41 +1307,61 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 </button>
                 )
             ))}
-            {potentialScore > 0 && (
-                <div className="shrink-0 bg-crt-950/80 ring-1 ring-neon-yellow/40 px-4 py-0.5 rounded-full">
-                    <span className="font-osd text-3xl leading-none text-neon-yellow drop-shadow-glow-yellow animate-fade-in">
-                        {potentialScore}
-                    </span>
-                    <span className="osd-text text-base text-neon-yellow/80 ml-1">PTS</span>
-                </div>
+              </div>
             )}
-        </div>
-
-        {/* Build Row: slots share the width so all eight fit on any phone */}
-        <div className="flex-shrink-0 w-full">
-          <div className="grid gap-1 sm:gap-1.5" style={{ gridTemplateColumns: `repeat(${BUILD_ROW_SIZE}, minmax(0, 1fr))` }}>
-              {Array.from({ length: BUILD_ROW_SIZE }).map((_, index) => {
-                  const item = (buildRow ?? [])[index];
-                  const isFifthSlot = index === 4;
-                  const isLongWordBonusActive = (buildRow?.filter(i => i).length ?? 0) >= 5;
-                  return (
-                    <div
-                      key={index}
-                      className={`relative w-full aspect-[5/6] rounded-lg bg-crt-950/60 ring-1 ring-white/5 flex items-center justify-center
-                        ${isFifthSlot && isLongWordBonusActive ? 'ring-2 ring-yellow-400' : ''}
-                      `}
-                    >
-                      {item && (
-                        <div className="w-full h-full tile-land">
-                          <TileComponent tile={item.tile} onClick={() => handleReturnToHand(index)} packTileClass={tileClass} isGolden={item.tile.id === gameState?.goldenTileId} skillShot={item.tile.id === skillShotTileId ? skillShotPrize : undefined} />
-                        </div>
-                      )}
+            <div className="stage-body relative flex-1 min-h-0 flex flex-col items-center gap-2 [@media(max-height:700px)]:gap-1">
+              {message && (
+                <div className={`absolute inset-x-0 flex justify-center pointer-events-none z-20 ${n ? 'top-0' : 'top-1/2 -translate-y-1/2'}`} role="status" aria-live="polite">
+                  <div key={message} className="message-pop max-w-full px-3 py-1.5 rounded-lg bg-crt-950/95 ring-1 ring-neon-cyan/60 shadow-glow-cyan osd-text text-xl leading-tight text-neon-cyan text-center whitespace-pre-line">
+                    {withSec(message ?? '')}
+                  </div>
+                </div>
+              )}
+              <div className="w-full flex justify-center items-end gap-1.5 min-h-[3.9rem]" data-testid="word-stage" aria-label={n ? `Your word: ${wordFromBuildRow}` : 'Your word: empty'}>
+                {n === 0 && !message && <p className="osd-text text-xl leading-none text-slate-500 tracking-wider self-center">TAP TILES TO SPELL A WORD</p>}
+                {placed.map(item => (
+                  <div key={item.tile.id} className="tile-land stage-tile shrink-0" style={{ width: tileW }}>
+                    <div className="w-full aspect-[1/1.08]">
+                      <TileComponent tile={item.tile} onClick={() => handleReturnToHand(item.index)} packTileClass={tileClass} isGolden={item.tile.id === gameState?.goldenTileId} skillShot={item.tile.id === skillShotTileId ? skillShotPrize : undefined} />
                     </div>
-                  );
-              })}
+                  </div>
+                ))}
+                {n > 0 && n < BUILD_ROW_SIZE && <div className="stage-cursor shrink-0 self-center" style={{ width: `calc(${tileW} * 0.55)` }} aria-hidden="true" />}
+              </div>
+              {n > 0 && (
+                <div className="stage-readout text-center" data-testid="stage-readout">
+                  {potentialScore > 0 ? (
+                    <>
+                      <span className="font-display text-3xl leading-none text-neon-yellow drop-shadow-glow-yellow">{potentialScore.toLocaleString()}</span>
+                      <span className="osd-text text-xl leading-none text-neon-yellow/80 ml-1">PTS</span>
+                      {secs > 0 && <span className="osd-text text-2xl leading-none text-neon-green ml-3">+{secs}<Sec /></span>}
+                    </>
+                  ) : n < minLen ? (
+                    <span className="osd-text text-xl leading-none text-slate-400">{minLen - n} MORE {minLen - n === 1 ? 'LETTER' : 'LETTERS'} TO SUBMIT</span>
+                  ) : null}
+                </div>
+              )}
+              {effects.length > 0 && (
+                <div className="stage-effects w-full flex flex-wrap justify-center gap-1 pr-11 pl-1 [@media(max-height:700px)]:flex-nowrap [@media(max-height:700px)]:justify-start [@media(max-height:700px)]:overflow-x-auto" data-testid="stage-effects">
+                  {effects.map(e => (
+                    <span key={e.text} className={`message-pop osd-text text-base leading-none px-2 py-1 rounded-full ring-1 whitespace-nowrap ${e.tone}`}>{e.text}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            {n > 0 && (
+              <BackspaceButton
+                disabled={isChallengeLock || isLoading || isPaused}
+                onBack={() => handleReturnToHand(placed[placed.length - 1].index)}
+                onClearAll={handleClear}
+              />
+            )}
           </div>
-        </div>
+        );
+      })()}
 
+      {/* --- PLAY AREA (always visible) --- */}
+      <div className="relative flex-shrink-0 flex flex-col gap-2 w-full max-w-sm mx-auto">
         {(holdOpen || speedChip) && (
           <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
             {holdOpen && (
@@ -1366,16 +1443,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           );
         })()}
         
-        {/* --- ACTION BUTTONS --- */}
-        <div className="grid grid-cols-2 gap-x-2 gap-y-3 pb-1">
-          <ArcadeButton
-            color="yellow"
-            onClick={handleSubmit}
-            disabled={(wordFromBuildRow?.length ?? 0) < (gameState?.gameConfig?.minWordLength ?? 3) || isLoading || isPaused}
-          >
-            Submit
-          </ArcadeButton>
+        {/* --- ACTION BUTTONS (v7.81.0): one big SUBMIT between SHUFFLE and STUCK?; Clear is the ⌫ on the stage. --- */}
+        <div className="grid grid-cols-[5.25rem_minmax(0,1fr)_5.25rem] gap-2 pb-1 h-[4.25rem] [@media(max-height:700px)]:h-[3.6rem]">
           <ShuffleButton
+            compact
             count={gameState?.shuffleCount ?? 0}
             seconds={GAMEPLAY.timeBank.shuffleTimeBonus}
             disabled={(gameState?.shuffleCount ?? 0) <= 0 || isPaused || isChallengeLock || isLoading || (gameState?.roundType === 'golden')}
@@ -1384,19 +1455,34 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             onShuffle={() => handleShuffle(false)}
           />
           <ArcadeButton
-            color="slate"
-            onClick={handleClear}
-            disabled={(buildRow ?? []).every(i => i === null) || isChallengeLock || isLoading || isPaused}
+            color="yellow"
+            size="lg"
+            className={`h-full w-full ${(wordFromBuildRow?.length ?? 0) >= (gameState?.gameConfig?.minWordLength ?? 3) && !isLoading && !isPaused ? 'submit-ready' : ''}`}
+            onClick={handleSubmit}
+            disabled={(wordFromBuildRow?.length ?? 0) < (gameState?.gameConfig?.minWordLength ?? 3) || isLoading || isPaused}
           >
-            Clear
+            Submit
           </ArcadeButton>
-          <ArcadeButton
-            color={isStrikeChallenge ? 'red' : 'green'}
-            onClick={handleChallenge}
-            disabled={(isStrikeChallenge ? strikesRemaining <= 0 : (gameState?.challengeCount ?? 0) <= 0) || (buildRow ?? []).some(t => t !== null) || isPaused || isChallengeLock || isLoading || (gameState?.roundType === 'golden')}
-          >
-            {challengeButtonText}
-          </ArcadeButton>
+          {(() => {
+            const stuckDisabled = (isStrikeChallenge ? strikesRemaining <= 0 : (gameState?.challengeCount ?? 0) <= 0) || (buildRow ?? []).some(t => t !== null) || isPaused || isChallengeLock || isLoading || (gameState?.roundType === 'golden');
+            return (
+              <ArcadeButton
+                color={isStrikeChallenge ? 'red' : 'green'}
+                onClick={handleChallenge}
+                disabled={stuckDisabled}
+                className="relative h-full w-full !flex-col !gap-0.5 !px-1 !py-1"
+                data-testid="stuck-button"
+                aria-label={isStrikeChallenge
+                  ? `Stuck? Out of free checks: claim your tiles can't make a word, and risk a strike if they can. ${strikesRemaining} strikes left.`
+                  : `Stuck? Claim your tiles can't make a word. If none can be made you get free new tiles. ${gameState?.challengeCount ?? 0} left.`}
+              >
+                <span className="text-xl leading-none" aria-hidden="true">🤔</span>
+                <span className="text-xs leading-none">STUCK?</span>
+                <span className="font-osd normal-case text-sm leading-none opacity-80">{isStrikeChallenge ? 'RISK A STRIKE' : 'NO WORD?'}</span>
+                <span className={`absolute top-1 right-1 min-w-[1.25rem] h-5 px-1 rounded-full font-osd text-base leading-5 text-center ${stuckDisabled ? 'bg-crt-600 text-slate-400' : 'bg-crt-900 text-white'}`} data-testid="stuck-count">{isStrikeChallenge ? '❌' : gameState?.challengeCount ?? 0}</span>
+              </ArcadeButton>
+            );
+          })()}
         </div>
       </div>
 

@@ -66,7 +66,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
           </p>
           <p>
             <Key>🎟️ Scratch-off ticket:</Key> at levels {SCRATCH.levels.join(', ')} you get a lucky ticket. Scratch a square
-            to win what's under it: points, time, shuffles, a Challenge, a charm or a PowerPlay. Each new scratch replaces
+            to win what's under it: points, time, shuffles, a STUCK? check, a charm or a PowerPlay. Each new scratch replaces
             the prize you're holding, so bank it when you like it. {SCRATCH.skulls} squares hide a 💀 that wipes it; your
             first scratch is always safe.
           </p>
@@ -220,10 +220,12 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
         <Section title="Your Toolkit" icon="🛠️" tone="text-neon-cyan">
           <p><Key>Shuffle:</Key> a fresh hand plus <Key>+{timeBank.shuffleTimeBonus}s</Key>, and your streaks keep going. Uses are limited: some charms, PowerPlays and secret bonuses give you more.</p>
           <p>
-            <Key>Challenge:</Key> stuck? If no everyday word can be made, you win a free shuffle. If one can, you must play it
-            for 0 points.
+            <Key>🤔 STUCK?:</Key> tap it when you think your tiles can't make any word. The game checks: if there's no
+            everyday word, you get free new tiles and keep your STUCK?. If there is one, it goes in your word row and you
+            play it for 0 points (that uses one). The number on the button is how many you have.
           </p>
-          <p><Key>Strike Challenge:</Key> out of challenges? Gamble a strike for the same deal.</p>
+          <p><Key>Out of STUCK? checks:</Key> the button turns red and costs a strike if your tiles could make a word.</p>
+          <p><Key>⌫:</Key> on the stage, tap it to send back the last letter, or hold it to clear the word.</p>
         </Section>
 
         <Section title="Missions, Streaks & Shop" icon="🔥" tone="text-neon-orange">
