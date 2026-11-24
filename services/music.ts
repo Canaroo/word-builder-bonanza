@@ -14,6 +14,10 @@ export const selectedTrack = (): string => {
   return id && ownedTracks().includes(id) ? id : DEFAULT_TRACK_ID;
 };
 
+/** v7.77.0: whether Golden Round and boss fights get their own music (on unless turned off). */
+export const eventMusicOn = (): boolean => storage.getString(STORAGE_KEYS.eventMusic) !== 'off';
+export const setEventMusicOn = (on: boolean): void => { storage.setString(STORAGE_KEYS.eventMusic, on ? 'on' : 'off'); };
+
 export const selectTrack = (id: string): boolean => {
   if (!ownedTracks().includes(id)) return false;
   storage.setString(STORAGE_KEYS.musicTrack, id);

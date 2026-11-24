@@ -45,7 +45,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,gif,webp,woff2,txt,mp3}'],
         // Shop music (v7.53.0) isn't precached: each track downloads when it's previewed or played,
         // then stays cached (below), so the install stays small.
-        globIgnores: ['**/audio/shop/**'],
+        globIgnores: ['**/audio/shop/**', '**/audio/events/**'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
           {

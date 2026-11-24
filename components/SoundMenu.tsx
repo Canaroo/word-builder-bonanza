@@ -13,6 +13,7 @@ import { ownedTracks, selectedTrack, selectTrack } from '../services/music';
 const SoundMenu: React.FC<{ isMuted: boolean; onToggleMute: () => void; onClose: () => void; onShop?: () => void; inRun?: boolean }> = ({ isMuted, onToggleMute, onClose, onShop, inRun }) => {
   const owned = ownedTracks();
   const [current, setCurrent] = useState(selectedTrack());
+  const [events, setEvents] = useState(musicService.eventMusic());
   const more = MUSIC_TRACKS.length - owned.length;
   const pick = (id: string) => {
     if (!selectTrack(id)) return;
@@ -52,6 +53,16 @@ const SoundMenu: React.FC<{ isMuted: boolean; onToggleMute: () => void; onClose:
           </ul>
           {isMuted && <p className="text-xs text-slate-400 mt-1.5">Sound is off. Turn it on to hear your pick.</p>}
         </div>
+        {/* v7.77.0: Golden Round and boss fights play their own music unless this is off. */}
+        <button type="button" data-testid="event-music-toggle" aria-pressed={events}
+          onClick={() => { soundService.playUIClick(); const on = !events; musicService.setEventMusic(on); setEvents(on); }}
+          className={`w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 ring-2 text-left ${events ? 'ring-neon-yellow bg-neon-yellow/10' : 'ring-white/15 bg-crt-950/70'}`}>
+          <span className="flex flex-col">
+            <span className="text-white font-semibold text-sm">🌟👾 Special music</span>
+            <span className="text-xs text-slate-300 leading-snug">Golden Rounds and boss fights get their own tracks. Off: your pick keeps playing.</span>
+          </span>
+          <span className={`osd-text text-lg leading-none ${events ? 'text-neon-yellow' : 'text-slate-400'}`}>{events ? 'ON' : 'OFF'}</span>
+        </button>
         {more > 0 && (onShop
           ? <ArcadeButton color="yellow" variant="outline" size="sm" className="w-full" onClick={onShop}>🛒 {more} more {more === 1 ? 'track' : 'tracks'} in the Shop</ArcadeButton>
           : <p className="text-xs text-slate-400 text-center">🛒 {more} more {more === 1 ? 'track' : 'tracks'} in the Shop, under 🎵 Music.</p>)}
