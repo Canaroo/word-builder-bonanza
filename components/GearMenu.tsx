@@ -6,6 +6,8 @@ import { CHARM_SETS, setPayFor } from '../data/charmSets';
 import { TRIFORCE_IDS, TRIFORCE_PIECES, shardsOf, triforceDone, anyShards } from '../data/triforce';
 import { clockSpeedFor, prizeScaleFor, wordTimeScaleFor } from '../services/rules';
 import TriforceEmblem from './TriforceEmblem';
+import { hitsBoard } from '../services/greatestHits';
+import { GREATEST_HITS } from '../config/gameplay';
 import ArcadeButton from './ArcadeButton';
 
 // "Your Gear" (v7.71.0, the owner's idea): an old-school RPG menu with everything the run is
@@ -223,6 +225,35 @@ const GearMenu: React.FC<{
             })}
           </Box>
         )}
+
+        {(() => {
+          // v7.86.0 (the owner's ask): Greatest Hits, so players can see which word to replay for a record.
+          const rows = hitsBoard(gs.log ?? [], gs.hitsClaimed ?? []);
+          const live = rows.filter(r => r.done || r.word);
+          const first = GREATEST_HITS.tiers[0];
+          return (
+            <Box title="GREATEST HITS" right={`${rows.filter(r => r.done).length}/${rows.length} RECORDS`}>
+              <div data-testid="gear-hits">
+                {live.length === 0 && (
+                  <Row selected={sel === 'hits-none'} icon={first.icon} label={<>Play the same {first.letters}-letter word {first.letters} times for {first.title}</>} right={`+${first.points.toLocaleString()}`}
+                    onClick={() => choose('hits-none', { icon: first.icon, name: 'Greatest Hits', text: `Replay a word to make it a record. A ${first.letters}-letter word played ${first.letters} times goes ${first.title} (+${first.points.toLocaleString()}). ${GREATEST_HITS.tiers.slice(1, 3).map(t => `A ${t.letters}-letter word ${t.letters} times goes ${t.title} (+${t.points.toLocaleString()})`).join('. ')}. Each record pays once a run.` })} />
+                )}
+                {live.map(r => {
+                  const left = r.tier.letters - r.plays;
+                  const key = `hit-${r.tier.letters}`;
+                  return (
+                    <Row key={key} selected={sel === key} icon={r.tier.icon} dim={r.done}
+                      label={r.done ? <>{r.tier.title} ✓ <strong>{r.word ?? ''}</strong></> : <><strong>{r.word}</strong> {r.plays}/{r.tier.letters} · {left === 1 ? 'ONE MORE' : `${left} MORE`} FOR {r.tier.title}</>}
+                      right={r.done ? 'PAID' : `+${r.tier.points.toLocaleString()}`}
+                      onClick={() => choose(key, { icon: r.tier.icon, name: `${r.tier.title} record`, text: r.done
+                        ? `${r.word ?? 'A word'} went ${r.tier.title} this run (+${r.tier.points.toLocaleString()}). Each record pays once a run.`
+                        : `You've played ${r.word} ${r.plays} ${r.plays === 1 ? 'time' : 'times'}. Play it ${left} more ${left === 1 ? 'time' : 'times'} and it goes ${r.tier.title}: +${r.tier.points.toLocaleString()}, paid on top of the word. Any ${r.tier.letters}-letter word played ${r.tier.letters} times counts, but only the first one to get there pays.` })} />
+                  );
+                })}
+              </div>
+            </Box>
+          );
+        })()}
 
         <Box title="TRIFORCE SHARDS">
           {!anyShards(gs) ? (

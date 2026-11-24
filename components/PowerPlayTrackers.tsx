@@ -97,7 +97,7 @@ const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string
   if (hit) {
     const left = hit.tier.letters - hit.plays;
     chips.push(
-      <span key="hits" className="flex items-center gap-1 rounded-full bg-neon-yellow/15 ring-1 ring-neon-yellow/70 px-2 py-0.5 text-xs text-white whitespace-nowrap"
+      <span key="hits" data-testid="hits-chip" className="flex items-center gap-1 rounded-full bg-neon-yellow/15 ring-1 ring-neon-yellow/70 px-2.5 py-1 text-sm font-semibold text-white whitespace-nowrap"
         aria-label={`Greatest Hits: ${hit.word} played ${hit.plays} of ${hit.tier.letters} times. ${left} more to go ${hit.tier.title} for ${hit.tier.points} points`}>
         <span aria-hidden="true">{hit.tier.icon}</span>{hit.word} {hit.plays}/{hit.tier.letters} · {left === 1 ? 'ONE MORE' : `${left} MORE`} FOR {hit.tier.title} +{hit.tier.points.toLocaleString()}
       </span>);

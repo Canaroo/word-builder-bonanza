@@ -22,6 +22,7 @@ import { GAMEPLAY, CHARM_SLOTS, CHARM_UPGRADE, TIME_BONUS, BOSS, CHARM_BONUS, GE
 import { bossById } from '../../data/bosses';
 import { levelFor, snitchTargetFor, meterLettersFor, levelTierFor, bossHitsToWin, prizeScaleFor, timeForWordAtLevel, lengthMultiplier } from '../rules';
 import { soundService } from '../soundService';
+import { hitIfPlayed } from '../greatestHits';
 import LevelBadge from '../../components/LevelBadge';
 import LevelUpCard from '../../components/LevelUpCard';
 import OutcomeCard from '../../components/OutcomeCard';
@@ -1327,6 +1328,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           if (letters + n >= needed) effects.push({ text: '⚡ FILLS YOUR POWERPLAY METER!', tone: 'text-neon-purple' });
           if ((gameState?.consecutiveValidWords ?? 0) + 1 >= (gameState?.goldenRoundThreshold ?? 11)) effects.push({ text: '★ STARTS A GOLDEN ROUND!', tone: 'text-neon-yellow' });
           if ((gameState?.powerSurgeProgress ?? 0) >= 4) effects.push({ text: '🔗 COMBO x2 ON THIS WORD!', tone: 'text-neon-cyan' });
+          // v7.86.0 (the owner's ask): this play completes a Greatest Hits record.
+          const record = hitIfPlayed(gameState?.log ?? [], gameState?.hitsClaimed ?? [], wordFromBuildRow ?? '');
+          if (record) effects.unshift({ text: `${record.icon} ${(wordFromBuildRow ?? '').toUpperCase()} GOES ${record.title}: +${record.points.toLocaleString()}!`, tone: 'text-neon-yellow' });
         }
         // v7.85.0: the open spot after the word glows when one more letter pays more (length bonus, time).
         const nextLen = n >= minLen && n < BUILD_ROW_SIZE ? n + 1 : 0;

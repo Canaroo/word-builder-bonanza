@@ -699,6 +699,13 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   gold when one more letter pays more (`.stage-cursor-pays`, `next-slot-pays`) with a "+1 LETTER · x1.5
   · +5 sec" tag lined up under it (`next-letter-tag`). Browser-checked: LOOT BASE 5 → +33 (BOOSTS +28)
   with the Combo x2, the pop shown after the PowerPlay offer closed.
+  **v7.86.0 (the owner's ask: players should see which word to replay for a record):** Gear has a
+  GREATEST HITS box (`gear-hits`, `hitsBoard` in `services/greatestHits.ts`): each record with its
+  leading word once it has 2 plays ("📀 TEA 2/3 · ONE MORE FOR GOLD +500"), a paid record as "GOLD ✓
+  CAT · PAID", or the rule when nothing's in progress; a tap explains it. On the stage, spelling a word
+  whose play would complete a record adds big news first in line: "📀 TEA GOES GOLD: +500!"
+  (`hitIfPlayed`). The strip chip (`hits-chip`) is a size larger. An open record only counts words still
+  short of it. Tests in `hitsBoard.test.ts`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
