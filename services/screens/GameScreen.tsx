@@ -3197,6 +3197,8 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
 export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, onSaveGame, onLeaveRun, isResuming, onTimeLow, onGoldenRoundChange, onBossRoundChange, onScoreUpdate, onLexCoinChange, tileClass, powerWord, daily = null, lexCoins = 0 }) => {
     // A Daily Run saves to its own slot, so a regular run can't wipe an unfinished daily attempt.
     const saveSlot = daily ? STORAGE_KEYS.savedDailyGame : STORAGE_KEYS.savedGame;
+    // v7.85.0: the score the last word really earned, popped on the stage after submit.
+    const [landed, setLanded] = useState<{ word: string; total: number; base: number; key: number } | null>(null);
     // v7.67.5: only the newest open copy of the game may write this save slot. The owner found an
     // old run coming back on Continue: a second window (the app and a browser tab, or one left in
     // the background) still had the old run open, and its auto-save wrote it over the new run every
@@ -5527,7 +5529,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               });
           }
       }
-      showMessage(`${word.toUpperCase()}: +${Math.round(turnScorePreMilestone)}`, 3000);
+      // v7.85.0 (the owner's call): the stage shows BASE while spelling; here the score that really landed
+      // pops big, with what the boosts added on top of the base.
+      setLanded({ word, total: Math.round(turnScorePreMilestone), base: Math.round(finalWordScore), key: Date.now() });
 
       const wordLogEntry: WordLogEntry = {
         type: 'word',
@@ -6617,6 +6621,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         maxStrikes,
         challengeButtonText,
         tileClass,
+        landed,
         isMuted,
         isChallengeLock,
         highlightedTileIds: state.highlightedTileIds,

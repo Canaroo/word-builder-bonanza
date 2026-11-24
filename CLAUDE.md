@@ -686,6 +686,19 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   again (`data-testid="hud"`); v7.84.0 had made only the left column flexible, which pushed the clock
   right. With the 🎒 under the strikes the right column is narrow anyway. Measured: the clock is 0 px
   off centre at 360/390/412 px, and the score fits up to 1,234,567.
+  **v7.85.0 (the owner's screenshot: the pills under the word weren't readable, the points weren't the
+  real points; their picks):** under the word: **BASE** N PTS +N sec (`base-label`): the preview is
+  `calculateScore` only, and about 50 boosts land after Submit (Combo x2, upgrades, long-word boost,
+  multipliers on charms, Glass Joe, Triforce, Blue Steel, chains, charms that subtract...). So after
+  submit the real score pops on the stage (`LandedPop`, `landed-pop`, state `landed` in `GameScreen`
+  set where the old "WORD: +N" message was): the word, "+33" big, and "BASE 5 · BOOSTS +28" when they
+  differ; it fades after 2.6 s, hides when a tile is placed, waits for any card the word opened to
+  close, and is skipped if that took over 30 s. The routine pills are gone (the meters up top preview
+  the fill); only big news shows, one line each (`stage-effects`): "⚡ FILLS YOUR POWERPLAY METER!",
+  "★ STARTS A GOLDEN ROUND!", "🔗 COMBO x2 ON THIS WORD!". The open spot after a 3-7 letter word glows
+  gold when one more letter pays more (`.stage-cursor-pays`, `next-slot-pays`) with a "+1 LETTER · x1.5
+  · +5 sec" tag lined up under it (`next-letter-tag`). Browser-checked: LOOT BASE 5 → +33 (BOOSTS +28)
+  with the Combo x2, the pop shown after the PowerPlay offer closed.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

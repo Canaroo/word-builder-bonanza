@@ -181,9 +181,34 @@ const NoticeRail: React.FC<{ notices: Notice[] }> = ({ notices }) => {
   );
 };
 
+/**
+ * v7.85.0 (the owner's call): after a word lands, the score it really earned pops on the stage, big, with
+ * the base and what the boosts added (Combo x2, upgrades, multipliers, charms...). It fades on its own
+ * after 2.6 s and disappears the moment the next tile is placed.
+ */
+const LandedPop: React.FC<{ word: string; total: number; base: number; onShown: (v: boolean) => void }> = ({ word, total, base, onShown }) => {
+  const [gone, setGone] = useState(false);
+  useEffect(() => { onShown(true); const t = setTimeout(() => { setGone(true); onShown(false); }, 2600); return () => { clearTimeout(t); onShown(false); }; }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (gone) return null;
+  const diff = total - base;
+  return (
+    <div className="absolute inset-x-0 top-[18%] flex justify-center pointer-events-none z-20" role="status" aria-live="polite" data-testid="landed-pop">
+      <div className="landed-pop text-center">
+        <div className="osd-text text-xl leading-none text-slate-300 tracking-widest">{word.toUpperCase()}</div>
+        <div className={`font-display text-5xl leading-none mt-1 ${total > 0 ? 'text-neon-green drop-shadow-[0_0_14px_rgba(61,255,140,0.7)]' : 'text-slate-400'}`}>+{total.toLocaleString()}</div>
+        {diff !== 0 && (
+          <div className="osd-text text-lg leading-none mt-1.5 text-slate-200" data-testid="landed-breakdown">
+            BASE {base.toLocaleString()} · <span className={diff > 0 ? 'text-neon-yellow' : 'text-neon-red'}>BOOSTS {diff > 0 ? '+' : '−'}{Math.abs(diff).toLocaleString()}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 /** v7.81.0: a short shimmer the moment the word on the stage would fill the PowerPlay meter or start a Golden Round. */
 const StageSounds: React.FC<{ effects: string[] }> = ({ effects }) => {
-  const fills = effects.some(e => e.includes('READY') || e.includes('GOLDEN ROUND NEXT'));
+  const fills = effects.some(e => e.includes('FILLS YOUR POWERPLAY') || e.includes('STARTS A GOLDEN ROUND'));
   const was = useRef(false);
   useEffect(() => { if (fills && !was.current) soundService.playShimmer(); was.current = fills; }, [fills]);
   return null;
@@ -252,6 +277,8 @@ export interface GameScreenViewProps {
   wordFromBuildRow: string;
   totalWords: number;
   potentialScore: number;
+  /** v7.85.0: the score the last word really earned (and its base), popped on the stage after submit. */
+  landed?: { word: string; total: number; base: number; key: number } | null;
   maxStrikes: number;
   challengeButtonText: string;
   tileClass: string;
@@ -303,8 +330,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     handleMoveToBuild, handleReturnToHand, handleShuffle, handleSubmit, handleClear,
     handleChallenge, handleSaveClick, handleConfirmSave, handleEndRun, endRun, onLostSave, showBuffInfo,
     handleActivatePowerPlay, handleActivateCharm, handleChoosePowerPlay, handleChooseCharm, handlePassCharm, handleUpgradeCharm, handleKeepPowerPlay,
-    handleAddTileToSwap, handleRemoveTileFromSwap, handleExecuteSwap, dispatch
+    handleAddTileToSwap, handleRemoveTileFromSwap, handleExecuteSwap, dispatch, landed = null
 }) => {
+    const [landedShown, setLandedShown] = useState(false);
     const skillShotPrize = skillShotPoints((gameState?.skillShot?.streak ?? 0) + 1);
     const timerRef = useRef<HTMLDivElement>(null);
     // Bird Box (v7.28): new tiles show their letters for a few seconds, then flip face down.
@@ -1289,23 +1317,22 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         const level = levelFor(totalWords ?? 0);
         const normal = (gameState?.roundType ?? 'normal') === 'normal';
         const secs = n >= minLen ? timeForWordAtLevel(n, level) : 0;
+        // v7.85.0 (the owner's call): no routine pills under the word (the meters up top already preview the
+        // fill). Only big news, one readable line each: the word fills the meter, starts a Golden Round, or
+        // gets the Combo x2.
         const effects: { text: string; tone: string }[] = [];
         if (n >= minLen && normal) {
           const letters = gameState?.powerPlayProgress?.letters ?? 0;
           const needed = meterLettersFor(level, gameState);
-          effects.push(letters + n >= needed ? { text: '⚡ POWERPLAY READY!', tone: 'ring-neon-purple text-neon-purple bg-neon-purple/15' } : { text: `⚡ +${n} → ${letters + n}/${needed}`, tone: 'ring-neon-purple/70 text-[#d9b6ff]' });
-          const have = (gameState?.consecutiveValidWords ?? 0) + 1;
-          const need = gameState?.goldenRoundThreshold ?? 11;
-          effects.push(have >= need ? { text: '★ GOLDEN ROUND NEXT!', tone: 'ring-neon-yellow text-neon-yellow bg-neon-yellow/15' } : { text: `★ ${have}/${need}`, tone: 'ring-neon-yellow/70 text-neon-yellow' });
-          const combo = gameState?.powerSurgeProgress ?? 0;
-          effects.push(combo >= 4 ? { text: '🔗 COMBO x2!', tone: 'ring-neon-cyan text-neon-cyan bg-neon-cyan/15' } : { text: `🔗 COMBO ${combo + 1}/5${combo + 1 === 4 ? ' · NEXT x2' : ''}`, tone: 'ring-neon-cyan/70 text-neon-cyan' });
+          if (letters + n >= needed) effects.push({ text: '⚡ FILLS YOUR POWERPLAY METER!', tone: 'text-neon-purple' });
+          if ((gameState?.consecutiveValidWords ?? 0) + 1 >= (gameState?.goldenRoundThreshold ?? 11)) effects.push({ text: '★ STARTS A GOLDEN ROUND!', tone: 'text-neon-yellow' });
+          if ((gameState?.powerSurgeProgress ?? 0) >= 4) effects.push({ text: '🔗 COMBO x2 ON THIS WORD!', tone: 'text-neon-cyan' });
         }
-        const nextLen = n >= 1 && n < BUILD_ROW_SIZE ? Math.max(minLen, n + 1) : 0;
+        // v7.85.0: the open spot after the word glows when one more letter pays more (length bonus, time).
+        const nextLen = n >= minLen && n < BUILD_ROW_SIZE ? n + 1 : 0;
         const nextMult = nextLen ? lengthMultiplier(nextLen) : 1;
-        if (nextLen && n >= minLen && nextMult > lengthMultiplier(n)) {
-          const nextSecs = timeForWordAtLevel(nextLen, level);
-          effects.push({ text: `📏 ${nextLen - n} MORE = x${nextMult}${nextSecs > secs ? ` · +${nextSecs} SEC` : ''}`, tone: 'ring-white/25 text-slate-300 border-dashed' });
-        }
+        const nextSecs = nextLen ? timeForWordAtLevel(nextLen, level) : 0;
+        const nextPays = !!nextLen && (nextMult > lengthMultiplier(n) || nextSecs > secs);
         const tileW = `min(var(--stage-tile-max, 3.6rem), calc((100% - ${Math.max(0, n) * 6}px) / ${Math.max(1, n + (n < BUILD_ROW_SIZE ? 0.55 : 0))}))`;
         return (
           <div className="stage-panel relative flex-1 min-h-[9rem] w-full max-w-sm mx-auto rounded-2xl flex flex-col px-2 pt-1.5 pb-2 overflow-y-auto overscroll-contain" data-testid="stage">
@@ -1386,6 +1413,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
               );
             })()}
             <div className="stage-body relative flex-1 min-h-0 flex flex-col items-center gap-2 [@media(max-height:700px)]:gap-1">
+              {/* The pop waits for any card the word opened (a PowerPlay offer, a level-up...) to close, so it plays
+                  where the player can see it; after 30 s it's old news and is skipped. */}
+              {n === 0 && landed && !modalContent && !isPaused && Date.now() - landed.key < 30000 && <LandedPop key={landed.key} {...landed} onShown={setLandedShown} />}
               {/* v7.83.0: a message never covers the word. With an empty word row it sits in the middle of the
                   stage; while you're spelling it sits under the word's chips instead (see below). */}
               {message && n === 0 && (
@@ -1396,7 +1426,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 </div>
               )}
               <div className="w-full flex justify-center items-end gap-1.5 min-h-[3.9rem]" data-testid="word-stage" aria-label={n ? `Your word: ${wordFromBuildRow}` : 'Your word: empty'}>
-                {n === 0 && !message && <p className="osd-text text-xl leading-none text-slate-500 tracking-wider self-center">TAP TILES TO SPELL A WORD</p>}
+                {n === 0 && !message && !landedShown && <p className="osd-text text-xl leading-none text-slate-500 tracking-wider self-center">TAP TILES TO SPELL A WORD</p>}
                 {placed.map(item => (
                   <div key={item.tile.id} className="tile-land stage-tile shrink-0" style={{ width: tileW }}>
                     <div className="w-full aspect-[1/1.08]">
@@ -1404,12 +1434,27 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     </div>
                   </div>
                 ))}
-                {n > 0 && n < BUILD_ROW_SIZE && <div className="stage-cursor shrink-0 self-center" style={{ width: `calc(${tileW} * 0.55)` }} aria-hidden="true" />}
+                {n > 0 && n < BUILD_ROW_SIZE && <div className={`stage-cursor shrink-0 self-center ${nextPays ? 'stage-cursor-pays' : ''}`} style={{ width: `calc(${tileW} * 0.55)` }} aria-hidden="true" data-testid={nextPays ? 'next-slot-pays' : undefined} />}
               </div>
+              {nextPays && (
+                // The tag sits on its own row, lined up under the glowing spot (invisible spacers match the tiles).
+                <div className="w-full flex justify-center gap-1.5 -mt-1 pointer-events-none" aria-label={`One more letter: length bonus x${nextMult}, plus ${nextSecs} seconds`} data-testid="next-letter-tag">
+                  {placed.map(item => <div key={item.tile.id} className="shrink-0" style={{ width: tileW }} />)}
+                  <div className={`shrink-0 flex ${n >= 5 ? 'justify-end' : 'justify-center'}`} style={{ width: `calc(${tileW} * 0.55)` }}>
+                    <span className="stage-next-tag whitespace-nowrap text-center leading-none rounded-md px-1.5 py-1 osd-text">
+                      <span className="block text-sm text-neon-yellow">+1 LETTER</span>
+                      <span className="block text-sm text-white">x{nextMult}{nextSecs > secs ? <> · +{nextSecs}<Sec /></> : ''}</span>
+                    </span>
+                  </div>
+                </div>
+              )}
               {n > 0 && (
                 <div className="stage-readout text-center" data-testid="stage-readout">
                   {potentialScore > 0 ? (
                     <>
+                      {/* v7.85.0 (the owner's call): this is the BASE score; boosts that land on submit (Combo x2,
+                          upgrades, multipliers...) show in the big "+N" that pops after you submit. */}
+                      <span className="osd-text text-lg leading-none text-neon-yellow/70 mr-1.5 align-middle" data-testid="base-label">BASE</span>
                       <span className="font-display text-3xl leading-none text-neon-yellow drop-shadow-glow-yellow">{potentialScore.toLocaleString()}</span>
                       <span className="osd-text text-xl leading-none text-neon-yellow/80 ml-1">PTS</span>
                       {secs > 0 && <span className="osd-text text-2xl leading-none text-neon-green ml-3">+{secs}<Sec /></span>}
@@ -1420,9 +1465,9 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 </div>
               )}
               {effects.length > 0 && (
-                <div className="stage-effects w-full flex flex-wrap justify-center gap-1 pr-11 pl-1 [@media(max-height:700px)]:flex-nowrap [@media(max-height:700px)]:justify-start [@media(max-height:700px)]:overflow-x-auto" data-testid="stage-effects">
+                <div className="w-full flex flex-col items-center gap-0.5 pr-11 pl-1" data-testid="stage-effects">
                   {effects.map(e => (
-                    <span key={e.text} className={`message-pop osd-text text-base leading-none px-2 py-1 rounded-full ring-1 whitespace-nowrap ${e.tone}`}>{e.text}</span>
+                    <span key={e.text} className={`message-pop font-display text-sm leading-tight text-center ${e.tone} animate-pulse`}>{e.text}</span>
                   ))}
                 </div>
               )}
