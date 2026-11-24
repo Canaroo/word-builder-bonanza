@@ -6223,7 +6223,19 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         });
     };
 
-    const handleActivatePowerPlay = (powerPlay: PowerPlay, confirmed = false) => {
+    // v7.84.1: Multiplicity's "Use it now": fire the copy as soon as it's in the pocket.
+    const copyThenUse = useRef<string | null>(null);
+    useEffect(() => {
+        const id = copyThenUse.current;
+        if (!id || isPaused) return;
+        const copy = (gameState?.availablePowerPlays ?? []).find(p => p.id === id);
+        if (!copy || (gameState?.availablePowerPlays ?? []).some(p => p.id === 'multiplicity')) return;
+        copyThenUse.current = null;
+        handleActivatePowerPlay(copy);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gameState?.availablePowerPlays, isPaused]);
+
+    const handleActivatePowerPlay = (powerPlay: PowerPlay, confirmed: boolean | 'use' = false) => {
         const cantActClear = powerPlay.id === 'actClear' && (time <= POWER_PLAY_VALUES.actClearKeepSeconds || gameState.roundType === 'golden');
         // Multiplicity first opens a read-first card (v7.36.5); its mission counts when the copy is confirmed.
         const justLooking = powerPlay.id === 'multiplicity' && !confirmed;
@@ -6313,10 +6325,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             }
             handleCloseModal();
             soundService.playPowerUp();
+            // v7.84.1 (the owner: too many taps): "Use it now" copies and fires the copy in one go. The copy
+            // lands in the pocket first, then fires once the pocket has updated (useCopyNow below), so it acts
+            // on the new pocket rather than the one still holding Multiplicity.
+            if (confirmed === 'use') copyThenUse.current = last.id;
             dispatch({ type: 'UPDATE_GAME_STATE', payload: {
                 availablePowerPlays: gameState.availablePowerPlays.map(p => (p.id === 'multiplicity' ? { ...last } : p)),
                 powerPlayUses: { ...gameState.powerPlayUses, multiplicity: (gameState.powerPlayUses.multiplicity || 0) + 1 },
-                lastPowerPlayResult: { message: `👯 Copied ${last.icon} ${last.name}. It's in your pocket.`, scoreChange: 0 },
+                lastPowerPlayResult: confirmed === 'use' ? null : { message: `👯 Copied ${last.icon} ${last.name}. It's in your pocket.`, scoreChange: 0 },
             } });
             return;
         }
