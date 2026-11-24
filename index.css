@@ -2,7 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Mobile app feel: no tap flash, no pull-to-refresh bounce, no double-tap zoom (pinch zoom still works). */
+/* Mobile app feel: no tap flash, no pull-to-refresh bounce, no zoom. v7.83.0: pinch zoom is off too
+   (pan-x pan-y): two fingers landing on tiles at once zoomed the board, and some phones kept it. */
 html,
 body,
 #root {
@@ -10,7 +11,7 @@ body,
 }
 html {
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+  touch-action: pan-x pan-y;
 }
 /* Keep content clear of notches and the home indicator when installed full-screen. */
 .safe-area {
@@ -1322,3 +1323,9 @@ body {
   100% { filter: none; }
 }
 @media (prefers-reduced-motion: reduce) { .notice-new { animation: none; } }
+/* v7.83.0: Hamm wobbles to draw the eye, and shakes hard while you hold to smash him. */
+.piggy-wobble { display: inline-block; animation: piggy-wobble 2.4s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes piggy-wobble { 0%, 70%, 100% { transform: rotate(0); } 76% { transform: rotate(-12deg); } 82% { transform: rotate(10deg); } 88% { transform: rotate(-6deg); } 94% { transform: rotate(3deg); } }
+.piggy-shake { display: inline-block; animation: piggy-shake 0.12s linear infinite; }
+@keyframes piggy-shake { 0% { transform: translate(0, 0) rotate(0); } 25% { transform: translate(-2px, 1px) rotate(-6deg); } 50% { transform: translate(2px, -1px) rotate(6deg); } 75% { transform: translate(-1px, 0) rotate(-3deg); } 100% { transform: translate(0, 0) rotate(0); } }
+@media (prefers-reduced-motion: reduce) { .piggy-wobble, .piggy-shake { animation: none; } }

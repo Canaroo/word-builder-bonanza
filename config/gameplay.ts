@@ -303,6 +303,14 @@ export const POWER_PLAY_VALUES = {
   moneyBinSeconds: 8,
   moneyBinCoins: [{ seconds: 1, fallMs: 2400, weight: 0.5 }, { seconds: 2, fallMs: 1700, weight: 0.3 }, { seconds: 3, fallMs: 1100, weight: 0.2 }],
   moneyBinMaxSeconds: 15,
+  // v7.83.0 (the owner's ask: make it harder): bombs and bolts fall in with the coins. Each one you
+  // tap costs a second. About a third of the drops are hazards, falling at the same speeds as the
+  // coins, often right next to the coin before them; drops come faster, so there are as many coins
+  // as before. The bolt is grey and coin-sized: look before you tap.
+  moneyBinEveryMs: 300,
+  moneyBinHazardShare: 0.35,
+  moneyBinHazardSeconds: 1,
+  moneyBinHazards: ['💣', '🔩'],
   moneyBinMaxCredits: 6, // (the v7.55.0 Credits version; unused)
   warioBags: [{ points: 300, seconds: 5 }, { points: 600, seconds: 10 }, { points: 900, seconds: 15 }],
   missionWords: 3,               // Mission: Impossible: pull off the mission within this many words for missionPrize

@@ -16,6 +16,38 @@ const HoldChip: React.FC<{ ms: number; onHold?: () => void; label: string; testI
     </button>
   );
 };
+/**
+ * 🐷 Hamm's smash bar (v7.83.0, the owner's report: players couldn't find where to smash him). A full-
+ * width bar with a big wobbling pig, the savings in large type and a clear HOLD TO SMASH button; holding
+ * fills the bar and shakes the pig harder, and letting go early says to keep holding.
+ */
+const PiggyBar: React.FC<{ bank: number; full: boolean; ms: number; onHold?: () => void; label: string }> = ({ bank, full, ms, onHold, label }) => {
+  const [holding, setHolding] = useState(false);
+  const [early, setEarly] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stop = (released: boolean) => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; if (released) { setEarly(true); setTimeout(() => setEarly(false), 1400); } }
+    setHolding(false);
+  };
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  return (
+    <button type="button" data-testid="piggy-chip" aria-label={label} onContextMenu={e => e.preventDefault()}
+      onPointerDown={e => { e.preventDefault(); setEarly(false); setHolding(true); timer.current = setTimeout(() => { timer.current = null; setHolding(false); onHold?.(); }, ms); }}
+      onPointerUp={() => stop(true)} onPointerLeave={() => stop(false)} onPointerCancel={() => stop(false)}
+      className="relative w-full overflow-hidden flex items-center gap-2 rounded-xl bg-neon-yellow/15 ring-2 ring-neon-yellow shadow-[0_0_14px_rgba(255,210,63,0.45)] pl-2 pr-1.5 py-1 select-none touch-none piggy-bar">
+      {holding && <span className="absolute inset-y-0 left-0 bg-neon-pink/45 arm-fill" style={{ animationDuration: `${ms}ms` }} aria-hidden="true" />}
+      <span className={`relative text-3xl leading-none ${holding ? 'piggy-shake' : 'piggy-wobble'}`} aria-hidden="true">🐷</span>
+      <span className="relative flex-1 min-w-0 text-left leading-none">
+        <span className="block osd-text text-sm text-neon-yellow/90 tracking-wide">HAMM'S SAVINGS{full ? ' · FULL!' : ''}</span>
+        <span className="block font-display text-xl text-white leading-none">{bank.toLocaleString()}</span>
+      </span>
+      <span className={`relative shrink-0 flex items-center gap-1 rounded-lg px-2.5 py-2 font-display text-sm leading-none ${early ? 'bg-neon-pink text-white' : 'bg-neon-yellow text-crt-900'} ${holding ? '' : 'animate-pulse'}`}>
+        <span aria-hidden="true">🔨</span>{early ? 'KEEP HOLDING…' : holding ? 'SMASHING…' : 'HOLD TO SMASH'}
+      </span>
+    </button>
+  );
+};
+
 import type { GameState } from '../types';
 import { POWER_PLAY_VALUES as V, FRAGILE } from '../config/gameplay';
 import { tamagotchiPot, blackjackPayout, jengaPot, prizeFor, levelFor, CENTER_SQUARES, centerSquareLines } from '../services/rules';
@@ -104,10 +136,8 @@ const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string
     const bank = gameState.piggyBank ?? 0;
     const full = bank >= FRAGILE.piggyMax;
     chips.push(bank > 0
-      ? <HoldChip key="piggy" ms={FRAGILE.piggyHoldMs} onHold={onPiggySmash} testId="piggy-chip"
-          label={`Hamm's Piggy Bank holds ${bank.toLocaleString()} points${full ? ', full' : `, growing ${FRAGILE.piggyInterest}% a word`}. Press and hold to smash him and collect. An invalid word, a strike or running out of time loses it all.`}>
-          <span aria-hidden="true">🐷</span><strong className="text-neon-yellow">{bank.toLocaleString()}</strong>{full ? ' · FULL!' : ` · +${FRAGILE.piggyInterest}%/WORD`} · <strong>HOLD TO SMASH</strong>
-        </HoldChip>
+      ? <PiggyBar key="piggy" bank={bank} full={full} ms={FRAGILE.piggyHoldMs} onHold={onPiggySmash}
+          label={`Hamm's Piggy Bank holds ${bank.toLocaleString()} points${full ? ', full' : `, growing ${FRAGILE.piggyInterest}% a word`}. Press and hold to smash him and collect. An invalid word, a strike or running out of time loses it all.`} />
       : <Chip key="piggy" icon="🐷" label={`Hamm's Piggy Bank is empty. ${FRAGILE.piggyDeposit}% of every word's score goes in.`}>HAMM IS EMPTY · {FRAGILE.piggyDeposit}% OF EVERY WORD GOES IN</Chip>);
   }
   // Jenga! (v7.62.0): the tower's pot; tap to cash out once there's a block.

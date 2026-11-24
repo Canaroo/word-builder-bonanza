@@ -641,6 +641,22 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   the rail: a card if it explains or offers one tap, the strip if it counts down or needs a hold.
   Under 700 px tall the cards show their title only. Browser-checked at 390x844 and 360x640 with a
   pocket PowerPlay, two notices, Jenga and a word on the stage at once.
+  **v7.83.0 (the owner's five fixes):** (1) **No zoom:** the viewport has `maximum-scale=1,
+  user-scalable=no`, `html` uses `touch-action: pan-x pan-y`, and `index.tsx` blocks iPhone pinch
+  (`gesturestart`, two-finger `touchmove`): two fingers landing on tiles zoomed the board and some
+  phones kept it; no element was wider than the screen at 320-412 px. (2) **Nothing covers the word:**
+  with a word in the row, stage messages sit under its chips (`stage-message`), else in the middle;
+  the "Long word! Length bonus" toasts are gone (the live payoff shows it); Skill Shot and Blue Steel
+  use stage messages; the global `#toast` is at the top of the screen. (3) **Scrooge's Money Bin is
+  harder:** 💣 and 🔩 fall with the coins (`moneyBinHazards`, `moneyBinHazardShare` 0.35,
+  `moneyBinEveryMs` 300, `moneyBinHazardSeconds` 1), same speeds, 70% dropped beside the last coin;
+  each tapped one costs a second, so the total can go negative (paid through `APPLY_GAMBLE`).
+  Simulated: 14.2 coins / 25 s on offer before, 13.6 / 24 s now plus 7.3 hazards. (4) **Gamble cards
+  scroll** inside their frame when taller than the screen (`Frame` in `GambleCard.tsx`, safe
+  centering); Hollywood Squares has a shorter rules line, a wrapping header row and shorter squares on
+  short screens. (5) **Hamm's smash bar** (`PiggyBar` in `PowerPlayTrackers.tsx`, `piggy-chip` kept):
+  full width, a wobbling 🐷, the savings in big type and a 🔨 HOLD TO SMASH button; holding fills it and
+  shakes the pig, letting go early says KEEP HOLDING…. Browser-checked at 360x640.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

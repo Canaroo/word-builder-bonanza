@@ -3318,8 +3318,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
 
   useEffect(() => {
+    // v7.83.0: no toast here any more: the stage's live payoff shows the length bonus, and the toast sat
+    // over the tiles and SUBMIT while the player was still spelling.
     if ((wordFromBuildRow?.length ?? 0) >= 5 && !longWordBonusNotified) {
-        showToast(`✨ Long word! Length bonus x${lengthMultiplier(wordFromBuildRow.length)} and climbing ✨`);
         dispatch({ type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: true });
     } else if ((wordFromBuildRow?.length ?? 0) < 5 && longWordBonusNotified) {
         dispatch({ type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: false });
@@ -4218,9 +4219,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (croc) modalQueue.push(croc);
       if (levelUp) payLevelUp(scoreResult);
 
-      if (word.length >= 5 && !isChallengeLock) {
-          showToast(`Length bonus x${lengthMultiplier(word.length)}!`);
-      }
       
       // --- Combo Breaker: a short word scores nothing and breaks the combo (the PowerPlay ends) ---
       if (newState.activePowerPlays.comboBreaker && word.length < POWER_PLAY_VALUES.comboBreakerMinLength) {
@@ -5169,11 +5167,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               const points = skillShotPoints(streak);
               runningScore += points;
               scoreResult.bonuses.push({ name: '🎯 Skill Shot', description: `+${points} pts (lit tile in the level's first word${streak > 1 ? `, ${streak} levels in a row` : ''})` });
-              showToast(`🎯 SKILL SHOT! +${points}${streak > 1 ? ` · ${streak} IN A ROW` : ''}`, 3000);
+              showMessage(`🎯 SKILL SHOT! +${points}${streak > 1 ? ` · ${streak} IN A ROW` : ''}`, 3000);
               soundService.playMilestone();
           } else if (shot.tileId) {
               // Say why nothing paid, so the rule teaches itself.
-              showToast(wordLocked ? '🎯 Skill Shot: no bonus on a wiped word' : `🎯 Skill Shot missed: the lit tile wasn't in your word${shot.streak > 0 ? ' (streak reset)' : ''}`, 3000);
+              showMessage(wordLocked ? '🎯 Skill Shot: no bonus on a wiped word' : `🎯 Skill Shot missed: the lit tile wasn't in your word${shot.streak > 0 ? ' (streak reset)' : ''}`, 3000);
           }
           newState.skillShot = { ...shot, streak, tileId: '' };
       }
@@ -5191,7 +5189,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           runningScore += extra;
           scoreResult.bonuses.push({ name: '💙 Blue Steel', description: `+${extra.toLocaleString()} pts (x${BLUE_STEEL.multiplier} whole word)` });
           eventLogQueue.push({ type: 'event', id: `bluesteel-pay-${Date.now()}`, name: 'Blue Steel', icon: '💙', description: `${word.toUpperCase()} scored x${BLUE_STEEL.multiplier}.`, scoreChange: extra, cumulativeScore: runningScore });
-          showToast(`💙 BLUE STEEL! x${BLUE_STEEL.multiplier}: +${extra.toLocaleString()}`, 3000);
+          showMessage(`💙 BLUE STEEL! x${BLUE_STEEL.multiplier}: +${extra.toLocaleString()}`, 3000);
       }
 
       // Triforce of Power (v7.69.0): every word scores x1.5 on everything it earned above. 0 means 0 holds.
