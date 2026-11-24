@@ -113,7 +113,14 @@ const GearMenu: React.FC<{
   progressFor: (buff: Charm | PowerPlay) => string;
   onUse: (pp: PowerPlay) => void;
   onClose: () => void;
-}> = ({ gameState: gs, level, strikesLeft, maxStrikes, progressFor, onUse, onClose }) => {
+  /** v7.84.0: what left the top of the board lives here now. */
+  words?: number;
+  onSound?: () => void;
+  onLog?: () => void;
+  onSave?: () => void;
+  trophies?: { id: string; icon: string; name: string; unlocked: boolean }[];
+  onTrophy?: (id: string) => void;
+}> = ({ gameState: gs, level, strikesLeft, maxStrikes, progressFor, onUse, onClose, words, onSound, onLog, onSave, trophies, onTrophy }) => {
   const [sel, setSel] = useState<string | null>(null);
   const [pick, setPick] = useState<Pick | null>(null);
   const choose = (key: string, p: Pick) => { setSel(key); setPick(p); };
@@ -138,9 +145,16 @@ const GearMenu: React.FC<{
         <button type="button" onClick={onClose} className="osd-text text-xl text-neon-cyan px-2" aria-label="Close and keep playing">✕ BACK</button>
       </div>
       <p className="osd-text text-sm leading-none text-slate-400 -mt-1">GAME PAUSED · TAP ANYTHING FOR DETAILS</p>
+      {(onSound || onLog || onSave) && (
+        <div className="grid grid-cols-3 gap-1.5" data-testid="gear-actions">
+          {onSound && <button type="button" onClick={onSound} className="rounded-lg ring-1 ring-white/30 bg-[#0b1a4a] py-1.5 flex flex-col items-center gap-0.5 hover:ring-neon-cyan" aria-label="Sound and music"><span className="text-xl leading-none" aria-hidden="true">🔊</span><span className="osd-text text-sm leading-none text-white">SOUND</span></button>}
+          {onLog && <button type="button" onClick={onLog} className="rounded-lg ring-1 ring-white/30 bg-[#0b1a4a] py-1.5 flex flex-col items-center gap-0.5 hover:ring-neon-cyan" aria-label="Event log"><span className="text-xl leading-none" aria-hidden="true">📖</span><span className="osd-text text-sm leading-none text-white">EVENT LOG</span></button>}
+          {onSave && <button type="button" onClick={onSave} className="rounded-lg ring-1 ring-white/30 bg-[#0b1a4a] py-1.5 flex flex-col items-center gap-0.5 hover:ring-neon-cyan" aria-label="Save and quit"><span className="text-xl leading-none" aria-hidden="true">💾</span><span className="osd-text text-sm leading-none text-white">SAVE & QUIT</span></button>}
+        </div>
+      )}
 
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col gap-2 pr-0.5">
-        <Box title="RUN STATUS" right={`LEVEL ${level}`}>
+        <Box title="RUN STATUS" right={`LEVEL ${level}${words !== undefined ? ` · ${words} WORDS` : ''}`}>
           <Row selected={sel === 'strikes'} icon="❌" label={<>Strikes left: <strong>{strikesLeft} of {maxStrikes}</strong>{shields.length ? ` · ${shields.length} protection${shields.length > 1 ? 's' : ''} up` : ''}</>}
             onClick={() => choose('strikes', { icon: '❌', name: 'Strikes', text: `An invalid word is a strike. ${maxStrikes} strikes and the run ends.${shields.length ? `\n\nProtecting you now:\n${shields.join('\n')}` : ' Nothing is protecting you right now.'}${fragile.length ? `\n\n💔 Your fragile charms (${fragile.map(c => c.name).join(', ')}) break on any invalid word or strike, even a blocked one.` : ''}` })} />
           <Row selected={sel === 'clock'} icon="⏱️" label={<>Clock speed <strong>x{clockSpeedFor(level).toFixed(2)}</strong> · word time <strong>{Math.round(wordTimeScaleFor(level) * 100)}%</strong></>}
@@ -229,6 +243,16 @@ const GearMenu: React.FC<{
             </div>
           )}
         </Box>
+        {trophies && trophies.length > 0 && (
+          <Box title="TROPHIES" right={`${trophies.filter(t => t.unlocked).length}/${trophies.length}`}>
+            <div className="flex flex-wrap gap-2 pt-0.5" data-testid="gear-trophies">
+              {trophies.map(t => (
+                <button key={t.id} type="button" disabled={!t.unlocked} onClick={() => onTrophy?.(t.id)} title={t.name} aria-label={`${t.name}${t.unlocked ? '' : ' (not earned yet)'}`}
+                  className="text-2xl leading-none disabled:opacity-30 enabled:hover:scale-110 transition-transform">{t.icon}</button>
+              ))}
+            </div>
+          </Box>
+        )}
       </div>
 
       {/* The description box, RPG style: always in the same place. */}

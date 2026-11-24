@@ -1329,3 +1329,7 @@ body {
 .piggy-shake { display: inline-block; animation: piggy-shake 0.12s linear infinite; }
 @keyframes piggy-shake { 0% { transform: translate(0, 0) rotate(0); } 25% { transform: translate(-2px, 1px) rotate(-6deg); } 50% { transform: translate(2px, -1px) rotate(6deg); } 75% { transform: translate(-1px, 0) rotate(-3deg); } 100% { transform: translate(0, 0) rotate(0); } }
 @media (prefers-reduced-motion: reduce) { .piggy-wobble, .piggy-shake { animation: none; } }
+/* v7.84.0: the charm-time note in the score column fades in and out. */
+.hud-charm-note { animation: hud-charm-note 3.2s ease-out forwards; }
+@keyframes hud-charm-note { 0% { opacity: 0; } 10%, 80% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .hud-charm-note { animation: none; } }

@@ -657,6 +657,18 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   short screens. (5) **Hamm's smash bar** (`PiggyBar` in `PowerPlayTrackers.tsx`, `piggy-chip` kept):
   full width, a wobbling 🐷, the savings in big type and a 🔨 HOLD TO SMASH button; holding fills it and
   shakes the pig, letting go early says KEEP HOLDING…. Browser-checked at 360x640.
+  **v7.84.0 A clean top (the owner's photos: "way too many things going on up there"; their picks):**
+  the top of the board shows only what matters every second: SCORE (sized to fit, `hud-score`, with the
+  next-gate bar), the clock with the level badge under it, and STRIKES with a 🎒 button under them
+  (`gear-button`, a charms badge `gear-count`, gold glow on `gearGlow`). The WORDS count, the trophy
+  icon row (🎸🔥💾⭐👾), 📖, 🔊, 💾 and the Gear strip of charm icons are gone from the board: the Gear
+  menu now has SOUND, EVENT LOG and SAVE & QUIT buttons under its title (`gear-actions`), the words
+  played in RUN STATUS and a TROPHIES box (`gear-trophies`, tap for the trophy's info). The three
+  meters are one slim row of bars (`meters`), still glowing with a ghost fill for the word on the
+  stage. The charm-time note (🍀 CHARM 3→2 SEC · LV7 70%, `HudCharmNote`) shows in the score column for
+  3 s instead of dropping over the clock and level badge. The stage grew from about 330 to 462 px at
+  390x844 and from about 180 to 298 px at 360x640. Browser scripts save through 🎒 → SAVE & QUIT (the
+  skill's `playtest.mjs` too).
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

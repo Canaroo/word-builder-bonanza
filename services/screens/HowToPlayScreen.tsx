@@ -184,10 +184,11 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             +{TRIFORCE.wishPoints.toLocaleString()} and the Hero of Time badge.
           </p>
           <p>
-            <Key>🎒 Your Gear</Key>. Tap the Gear strip under the meters to open your gear menu (the clock pauses while
-            it's open). It lists your strikes and what protects you, every charm and what it has earned this run, your
-            pocket PowerPlay, anything running, your charm sets and your Triforce shards. Tap any line to read what it
-            does.
+            <Key>🎒 Your Gear</Key>. Tap the 🎒 button at the top right (its badge shows your charms, and it glows when
+            something new lands). The clock pauses while it's open. Up top: 🔊 sound and music, 📖 the event log and 💾
+            save &amp; quit. Below: your strikes and what protects you, every charm and what it has earned this run, your
+            pocket PowerPlay, anything running, your charm sets, your Triforce shards and your trophies. Tap any line to
+            read what it does.
           </p>
           <p>
             <Key>💔 Fragile charms</Key> (Glass Joe, Major Award, Crystal Ball, Hamm's Piggy Bank) are the strongest charms around, but the
