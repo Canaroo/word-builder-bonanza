@@ -142,6 +142,12 @@ export const POWER_PLAY_VALUES = {
   centerSquareTurns: 9,
   centerSquareSeconds: 60,
   centerSquarePerSquare: 60,
+  // v7.79.1 (the owner's ask): each finished line of three (row, column or diagonal) pays more, and
+  // so does a full board. Simulated: any-word play ~1.7 lines (~425 in all), a realistic aimer (~7
+  // words in 60 s) ~3.1 lines (~535), an expert using all 9 words ~5.2 lines and a full board 34% of
+  // the time (~820). A full board pays 540 + 400 + 300 = 1,240 at level 1.
+  centerSquareLineBonus: 50,
+  centerSquareFullBonus: 300,
   // 📊 Survey Says! (v7.74.0, Family Feud): spell the board's answers from your tiles. The board's
   // slots are the lengths of the longest everyday words the tiles can spell (top answer first).
   surveySeconds: 25,

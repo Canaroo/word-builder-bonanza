@@ -653,7 +653,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   {
     id: 'centerSquare',
     name: 'Center Square',
-    description: `Hollywood Squares, played the moment you pick it. A 3x3 board of squares like "ends in S" or "starts with a vowel" (the center is 6+ letters) and a fresh hand of tiles. You get ${POWER_PLAY_VALUES.centerSquareTurns} words and ${POWER_PLAY_VALUES.centerSquareSeconds} seconds, no shuffles: each word fills one open square it fits, and every square pays +${POWER_PLAY_VALUES.centerSquarePerSquare}. Your run's clock waits while you play.`,
+    description: `Hollywood Squares, played the moment you pick it. A 3x3 board of squares like "ends in S" or "starts with a vowel" (the center is 6+ letters) and a fresh hand of tiles. You get ${POWER_PLAY_VALUES.centerSquareTurns} words and ${POWER_PLAY_VALUES.centerSquareSeconds} seconds, no shuffles: each word fills one open square it fits. Every square pays +${POWER_PLAY_VALUES.centerSquarePerSquare}, every line of three (across, down or diagonal) +${POWER_PLAY_VALUES.centerSquareLineBonus} more, and a full board +${POWER_PLAY_VALUES.centerSquareFullBonus}. Your run's clock waits while you play.`,
     flavorText: 'I\'ll take Paul Lynde to block! (Hollywood Squares)',
     icon: '⭕',
     subtheme: 'score',

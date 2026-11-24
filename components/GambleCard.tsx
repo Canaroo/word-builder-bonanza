@@ -3,7 +3,7 @@ import { Sec } from './Seconds';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import ArcadeButton, { NamedLabel } from './ArcadeButton';
 import { POWER_PLAY_VALUES as V, TIME_BONUS } from '../config/gameplay';
-import { dealDoors, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, WHAMMY_BOARD, whammySpin, whammySquareFor, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout, blackjackHands, blackjackTotal, blackjackResult, blackjackPrize, gumpRoll, type GumpPrize, surveyBoard, surveySlotFor, surveyPayout, CENTER_SQUARES, centerSquareDeal, centerSquareFill, centerSquarePay, fortuneRoll, fortunePoints, FORTUNE_ANSWERS, type FortuneKind } from '../services/rules';
+import { dealDoors, minesweeperPot, bankerOffer, dealGame, cardSharksPot, drawCard, cardFace, hotTubSeconds, WHAMMY_BOARD, whammySpin, whammySquareFor, PLINKO_SLOTS, PLINKO_ROWS, plinkoSlotFor, plinkoPath, plinkoPayout, blackjackHands, blackjackTotal, blackjackResult, blackjackPrize, gumpRoll, type GumpPrize, surveyBoard, surveySlotFor, surveyPayout, CENTER_SQUARES, CENTER_SQUARE_LINES, centerSquareDeal, centerSquareFill, centerSquarePay, centerSquareDoneLines, fortuneRoll, fortunePoints, FORTUNE_ANSWERS, type FortuneKind } from '../services/rules';
 import { createTile, createTileBag, shuffleArray, dealNewHand } from '../services/gameUtils';
 import { dictionaryService } from '../services/dictionaryService';
 import { WordPad, gateTiles } from './MiniGames';
@@ -45,10 +45,12 @@ function useSaved<T>(key: string, init: T | (() => T)): [T, (value: T) => void] 
   return [value, (next: T) => { setValue(next); save?.(key, next); }];
 }
 
-const Frame: React.FC<{ icon: string; name: string; children: React.ReactNode }> = ({ icon, name, children }) => (
+// The small line above a card's icon. Gambles say TAKE A CHANCE; skill cards can have their own (v7.79.1).
+const FRAME_KICKER: Record<string, string> = { centerSquare: 'HOLLYWOOD SQUARES' };
+const Frame: React.FC<{ icon: string; name: string; kicker?: string; children: React.ReactNode }> = ({ icon, name, kicker = 'TAKE A CHANCE', children }) => (
   <div className="absolute inset-0 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label={name}>
     <div className="bg-crt-900 border-4 border-neon-pink rounded-2xl px-5 py-6 max-w-md w-full flex flex-col items-center text-center gap-3 level-stage-in shadow-[0_0_28px_rgba(255,45,149,0.5)]">
-      <p className="osd-text text-lg tracking-[0.3em] text-slate-300">TAKE A CHANCE</p>
+      <p className="osd-text text-lg tracking-[0.3em] text-slate-300">{kicker}</p>
       <div className="text-5xl leading-none" aria-hidden="true">{icon}</div>
       <p className="font-display text-xl text-white leading-tight">{name}</p>
       {children}
@@ -1605,11 +1607,16 @@ const CenterSquareCard: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ 
     refill(word);
     const slot = centerSquareFill(deal.board, s.got, word);
     if (slot === null) { soundService.playInvalidWord(); setFlash(`${word} fits no open square. That's a turn.`); spendTurn(s); return; }
+    const linesBefore = centerSquareDoneLines(s.got).length;
     s.got = s.got.map((g, i) => g || i === slot);
     s.words = s.words.map((w, i) => (i === slot ? word : w));
-    soundService.playTileClick(); buzz([15, 30, 15]);
+    const newLines = centerSquareDoneLines(s.got).length - linesBefore;
+    const fullNow = s.got.every(Boolean);
+    if (newLines || fullNow) { soundService.playPowerUp(); buzz([20, 40, 20, 40, 60]); } else { soundService.playTileClick(); buzz([15, 30, 15]); }
     setLit(slot); setTimeout(() => setLit(l => (l === slot ? null : l)), 900);
-    setFlash(`⭕ ${word}: ${CENTER_SQUARES[deal.board[slot]].label} +${V.centerSquarePerSquare}`);
+    setFlash(fullNow ? `⭕ FULL BOARD! +${V.centerSquareFullBonus} MORE`
+      : newLines ? `⭕ ${word}: ${newLines > 1 ? `${newLines} LINES` : 'LINE'}! +${V.centerSquarePerSquare + newLines * V.centerSquareLineBonus}`
+      : `⭕ ${word}: ${CENTER_SQUARES[deal.board[slot]].label} +${V.centerSquarePerSquare}`);
     spendTurn(s);
   };
   if (!deal || !progress) return <p className="osd-text text-lg text-slate-300 animate-pulse">TAKING OUR SEATS…</p>;
@@ -1617,12 +1624,15 @@ const CenterSquareCard: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ 
   const filled = s.got.filter(Boolean).length;
   const pay = centerSquarePay(s.got);
   const full = filled === 9;
+  const doneLines = centerSquareDoneLines(s.got);
+  const inLine = new Set(doneLines.flatMap(k => CENTER_SQUARE_LINES[k]));
   return (
     <>
-      <p className="text-slate-200 text-sm leading-snug">Fill the squares. You have {V.centerSquareTurns} words, {V.centerSquareSeconds} seconds and no shuffles; your run's clock waits. Each word fills one open square it fits (the hardest one), and every square pays +{V.centerSquarePerSquare}. A fake word, or one that fits no open square, still uses a word.</p>
+      <p className="text-slate-200 text-sm leading-snug">Fill the squares. You have {V.centerSquareTurns} words, {V.centerSquareSeconds} seconds and no shuffles; your run's clock waits. Each word fills one open square it fits. Every square pays +{V.centerSquarePerSquare}, every line of three (across, down or diagonal) +{V.centerSquareLineBonus} more, and a full board +{V.centerSquareFullBonus}. A fake word, or one that fits no open square, still uses a word.</p>
       <div className="w-full flex justify-between items-baseline">
         <span className="font-display text-xl text-neon-yellow" data-testid="squares-pay">+{pay}</span>
         <span className="osd-text text-xl text-slate-200" data-testid="squares-turns">WORD {Math.min(s.turns + 1, V.centerSquareTurns)}/{V.centerSquareTurns}</span>
+        <span className="osd-text text-xl text-neon-green" data-testid="squares-lines">{doneLines.length} {doneLines.length === 1 ? 'LINE' : 'LINES'}</span>
         {!s.over && <span className="osd-text text-xl text-white tabular-nums">{Math.ceil(s.left / 1000)}<Sec /></span>}
       </div>
       <div className="w-full grid grid-cols-3 gap-1.5" data-testid="squares-board">
@@ -1630,7 +1640,7 @@ const CenterSquareCard: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ 
           const done = s.got[i];
           return (
             <div key={i} aria-label={`${CENTER_SQUARES[id].label}${done ? `: filled by ${s.words[i]}` : ': open'}`}
-              className={`min-h-[3.75rem] rounded-lg px-1 py-1.5 flex flex-col items-center justify-center text-center ring-2 transition-transform ${done ? 'bg-neon-yellow/20 ring-neon-yellow' : i === 4 ? 'bg-[#0b2a6b] ring-neon-pink/70' : 'bg-[#0b2a6b] ring-[#4d7cff]/70'} ${lit === i ? 'scale-105 level-stage-in' : ''}`}>
+              className={`min-h-[3.75rem] rounded-lg px-1 py-1.5 flex flex-col items-center justify-center text-center ring-2 transition-transform ${done ? (inLine.has(i) ? 'bg-neon-green/20 ring-neon-green shadow-[0_0_12px_rgba(61,255,140,0.6)]' : 'bg-neon-yellow/20 ring-neon-yellow') : i === 4 ? 'bg-[#0b2a6b] ring-neon-pink/70' : 'bg-[#0b2a6b] ring-[#4d7cff]/70'} ${lit === i ? 'scale-105 level-stage-in' : ''}`}>
               {done ? (
                 <>
                   <span className="font-display text-2xl leading-none text-neon-yellow" aria-hidden="true">⭕</span>
@@ -1648,9 +1658,10 @@ const CenterSquareCard: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ 
       ) : (
         <>
           <p className="font-display text-2xl text-neon-green">{full ? `FULL BOARD! +${pay}` : pay ? `${filled} SQUARES: +${pay}` : 'NOT ONE SQUARE'}</p>
+          {pay > 0 && <p className="osd-text text-lg leading-tight text-slate-300" data-testid="squares-breakdown">{filled} x {V.centerSquarePerSquare}{doneLines.length ? ` + ${doneLines.length} ${doneLines.length === 1 ? 'line' : 'lines'} x ${V.centerSquareLineBonus}` : ''}{full ? ` + full board ${V.centerSquareFullBonus}` : ''}</p>}
           <ArcadeButton color={pay ? 'green' : 'pink'} className="w-full" onClick={() => onResolve({ points: pay,
             headline: full ? `FULL BOARD! +${pay}` : pay ? `${filled} SQUARES: +${pay}` : 'NO SQUARES',
-            detail: `${filled} of 9 squares filled, +${V.centerSquarePerSquare} each.${s.words.some(Boolean) ? ` ${s.words.filter(Boolean).join(', ')}.` : ''}`,
+            detail: `${filled} of 9 squares filled, +${V.centerSquarePerSquare} each${doneLines.length ? `; ${doneLines.length} ${doneLines.length === 1 ? 'line' : 'lines'}, +${V.centerSquareLineBonus} each` : ''}${full ? `; full board +${V.centerSquareFullBonus}` : ''}.${s.words.some(Boolean) ? ` ${s.words.filter(Boolean).join(', ')}.` : ''}`,
             tone: pay ? 'win' : 'lose' })}>{pay ? `Take +${pay}` : 'Continue'}</ArcadeButton>
         </>
       )}
@@ -1672,7 +1683,7 @@ const GambleCard: React.FC<{ id: string; icon: string; name: string; onResolve: 
   if (!Game) return null;
   return (
     <GambleSave.Provider value={{ saved, save: onSave }}>
-      <Frame icon={icon} name={name}><Game onResolve={onResolve} hand={hand} extra={extra} /></Frame>
+      <Frame icon={icon} name={name} kicker={FRAME_KICKER[id]}><Game onResolve={onResolve} hand={hand} extra={extra} /></Frame>
     </GambleSave.Provider>
   );
 };
