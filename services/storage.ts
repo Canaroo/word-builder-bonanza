@@ -35,6 +35,8 @@ export const STORAGE_KEYS = {
     gemTips: 'wordNerdGemTips',
     /** Per player: the game day the Play button last offered the Daily Challenge (it asks once a day). */
     dailyChooserDay: 'wordNerdDailyChooserDay',
+    /** Names (lowercase) that were offered the 1-minute tour or took it (v7.78.0). */
+    tourSeen: 'wordNerdTourSeen',
     musicOwned: 'wordNerdMusicOwned',
     musicTrack: 'wordNerdMusicTrack',
     eventMusic: 'wordNerdEventMusic',

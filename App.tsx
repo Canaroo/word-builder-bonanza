@@ -8,6 +8,7 @@ const loadGameScreen = () => import('./services/screens/GameScreen');
 const GameScreen = lazy(() => loadGameScreen().then(m => ({ default: m.GameScreen })));
 const GameOverScreen = lazy(() => import('./services/screens/GameOverScreen'));
 const HowToPlayScreen = lazy(() => import('./services/screens/HowToPlayScreen'));
+const QuickTour = lazy(() => import('./components/QuickTour'));
 const VibezScreen = lazy(() => import('./services/screens/VibezScreen'));
 const CollectionScreen = lazy(() => import('./services/screens/CollectionScreen'));
 const BadgeCaseScreen = lazy(() => import('./services/screens/BadgeCaseScreen'));
@@ -57,6 +58,7 @@ import { pickNextHint, RunRecap } from './services/runRecap';
 import { recordRunFinished, buyCosmetic, equipCosmetic, buyFreeze, publicFlair, type StreakUpdate } from './services/progression';
 import { cosmeticById, type CosmeticKind } from './data/cosmetics';
 import { applyUpdate, isUpdateReady, onUpdateReady, takeUpdatedNote } from './services/appUpdate';
+import { markTourSeen } from './services/tour';
 
 export enum Screen {
   Start,
@@ -67,6 +69,7 @@ export enum Screen {
   Collection,
   BadgeCase,
   Profile,
+  Tour,
 }
 
 const App: React.FC = () => {
@@ -461,6 +464,24 @@ const App: React.FC = () => {
     musicService.stop();
   }, []);
 
+  // The 1-minute tour (v7.78.0): from the start screen's pill, or offered on a new player's first Play.
+  const [tour, setTour] = useState<{ name: string; fromPlay: boolean } | null>(null);
+  const handleShowTour = useCallback((name: string, fromPlay: boolean) => {
+    soundService.initialize();
+    markTourSeen(name);
+    setTour({ name, fromPlay });
+    setScreen(Screen.Tour);
+  }, []);
+  const tourSaved = screen === Screen.Tour && !tour?.fromPlay ? storage.getJSON<{ playerName?: string } | null>(STORAGE_KEYS.savedGame, null) : null;
+  const handleTourPlay = useCallback(() => {
+    const name = tour?.name.trim() ?? '';
+    if (tourSaved?.playerName) { handleResumeGame(tourSaved.playerName); return; }
+    if (!name) { handleGoToMenu(); return; }
+    musicService.play();
+    handlePlay(name);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tour, tourSaved?.playerName]);
+
   const handleShowHowToPlay = useCallback(() => {
     soundService.initialize();
     soundService.playUIClick();
@@ -543,6 +564,7 @@ const App: React.FC = () => {
         return <StartScreen 
           onPlay={handlePlay} 
           onPlayDaily={handlePlayDaily}
+          onShowTour={handleShowTour}
           onResumeGame={handleResumeGame} 
           onShowHowToPlay={handleShowHowToPlay} 
           onShowVibez={handleShowVibez} 
@@ -597,6 +619,8 @@ const App: React.FC = () => {
         );
       case Screen.HowToPlay:
         return <HowToPlayScreen onBack={handleGoToMenu} />;
+      case Screen.Tour:
+        return <QuickTour tileClass={selectedPack.tileClass} hasSavedRun={!!tourSaved?.playerName} onPlay={handleTourPlay} onFullGuide={handleShowHowToPlay} onMenu={handleGoToMenu} />;
       case Screen.Collection:
         return <CollectionScreen onBack={handleGoToMenu} onTab={handleTab} onShowBadgeCase={handleShowBadgeCase} lexCoins={lexCoins} />;
       case Screen.BadgeCase:
@@ -621,7 +645,7 @@ const App: React.FC = () => {
           onSelectTrack={handleSelectTrack}
           />;
       default:
-        return <StartScreen onPlay={handlePlay} onPlayDaily={handlePlayDaily} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} onShowBadgeCase={handleShowBadgeCase} onShowProfile={handleShowProfile} onTab={handleTab} openOnMount={startOpen} onOpened={() => setStartOpen(null)} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin} profileVersion={profileVersion} onBuyFreeze={handleBuyFreeze}/>;
+        return <StartScreen onPlay={handlePlay} onPlayDaily={handlePlayDaily} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowTour={handleShowTour} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} onShowBadgeCase={handleShowBadgeCase} onShowProfile={handleShowProfile} onTab={handleTab} openOnMount={startOpen} onOpened={() => setStartOpen(null)} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin} profileVersion={profileVersion} onBuyFreeze={handleBuyFreeze}/>;
     }
   };
 

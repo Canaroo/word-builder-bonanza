@@ -565,6 +565,20 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   device as `wordNerdEventMusic`; `eventMusicOn`/`setEventMusicOn` in `services/music.ts`) turns it
   off: the player's track keeps playing, and event tracks aren't even downloaded. Browser-checked by
   watching requests: boss fight → `boss-fight.mp3`, Golden Round → `golden-round.mp3`, switch off → neither.
+- **The 1-minute tour (v7.78.0, the owner's picks)** (`components/QuickTour.tsx`, `services/tour.ts`,
+  `Screen.Tour` in `App.tsx`, tests in `tour.test.ts`): a "❓ HOW TO PLAY · 1-MIN TOUR" pill under the
+  logo (everyone), and a brand-new player (a new name, or no finished runs in `getCareer()`) is
+  offered it once on their first Play ("New here?", Take the tour / Skip, just play; names that saw
+  it in `tourSeen`). Four hands-on screens with the real tiles and Shuffle button, no score or stats:
+  1. a 👆 guides C-A-T, each tile flies up to the word row, SUBMIT: CAT +5, +2 sec;
+  2. CLOSET +16 (x2 length), +7 sec, next to CAT's numbers;
+  3. the clock ticks, a fake word (TOLC) earns strike 1 of 3, hold SHUFFLE for new tiles and +5 sec;
+  4. flip cards for PowerPlays, Charms, Boss Fights and the Golden Round.
+  Then "YOU'RE READY!": ▶ Play now (▶ Back to my run when a run is saved and the tour came from the
+  pill), 📖 Full How to Play, 🏠 Main menu; SKIP TOUR on every screen goes there. Scores come from
+  `tourWordScore` (tile points x length bonus; a test checks it against `calculateScore`), so change
+  the words in `services/tour.ts` and the text follows. Later idea (the owner's): shrink the pill to
+  a ❓ icon once a player has finished the tour.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
