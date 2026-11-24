@@ -3,7 +3,7 @@
 // Switching tracks crossfades; the shop can preview a track for a few seconds, even when muted
 // (the player asked for it), with the game's music ducked underneath.
 import { trackById, DEFAULT_TRACK_ID } from '../data/music';
-import { selectedTrack } from './music';
+import { selectedTrack, eventMusicOn, setEventMusicOn } from './music';
 
 const MUSIC_VOLUME = 0.1; // ambient background level
 const PREVIEW_VOLUME = 0.16;
@@ -14,7 +14,10 @@ const musicService = (() => {
     let busGain: GainNode | null = null; // mute lives here
     const buffers = new Map<string, AudioBuffer>();
     const loading = new Map<string, Promise<AudioBuffer | null>>();
-    let currentId = DEFAULT_TRACK_ID;
+    let currentId = DEFAULT_TRACK_ID; // what plays now (the player's track, or an event track)
+    let chosenId = DEFAULT_TRACK_ID;  // the player's own track
+    let eventId: string | null = null; // v7.77.0: the Golden Round or boss track the game asked for
+    let eventsOn = true;
     let source: { node: AudioBufferSourceNode; gain: GainNode; id: string } | null = null;
     let wantPlaying = false;
     let muted = false;
@@ -68,6 +71,14 @@ const musicService = (() => {
         source = { node, gain, id };
     };
 
+    /** Play whatever should be playing now: the event track (when allowed) or the player's own. */
+    const retarget = () => {
+        const target = eventsOn && eventId ? eventId : chosenId;
+        if (target === currentId) return;
+        currentId = target;
+        if (wantPlaying) startCurrent(true); else if (audioCtx) load(target);
+    };
+
     const applyBusVolume = () => {
         if (!audioCtx || !busGain) return;
         const target = muted || preview ? 0 : MUSIC_VOLUME;
@@ -93,7 +104,9 @@ const musicService = (() => {
             busGain = audioCtx.createGain();
             busGain.gain.value = muted ? 0 : MUSIC_VOLUME;
             busGain.connect(audioCtx.destination);
-            currentId = selectedTrack();
+            chosenId = selectedTrack();
+            eventsOn = eventMusicOn();
+            currentId = chosenId;
             load(currentId);
         },
 
@@ -116,14 +129,27 @@ const musicService = (() => {
 
         setMuted: (m: boolean) => { muted = m; applyBusVolume(); },
 
-        /** Switch tracks: a crossfade if music is playing, otherwise it's what plays next. */
+        /** Switch the player's track: a crossfade if music is playing, otherwise it's what plays next. */
         setTrack: (id: string) => {
-            if (!trackById(id) || id === currentId) return;
-            currentId = id;
-            if (wantPlaying) startCurrent(true); else if (audioCtx) load(id);
+            if (!trackById(id) || id === chosenId) return;
+            chosenId = id;
+            retarget();
         },
 
-        currentTrack: () => currentId,
+        currentTrack: () => chosenId,
+
+        /** v7.77.0: the game's event music (a Golden Round or boss fight), or null for the player's track. */
+        setEvent: (id: string | null) => {
+            if (id && !trackById(id)) return;
+            if (id === eventId) return;
+            eventId = id;
+            if (id && eventsOn && audioCtx) load(id); // preload only when it will play
+            retarget();
+        },
+
+        eventMusic: () => eventsOn,
+        /** The Sound panel's switch: off plays the player's own track through those moments. */
+        setEventMusic: (on: boolean) => { eventsOn = on; setEventMusicOn(on); retarget(); notify(); },
 
         /** Play a few seconds of a track (the shop's ▶). The game's music ducks underneath. */
         preview: async (id: string, seconds = 15) => {

@@ -37,6 +37,7 @@ export const STORAGE_KEYS = {
     dailyChooserDay: 'wordNerdDailyChooserDay',
     musicOwned: 'wordNerdMusicOwned',
     musicTrack: 'wordNerdMusicTrack',
+    eventMusic: 'wordNerdEventMusic',
     shopNewsSeen: 'wordNerdShopNewsSeen',
     /** Per player: ids of bones (other players' fallen runs) they've taken a charm from. */
     bonesLooted: 'wordNerdBonesLooted',

@@ -551,6 +551,20 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   clock keeps running while it's open. A "🎵 NEW IN THE SHOP" banner sits above the logo until it's
   tapped (opens the Music tab), closed, or the shop is visited (`shopNewsSeen`); change
   `SHOP_NEWS.id` and text to announce the next shop drop.
+- **Event music (v7.77.0, the owner's ask)** (`EVENT_TRACKS` in `data/music.ts`, files in
+  `public/audio/events/`, kept out of the PWA precache like the shop tracks): 🌟 **Golden Round**
+  (`eventGolden`, tools/music `goldenFountain`: ethereal and floaty in the spirit of a fairy-fountain
+  theme, the owner's pick of two drafts; original melody, chords and harp pattern; A major, 72 BPM,
+  cascading 16th-note harp, glassy melody, pad, no drums, 53 s loop) and 👾 **Boss Fight**
+  (`eventBoss`, `bossFight`: E minor, 152 BPM, octave bass, staccato square lead, stabs, tom fills,
+  25 s loop; "perfect, keep it as is"). Both leveled to about -16 LUFS like the rest. `GameScreen`
+  asks `musicService.setEvent()` for the Golden track during a Golden Round, the Boss track while
+  `gameState.boss` is set, and nothing over Last Words, Phoenix Down or Game Over (or after leaving
+  the screen); the service crossfades and then back to the player's own track (`chosenId` vs
+  `currentId`, `retarget`). The Sound panel's **🌟👾 Special music** switch (on by default, saved per
+  device as `wordNerdEventMusic`; `eventMusicOn`/`setEventMusicOn` in `services/music.ts`) turns it
+  off: the player's track keeps playing, and event tracks aren't even downloaded. Browser-checked by
+  watching requests: boss fight → `boss-fight.mp3`, Golden Round → `golden-round.mp3`, switch off → neither.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

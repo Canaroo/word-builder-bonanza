@@ -43,6 +43,7 @@ import { gemMultiplierFor, skillShotPoints, freakyFridayMatch, jengaPot, nextSpe
 import { findPowerWordHint, powerWordHintStands } from '../powerWordHint';
 import { BOSSES, bossById, pickBoss } from '../../data/bosses';
 import { sendStat, statId } from '../stats';
+import { musicService } from '../musicService';
 import { getBonusMedia } from '../../data/bonusMedia';
 import type { MissionEvent } from '../../data/missions';
 
@@ -3510,6 +3511,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       window.addEventListener('popstate', onBack);
       return () => window.removeEventListener('popstate', onBack);
   }, []);
+
+  // 🎵 Event music (v7.77.0, the owner's ask): the Golden Round and boss fights get their own track,
+  // then the player's own comes back. Not over the end of a run, and never once the screen is gone.
+  // The Sound panel's switch is read by the music service, so turning it off takes effect at once.
+  const runEnding = state.modalContent?.type === 'last-words' || state.modalContent?.type === 'game-over-summary' || state.modalContent?.type === 'continue-offer';
+  const eventTrack = runEnding ? null : gameState?.roundType === 'golden' ? 'eventGolden' : gameState?.boss ? 'eventBoss' : null;
+  useEffect(() => { musicService.setEvent(eventTrack); }, [eventTrack]);
+  useEffect(() => () => musicService.setEvent(null), []);
 
   // 👓 Where's Waldo? (a charm): each new hand, one tile that starts a playable word glows.
   const wisdomOn = triforceDone(gameState, 'wisdom');
