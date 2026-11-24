@@ -4026,13 +4026,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         return;
     }
 
-    soundService.playTileClick();
+    // v7.80.0: the tock climbs with each letter in the word.
+    soundService.playTilePlace((buildRow ?? []).filter(t => t).length);
+    soundService.haptic(8);
     dispatch({ type: 'MOVE_TILE_TO_BUILD', payload: { tile, fromIndex } });
   };
 
   const handleReturnToHand = (fromBuildIndex: number) => {
     if (isChallengeLock) return;
-    soundService.playTileClick();
+    soundService.playTileReturn();
+    soundService.haptic(6);
     dispatch({ type: 'RETURN_TILE_TO_HAND', payload: { fromBuildIndex } });
   };
   
@@ -5841,7 +5844,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     const word = (buildRow ?? []).filter(i => i).map(item => item!.tile.letter).join('');
     
     if (isChallengeLock) {
-        soundService.playValidWord();
+        soundService.playValidWord(word.length);
 
         let newState = { ...gameState, challengeActive: false, consecutiveSuccesses: 0 };
         
@@ -5912,8 +5915,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         validationResult = await dictionaryService.lookupWord(word);
     }
     
+    // v7.80.0: a short buzz on submit, a double pulse on a word that isn't one (phones that support it).
+    soundService.haptic(validationResult.isValid ? 20 : [30, 40, 30]);
     if (validationResult.isValid) {
-        soundService.playValidWord();
+        soundService.playValidWord(word.length);
         
         if (gameState.roundType === 'golden') {
             await completeSubmission(word, submittedTiles, 0, 0, [], validationResult.definition ?? '', false);

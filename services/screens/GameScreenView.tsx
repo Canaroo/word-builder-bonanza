@@ -1275,7 +1275,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                       `}
                     >
                       {item && (
-                        <div className="w-full h-full">
+                        <div className="w-full h-full tile-land">
                           <TileComponent tile={item.tile} onClick={() => handleReturnToHand(index)} packTileClass={tileClass} isGolden={item.tile.id === gameState?.goldenTileId} skillShot={item.tile.id === skillShotTileId ? skillShotPrize : undefined} />
                         </div>
                       )}
@@ -1357,8 +1357,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 const hintIndex = item ? hintIds.indexOf(item.id) : -1;
                 const hintOrder = hintIndex >= 0 ? hintIndex + 1 : undefined;
                 return (
-                  <div key={item?.id || originalIndex} className="w-full h-12 min-[375px]:h-14 sm:h-16 flex items-center justify-center">
-                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} skillShot={item.id === skillShotTileId ? skillShotPrize : undefined} powerLit={powerLitIds.has(item.id)} hintOrder={hintOrder} bossHint={bossTileHint(item)} faceDown={blind && !peeking} /> : <div className="w-full h-full rounded-lg bg-crt-950/60 ring-1 ring-white/5"></div>}
+                  <div key={item?.id || originalIndex} className={`w-full h-12 min-[375px]:h-14 sm:h-16 flex items-center justify-center ${item ? 'tile-deal' : ''}`} style={item ? { animationDelay: `${originalIndex * 45}ms` } : undefined}>
+                    {item ? <TileComponent tile={item} onClick={() => handleMoveToBuild(item, originalIndex)} packTileClass={tileClass} isGolden={item.id === gameState?.goldenTileId} skillShot={item.id === skillShotTileId ? skillShotPrize : undefined} powerLit={powerLitIds.has(item.id)} hintOrder={hintOrder} bossHint={bossTileHint(item)} faceDown={blind && !peeking} /> : <div className="w-full h-full rounded-lg tile-socket"></div>}
                   </div>
                 );
               })}

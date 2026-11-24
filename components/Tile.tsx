@@ -5,6 +5,7 @@ import { Tile } from '../types';
 interface TileProps {
   tile: Tile;
   onClick: () => void;
+  /** No longer used for the tile's look (v7.80.0: one signature keycap for every theme); kept so callers needn't change. */
   packTileClass: string;
   /** Position of this tile in a hinted word (1 = first letter), from Carmen Sandiego or Phone-a-Friend. */
   hintOrder?: number;
@@ -66,7 +67,7 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
             ? (tile.isGem ? 'bg-gradient-to-br from-cyan-300 to-teal-600 text-crt-900' : 'bg-purple-600 text-white')
             : (hasTempPoints 
                 ? 'bg-amber-400 text-slate-900 animate-pulse' 
-                : packTileClass)));
+                : 'tile-key')));
   
   const isSuperLook = tile.isSuper || (hasMultiplier && tile.multiplier === 4 && !tile.isGem);
 
@@ -80,6 +81,8 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
       className={`tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none ${tileStyle} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed' : ''} ${bossHint === 'dim' ? 'boss-tile-dim' : bossHint === 'glow' || powerLit ? 'boss-tile-glow' : ''}`}
       aria-label={`Tile ${tile.letter} with ${tile.tempPoints ?? tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${skillShot ? `, Skill Shot tile: use it in this word for ${skillShot} points` : ''}${tile.isGem ? `, gem x${tile.multiplier}` : ''}${tile.isLocked ? ' (locked for this turn)' : ''}${bossHint === 'dim' ? ', breaks the boss rule' : bossHint === 'glow' ? ', the boss rule needs this tile' : ''}${powerLit ? ', part of the hidden power word' : ''}`}
     >
+      {/* v7.80.0: the dished face of the keycap (cream on plain tiles, a soft see-through dish on special ones). */}
+      {!isGolden && <span className="tile-face" aria-hidden="true" />}
       {/* Rings and glows are overlays: the tile's own box-shadow is its 3D edge. */}
       {isSuperLook && <span className="tile-overlay ring-4 ring-red-400 animate-pulse" aria-hidden="true" />}
       {isGolden && (
@@ -95,7 +98,7 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
           </span>
         </>
       )}
-      <span className={`z-10 font-tile font-extrabold leading-none ${tile.letter.length > 2 ? 'text-base' : tile.letter.length > 1 ? 'text-xl' : 'text-[1.7rem]'}`}>{tile.letter}</span>
+      <span className={`tile-letter relative z-10 -mt-0.5 font-tile font-extrabold leading-none ${tile.letter.length > 2 ? 'text-base' : tile.letter.length > 1 ? 'text-xl' : 'text-[1.7rem]'}`}>{tile.letter}</span>
       <span className="absolute bottom-0.5 right-1 font-osd text-sm leading-none z-10">{tile.tempPoints ?? tile.points}</span>
       {(tile.isSuper || (hasMultiplier && tile.multiplier === 4 && !tile.isGem)) && (
         <span className="absolute top-0 left-1 text-xs font-extrabold z-10 text-white bg-red-700/80 rounded-full px-1 py-0.5 leading-none shadow-md">
