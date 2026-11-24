@@ -660,7 +660,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <main id="main-container" className={`safe-area w-screen h-dvh flex items-center justify-center transition-all duration-500 ${selectedPack.themeClass}`}>
+    <main id="main-container" className={`safe-area w-screen h-[var(--app-h,100dvh)] flex items-center justify-center transition-all duration-500 ${selectedPack.themeClass}`}>
       <div className={`relative z-10 w-full max-w-xl h-full sm:max-h-[800px] bg-crt-900 sm:rounded-2xl shadow-2xl flex flex-col overflow-y-auto overscroll-contain transition-all duration-300 ${selectedPack.frameClass} ${isTimeLow ? 'low-time-flash' : ''} ${isGoldenRound ? 'golden-round-active' : ''}`}>
         {selectedPack.id === 'rustic-workbench' && (
           <>

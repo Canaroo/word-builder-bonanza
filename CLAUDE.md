@@ -663,6 +663,13 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   short screens. (5) **Hamm's smash bar** (`PiggyBar` in `PowerPlayTrackers.tsx`, `piggy-chip` kept):
   full width, a wobbling 🐷, the savings in big type and a 🔨 HOLD TO SMASH button; holding fills it and
   shakes the pig, letting go early says KEEP HOLDING…. Browser-checked at 360x640.
+  **v7.84.2 (the owner's screenshot: the button row started below the screen until a pinch):** the
+  app's height is measured, not trusted to CSS. Tapping Play switches a browser tab to fullscreen, and
+  Android Chrome can keep the old `100dvh` afterwards, so the board was one row too tall. `index.tsx`
+  sets `--app-h` from `visualViewport.height` (skipped while zoomed) on resize, rotation, fullscreen
+  changes, pageshow and returning to the tab, then again 250 and 700 ms later; `#main-container` uses
+  `h-[var(--app-h,100dvh)]`. Browser-checked: fullscreen, leaving it and resizing to 810/760 px keep
+  SUBMIT on screen.
   **v7.84.0 A clean top (the owner's photos: "way too many things going on up there"; their picks):**
   the top of the board shows only what matters every second: SCORE (sized to fit, `hud-score`, with the
   next-gate bar), the clock with the level badge under it, and STRIKES with a 🎒 button under them
