@@ -682,6 +682,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   3 s instead of dropping over the clock and level badge. The stage grew from about 330 to 462 px at
   390x844 and from about 180 to 298 px at 360x640. Browser scripts save through 🎒 → SAVE & QUIT (the
   skill's `playtest.mjs` too).
+  **v7.84.3 (the owner: the timer wasn't centred):** the HUD grid is `minmax(0,1fr) auto minmax(0,1fr)`
+  again (`data-testid="hud"`); v7.84.0 had made only the left column flexible, which pushed the clock
+  right. With the 🎒 under the strikes the right column is narrow anyway. Measured: the clock is 0 px
+  off centre at 360/390/412 px, and the score fits up to 1,234,567.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

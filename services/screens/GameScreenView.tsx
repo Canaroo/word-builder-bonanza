@@ -1110,7 +1110,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       )}
       
       {/* --- TOP BAR --- */}
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center flex-shrink-0 text-white gap-2">
+      {/* v7.84.3: equal side columns keep the clock dead centre (v7.84.0's flexible left column pushed it right). */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center flex-shrink-0 text-white gap-2" data-testid="hud">
         {/* Score & Words Display */}
         <div className="flex flex-col gap-1 min-w-0">
         {/* v7.84.0 (the owner's call): the top shows what matters every second: score, clock, strikes.
