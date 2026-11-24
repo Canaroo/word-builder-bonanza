@@ -240,6 +240,14 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   the old board paid ~225 / ~845. Deal and progress are saved (`useSaved`). Browser-checked: 7 of 9
   → +420, the run's clock 50 → 50. Boards armed in older saves still settle the old way
   (`centerSquareClaim`/`Lines`/`Prize`, `centerSquareWords/Line/Full`, the tracker chip).
+  **v7.79.1 (the owner's asks):** the card's top line reads HOLLYWOOD SQUARES (`FRAME_KICKER` in
+  `GambleCard.tsx`; other gamble cards keep TAKE A CHANCE). Each finished line of three (across, down
+  or diagonal) pays +50 more (`centerSquareLineBonus`) and a full board +300 (`centerSquareFullBonus`),
+  all in `centerSquarePay` (`centerSquareDoneLines`); finished lines glow green and a "N LINES" counter
+  shows. A word now finishes a line when it can, else takes the hardest square (`centerSquareFill`;
+  simulated, the rule barely changes results). Simulated: any-word play ~1.7 lines (~425), a realistic
+  aimer (~7 words in 60 s) ~3.1 lines (~535), an expert using all 9 words ~5.2 lines and a full board
+  34% (~820). A full board pays 9 x 60 + 8 x 50 + 300 = 1,240 at level 1 (browser-checked).
   **🎡 SPIN, Spin & Solve**
   (`spinAndSolve` secret word, mini-game `wheel`, `Wheel` in `MiniGames.tsx`, `MINI_GAME_VALUES.wheel`,
   `wheelLetterPay`/`wheelBoard`/`wheelSolved`): a hidden 8-letter word from `BIG_ONE_WORDS`, 45 s; SPIN

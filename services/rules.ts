@@ -623,16 +623,27 @@ export const centerSquareClaim = (board: readonly string[], got: readonly boolea
  * common-word list: ENDS IN S 28%, F/H/W 39%, 6+ letters 43% ... EXACTLY 3 LETTERS 99%).
  */
 export const CENTER_SQUARE_ORDER = ['endsS', 'fhw', 'six', 'double', 'bcmp', 'rare', 'stStart', 'five', 'vowelEnd', 'twoVowels', 'vowelStart', 'oneVowel', 'three'];
-/** The card version (v7.79.0): a word fills the hardest open square it fits, so the easy ones stay open. Null when none. */
+/**
+ * The card version (v7.79.0): which open square a word fills. v7.79.1: one that finishes a line
+ * first (lines pay), else the hardest it fits, so the easy ones stay open. Null when none.
+ */
 export const centerSquareFill = (board: readonly string[], got: readonly boolean[], word: string): number | null => {
     const w = word.toUpperCase();
     const open = board.map((_, i) => i).filter(i => !got[i] && CENTER_SQUARES[board[i]]?.test(w));
     if (!open.length) return null;
-    const rank = (i: number) => { const r = CENTER_SQUARE_ORDER.indexOf(board[i]); return r < 0 ? 99 : r; };
+    const finishes = (i: number) => CENTER_SQUARE_LINES.some(l => l.includes(i) && l.every(j => got[j] || j === i));
+    const rank = (i: number) => (finishes(i) ? 0 : 100) + (CENTER_SQUARE_ORDER.indexOf(board[i]) < 0 ? 99 : CENTER_SQUARE_ORDER.indexOf(board[i]));
     return open.reduce((best, i) => (rank(i) < rank(best) ? i : best), open[0]);
 };
-/** What the card pays before the level boost: a flat amount per filled square. */
-export const centerSquarePay = (got: readonly boolean[]): number => got.filter(Boolean).length * POWER_PLAY_VALUES.centerSquarePerSquare;
+/** Which lines of three are complete (indexes into CENTER_SQUARE_LINES). */
+export const centerSquareDoneLines = (got: readonly boolean[]): number[] =>
+    CENTER_SQUARE_LINES.map((l, k) => (l.every(i => got[i]) ? k : -1)).filter(k => k >= 0);
+/** What the card pays before the level boost: each square, each finished line, and a full board. */
+export const centerSquarePay = (got: readonly boolean[]): number => {
+    const V = POWER_PLAY_VALUES;
+    const full = got.length === 9 && got.every(Boolean);
+    return got.filter(Boolean).length * V.centerSquarePerSquare + centerSquareDoneLines(got).length * V.centerSquareLineBonus + (full ? V.centerSquareFullBonus : 0);
+};
 export const centerSquareLines = (got: readonly boolean[]): number => CENTER_SQUARE_LINES.filter(l => l.every(i => got[i])).length;
 /** What the board pays before the level boost: each line, plus the full-board bonus. */
 export const centerSquarePrize = (got: readonly boolean[]): number =>

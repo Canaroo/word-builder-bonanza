@@ -1,6 +1,6 @@
 // v7.74.0: game-show features. 📊 Survey Says!, ⭕ Center Square and 🎡 Spin & Solve (SPIN).
 import { describe, test, expect } from 'vitest';
-import { surveyBoard, surveySlotFor, surveyPayout, CENTER_SQUARES, centerSquareDeal, centerSquareClaim, centerSquareLines, centerSquarePrize, centerSquareFill, centerSquarePay, CENTER_SQUARE_ORDER, wheelLetterPay, wheelBoard, wheelSolved } from '../rules';
+import { surveyBoard, surveySlotFor, surveyPayout, CENTER_SQUARES, centerSquareDeal, centerSquareClaim, centerSquareLines, centerSquarePrize, centerSquareFill, centerSquarePay, centerSquareDoneLines, CENTER_SQUARE_ORDER, wheelLetterPay, wheelBoard, wheelSolved } from '../rules';
 import { POWER_PLAY_VALUES as V, MINI_GAME_VALUES as M } from '../../config/gameplay';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, PRIZE_POWER_PLAY_IDS } from '../../data/powerPlays';
 import { SECRET_BONUSES } from '../../data/secretBonuses';
@@ -87,7 +87,16 @@ describe('⭕ Center Square', () => {
         expect(centerSquareFill(board, none, 'TOO')).toBe(5); // fits 3 letters and a double letter: the double is harder
         expect(centerSquarePay(none)).toBe(0);
         expect(centerSquarePay(got)).toBe(V.centerSquarePerSquare);
-        expect(centerSquarePay(Array(9).fill(true))).toBe(9 * V.centerSquarePerSquare);
+        expect(centerSquarePay(Array(9).fill(true))).toBe(9 * V.centerSquarePerSquare + 8 * V.centerSquareLineBonus + V.centerSquareFullBonus);
+        // v7.79.1: a finished line pays its bonus (top row here)
+        expect(centerSquarePay([true, true, true, false, false, false, false, false, false])).toBe(3 * V.centerSquarePerSquare + V.centerSquareLineBonus);
+        expect(centerSquareDoneLines([true, false, false, false, true, false, false, false, true])).toEqual([6]); // a diagonal
+        // v7.79.1: a square that finishes a line wins over a harder one. Top row 0,1 filled: TRAINS fits
+        // 5+ (1, done), ENDS IN S (2) and 6+ (4). Make square 2 the line-finisher and 4 harder: it goes to 2.
+        const lineBoard = ['three', 'five', 'stStart', 'vowelStart', 'six', 'double', 'rare', 'oneVowel', 'endsS'];
+        const g2 = [true, true, false, false, false, false, false, false, false];
+        expect(centerSquareFill(lineBoard, g2, 'TRAINS')).toBe(2); // STARTS WITH S OR T finishes the top row
+        expect(centerSquareFill(lineBoard, none, 'TRAINS')).toBe(8); // no line to finish: ENDS IN S, the hardest
         // every square has a difficulty rank
         for (const id of Object.keys(CENTER_SQUARES)) expect(CENTER_SQUARE_ORDER).toContain(id);
     });
