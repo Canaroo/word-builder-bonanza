@@ -816,6 +816,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   The card shows ✔ FITS / ✘ DOESN'T FIT as you spell; the payout is a separate "Final Jeopardy" log
   entry in `handleLastWords`. Browser-checked: 12,345, bet 1,230, BALLOONS on A DOUBLE LETTER →
   13,665 on Game Over.
+  **v7.77.1 (the owner's ask):** a lost bet always shows a word that would have fit, so players see
+  it was possible and learn one: the longest everyday word in the final hand that fits the category
+  (`playableWords`, found once the bet is placed), under the -bet line after a miss, and on a new
+  step after "No last words" (it no longer ends the run at once; "End the run" does). If no word in
+  the hand fits, it says so ("a tough category: nobody could have made that one").
   **Head Start** (`services/headStart.ts`, per player): a run ending before level 4 adds 3 s to the
   next starting clock (max 15), reaching level 4 clears it; a chip shows it until the first word.
   Never applied on the scored Daily Run.

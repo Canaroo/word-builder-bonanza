@@ -47,6 +47,26 @@ const LastWordsCard: React.FC<{
   const betting = !!cat && !!onBet && bet === undefined && bets.length > 0;
   const placed = cat && bet && bet > 0 ? bet : 0;
   const fits = placed && word.length >= 3 ? cat!.test(word) : null;
+  // v7.77.1 (the owner's ask): after a lost bet, show a word from these tiles that would have fit,
+  // so the player sees it was possible and learns one. Found once the bet is placed: the longest
+  // everyday word that fits (null when no word in the tiles fits the category).
+  const [fitWord, setFitWord] = useState<string | null | undefined>(undefined);
+  const [skipped, setSkipped] = useState(false);
+  useEffect(() => {
+    if (!placed || !cat || fitWord !== undefined) return;
+    let alive = true;
+    dictionaryService.playableWords(tiles.map(t => t.letter)).then(ws => { if (alive) setFitWord(ws.find(w => cat.test(w)) ?? null); });
+    return () => { alive = false; };
+  }, [placed]); // eslint-disable-line react-hooks/exhaustive-deps
+  const fitReveal = cat && (
+    <div className="w-full rounded-lg bg-crt-950/80 ring-1 ring-neon-cyan/50 px-3 py-2" data-testid="fj-fit">
+      {fitWord === undefined ? <p className="text-sm text-slate-300">Checking your tiles…</p>
+        : fitWord ? (<>
+          <p className="osd-text text-base text-neon-cyan leading-none">A WORD THAT FIT {cat.label}</p>
+          <p className="font-tile font-extrabold text-2xl tracking-widest text-white">{fitWord}</p>
+        </>) : <p className="text-sm text-slate-200 leading-snug">No word in these tiles fit {cat.label}. A tough category: nobody could have made that one.</p>}
+    </div>
+  );
   const submit = async () => {
     if (busy || result || word.length < 3) return;
     setBusy(true);
@@ -75,8 +95,15 @@ const LastWordsCard: React.FC<{
             <p className="text-slate-200">A parting shot at x{LAST_WORDS.multiplier}. Mic dropped.</p>
             {placed > 0 && (cat!.test(result.word)
               ? <p className="font-display text-2xl text-neon-green" data-testid="fj-result">💡 FINAL JEOPARDY: +{placed.toLocaleString()}</p>
-              : <p className="font-display text-2xl text-neon-red" data-testid="fj-result">💡 FINAL JEOPARDY: -{placed.toLocaleString()}</p>)}
+              : <><p className="font-display text-2xl text-neon-red" data-testid="fj-result">💡 FINAL JEOPARDY: -{placed.toLocaleString()}</p>{fitReveal}</>)}
             <ArcadeButton color="green" className="w-full" onClick={() => onDone(result)}>Take the {result.points.toLocaleString()}</ArcadeButton>
+          </>
+        ) : skipped ? (
+          // No last word after a bet: the bet is lost, but show a word that would have fit first.
+          <>
+            <p className="font-display text-2xl text-neon-red" data-testid="fj-result">💡 FINAL JEOPARDY: -{placed.toLocaleString()}</p>
+            {fitReveal}
+            <ArcadeButton color="slate" className="w-full" onClick={() => onDone(null)}>End the run</ArcadeButton>
           </>
         ) : betting ? (
           // 💡 Final Jeopardy: the bet comes first. The tiles show (you've seen them), the category doesn't.
@@ -134,7 +161,7 @@ const LastWordsCard: React.FC<{
               <ArcadeButton color="slate" variant="outline" onClick={() => { setPicked([]); setFlash(null); }}>Clear</ArcadeButton>
               <ArcadeButton color="green" onClick={submit} disabled={!armed || word.length < 3 || busy || !canSpell(word)}>Submit</ArcadeButton>
             </div>
-            <ArcadeButton variant="text" color="slate" disabled={!armed} onClick={() => armed && onDone(null)}>{placed > 0 ? `No last words (lose the ${placed.toLocaleString()} bet)` : 'No last words, end the run'}</ArcadeButton>
+            <ArcadeButton variant="text" color="slate" disabled={!armed} onClick={() => { if (!armed) return; if (placed > 0) setSkipped(true); else onDone(null); }}>{placed > 0 ? `No last words (lose the ${placed.toLocaleString()} bet)` : 'No last words, end the run'}</ArcadeButton>
           </>
         )}
       </div>
