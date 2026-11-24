@@ -28,6 +28,8 @@ import { getTodaysMissions } from '../missions';
 import { levelFor } from '../rules';
 import StreakPanel from '../../components/StreakPanel';
 import { BadgeIcon, TitleText } from '../../components/PlayerPlate';
+import { getCareer } from '../career';
+import { tourSeenBy, markTourSeen } from '../tour';
 import { getProfile, currentStreak, playedToday, powerWordBonusFor } from '../progression';
 
 
@@ -45,6 +47,8 @@ interface StartScreenProps {
   onPlayDaily: (name: string) => void;
   onResumeGame: (name: string) => void;
   onShowHowToPlay: () => void;
+  /** The 1-minute tour (v7.78.0); fromPlay when it was offered on a new player's first Play. */
+  onShowTour: (name: string, fromPlay: boolean) => void;
   onShowVibez: (tab?: string) => void;
   onShowCollection: () => void;
   onShowBadgeCase: () => void;
@@ -70,6 +74,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onOpened,
   onResumeGame, 
   onShowHowToPlay, 
+  onShowTour,
   onShowVibez, 
   onShowCollection,
   onShowBadgeCase,
@@ -233,6 +238,23 @@ const StartScreen: React.FC<StartScreenProps> = ({
     }
     setConfirmNewGame(false);
     if (!name.trim()) return;
+    // A brand-new player (a new name, or one with no finished runs) is offered the tour once.
+    if (!tourSeenBy(name) && (isNewName || getCareer().runs === 0)) {
+      soundService.initialize();
+      soundService.playUIClick();
+      setShowTourOffer(true);
+      return;
+    }
+    playAfterTourCheck();
+  };
+  const [showTourOffer, setShowTourOffer] = useState(false);
+  const answerTourOffer = (take: boolean) => {
+    setShowTourOffer(false);
+    markTourSeen(name);
+    if (take) { onShowTour(name.trim(), true); return; }
+    playAfterTourCheck();
+  };
+  const playAfterTourCheck = () => {
     // One Play button (v7.48): the first Play of the day, while the Daily Challenge is still open,
     // asks which game to start. Picking either answers it for the day; the chip in the Today strip
     // stays as the way back in.
@@ -488,6 +510,19 @@ const StartScreen: React.FC<StartScreenProps> = ({
   return (
     <>
       {showSound && <SoundMenu isMuted={isMuted} onToggleMute={handleMuteToggle} onClose={() => setShowSound(false)} onShop={() => { setShowSound(false); onShowVibez('music'); }} />}
+      {showTourOffer && (
+        <div className="absolute inset-0 z-50 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="New here?" data-testid="tour-offer">
+          <div className="bg-crt-900 border-2 border-neon-cyan shadow-glow-cyan rounded-2xl p-5 max-w-sm w-full text-center flex flex-col gap-3 bonus-insert">
+            <p className="osd-text text-lg tracking-[0.3em] text-slate-300">INSERT COIN... OR NOT</p>
+            <div className="text-5xl leading-none" aria-hidden="true">🕹️</div>
+            <h2 className="font-display text-2xl text-neon-cyan leading-tight">New here?</h2>
+            <p className="text-slate-200 text-[15px] leading-snug">Take the 1-minute tour: spell a word, watch it score and learn how the clock works. No pressure, nothing counts.</p>
+            <ArcadeButton color="cyan" size="lg" className="w-full" onClick={() => answerTourOffer(true)}>❓ Take the tour</ArcadeButton>
+            <ArcadeButton color="yellow" variant="text" className="w-full" onClick={() => answerTourOffer(false)}>Skip, just play</ArcadeButton>
+            <p className="text-xs text-slate-500 leading-snug">The tour stays under the logo if you want it later.</p>
+          </div>
+        </div>
+      )}
       {showChooser && (
         <div className="absolute inset-0 z-50 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Which game?">
           <div className="bg-crt-900 border-2 border-neon-yellow shadow-glow-yellow rounded-2xl p-5 max-w-sm w-full text-center flex flex-col gap-3 bonus-insert">
@@ -668,6 +703,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <h2 className="font-display text-6xl min-[375px]:text-7xl [@media(min-height:760px)]:text-8xl tracking-normal marquee-3d animate-bounce-in-up leading-none" style={{ animationDelay: '0.1s' }}>NERD</h2>
             <p className="osd-text text-lg text-neon-pink mt-1 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>SERIOUS WORDS. RIDICULOUS FUN.</p>
             <p className="osd-text text-sm leading-none text-slate-500 mt-1">VER {__APP_VERSION__}</p>
+            <button type="button" onClick={() => { soundService.playUIClick(); onShowTour(name.trim(), false); }} data-testid="tour-pill"
+              className="mt-3 flex items-center gap-1.5 rounded-full ring-1 ring-neon-cyan/60 bg-crt-950/70 hover:bg-neon-cyan/10 hover:ring-neon-cyan px-3 py-1.5 animate-fade-in"
+              aria-label="How to play: a 1-minute tour">
+              <span className="text-base leading-none" aria-hidden="true">❓</span>
+              <span className="osd-text text-lg leading-none text-neon-cyan">HOW TO PLAY · 1-MIN TOUR</span>
+            </button>
           </div>
 
           {/* Play card: one main action. A saved run makes it CONTINUE; New Game drops to an outline button. */}
