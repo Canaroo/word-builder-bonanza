@@ -58,9 +58,11 @@ const newPage = async (browser) => {
   return page;
 };
 
-/** Saves the current run through the 💾 button and returns the parsed save. */
+/** Saves the current run through 🎒 → SAVE & QUIT (v7.84.0; the 💾 button moved into the menu) and returns the parsed save. */
 const saveRun = async (page) => {
-  await page.locator('button:visible', { hasText: '💾' }).first().click();
+  await page.locator('[data-testid=gear-button]').click();
+  await page.waitForTimeout(500);
+  await page.locator('[data-testid=gear-actions] button', { hasText: 'SAVE' }).click();
   await page.waitForTimeout(600);
   await page.locator('button:visible', { hasText: /save/i }).last().click();
   await page.waitForTimeout(1200);
@@ -184,7 +186,7 @@ const runScenario = async (browser, base, sc, index) => {
   out.popups.push(...await dismissPopups(page));
   await page.waitForTimeout(400);
 
-  const save = (await page.locator('button:visible', { hasText: '💾' }).count()) ? await saveRun(page) : null;
+  const save = (await page.locator('[data-testid=gear-button]').count()) ? await saveRun(page) : null;
   if (!save) {
     out.result = 'No run to save (game over?)';
   } else {

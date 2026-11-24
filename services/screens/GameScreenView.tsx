@@ -112,6 +112,23 @@ const BackspaceButton: React.FC<{ disabled: boolean; onBack: () => void; onClear
   );
 };
 
+/**
+ * v7.84.0: charm time cut by the level, shown in the score column for a few seconds (it used to drop
+ * down over the clock and the level badge). After it fades the next-gate marker comes back.
+ */
+const HudCharmNote: React.FC<{ full: number; paid: number; percent: number; halved: boolean; level: number }> = ({ full, paid, percent, halved, level }) => {
+  const [gone, setGone] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setGone(true), 3200); return () => clearTimeout(t); }, []);
+  if (gone) return null;
+  return (
+    <div className="hud-charm-note osd-text text-sm leading-tight text-neon-orange" role="status" data-testid="charm-note">
+      🍀 CHARM {full}→{paid} SEC
+      {percent < 100 && <span className="text-slate-300"> · LV{level} {percent}%</span>}
+      {halved && <span className="text-neon-yellow"> · ½ OVER {GAMEPLAY.timeBank.overflowAbove}</span>}
+    </div>
+  );
+};
+
 interface Notice { id: string; icon: string; title: React.ReactNode; text: string; tone: 'yellow' | 'pink' | 'sky' | 'green'; action?: string; onTap?: () => void; label: string; testId?: string }
 const NOTICE_TONES: Record<Notice['tone'], { box: string; title: string; btn: string }> = {
   yellow: { box: 'bg-neon-yellow/10 ring-neon-yellow/60', title: 'text-neon-yellow', btn: 'bg-neon-yellow text-crt-900' },
@@ -498,7 +515,13 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             case 'gear':
                 return (
                     <GearMenu gameState={gameState!} level={levelFor(totalWords)} strikesLeft={strikesRemaining} maxStrikes={maxStrikes} progressFor={progressFor}
-                        onUse={pp => { handleCloseModal(); handleActivatePowerPlay(pp); }} onClose={handleCloseModal} />
+                        onUse={pp => { handleCloseModal(); handleActivatePowerPlay(pp); }} onClose={handleCloseModal}
+                        words={totalWords ?? 0}
+                        onSound={() => { handleCloseModal(); setShowSound(true); }}
+                        onLog={() => handleShowEventLog()}
+                        onSave={() => handleSaveClick()}
+                        trophies={MILESTONES_LIST.map(m => ({ id: m.id, icon: m.icon, name: m.name, unlocked: (gameState?.unlockedMilestoneIds ?? []).includes(m.id) }))}
+                        onTrophy={id => { const m = MILESTONES_LIST.find(x => x.id === id); if (m) handleShowMilestoneInfo(m); }} />
                 );
             case 'triforce': {
                 // Fragile charms (v7.69.0): a finished piece ("item get"), the whole Triforce, or the shelf (tapped chip).
@@ -1082,20 +1105,22 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       )}
       
       {/* --- TOP BAR --- */}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center flex-shrink-0 text-white gap-2">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center flex-shrink-0 text-white gap-2">
         {/* Score & Words Display */}
         <div className="flex flex-col gap-1 min-w-0">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="text-left">
-            <div className="osd-text text-base leading-none text-neon-yellow">SCORE</div>
-            <div className="font-osd text-3xl leading-none text-white">{gameState?.score?.toLocaleString() ?? '0'}</div>
-          </div>
-          <div className="text-left">
-            <div className="osd-text text-base leading-none text-neon-yellow">WORDS</div>
-            <div className="font-osd text-3xl leading-none text-white">{totalWords ?? 0}</div>
+        {/* v7.84.0 (the owner's call): the top shows what matters every second: score, clock, strikes.
+            Words played lives in Gear's RUN STATUS; the level's progress is under the clock. */}
+        <div className="text-left min-w-0">
+          <div className="osd-text text-base leading-none text-neon-yellow">SCORE</div>
+          <div className="font-osd leading-none text-white whitespace-nowrap" data-testid="hud-score"
+            style={{ fontSize: `calc(clamp(1.2rem, 7vw, 2.25rem) * ${(gameState?.score ?? 0).toLocaleString().length >= 7 ? 0.8 : 1})` }}>
+            {gameState?.score?.toLocaleString() ?? '0'}
           </div>
         </div>
-        {nextGate != null && (() => {
+        {timeGain?.charm ? (
+          // Charm time cut by the level (v7.40.2), said in the score column so it never covers the clock (v7.84.0).
+          <HudCharmNote key={`charm-${timeGain.key}`} full={timeGain.charm.full} paid={timeGain.charm.paid} percent={timeGain.charm.percent} halved={!!timeGain.charm.halved} level={levelFor(totalWords ?? 0)} />
+        ) : nextGate != null && (() => {
           // v7.61.0: the next Score Gate, so the gates are a goal rather than a surprise.
           const score = gameState?.score ?? 0;
           const from = previousGateFor(nextGate);
@@ -1127,18 +1152,6 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 {timeGain.seconds > 0 ? '+' : '−'}{Math.abs(timeGain.seconds)}<Sec />{timeGain.taxed && <span className="text-neon-yellow text-lg"> ½</span>}
               </span>
             )}
-            {/* Charm time cut by the level (v7.40.2): say so under the clock, so it doesn't look like a bug. */}
-            {timeGain?.charm && (
-              <span
-                key={`charm-${timeGain.key}`}
-                className="charm-time-note absolute top-full left-1/2 z-20 mt-0.5 whitespace-nowrap rounded-md bg-crt-950/95 ring-1 ring-neon-orange px-2 py-1 osd-text text-sm leading-none text-neon-orange pointer-events-none"
-                role="status"
-              >
-                🍀 CHARM TIME {timeGain.charm.full}→{timeGain.charm.paid} SEC
-                {timeGain.charm.percent < 100 && <span className="text-slate-300"> · LVL {levelFor(totalWords ?? 0)}: {timeGain.charm.percent}%</span>}
-                {timeGain.charm.halved && <span className="text-neon-yellow"> · ½ OVER {GAMEPLAY.timeBank.overflowAbove}</span>}
-              </span>
-            )}
           </div>
           {gameState?.daily && (
             <p className={`osd-text text-sm leading-none mt-0.5 ${gameState.daily.practice ? 'text-slate-400' : 'text-neon-cyan'}`} aria-label={gameState.daily.practice ? `Daily Challenge ${gameState.daily.number}, practice` : `Daily Challenge ${gameState.daily.number}`}>
@@ -1150,8 +1163,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           )}
         </div>
 
-        {/* Strikes & Save Display */}
-        <div className="flex items-center justify-end gap-2">
+        {/* Strikes, with the 🎒 under them (v7.84.0) so the score gets the width it needs. */}
+        <div className="flex flex-col items-end gap-1.5">
           <div>
             <div className="osd-text text-base leading-none text-neon-red text-right whitespace-nowrap">
               {/* v7.65.0: a shield (Hylian Shield, RINGS, Plot Armor) shows right by the strikes it protects. */}
@@ -1166,8 +1179,13 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
               ))}
             </div>
           </div>
-          <button onClick={handleSaveClick} className="text-2xl text-slate-400 hover:text-white transition-transform hover:scale-110">
-            💾
+          {/* v7.84.0: one 🎒 button holds Gear, sound and music, the event log, trophies and Save & Quit. */}
+          <button type="button" data-testid="gear-button" data-glow={gearGlow ? '1' : undefined}
+            onClick={() => dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gear', title: 'Your Gear' } })}
+            aria-label={`Your gear, sound, event log and save: ${gameState?.activeCharms?.length ?? 0} of ${CHARM_SLOTS} charms. Tap to open; the game pauses.`}
+            className={`relative w-11 h-11 rounded-xl grid place-items-center text-2xl bg-crt-950/80 transition-shadow ${gearGlow ? 'ring-2 ring-neon-yellow shadow-[0_0_16px_rgba(255,216,77,0.7)] animate-pulse' : 'ring-1 ring-white/20 hover:ring-neon-cyan/60'}`}>
+            <span aria-hidden="true">🎒</span>
+            <span className={`absolute -bottom-1.5 -right-1.5 rounded-full px-1 min-w-[1.25rem] osd-text text-sm leading-[1.1rem] text-center ${gearGlow ? 'bg-neon-yellow text-crt-900' : 'bg-neon-purple text-white'}`} data-testid="gear-count">{gameState?.activeCharms?.length ?? 0}/{CHARM_SLOTS}</span>
           </button>
         </div>
       </div>
@@ -1201,21 +1219,6 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       {/* --- STATUS AREA --- */}
       {/* v7.81.0: the status area keeps its own height; the spare height goes to the stage below. */}
       <div className="flex-shrink-0 flex flex-col gap-1.5">
-      {/* --- ICONS BAR --- */}
-      <div className="icons-bar flex justify-between items-center bg-crt-950/60 ring-1 ring-white/5 px-1 py-0.5 rounded-lg flex-shrink-0">
-        <div className="flex gap-2 sm:gap-3">
-          {MILESTONES_LIST.map(m => (
-            <button key={m.id} onClick={() => handleShowMilestoneInfo(m)} disabled={!(gameState?.unlockedMilestoneIds ?? []).includes(m.id)} className="text-2xl transition-opacity disabled:opacity-30 enabled:hover:scale-110" title={m.name}>
-              {m.icon}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-3">
-          <button onClick={handleShowEventLog} className="text-2xl transition-transform hover:scale-110" title="Event Log" aria-label="Event log">📖</button>
-          <button onClick={() => setShowSound(true)} className="text-2xl transition-transform hover:scale-110" title="Sound and music" aria-label={`Sound and music (${isMuted ? 'sound off' : 'sound on'})`}>{isMuted ? '🔇' : '🔊'}</button>
-        </div>
-      </div>
-
       {/* --- PROGRESS INDICATORS (v7.31): Golden Round, PowerPlay meter and Word Combo share one compact row --- */}
       {(() => {
         const letters = gameState?.powerPlayProgress?.letters ?? 0;
@@ -1228,83 +1231,45 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         // v7.81.0: what the word on the stage would add, as a faint ghost fill and a glow.
         const stageLen = (wordFromBuildRow?.length ?? 0) >= (gameState?.gameConfig?.minWordLength ?? 3) && (gameState?.roundType ?? 'normal') === 'normal' ? (wordFromBuildRow?.length ?? 0) : 0;
         const ghost = (pct: number, color: string) => stageLen > 0 ? <div className={`absolute inset-y-0 left-0 rounded-full opacity-40 animate-pulse ${color}`} style={{ width: `${Math.min(100, pct)}%` }} data-testid="meter-ghost" /> : null;
-        const cell = 'bg-crt-950/60 ring-1 ring-white/5 rounded-lg px-1.5 py-1 flex flex-col justify-center gap-1 min-w-0';
-        const label = 'osd-text text-sm leading-none text-neon-cyan/80 uppercase tracking-wider whitespace-nowrap';
+        // v7.84.0 (the owner's call): one slim row of bars, no boxes. They still glow and show a ghost fill
+        // for the word on the stage, which is how players see what their next word earns.
+        const label = 'osd-text text-sm leading-none uppercase tracking-wider whitespace-nowrap';
+        const normal = (gameState?.roundType ?? 'normal') === 'normal';
+        const have = gameState?.consecutiveValidWords ?? 0;
+        const need = gameState?.goldenRoundThreshold ?? 11;
+        const left = Math.max(0, need - have);
+        const close = left > 0 && left <= GAMEPLAY.goldenRound.chipFrom;
         return (
-          <div className={`grid gap-1.5 w-full flex-shrink-0 ${(gameState?.roundType ?? 'normal') === 'normal' ? 'grid-cols-3' : 'grid-cols-2'}`}>
-            {(gameState?.roundType ?? 'normal') === 'normal' && (
-              (() => {
-                // v7.60.0: a bar like the meter beside it, and a countdown once the round is close.
-                const have = gameState?.consecutiveValidWords ?? 0;
-                const need = gameState?.goldenRoundThreshold ?? 11;
-                const left = Math.max(0, need - have);
-                const close = left > 0 && left <= GAMEPLAY.goldenRound.chipFrom;
-                return (
-                  <div className={`${cell} ${close ? '!ring-neon-yellow shadow-glow-yellow' : stageLen ? '!ring-neon-yellow/60' : ''}`} data-testid="golden-streak"
-                    aria-label={`Golden Round streak ${have} of ${need}. ${left} more valid words in a row for a Golden Round; a strike resets it.`}>
-                    <span className={`${label} flex justify-between ${close ? '!text-neon-yellow animate-pulse' : ''}`}>
-                      <span>{close ? `★ ${left} more!` : '★ Golden'}</span>
-                      <span className="text-slate-300 tabular-nums">{have}/{need}</span>
-                    </span>
-                    <div className="relative h-2 rounded-full bg-crt-600 overflow-hidden">
-                      {ghost(((have + 1) / need) * 100, 'bg-neon-yellow')}
-                      <div className="relative h-full rounded-full bg-neon-yellow transition-all duration-500" style={{ width: `${Math.min(100, (have / need) * 100)}%` }} />
-                    </div>
-                  </div>
-                );
-              })()
+          <div className={`grid gap-3 w-full flex-shrink-0 px-1 ${normal ? 'grid-cols-3' : 'grid-cols-2'}`} data-testid="meters">
+            {normal && (
+              <div className="min-w-0" data-testid="golden-streak" aria-label={`Golden Round streak ${have} of ${need}. ${left} more valid words in a row for a Golden Round; a strike resets it.`}>
+                <span className={`${label} flex justify-between ${close ? 'text-neon-yellow animate-pulse' : stageLen ? 'text-neon-yellow' : 'text-neon-yellow/80'}`}>
+                  <span>{close ? `★ ${left} MORE!` : '★ GOLDEN'}</span><span className="text-slate-300 tabular-nums">{have}/{need}</span>
+                </span>
+                <div className={`relative h-1.5 mt-1 rounded-full bg-crt-600 overflow-hidden ${close || stageLen ? 'shadow-[0_0_8px_rgba(255,210,63,0.6)]' : ''}`}>
+                  {ghost(((have + 1) / need) * 100, 'bg-neon-yellow')}
+                  <div className="relative h-full rounded-full bg-neon-yellow transition-all duration-500" style={{ width: `${Math.min(100, (have / need) * 100)}%` }} />
+                </div>
+              </div>
             )}
-            <div className={`${cell} ${stageLen ? '!ring-neon-purple/70' : ''}`} aria-label={`PowerPlay meter ${letters} of ${needed} letters`}>
-              <span className={`${label} flex justify-between`}><span>PowerPlay</span><span className="text-slate-300 tabular-nums">{letters}/{needed}</span></span>
-              <div className="relative h-2 rounded-full bg-crt-600 overflow-hidden">
+            <div className="min-w-0" aria-label={`PowerPlay meter ${letters} of ${needed} letters`}>
+              <span className={`${label} flex justify-between ${ppFull ? 'text-neon-green animate-pulse' : stageLen ? 'text-[#d9b6ff]' : 'text-neon-purple'}`}><span>⚡ PWRPLAY</span><span className="text-slate-300 tabular-nums">{letters}/{needed}</span></span>
+              <div className={`relative h-1.5 mt-1 rounded-full bg-crt-600 overflow-hidden ${stageLen ? 'shadow-[0_0_8px_rgba(180,92,255,0.7)]' : ''}`}>
                 {ghost(((letters + stageLen) / needed) * 100, 'bg-neon-purple')}
-                <div className={`relative h-full rounded-full transition-all duration-500 ${ppFull ? 'bg-neon-green shadow-glow-cyan animate-pulse' : 'bg-neon-purple'}`} style={{ width: `${ppPct}%` }} />
+                <div className={`relative h-full rounded-full transition-all duration-500 ${ppFull ? 'bg-neon-green animate-pulse' : 'bg-neon-purple'}`} style={{ width: `${ppPct}%` }} />
               </div>
             </div>
-            <div className={`${cell} ${comboReady ? 'ring-neon-yellow/70' : ''}`} role="meter" aria-valuenow={combo} aria-valuemin={0} aria-valuemax={5} aria-valuetext={`Word Combo ${combo} of 5${comboReady ? ', next word scores x2' : ''}`}>
-              <span className={`${label} ${comboReady ? '!text-neon-yellow animate-pulse' : ''}`}>{comboReady ? 'Next x2!' : chain > 0 ? `Combo · ${'4️⃣'.repeat(chain)}` : 'Word Combo'}</span>
-              <div className="flex gap-1">
+            <div className="min-w-0" role="meter" aria-valuenow={combo} aria-valuemin={0} aria-valuemax={5} aria-valuetext={`Word Combo ${combo} of 5${comboReady ? ', next word scores x2' : ''}`}>
+              <span className={`${label} flex justify-between ${comboReady ? 'text-neon-yellow animate-pulse' : 'text-neon-cyan'}`}><span>{comboReady ? 'NEXT x2!' : '🔗 COMBO'}</span><span className="text-slate-300 tabular-nums">{chain > 0 ? '4️⃣'.repeat(chain) : `${combo}/5`}</span></span>
+              <div className="flex gap-0.5 mt-1">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className={`flex-1 h-2 rounded-full transition-all duration-300 ${i < combo ? (comboReady ? 'bg-neon-yellow shadow-glow-yellow' : 'bg-neon-cyan shadow-glow-cyan') : 'bg-crt-600'}`} />
+                  <div key={i} className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${i < combo ? (comboReady ? 'bg-neon-yellow shadow-glow-yellow' : 'bg-neon-cyan') : 'bg-crt-600'}`} />
                 ))}
               </div>
             </div>
           </div>
         );
       })()}
-
-      {/* --- ACTIVE BUFFS TRAY (v7.71.0): a slim strip of icons; tap it for the full Gear menu. --- */}
-      <div className="text-center w-full flex-shrink-0">
-        <button type="button" data-testid="buffs-tray" onClick={() => dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gear', title: 'Your Gear' } })}
-          className={`w-full min-h-[2rem] bg-crt-950/60 p-0.5 pl-2 pr-1.5 rounded-lg flex items-center gap-1 text-left transition-shadow ${gearGlow ? 'ring-2 ring-neon-yellow shadow-[0_0_16px_rgba(255,216,77,0.6)] animate-pulse' : 'ring-1 ring-white/10 hover:ring-neon-cyan/50'}`}
-          data-glow={gearGlow ? '1' : undefined}
-          aria-label={`Your gear: ${gameState?.activeCharms?.length ?? 0} of ${CHARM_SLOTS} charms, ${(gameState?.activeBuffs?.length ?? 0) - (gameState?.activeCharms?.length ?? 0)} running effects. Tap to open.`}>
-          <span className="osd-text text-sm leading-none text-neon-cyan/80 uppercase tracking-wider shrink-0">
-            🎒 Gear <span className="text-neon-purple">{gameState?.activeCharms?.length ?? 0}/{CHARM_SLOTS}</span>
-          </span>
-          <span className="flex-1 min-w-0 flex flex-wrap justify-end items-center gap-1">
-            {(() => {
-              const charmIds = new Set((gameState?.activeCharms ?? []).map(c => c.id));
-              const buffs = gameState?.activeBuffs ?? [];
-              if (buffs.length === 0) return <span className="text-xs italic text-slate-500">(nothing yet)</span>;
-              return [...buffs.filter(b => !charmIds.has(b.id)), ...buffs.filter(b => charmIds.has(b.id))].map(buff => {
-                const isCharm = charmIds.has(buff.id);
-                const progress = progressFor(buff);
-                return (
-                  <span key={buff.instanceId || buff.id} title={buff.name}
-                    className={`flex items-center gap-0.5 h-7 min-w-7 px-1.5 rounded-full text-xs text-white ring-1 ${isCharm ? 'bg-neon-purple/20 ring-neon-purple/50' : 'bg-neon-cyan/15 ring-neon-cyan/50'}`}>
-                    <span className="text-sm leading-none">{buff.icon}</span>
-                    {isCharm && (gameState?.charmUpgrades ?? []).includes(buff.id) && <span className="text-[10px] leading-none" aria-label="upgraded">⭐</span>}
-                    {isCharm && (gameState?.activeCharms ?? []).some(c => c.id === buff.id && c.breaks) && <span className="text-[10px] leading-none" aria-label="fragile">💔</span>}
-                    {progress && <span className="osd-text text-sm leading-none text-neon-yellow">{progress}</span>}
-                  </span>
-                );
-              });
-            })()}
-            <span className="osd-text text-lg leading-none text-neon-cyan ml-0.5" aria-hidden="true">▸</span>
-          </span>
-        </button>
-      </div>
 
       </div>
 
