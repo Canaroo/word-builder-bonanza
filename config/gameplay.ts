@@ -132,6 +132,16 @@ export const POWER_PLAY_VALUES = {
   centerSquareWords: 10,
   centerSquareLine: 75,
   centerSquareFull: 500,
+  // v7.79.0 (the owner's redesign: the board above the tiles crowded the screen): the values above
+  // only settle boards armed in older saves. Center Square is now its own card that opens on pick:
+  // a fresh 8-tile hand (used tiles refill, no shuffle), 9 turns, 60 seconds, the run's clock paused.
+  // Each word fills the hardest open square it fits; a fake word or a word that fits nothing uses
+  // the turn. Flat pay per square (a prize, grows with the level), no line or full-board bonus.
+  // Simulated (9 turns, common words, no clock): any-word play 5.6 squares (~340), aiming at the
+  // hard squares 7.6 (~460), full board 44% (540). The 60 s clock pulls real players below that.
+  centerSquareTurns: 9,
+  centerSquareSeconds: 60,
+  centerSquarePerSquare: 60,
   // 📊 Survey Says! (v7.74.0, Family Feud): spell the board's answers from your tiles. The board's
   // slots are the lengths of the longest everyday words the tiles can spell (top answer first).
   surveySeconds: 25,
