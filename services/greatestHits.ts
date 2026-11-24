@@ -53,3 +53,28 @@ export const ordinal = (n: number): string => {
   const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
   return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
 };
+
+/**
+ * v7.86.0 (the owner's ask: show players which word is close to a record so they can chase it):
+ * every record with its leading word. A paid record shows the word that earned it; an open one shows
+ * the word with the most plays at that length once it has GREATEST_HITS.chipFrom plays.
+ */
+export interface HitRow { tier: HitTier; word: string | null; plays: number; done: boolean }
+export const hitsBoard = (log: LogLike, claimed: readonly number[]): HitRow[] => {
+  const counts = playCounts(log);
+  return GREATEST_HITS.tiers.map(tier => {
+    let word: string | null = null;
+    let plays = 0;
+    const done = claimed.includes(tier.letters);
+    // A paid record shows the word that got there; an open one only counts words still short of it.
+    for (const [w, p] of counts) if (w.length === tier.letters && (done || p < tier.letters) && p > plays) { word = w; plays = p; }
+    if (!done && plays < GREATEST_HITS.chipFrom) return { tier, word: null, plays: 0, done };
+    return { tier, word, plays: Math.min(plays, tier.letters), done };
+  });
+};
+
+/** The record this word would earn if it were played now (counting this play), for the stage's big news. */
+export const hitIfPlayed = (log: LogLike, claimed: readonly number[], word: string): HitTier | undefined => {
+  const w = word.toUpperCase();
+  return greatestHitFor(w, (playCounts(log).get(w) ?? 0) + 1, claimed);
+};
