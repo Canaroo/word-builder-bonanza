@@ -5,7 +5,7 @@ import GearMenu from '../../components/GearMenu';
 import { TRIFORCE_IDS, TRIFORCE_PIECES, shardsOf, triforceDone } from '../../data/triforce';
 import { TRIFORCE } from '../../config/gameplay';
 import React, { useEffect, useRef, useState } from 'react';
-import ArcadeButton from '../../components/ArcadeButton';
+import ArcadeButton, { NamedLabel } from '../../components/ArcadeButton';
 import ShuffleButton from '../../components/ShuffleButton';
 import BonusReveal from '../../components/BonusReveal';
 import SlotMachine from '../../components/SlotMachine';
@@ -282,7 +282,7 @@ export interface GameScreenViewProps {
   /** Another open copy of the game took this run's save slot: back to the start screen (v7.67.5). */
   onLostSave?: (() => void) | null;
   showBuffInfo: (buff: Charm | PowerPlay) => void;
-  handleActivatePowerPlay: (powerPlay: PowerPlay, confirmed?: boolean) => void;
+  handleActivatePowerPlay: (powerPlay: PowerPlay, confirmed?: boolean | 'use') => void;
   handleActivateCharm: (charm: Charm) => void;
   handleChoosePowerPlay: (powerPlay: PowerPlay, allOffered: PowerPlay[]) => void;
   handleChooseCharm: (charm: Charm, allOffered: Charm[], replaceId?: string) => void;
@@ -793,11 +793,16 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                                 ) : (
                                     <p className="text-slate-300 text-center mt-3">Nothing to copy yet. Use a PowerPlay first.</p>
                                 )}
-                                <p className="text-sm text-slate-400 text-center mt-3">The copy replaces Multiplicity in your pocket. Use it whenever you like.</p>
                                 {copyTarget && (
-                                    <ArcadeButton color="pink" className="w-full mt-3" onClick={() => handleActivatePowerPlay(powerPlay, true)}>
-                                        👯 Copy {copyTarget.icon} {copyTarget.name}
-                                    </ArcadeButton>
+                                    <>
+                                        {/* v7.84.1: one tap copies AND uses it; keeping the copy for later is the smaller option. */}
+                                        <ArcadeButton color="pink" className="w-full mt-3" data-testid="multiplicity-use" onClick={() => handleActivatePowerPlay(powerPlay, 'use')}>
+                                            <NamedLabel action="▶ Use" name={`${copyTarget.icon} ${copyTarget.name} now`} />
+                                        </ArcadeButton>
+                                        <ArcadeButton color="pink" variant="outline" className="w-full mt-2" data-testid="multiplicity-keep" onClick={() => handleActivatePowerPlay(powerPlay, true)}>
+                                            👯 Keep the copy for later
+                                        </ArcadeButton>
+                                    </>
                                 )}
                                 <ArcadeButton color="slate" variant="text" className="mx-auto mt-2" onClick={handleCloseModal}>Not now</ArcadeButton>
                             </div>
