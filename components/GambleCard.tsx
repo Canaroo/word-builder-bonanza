@@ -48,8 +48,9 @@ function useSaved<T>(key: string, init: T | (() => T)): [T, (value: T) => void] 
 // The small line above a card's icon. Gambles say TAKE A CHANCE; skill cards can have their own (v7.79.1).
 const FRAME_KICKER: Record<string, string> = { centerSquare: 'HOLLYWOOD SQUARES' };
 const Frame: React.FC<{ icon: string; name: string; kicker?: string; children: React.ReactNode }> = ({ icon, name, kicker = 'TAKE A CHANCE', children }) => (
-  <div className="absolute inset-0 bg-crt-950/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label={name}>
-    <div className="bg-crt-900 border-4 border-neon-pink rounded-2xl px-5 py-6 max-w-md w-full flex flex-col items-center text-center gap-3 level-stage-in shadow-[0_0_28px_rgba(255,45,149,0.5)]">
+  // v7.83.0: a card taller than the screen scrolls inside the frame instead of running off the top and bottom.
+  <div className="absolute inset-0 bg-crt-950/85 backdrop-blur-sm flex items-start justify-center z-50 p-3 overflow-y-auto overscroll-contain animate-fade-in" role="dialog" aria-modal="true" aria-label={name}>
+    <div className="my-auto bg-crt-900 border-4 border-neon-pink rounded-2xl px-4 py-5 [@media(max-height:700px)]:py-3 [@media(max-height:700px)]:gap-2 max-w-md w-full min-w-0 flex flex-col items-center text-center gap-3 level-stage-in shadow-[0_0_28px_rgba(255,45,149,0.5)]">
       <p className="osd-text text-lg tracking-[0.3em] text-slate-300">{kicker}</p>
       <div className="text-5xl leading-none" aria-hidden="true">{icon}</div>
       <p className="font-display text-xl text-white leading-tight">{name}</p>
@@ -1097,21 +1098,34 @@ const DuckHunt: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolv
  * coin falls, the more it's worth. Tap to catch, capped at moneyBinMaxSeconds. The rain is saved,
  * so a resume can't redeal it.
  */
+/**
+ * Scrooge's Money Bin (v7.55.1): coins rain for a few seconds, worth 1-3 seconds of clock each.
+ * v7.83.0 (the owner's ask): bombs and bolts fall in with them; each one tapped costs a second, so the
+ * total can go below zero. The rain is dealt once and saved, so a quit can't redeal it.
+ */
+interface BinDrop { at: number; x: number; seconds: number; fallMs: number; bad?: string }
 const MoneyBin: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolve }) => {
   const [phase, setPhase] = useSaved<'ready' | 'raining' | 'done'>('phase', 'ready');
   const [caught, setCaught] = useSaved<number[]>('caughtSec', []);
-  const [coins] = useSaved('coinsSec', () => {
-    const out: { at: number; x: number; seconds: number; fallMs: number }[] = [];
+  const [coins] = useSaved<BinDrop[]>('coinsHz', () => {
+    const out: BinDrop[] = [];
     const total = V.moneyBinCoins.reduce((a, c) => a + c.weight, 0);
-    for (let at = 0; ; at += 450) {
+    const limit = V.moneyBinSeconds * 1000;
+    let lastX = 45;
+    for (let at = 0; at < limit; at += V.moneyBinEveryMs) {
       let r = Math.random() * total, kind = V.moneyBinCoins[0];
       for (const c of V.moneyBinCoins) { if (r < c.weight) { kind = c; break; } r -= c.weight; }
-      if (at + kind.fallMs > V.moneyBinSeconds * 1000) { if (at + V.moneyBinCoins[V.moneyBinCoins.length - 1].fallMs > V.moneyBinSeconds * 1000) break; continue; }
-      out.push({ at, x: 5 + Math.random() * 80, seconds: kind.seconds, fallMs: kind.fallMs });
+      if (at + kind.fallMs > limit) continue;
+      const bad = Math.random() < V.moneyBinHazardShare ? V.moneyBinHazards[Math.floor(Math.random() * V.moneyBinHazards.length)] : undefined;
+      // Hazards usually drop right beside the last coin, so a quick tap near it can hit the wrong one.
+      const x = bad && Math.random() < 0.7 ? Math.max(3, Math.min(85, lastX + (Math.random() < 0.5 ? -1 : 1) * (8 + Math.random() * 8))) : 5 + Math.random() * 80;
+      if (!bad) lastX = x;
+      out.push({ at, x, seconds: bad ? -V.moneyBinHazardSeconds : kind.seconds, fallMs: kind.fallMs, ...(bad ? { bad } : {}) });
     }
     return out;
   });
   const [now, setNow] = useState(0);
+  const [ouch, setOuch] = useState<{ key: number; x: number; y: number } | null>(null);
   useEffect(() => {
     if (phase !== 'raining') return;
     const start = performance.now();
@@ -1119,33 +1133,52 @@ const MoneyBin: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ onResolv
     return () => clearInterval(t);
   }, [phase]);
   const left = useCountdown(phase === 'raining', V.moneyBinSeconds * 1000, () => { setPhase('done'); soundService.playMilestone(); });
-  const raw = caught.reduce((a, i) => a + (coins[i]?.seconds ?? 0), 0);
-  const seconds = Math.min(V.moneyBinMaxSeconds, raw);
-  const grab = (i: number) => { if (phase !== 'raining' || caught.includes(i)) return; setCaught([...caught, i]); soundService.playTileClick(); buzz(12); };
+  const gained = caught.reduce((a, i) => a + Math.max(0, coins[i]?.seconds ?? 0), 0);
+  const lost = caught.reduce((a, i) => a + Math.max(0, -(coins[i]?.seconds ?? 0)), 0);
+  const hits = caught.filter(i => coins[i]?.bad).length;
+  const seconds = Math.min(V.moneyBinMaxSeconds, gained) - lost;
+  const grab = (i: number, x: number, y: number) => {
+    if (phase !== 'raining' || caught.includes(i)) return;
+    setCaught([...caught, i]);
+    if (coins[i]?.bad) { soundService.playInvalidWord(); buzz([30, 40, 30]); setOuch({ key: Date.now(), x, y }); }
+    else { soundService.playTileClick(); buzz(12); }
+  };
   const look = (s: number) => s >= 3 ? 'text-5xl drop-shadow-[0_0_8px_rgba(103,232,249,0.9)]' : s === 2 ? 'text-4xl drop-shadow-[0_0_6px_rgba(255,230,0,0.8)]' : 'text-3xl';
+  const coinCount = caught.length - hits;
   return (
     <>
-      <p className="text-slate-200 text-sm">{phase === 'ready' ? `Coins rain down for ${V.moneyBinSeconds} seconds. Each one is worth clock time: the faster it falls, the more it's worth. Catch up to +${V.moneyBinMaxSeconds} seconds!` : phase === 'raining' ? 'Dive in!' : `You caught ${caught.length} ${caught.length === 1 ? 'coin' : 'coins'}.`}</p>
-      <div className="w-full flex justify-center gap-3 osd-text text-base text-slate-300" aria-hidden="true">
+      <p className="text-slate-200 text-sm">{phase === 'ready'
+        ? `Coins rain down for ${V.moneyBinSeconds} seconds. Each one is worth clock time: the faster it falls, the more it's worth (up to +${V.moneyBinMaxSeconds} seconds). Don't tap the bombs or bolts: each one costs ${V.moneyBinHazardSeconds} second.`
+        : phase === 'raining' ? 'Coins only! Dodge the 💣 and 🔩.' : `You caught ${coinCount} ${coinCount === 1 ? 'coin' : 'coins'}${hits ? ` and tapped ${hits} ${hits === 1 ? 'hazard' : 'hazards'}` : ''}.`}</p>
+      <div className="w-full flex justify-center flex-wrap gap-x-3 gap-y-1 osd-text text-base text-slate-300" aria-hidden="true">
         {V.moneyBinCoins.map(c => <span key={c.seconds}>{c.seconds >= 3 ? '💎' : '🪙'} +{c.seconds}<Sec /></span>)}
+        <span className="text-neon-red">{V.moneyBinHazards.join(' ')} −{V.moneyBinHazardSeconds}<Sec /></span>
       </div>
-      <div className="relative w-full h-56 rounded-xl overflow-hidden ring-2 ring-neon-yellow/60 bg-gradient-to-b from-emerald-900 to-crt-950">
+      <div className="relative w-full h-56 rounded-xl overflow-hidden ring-2 ring-neon-yellow/60 bg-gradient-to-b from-emerald-900 to-crt-950" data-testid="money-bin">
         {phase === 'raining' && coins.map((c, i) => {
           const t = (now - c.at) / c.fallMs;
           if (t < 0 || t > 1 || caught.includes(i)) return null;
           return (
-            <button key={i} type="button" onPointerDown={e => { e.preventDefault(); grab(i); }} aria-label={`Coin worth ${c.seconds} seconds`}
-              className={`absolute leading-none select-none touch-none p-1 flex flex-col items-center ${look(c.seconds)}`} style={{ left: `${c.x}%`, top: `${t * 100 - 14}%` }}>
-              <span>{c.seconds >= 3 ? '💎' : '🪙'}</span>
-              <span className="osd-text text-xs text-white leading-none">+{c.seconds}</span>
+            <button key={i} type="button" onPointerDown={e => { e.preventDefault(); grab(i, c.x, t * 100 - 14); }}
+              aria-label={c.bad ? `Hazard: costs ${V.moneyBinHazardSeconds} second` : `Coin worth ${c.seconds} seconds`} data-hazard={c.bad ? '1' : undefined}
+              className={`absolute leading-none select-none touch-none p-1 flex flex-col items-center ${c.bad ? 'text-3xl' : look(c.seconds)}`} style={{ left: `${c.x}%`, top: `${t * 100 - 14}%` }}>
+              <span>{c.bad ?? (c.seconds >= 3 ? '💎' : '🪙')}</span>
+              {!c.bad && <span className="osd-text text-xs text-white leading-none">+{c.seconds}</span>}
             </button>
           );
         })}
+        {ouch && <span key={ouch.key} className="absolute osd-text text-2xl text-neon-red pointer-events-none time-gain" style={{ left: `${ouch.x + 4}%`, top: `${Math.max(0, ouch.y)}%` }} onAnimationEnd={() => setOuch(null)}>−{V.moneyBinHazardSeconds}<Sec /></span>}
         {phase === 'ready' && <div className="absolute inset-0 grid place-items-center text-6xl" aria-hidden="true">🎩</div>}
       </div>
-      <div className="w-full flex justify-between items-baseline"><span className="osd-text text-xl text-neon-green">⏱️ +{seconds}<Sec />{raw > V.moneyBinMaxSeconds ? ' (MAX)' : ''}</span>{phase === 'raining' && <SecsLeft ms={left} />}</div>
+      <div className="w-full flex justify-between items-baseline">
+        <span className={`osd-text text-xl ${seconds < 0 ? 'text-neon-red' : 'text-neon-green'}`} data-testid="money-bin-total">⏱️ {seconds < 0 ? '−' : '+'}{Math.abs(seconds)}<Sec />{gained > V.moneyBinMaxSeconds ? ' (MAX)' : ''}{lost ? <span className="text-neon-red text-base"> ({lost} lost)</span> : null}</span>
+        {phase === 'raining' && <SecsLeft ms={left} />}
+      </div>
       {phase === 'ready' && <ArcadeButton color="yellow" className="w-full" onClick={() => { soundService.playPowerUp(); setPhase('raining'); }}>🎩 Dive in!</ArcadeButton>}
-      {phase === 'done' && <ArcadeButton color="green" className="w-full" onClick={() => onResolve({ seconds, headline: seconds ? `+${seconds} SECONDS` : 'THE BIN STAYS SHUT', detail: seconds ? `Swimming in time! ${caught.length} ${caught.length === 1 ? 'coin' : 'coins'} added to your clock.` : 'Not a single coin. Next time!', tone: seconds ? 'win' : 'neutral' })}>{seconds ? `Take +${seconds}s` : 'Continue'}</ArcadeButton>}
+      {phase === 'done' && <ArcadeButton color={seconds < 0 ? 'red' : 'green'} className="w-full" onClick={() => onResolve({ seconds,
+        headline: seconds > 0 ? `+${seconds} SECONDS` : seconds < 0 ? `${seconds} SECONDS` : 'THE BIN STAYS SHUT',
+        detail: seconds > 0 ? `Swimming in time! ${coinCount} ${coinCount === 1 ? 'coin' : 'coins'} added to your clock${lost ? `, minus ${lost} for the ${lost === 1 ? 'hazard' : 'hazards'} you tapped` : ''}.` : seconds < 0 ? `Ouch: the ${hits === 1 ? 'hazard' : 'hazards'} you tapped cost more than the coins paid.` : 'Not a single second. Next time!',
+        tone: seconds > 0 ? 'win' : seconds < 0 ? 'lose' : 'neutral' })}>{seconds > 0 ? `Take +${seconds}s` : seconds < 0 ? `Pay ${Math.abs(seconds)}s` : 'Continue'}</ArcadeButton>}
     </>
   );
 };
@@ -1628,8 +1661,8 @@ const CenterSquareCard: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ 
   const inLine = new Set(doneLines.flatMap(k => CENTER_SQUARE_LINES[k]));
   return (
     <>
-      <p className="text-slate-200 text-sm leading-snug">Fill the squares. You have {V.centerSquareTurns} words, {V.centerSquareSeconds} seconds and no shuffles; your run's clock waits. Each word fills one open square it fits. Every square pays +{V.centerSquarePerSquare}, every line of three (across, down or diagonal) +{V.centerSquareLineBonus} more, and a full board +{V.centerSquareFullBonus}. A fake word, or one that fits no open square, still uses a word.</p>
-      <div className="w-full flex justify-between items-baseline">
+      <p className="text-slate-200 text-sm leading-snug [@media(max-height:700px)]:text-xs">{V.centerSquareTurns} words, {V.centerSquareSeconds} seconds, no shuffles (your clock waits). Each word fills one square it fits: +{V.centerSquarePerSquare} a square, +{V.centerSquareLineBonus} a line of three, +{V.centerSquareFullBonus} for the full board. A miss still uses a word.</p>
+      <div className="w-full flex flex-wrap justify-between items-baseline gap-x-2 gap-y-0.5">
         <span className="font-display text-xl text-neon-yellow" data-testid="squares-pay">+{pay}</span>
         <span className="osd-text text-xl text-slate-200" data-testid="squares-turns">WORD {Math.min(s.turns + 1, V.centerSquareTurns)}/{V.centerSquareTurns}</span>
         <span className="osd-text text-xl text-neon-green" data-testid="squares-lines">{doneLines.length} {doneLines.length === 1 ? 'LINE' : 'LINES'}</span>
@@ -1640,7 +1673,7 @@ const CenterSquareCard: React.FC<{ onResolve: (r: GambleResult) => void }> = ({ 
           const done = s.got[i];
           return (
             <div key={i} aria-label={`${CENTER_SQUARES[id].label}${done ? `: filled by ${s.words[i]}` : ': open'}`}
-              className={`min-h-[3.75rem] rounded-lg px-1 py-1.5 flex flex-col items-center justify-center text-center ring-2 transition-transform ${done ? (inLine.has(i) ? 'bg-neon-green/20 ring-neon-green shadow-[0_0_12px_rgba(61,255,140,0.6)]' : 'bg-neon-yellow/20 ring-neon-yellow') : i === 4 ? 'bg-[#0b2a6b] ring-neon-pink/70' : 'bg-[#0b2a6b] ring-[#4d7cff]/70'} ${lit === i ? 'scale-105 level-stage-in' : ''}`}>
+              className={`min-w-0 min-h-[3.75rem] [@media(max-height:700px)]:min-h-[3rem] rounded-lg px-1 py-1.5 flex flex-col items-center justify-center text-center ring-2 transition-transform ${done ? (inLine.has(i) ? 'bg-neon-green/20 ring-neon-green shadow-[0_0_12px_rgba(61,255,140,0.6)]' : 'bg-neon-yellow/20 ring-neon-yellow') : i === 4 ? 'bg-[#0b2a6b] ring-neon-pink/70' : 'bg-[#0b2a6b] ring-[#4d7cff]/70'} ${lit === i ? 'scale-105 level-stage-in' : ''}`}>
               {done ? (
                 <>
                   <span className="font-display text-2xl leading-none text-neon-yellow" aria-hidden="true">⭕</span>

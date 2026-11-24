@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="description" content="A fast-paced, Scrabble-inspired word game packed with 90s and 2000s pop culture bonuses." />
     <meta name="theme-color" content="#0f172a" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -15,7 +15,7 @@
   </head>
   <body>
     <div id="root"></div>
-    <div id="toast" style="display: block; position: fixed; bottom: calc(20px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 20px; border-radius: 6px; z-index: 9999; transition: opacity 0.5s ease-in-out; opacity: 0; pointer-events: none;"></div>
+    <div id="toast" style="display: block; position: fixed; top: calc(12px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 20px; border-radius: 6px; z-index: 9999; transition: opacity 0.5s ease-in-out; opacity: 0; pointer-events: none;"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

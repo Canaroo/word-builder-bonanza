@@ -998,7 +998,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'scroogeSwipe', 
     name: 'Scrooge’s Money Bin', 
-    description: `Dive into the Money Bin: coins rain down for ${POWER_PLAY_VALUES.moneyBinSeconds} seconds, each worth ${POWER_PLAY_VALUES.moneyBinCoins.map(c => c.seconds).join(', ').replace(/, (\d+)$/, ' or $1')} seconds of clock (the faster they fall, the more they're worth). Tap to catch them, up to +${POWER_PLAY_VALUES.moneyBinMaxSeconds} seconds.`, 
+    description: `Dive into the Money Bin: coins rain down for ${POWER_PLAY_VALUES.moneyBinSeconds} seconds, each worth ${POWER_PLAY_VALUES.moneyBinCoins.map(c => c.seconds).join(', ').replace(/, (\d+)$/, ' or $1')} seconds of clock (the faster they fall, the more they're worth). Tap to catch them, up to +${POWER_PLAY_VALUES.moneyBinMaxSeconds} seconds. Watch out: bombs and bolts fall in too, and each one you tap costs ${POWER_PLAY_VALUES.moneyBinHazardSeconds} second.`, 
     flavorText: 'Some say fortune favors the bold. Others say it favors the rich duck in a top hat.',
     icon: '🎩',
     subtheme: 'utility',

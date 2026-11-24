@@ -1415,8 +1415,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
               );
             })()}
             <div className="stage-body relative flex-1 min-h-0 flex flex-col items-center gap-2 [@media(max-height:700px)]:gap-1">
-              {message && (
-                <div className={`absolute inset-x-0 flex justify-center pointer-events-none z-20 ${n ? 'top-0' : 'top-1/2 -translate-y-1/2'}`} role="status" aria-live="polite">
+              {/* v7.83.0: a message never covers the word. With an empty word row it sits in the middle of the
+                  stage; while you're spelling it sits under the word's chips instead (see below). */}
+              {message && n === 0 && (
+                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center pointer-events-none z-20" role="status" aria-live="polite">
                   <div key={message} className="message-pop max-w-full px-3 py-1.5 rounded-lg bg-crt-950/95 ring-1 ring-neon-cyan/60 shadow-glow-cyan osd-text text-xl leading-tight text-neon-cyan text-center whitespace-pre-line">
                     {withSec(message ?? '')}
                   </div>
@@ -1451,6 +1453,13 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                   {effects.map(e => (
                     <span key={e.text} className={`message-pop osd-text text-base leading-none px-2 py-1 rounded-full ring-1 whitespace-nowrap ${e.tone}`}>{e.text}</span>
                   ))}
+                </div>
+              )}
+              {message && n > 0 && (
+                <div className="w-full flex justify-center pointer-events-none pr-11" role="status" aria-live="polite" data-testid="stage-message">
+                  <div key={message} className="message-pop max-w-full px-3 py-1 rounded-lg bg-crt-950/95 ring-1 ring-neon-cyan/60 osd-text text-lg leading-tight text-neon-cyan text-center whitespace-pre-line">
+                    {withSec(message ?? '')}
+                  </div>
                 </div>
               )}
             </div>

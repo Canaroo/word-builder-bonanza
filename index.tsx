@@ -21,6 +21,11 @@ dictionaryService.preload();
 // start screen (services/appUpdate.ts, v7.63.0).
 initAppUpdates(registerSW);
 
+// v7.83.0: no pinch zoom. iPhone Safari ignores user-scalable=no in the viewport tag, so its pinch
+// gesture is blocked here; two fingers landing on tiles at once used to zoom the board.
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");
