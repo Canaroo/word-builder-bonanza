@@ -10,8 +10,8 @@ async function renderSong(song) {
   const master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
   const verb = ctx.createConvolver(); const ir = ctx.createBuffer(2, SR * 2.2, SR);
   for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3.2); }
-  verb.buffer = ir; const verbIn = ctx.createGain(); verbIn.gain.value = song.style === 'synthwave' ? 0.5 : song.style === 'nineties' ? 0.3 : song.style === 'cozy' ? 0.42 : 0.28; verbIn.connect(verb); verb.connect(master);
-  const delay = ctx.createDelay(2); delay.delayTime.value = spb * (song.style === 'synthwave' ? 0.75 : 0.5);
+  verb.buffer = ir; const verbIn = ctx.createGain(); verbIn.gain.value = song.style === 'fairy' ? 0.7 : song.style === 'synthwave' ? 0.5 : song.style === 'nineties' ? 0.3 : song.style === 'cozy' ? 0.42 : 0.28; verbIn.connect(verb); verb.connect(master);
+  const delay = ctx.createDelay(2); delay.delayTime.value = spb * (song.style === 'synthwave' || song.style === 'fairy' ? 0.75 : 0.5);
   const fb = ctx.createGain(); fb.gain.value = 0.32; const delayIn = ctx.createGain(); delayIn.gain.value = song.style === 'synthwave' ? 0.35 : 0.18;
   const dlp = ctx.createBiquadFilter(); dlp.type = 'lowpass'; dlp.frequency.value = 2600;
   delayIn.connect(delay); delay.connect(dlp); dlp.connect(fb); fb.connect(delay); dlp.connect(master);
@@ -87,6 +87,10 @@ async function renderSong(song) {
         tone(st, d + spb * 0.4, f * 2, { wave: 'triangle', vol: 0.025, pan: -0.1, e: { a: 0.002, d: 0.25, s: 0.1, r: 0.25 } });
         // The music box doubles the tune an octave up from the middle section on.
         if (bar >= song.musicBoxFrom) tone(st, spb * 0.9, f * 2, { wave: 'sine', vol: 0.045, pan: 0.35, verb: 0.55, dly: 0.3, e: { a: 0.001, d: 0.35, s: 0, r: 0.3 } });
+      } else if (song.style === 'fairy') {
+        // Glassy melody: a soft sine with slow vibrato and a faint octave shimmer, lots of space.
+        tone(st, d + spb * 0.8, f, { wave: 'sine', vol: 0.085, vib: 0.006, verb: 0.75, dly: 0.45, pan: -0.1, e: { a: 0.08, d: 0.6, s: 0.6, r: 0.9 } });
+        tone(st, d, f * 2, { wave: 'triangle', vol: 0.012, vib: 0.004, verb: 0.7, pan: 0.25, e: { a: 0.12, d: 0.5, s: 0.4, r: 0.8 } });
       } else if (song.style === 'golden') {
         // Bright pulse lead, a sine an octave up for sparkle, and a bell on each bar's first note.
         tone(st, d, f, { wave: P25, vol: 0.08, vib: 0.008, verb: 0.35, dly: 0.25, pan: -0.05, e: { a: 0.004, d: 0.1, s: 0.7, r: 0.1 } });
@@ -121,6 +125,18 @@ async function renderSong(song) {
         tone(t(bar, 0), spb * 1.6, hz(root + 12), { wave: 'sine', vol: 0.05, e: { a: 0.004, d: 0.5, s: 0.2, r: 0.3 } });
         [1, 2].forEach(b => upper.forEach((m, i) => tone(t(bar, b), spb * 0.55, hz(m), { wave: 'sine', vol: 0.03, pan: i % 2 ? 0.25 : -0.25, verb: 0.35, e: { a: 0.003, d: 0.3, s: 0.2, r: 0.2 } })));
         if (bar >= song.stringsFrom) upper.forEach((m, i) => tone(t(bar, 0), spb * bpb, hz(m), { wave: 'sawtooth', vol: 0.012, lp: 1100, detune: i % 2 ? 7 : -7, pan: i % 2 ? 0.45 : -0.45, verb: 0.6, e: { a: 0.45, d: 0.2, s: 0.9, r: 0.5 } }));
+      } else if (song.style === 'fairy') {
+        // Harp: the chord's notes over two octaves, cascading in 16ths, up then back down (a shape of
+        // our own), starting a step higher every other bar so it keeps drifting.
+        const notes = [...upper, ...upper.map(m => m + 12)].sort((a, b) => a - b);
+        const shape = [0, 1, 2, 3, 4, 5, 6, 7, 8, 7, 5, 4, 2, 3, 1, 2];
+        const lift = bar % 2;
+        for (let k = 0; k < len * 4; k++) { const m = notes[Math.min(notes.length - 1, shape[k % shape.length] + lift)]; tone(t(bar, from + k / 4), spb * 1.2, hz(m + 12), { wave: 'triangle', vol: 0.03, pan: Math.sin(k / 2.5) * 0.55, verb: 0.65, dly: 0.25, e: { a: 0.002, d: 0.6, s: 0, r: 0.5 } }); }
+        // A soft pad and a low sine bass, held.
+        upper.forEach((m, i) => tone(t(bar, from), len * spb, hz(m), { wave: 'sine', vol: 0.016, vib: 0.003, pan: i % 2 ? 0.45 : -0.45, verb: 0.8, e: { a: 0.9, d: 0.3, s: 0.9, r: 1.2 } }));
+        tone(t(bar, from), len * spb, hz(root), { wave: 'sine', vol: 0.12, e: { a: 0.3, d: 0.4, s: 0.7, r: 0.8 } });
+        // A twinkle at the top of each bar.
+        tone(t(bar, from + 0.02), spb * 1.5, hz(upper[upper.length - 1] + 36), { wave: 'sine', vol: 0.012, pan: 0.5, verb: 0.9, dly: 0.5, e: { a: 0.001, d: 0.7, s: 0, r: 0.6 } });
       } else if (song.style === 'golden') {
         // Bouncy octave bass in 8ths.
         for (let k = 0; k < len * 2; k++) tone(t(bar, from + k / 2), spb * 0.42, hz(root + (k % 2 ? 12 : 0)), { wave: 'triangle', vol: 0.19, e: { a: 0.004, d: 0.1, s: 0.7, r: 0.05 } });
@@ -166,6 +182,8 @@ async function renderSong(song) {
       kick(t(bar, 0), 0.5); kick(t(bar, 1.75), 0.25); kick(t(bar, 2.5), 0.42);
       [1, 3].forEach(b => { noise(t(bar, b), 0.2, { vol: 0.085, type: 'bandpass', f: 1700, q: 0.8, verb: 0.35 }); tone(t(bar, b), 0.06, 185, { wave: 'sine', vol: 0.06, e: { a: 0.001, d: 0.06, s: 0, r: 0.04 } }); });
       for (let k = 0; k < 16; k++) noise(t(bar, k / 4), k % 2 ? 0.025 : 0.04, { vol: k % 4 === 2 ? 0.026 : k % 2 ? 0.01 : 0.018, f: 8500, pan: 0.25 });
+    } else if (song.style === 'fairy') {
+      // No drums: it floats.
     } else if (song.style === 'golden') {
       kick(t(bar, 0), 0.38); kick(t(bar, 2), 0.3);
       [1, 3].forEach(b => noise(t(bar, b), 0.12, { vol: 0.06, type: 'bandpass', f: 2200, q: 0.9, verb: 0.3 }));

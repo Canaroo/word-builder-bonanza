@@ -7,7 +7,7 @@ const CH = { // chord voicings (root for bass first, then upper notes)
   Abmaj7: ['Ab2', 'C4', 'Eb4', 'G4'], Em: ['E2', 'G3', 'B3', 'E4'], Dm9: ['D3', 'F4', 'A4', 'C5', 'E5'], G9: ['G2', 'F4', 'A4', 'B4', 'E5'], Am7b: ['A2', 'G3', 'C4', 'E4'], Gm9: ['G2', 'Bb3', 'D4', 'F4', 'A4'], A7sus: ['A2', 'G3', 'D4', 'E4'], A7b: ['A2', 'G3', 'C#4', 'E4'], C9: ['C3', 'Bb3', 'D4', 'E4'], Bbmaj9: ['Bb2', 'D4', 'F4', 'A4', 'C5'], Fm: ['F2', 'Ab3', 'C4', 'F4'], Bb: ['Bb2', 'F3', 'Bb3', 'D4'], G7sus: ['G2', 'C4', 'D4', 'F4'],
   Am: ['A2', 'A3', 'C4', 'E4'], F: ['F2', 'A3', 'C4', 'F4'], C: ['C3', 'G3', 'C4', 'E4'], G: ['G2', 'G3', 'B3', 'D4'], Dm: ['D3', 'A3', 'D4', 'F4'], E: ['E2', 'G#3', 'B3', 'E4'],
   Gm7: ['G2', 'Bb3', 'D4', 'F4'], Dmaj: ['D3', 'F#4', 'A4', 'D5'], Amaj: ['A2', 'E4', 'A4', 'C#5'], Bm: ['B2', 'F#4', 'B4', 'D5'], Gmaj: ['G2', 'D4', 'G4', 'B4'], Em7g: ['E2', 'G4', 'B4', 'D5'], Fsm: ['F#2', 'F#4', 'A4', 'C#5'],
-  Bmaj: ['B2', 'D#4', 'F#4', 'B4'], Dboss: ['D3', 'F#3', 'A3', 'D4'], B7: ['B2', 'D#4', 'F#4', 'A4'], Emb: ['E2', 'G3', 'B3', 'E4'], Cb: ['C3', 'G3', 'C4', 'E4'], Amb: ['A2', 'A3', 'C4', 'E4'], Fb: ['F2', 'A3', 'C4', 'F4'], C7: ['C3', 'Bb3', 'E4', 'G4'], F6: ['F2', 'A3', 'C4', 'D4'], Bbmaj7: ['Bb2', 'A3', 'D4', 'F4'], Bbm6: ['Bb2', 'Db4', 'F4', 'G4'], D7: ['D3', 'C4', 'F#4', 'A4'],
+  Bmaj: ['B2', 'D#4', 'F#4', 'B4'], Amaj9: ['A2', 'C#4', 'E4', 'G#4', 'B4'], Fsm11: ['F#2', 'A3', 'C#4', 'E4', 'B4'], Dmaj9f: ['D2', 'F#3', 'A3', 'C#4', 'E4'], Esus2: ['E2', 'B3', 'E4', 'F#4', 'B4'], Cmaj7s11: ['C3', 'E4', 'G4', 'B4', 'F#5'], Bm9: ['B2', 'D4', 'F#4', 'A4', 'C#5'], Gmaj7f: ['G2', 'B3', 'D4', 'F#4', 'A4'], E7sus: ['E2', 'A3', 'D4', 'E4', 'B4'], Dboss: ['D3', 'F#3', 'A3', 'D4'], B7: ['B2', 'D#4', 'F#4', 'A4'], Emb: ['E2', 'G3', 'B3', 'E4'], Cb: ['C3', 'G3', 'C4', 'E4'], Amb: ['A2', 'A3', 'C4', 'E4'], Fb: ['F2', 'A3', 'C4', 'F4'], C7: ['C3', 'Bb3', 'E4', 'G4'], F6: ['F2', 'A3', 'C4', 'D4'], Bbmaj7: ['Bb2', 'A3', 'D4', 'F4'], Bbm6: ['Bb2', 'Db4', 'F4', 'G4'], D7: ['D3', 'C4', 'F#4', 'A4'],
 };
 
 // Pixel Hometown v2: a cozy 3/4 waltz on soundfont-style piano and music box (no drums), built on
@@ -173,5 +173,22 @@ const bossFight = (() => {
   return { name: 'Boss Fight', bpm: 152, swing: 0, style: 'boss', melody: [...A, ...B], chords: [...cA, ...cB] };
 })();
 
+// Golden Round v2 (the owner's ask: ethereal and floaty, in the spirit of a fairy-fountain theme;
+// original melody, chords and arpeggio pattern): A major with dreamy borrowed chords (C, G), cascading
+// harp in 16ths, a glassy melody, a soft pad and a low bass. No drums. 72 BPM.
+const goldenFountain = (() => {
+  const A = [
+    [[0, 3, 'E5'], [3, 1, 'C#5']], [[0, 2, 'B4'], [2, 2, 'A4']], [[0, 3, 'F#5'], [3, 1, 'E5']], [[0, 4, 'B4']],
+    [[0, 1, 'C#5'], [1, 1, 'E5'], [2, 2, 'G#5']], [[0, 3, 'G5'], [3, 1, 'F#5']], [[0, 2, 'D5'], [2, 2, 'C#5']], [[0, 4, 'B4']],
+  ];
+  const B = [
+    [[0, 3, 'A5'], [3, 1, 'F#5']], [[0, 2, 'D5'], [2, 2, 'B4']], [[0, 2, 'C#5'], [2, 2, 'E5']], [[0, 4, 'D5']],
+    [[0, 1, 'E5'], [1, 1, 'G5'], [2, 2, 'B5']], [[0, 3, 'A5'], [3, 1, 'F#5']], [[0, 2, 'D5'], [2, 2, 'F#5']], [[0, 3, 'E5'], [3, 1, 'G#5']],
+  ];
+  const cA = [['Amaj9'], ['Fsm11'], ['Dmaj9f'], ['Esus2'], ['Amaj9'], ['Cmaj7s11'], ['Bm9'], ['E7sus']];
+  const cB = [['Dmaj9f'], ['Gmaj7f'], ['Fsm11'], ['Bm9'], ['Cmaj7s11'], ['Gmaj7f'], ['Bm9'], ['E7sus']];
+  return { name: 'Golden Round', bpm: 72, swing: 0, style: 'fairy', melody: [...A, ...B], chords: [...cA, ...cB] };
+})();
+
 // eslint-disable-next-line no-unused-vars
-const SONGS = { pixelHometown, midnightRental, coinOpLounge, dialUpDreams, goldenRound, bossFight, N, CH };
+const SONGS = { pixelHometown, midnightRental, coinOpLounge, dialUpDreams, goldenRound, goldenFountain, bossFight, N, CH };
