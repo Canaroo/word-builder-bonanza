@@ -5825,12 +5825,17 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
 
       if (wordLockActive) { delete consumedPPs.wordLock; consumedBuffs = consumedBuffs.filter(b => b.id !== 'wordLock'); }
+      // Cassie's Clue (v7.89.0) waits for a word with C, A and T, instead of being lost on the next word.
+      if ((consumedPPs as any).cassiesClue && ['C', 'A', 'T'].every(l => word.toUpperCase().includes(l))) {
+          delete (consumedPPs as any).cassiesClue;
+          consumedBuffs = consumedBuffs.filter(b => b.id !== 'cassiesClue');
+      }
       // More Than Meets the Eye is spent by the word that uses its combo tile.
       if ((consumedPPs as any).moreThanMeets && submittedTiles.some(t => t.id === (consumedPPs as any).moreThanMeets.tileId)) {
           delete (consumedPPs as any).moreThanMeets;
           consumedBuffs = consumedBuffs.filter(b => b.id !== 'moreThanMeets');
       }
-      ['biglyScore', 'multiverseOfSadness', 'nuclearOption', 'redWedding', 'wakandaForever', 'heisenberg', 'skywalkerBloodline', 'leafOnTheWind', 'doubleOrNothing', 'cassiesClue', 'cowabunga', 'holdOntoYourButts', 'tetrisTouch', 'blueShellSurprise', 'pinkyAndTheBrain', 'letsGetDangerous', 'slimShadyShuffle', 'spaceInvader', 'upsideDown', 'jackass', 'birdBox'].forEach(id => { 
+      ['biglyScore', 'multiverseOfSadness', 'nuclearOption', 'redWedding', 'wakandaForever', 'heisenberg', 'skywalkerBloodline', 'leafOnTheWind', 'doubleOrNothing', 'cowabunga', 'holdOntoYourButts', 'tetrisTouch', 'blueShellSurprise', 'pinkyAndTheBrain', 'letsGetDangerous', 'slimShadyShuffle', 'spaceInvader', 'upsideDown', 'jackass', 'birdBox'].forEach(id => { 
           if ((consumedPPs as any)[id]) { 
               delete (consumedPPs as any)[id]; 
               consumedBuffs = consumedBuffs.filter(b => b.id !== id); 

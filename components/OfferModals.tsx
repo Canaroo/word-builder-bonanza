@@ -147,7 +147,7 @@ export const PowerPlayOffer: React.FC<{
         </p>
       </div>
     ) : (
-      <p className="text-sm text-slate-300 text-center mt-2">Pick one. It waits in your Buffs tray until you tap it.</p>
+      <p className="text-sm text-slate-300 text-center mt-2">Pick one. It waits in your pocket until you tap ▶ USE.</p>
     )}
 
     <div className="mt-3 space-y-2 overflow-y-auto overscroll-contain p-1 -m-1">

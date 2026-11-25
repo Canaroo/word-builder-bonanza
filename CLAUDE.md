@@ -323,9 +323,25 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   call):** Hamm's deposit went from 30% to 50% (`piggyDeposit`): his 5-word payout was about +300. Saves from before count from 0.
   **Greatest Hits pill** (`HitsChip` in `PowerPlayTrackers.tsx`, `hits-chip`) moved out of the stage's
   strip to right above the tiles (the owner's ask), larger, with a gold ring; hidden in Golden Rounds.
+- **Copy pass and flat numbers (v7.89.0, the owner's ask: succinct, clear, flat bonuses).** 151 of 218
+  charm/PowerPlay descriptions rewritten to two short sentences in one style (median PowerPlay 19 → 13
+  words, longest 76 → 34; over 25 words: 42 → 9); edge cases moved to a new optional `finePrint` field
+  (36 items), rendered under the rules on offer cards (`fine-print`), in Gear and in the info pop-up.
+  Seven percent effects went flat, each matched to what it paid in the usage stats: Golden Girls +75 on
+  Golden words (`CHARM_BONUS.goldenGirls`; the last 80 Golden words averaged 139), Down to Your Boxers
+  +75 (`boxers`), Keymaster +750 a gate that pays (`keymaster`; gates averaged 2,052, median 1,000),
+  Turbo Button 6 fewer letters (`turboButtonLetters`), Continue? a flat 1,500 never above the score
+  (`POWER_PLAY_VALUES.continueCost`; averaged 1,528), Hamm +100 a word (`FRAGILE.piggyPerWord`, no
+  interest: 500 over 5 words), Hammer Time reworded ("a minute lasts about 71 seconds"). Odds stay %.
+  **Flavor pass:** 20 flavor lines quoted or paraphrased song lyrics and were replaced with original
+  nods (never use lyrics; see the skill), 19 weak ones now name their source, 8 got a reference.
+  **Wildcard Wake is Gambit's Reshuffle** (id kept, X-Men). **Cassie's Clue** (the owner's brother-in-law's
+  cat; picked 14% vs about 27% average) now waits for the first word with C, A and T instead of being lost
+  on the next word (spent in `completeSubmission`), and its flavor explains the cat. The review page is the
+  "Word Nerd Copy Pass" artifact. The offer header now says the PowerPlay waits in your pocket (▶ USE).
 - **🐷 Hamm's Piggy Bank (v7.73.0, the owner's pick of three designs)** (`hammPiggyBank`, a fragile
   charm; `piggy*` in `FRAGILE`, `piggyAfterWord`/`smashPiggy` in `GameScreen.tsx`, `gameState.piggyBank`):
-  every valid word adds 30% (50% since v7.87.1) of its full score (after every multiplier, before secrets, milestones and
+  every valid word adds 30% (50% since v7.87.1; a flat +100 since v7.89.0) of its full score (after every multiplier, before secrets, milestones and
   Greatest Hits) to the bank, which first earns 5% interest, up to 15,000. The word keeps all its
   points. Hold the 🐷 chip above the tiles (`piggyHoldMs` 700, `SMASH_PIGGY`) to smash him: he pays out
   and is gone for the run (into `shatteredCharms`). A slip shatters him and the savings are lost (the
