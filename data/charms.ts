@@ -996,7 +996,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'glassJoe',
     name: 'Glass Joe',
-    description: `💔 FRAGILE: Every word scores x${FRAGILE.glassJoeMultiplier}. It shatters for the rest of the run the moment you play an invalid word or take a strike. Nothing protects it.`,
+    description: `💔 FRAGILE: Every word scores x${FRAGILE.glassJoeMultiplier}. It breaks after ${FRAGILE.lifeWords} words, and shatters sooner the moment you play an invalid word or take a strike. Nothing protects it.`,
     flavorText: 'Punch-Out!! taught us: a glass jaw never lasts.',
     icon: '🥊',
     subtheme: 'score',
@@ -1008,7 +1008,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'majorAward',
     name: 'Major Award',
-    description: `💔 FRAGILE: Every word earns +${FRAGILE.majorAwardBase}, and +${FRAGILE.majorAwardStep} more for every ${FRAGILE.majorAwardEvery} words it survives (up to +${FRAGILE.majorAwardMax} a word). It shatters for the rest of the run the moment you play an invalid word or take a strike. Nothing protects it.`,
+    description: `💔 FRAGILE: Your next word earns +${FRAGILE.majorAwardBase}, and each word after it earns +${FRAGILE.majorAwardStep} more (up to +${FRAGILE.majorAwardMax}). It breaks after ${FRAGILE.lifeWords} words, and shatters sooner the moment you play an invalid word or take a strike. Nothing protects it.`,
     flavorText: 'Fra-gee-lay! It must be Italian!',
     icon: '🦵',
     subtheme: 'score',
@@ -1020,7 +1020,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'hammPiggyBank',
     name: "Hamm's Piggy Bank",
-    description: `💔 FRAGILE: ${FRAGILE.piggyDeposit}% of every word's score also goes into Hamm (your word keeps all its points), and his savings grow ${FRAGILE.piggyInterest}% with every word, up to ${FRAGILE.piggyMax.toLocaleString()}. Hold the 🐷 chip above your tiles to smash him and collect. An invalid word or a strike shatters him and the savings are gone, and so does running out of time: smash him before the clock hits 0.`,
+    description: `💔 FRAGILE: ${FRAGILE.piggyDeposit}% of every word's score also goes into Hamm (your word keeps all its points), and his savings grow ${FRAGILE.piggyInterest}% with every word, up to ${FRAGILE.piggyMax.toLocaleString()}. Hold the 🐷 chip above your tiles to smash him and collect any time; after ${FRAGILE.lifeWords} words he smashes himself and pays out. An invalid word or a strike shatters him and the savings are gone, and so does running out of time.`,
     flavorText: "That's Mr. Evil Dr. Porkchop to you. (Toy Story)",
     icon: '🐷',
     subtheme: 'score',
@@ -1032,7 +1032,7 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'crystalBall',
     name: 'Crystal Ball',
-    description: `💔 FRAGILE: Every word adds +${FRAGILE.crystalBallSeconds} seconds to your clock. It shatters for the rest of the run the moment you play an invalid word or take a strike. Nothing protects it.`,
+    description: `💔 FRAGILE: Every word adds +${FRAGILE.crystalBallSeconds} seconds to your clock. It breaks after ${FRAGILE.lifeWords} words, and shatters sooner the moment you play an invalid word or take a strike. Nothing protects it.`,
     flavorText: "Labyrinth: it's only forever, until you drop it.",
     icon: '🔮',
     subtheme: 'utility',

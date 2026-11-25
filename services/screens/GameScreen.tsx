@@ -741,6 +741,44 @@ export const smashPiggy = (gs: GameState): { gameState: GameState; points: numbe
         log: [...gs.log, entry] } };
 };
 
+/**
+ * v7.87.0: one more valid word on every fragile charm held. Any that reach FRAGILE.lifeWords break
+ * (gone for the run, never offered again); Hamm smashes himself and pays out his savings. Returns
+ * the card to show when something broke, or a warning when one has a single word left.
+ */
+export const wearFragile = (gs: GameState): { gameState: GameState; card: ModalContent | null; warning: string | null } => {
+    const glass = gs.activeCharms.filter(c => c.breaks);
+    if (glass.length === 0) return { gameState: gs, card: null, warning: null };
+    const counts = { ...(gs.fragileWords ?? {}) };
+    glass.forEach(c => { counts[c.id] = (counts[c.id] ?? 0) + 1; });
+    const done = glass.filter(c => counts[c.id] >= FRAGILE.lifeWords);
+    if (done.length === 0) {
+        const last = glass.filter(c => counts[c.id] === FRAGILE.lifeWords - 1);
+        const warning = last.length ? `💔 ${last.map(c => `${c.icon} ${c.name}`).join(' and ')}: LAST WORD!` : null;
+        return { gameState: { ...gs, fragileWords: counts }, card: null, warning };
+    }
+    const ids = done.map(c => c.id);
+    ids.forEach(id => { delete counts[id]; });
+    const payout = ids.includes('hammPiggyBank') ? (gs.piggyBank ?? 0) : 0;
+    const score = gs.score + payout;
+    const parts = done.map(c => `${c.icon} ${c.name}`);
+    const names = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
+    const hammNote = ids.includes('hammPiggyBank') ? ` Hamm smashed himself and paid out his savings: +${payout.toLocaleString()} points.` : '';
+    const entry: EventLogEntry = { type: 'event', id: `wornout-${Date.now()}`, name: 'Fragile charm broke', icon: '💥',
+        description: `${names} lasted ${FRAGILE.lifeWords} words and broke.${hammNote}`, scoreChange: payout, cumulativeScore: score };
+    const card: ModalContent = outcome({ icon: '💥', name: 'Fragile charm' },
+        done.length > 1 ? '💥 FRAGILE CHARMS BROKE' : `💥 ${done[0].name.toUpperCase()} BROKE`,
+        `${names} lasted all ${FRAGILE.lifeWords} words and ${done.length > 1 ? 'are' : 'is'} gone for the rest of the run.${hammNote} Your charm slot is free for the next charm offer.`,
+        'neutral');
+    return { card, warning: null, gameState: { ...gs, score, fragileWords: counts,
+        activeCharms: gs.activeCharms.filter(c => !ids.includes(c.id)),
+        activeBuffs: gs.activeBuffs.filter(b => !ids.includes(b.id)),
+        charmUpgrades: (gs.charmUpgrades ?? []).filter(id => !ids.includes(id)),
+        shatteredCharms: [...new Set([...(gs.shatteredCharms ?? []), ...ids])],
+        ...(ids.includes('hammPiggyBank') ? { piggyBank: 0 } : {}),
+        log: [...gs.log, entry] } };
+};
+
 /** Triforce of Wisdom: moves the given hand tiles, in order, into an empty word row (null if one is missing). */
 export function zeldaPlace<T extends Pick<GameScreenState, 'hand' | 'buildRow'>>(state: T, tileIds: string[]): T | null {
     const hand = [...state.hand];
@@ -1944,6 +1982,8 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             // Tick-Tock Croc counts from the moment it's equipped.
             if (charm.id === 'tickTockCroc') newGameState.crocWords = 0;
             if (charm.id === 'majorAward') newGameState.majorAwardWords = 0;
+            // v7.87.0: a fragile charm's 5 words start counting when it's equipped.
+            if (charm.breaks) newGameState.fragileWords = { ...(newGameState.fragileWords ?? {}), [charm.id]: 0 };
             if (charm.id === 'hammPiggyBank') newGameState.piggyBank = 0;
             let newTime = state.time;
 
@@ -5544,6 +5584,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         cumulativeScore: newState.score
       };
       newState.log = [...newState.log, wordLogEntry, ...eventLogQueue];
+      // v7.87.0 (the owner's call): fragile charms wear out after FRAGILE.lifeWords valid words. This runs
+      // before the charm offer below, so a slot that frees up can be filled by the next offer.
+      {
+          const worn = wearFragile(newState);
+          newState = worn.gameState;
+          if (worn.card) modalQueue.unshift(worn.card);
+          else if (worn.warning) showMessage(worn.warning, 2200);
+      }
       newState.longestWord = word.length > newState.longestWord.length ? word : newState.longestWord;
       if (!newState.highestScoringWord || turnScore > newState.highestScoringWord.score) {
         newState.highestScoringWord = { ...wordLogEntry, score: turnScore };

@@ -352,6 +352,8 @@ export interface GameState {
   triforceWish?: boolean;
   /** Fragile charms that shattered this run (never offered again). */
   shatteredCharms?: string[];
+  /** v7.87.0: valid words each fragile charm has lasted (by id); it breaks at FRAGILE.lifeWords. */
+  fragileWords?: Record<string, number>;
   /** Major Award: valid words played since it was equipped. */
   majorAwardWords?: number;
   /** 🐷 Hamm's Piggy Bank (v7.73.0): what's saved in it. */
