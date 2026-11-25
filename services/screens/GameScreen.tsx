@@ -722,9 +722,9 @@ export function withBuildRowReturned<T extends Pick<GameScreenState, 'hand' | 'b
     return { ...state, hand, buildRow: Array(BUILD_ROW_SIZE).fill(null) };
 }
 
-/** 🐷 Hamm's Piggy Bank after one valid word: interest first, then the word's share, up to the cap. */
-export const piggyAfterWord = (bank: number, wordScore: number): number =>
-    Math.min(FRAGILE.piggyMax, Math.round(bank * (1 + FRAGILE.piggyInterest / 100) + wordScore * FRAGILE.piggyDeposit / 100));
+/** 🐷 Hamm's Piggy Bank after one valid word: a flat deposit (v7.89.0), up to the cap. The word score is kept for callers. */
+export const piggyAfterWord = (bank: number, _wordScore = 0): number =>
+    Math.min(FRAGILE.piggyMax, bank + FRAGILE.piggyPerWord);
 
 /** Pays out Hamm's savings when the player smashes him, and removes him for the run. */
 export const smashPiggy = (gs: GameState): { gameState: GameState; points: number } | null => {
@@ -973,15 +973,15 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             const { name, icon, points: listed, headline, detail, flat } = action.payload;
             const level = runLevel(gameState);
             // Gates pay exactly what their card says (flat); arcade games are prizes that grow with the level.
-            // Are You the Keymaster? (v7.62.0): Score Gate events pay keymasterPercent more.
+            // Are You the Keymaster? (v7.62.0; flat since v7.89.0): Score Gate events that pay anything pay CHARM_BONUS.keymaster more.
             const keymaster = flat && listed > 0 && gameState.activeCharms.some(c => c.id === 'keymaster');
-            const points = flat ? (keymaster ? Math.round(listed * (1 + CHARM_BONUS.keymasterPercent / 100)) : listed) : prizeFor(listed, level);
+            const points = flat ? (keymaster ? listed + CHARM_BONUS.keymaster : listed) : prizeFor(listed, level);
             const boosted = points !== listed;
-            const boostNote = keymaster ? `🗝️ Keymaster +${CHARM_BONUS.keymasterPercent}%: ${listed.toLocaleString()} → ${points.toLocaleString()} points.` : `⬆ Level ${level} prize boost: ${listed} → ${points} points.`;
+            const boostNote = keymaster ? `🗝️ Keymaster +${CHARM_BONUS.keymaster.toLocaleString()}: ${listed.toLocaleString()} → ${points.toLocaleString()} points.` : `⬆ Level ${level} prize boost: ${listed} → ${points} points.`;
             const score = gameState.score + points;
             const entry: EventLogEntry = { type: 'event', id: `mg-${name}-${Date.now()}`, name, icon, description: headline, scoreChange: keymaster ? listed : points, cumulativeScore: keymaster ? gameState.score + listed : score };
             // v7.72.4: Keymaster's extra gets its own entry, so the event log and the Gear menu credit it.
-            const keyEntry: EventLogEntry[] = keymaster ? [{ type: 'event', id: `keymaster-${Date.now()}`, name: 'Are You the Keymaster?', icon: '🗝️', description: `+${CHARM_BONUS.keymasterPercent}% on ${name}: +${(points - listed).toLocaleString()} points.`, scoreChange: points - listed, cumulativeScore: score }] : [];
+            const keyEntry: EventLogEntry[] = keymaster ? [{ type: 'event', id: `keymaster-${Date.now()}`, name: 'Are You the Keymaster?', icon: '🗝️', description: `+${CHARM_BONUS.keymaster.toLocaleString()} on ${name}.`, scoreChange: points - listed, cumulativeScore: score }] : [];
             return {
                 ...state,
                 isPaused: true,
@@ -3989,7 +3989,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                       } as EventLogEntry],
                   }
               });
-              dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'info', title: CONTINUE_TITLE, content: `Coin inserted! You keep playing with ${TIME_BONUS.continueScreen} seconds. It cost ${cost.toLocaleString()} points (${POWER_PLAY_VALUES.continueScoreCostPercent}% of your score, never more than ${POWER_PLAY_VALUES.continueScoreCostMax.toLocaleString()}).` }});
+              dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'info', title: CONTINUE_TITLE, content: `Coin inserted! You keep playing with ${TIME_BONUS.continueScreen} seconds. It cost ${cost.toLocaleString()} points.` }});
               soundService.playMilestone();
               return;
           }
@@ -4188,8 +4188,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             lines.push({ name: usedGoldenTile ? '🌟 Golden Tile' : '🌟 Golden Round', description: `+${goldExtra} pts (x${goldMult} whole word${usedGoldenTile ? '' : `; the Golden Tile makes it x${G.tileMultiplier}`})` });
             scoreResult = { ...full, totalScore: Math.round(pts * goldMult), bonuses: lines };
             if (newState.activeCharms.some(c => c.id === 'goldenGirls')) {
-                const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.goldenGirlsPercent / 100);
-                scoreResult = { ...scoreResult, totalScore: scoreResult.totalScore + bonus, bonuses: [...scoreResult.bonuses, { name: 'Thank You for Being a Friend', description: `+${bonus} pts (${CHARM_BONUS.goldenGirlsPercent}%)` }] };
+                const bonus = CHARM_BONUS.goldenGirls;
+                scoreResult = { ...scoreResult, totalScore: scoreResult.totalScore + bonus, bonuses: [...scoreResult.bonuses, { name: 'Thank You for Being a Friend', description: `+${bonus} pts` }] };
             }
             if (levelUpModal(totalWords, newState)) payLevelUp(scoreResult);
             const turnScore = scoreResult.totalScore;
@@ -4496,9 +4496,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       // Charm Bonuses that add on top
       if (newState.activeCharms.some(c => c.id === 'downToYourBoxers') && newState.strikes >= maxStrikesFor(newState) - 1) {
-        const bonus = Math.round(scoreResult.totalScore * CHARM_BONUS.boxersPercent / 100);
+        const bonus = CHARM_BONUS.boxers;
         scoreResult.totalScore += bonus;
-        scoreResult.bonuses.push({ name: 'Down to Your Boxers', description: `+${bonus} pts (${CHARM_BONUS.boxersPercent}%)` });
+        scoreResult.bonuses.push({ name: 'Down to Your Boxers', description: `+${bonus} pts` });
       }
       const currentHour = new Date().getHours();
       if (newState.activeCharms.some(c => c.id === 'buffyBonus') && (currentHour >= 20 || currentHour < 8)) {

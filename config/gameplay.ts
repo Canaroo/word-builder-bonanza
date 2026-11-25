@@ -112,8 +112,9 @@ export const POWER_PLAY_VALUES = {
   comboBreakerMultiplier: 3,
   comboBreakerWords: 3,
   // Continue?: when the clock hits 0, keep playing for this share of your score.
-  continueScoreCostPercent: 20,
-  continueScoreCostMax: 2000,    // ...but never more than this, so a big late score isn't punished harder
+  // v7.89.0 (the owner: flat numbers over percents): Continue? costs a flat amount, never below 0. It was 20% of
+  // the score capped at 2,000: 1,528 on average over 113 clock-out run ends.
+  continueCost: 1500,
   // Act Clear!: cash in clock seconds for points, but always keep a few on the clock.
   actClearMaxSeconds: 15,        // v7.35: was 20 s at 20 points each (never picked in 23 offers)
   actClearPointsPerSecond: 40,
@@ -386,8 +387,9 @@ export const FRAGILE = {
   // 🐷 Hamm's Piggy Bank (v7.73.0, the owner's pick): 30% of every word's score goes in, the bank
   // earns 5% a word, up to 15,000. Hold the chip to smash it and collect; a slip loses it all.
   // Simulated (180-point words): 679 at 10 words, 1,786 at 20, 6,523 at 40, the cap near 58.
-  piggyDeposit: 50,           // v7.87.1: was 30 (fragile charms last 5 words now). % of each word's score copied into the bank (the word keeps it all)
-  piggyInterest: 5,           // % the bank grows every valid word
+  // v7.89.0 (the owner: flat over percents): every valid word drops this many points into Hamm. It was 50% of
+  // the word plus 5% interest (v7.87.1): about 497 over 5 words of 180 points; flat 100 x 5 = 500.
+  piggyPerWord: 100,
   piggyMax: 15000,
   piggyHoldMs: 700,           // hold the 🐷 chip this long to smash it
   crystalBallSeconds: 5,      // 🔮 Crystal Ball: every valid word adds this much charm time
@@ -504,9 +506,9 @@ export const CHARM_BONUS = {
   eagleLetters: 5,
   doubleDragon: 40,        // per boss hit
   nationalTreasureMultiplier: 2, // secret bonus points
-  goldenGirlsPercent: 50,  // Golden Round words
+  goldenGirls: 75,         // v7.89.0: flat on Golden Round words (was +50%: the last 80 Golden words averaged 139, so ~+70)
   noteStreak: 75,          // when the Word Combo fills
-  boxersPercent: 50,       // words while one strike from game over
+  boxers: 75,              // v7.89.0: flat a word while one strike from game over (was +50%: median word 135-152)
   crossTheRoad: 150,       // v7.58: every crossTheRoadWords-th word of crossTheRoadLetters+ letters, in a row or not
   crossTheRoadWords: 3,
   crossTheRoadLetters: 5,
@@ -524,7 +526,7 @@ export const CHARM_BONUS = {
   honeyShrunk: 60,             // per word, with one fewer tile in hand
   happyAccidentSeconds: 0,     // the first invalid word each level costs this instead of a strike (v7.35: was 10; now free)
   wileECoyote: 150,            // per strike (plus TIME_BONUS.wileECoyote)
-  turboButtonPercent: 20,      // fewer letters to fill the PowerPlay meter
+  turboButtonLetters: 6,       // v7.89.0: fewer letters to fill the PowerPlay meter (was 20%: 5 at levels 1-3, 6-12 later)
   littleMacHits: 1,            // fewer hits a boss round needs
   doubleDare: 250,             // per Challenge used, win or lose (v7.35: was 75)
   doubleDareChallenges: 1,     // ...and this many Challenges when equipped
@@ -546,7 +548,7 @@ export const CHARM_BONUS = {
   speedSeconds: 4,
   speedStep: 25,
   speedMax: 150,
-  keymasterPercent: 50,        // Are You the Keymaster?: Score Gate events pay this much more
+  keymaster: 750,              // v7.89.0: Score Gates that pay anything pay this much more (was +50%: gates averaged 2,052, median 1,000)
   keymasterFromScore: 5000,    // ...and it's only offered from this score (it does nothing before a gate)
   freakyFridayMultiplier: 3,   // Freaky Friday: an anagram of an earlier word this run scores this
   freakyFridayLetters: 4,      // ...when it has this many letters or more

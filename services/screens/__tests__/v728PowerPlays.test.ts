@@ -163,7 +163,7 @@ describe('timed and blind PowerPlays start the moment they are picked (v7.28.1)'
         const next = gameReducer(s, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp(id), allOffered: [pp(id)] } });
         expect(next.gameState.availablePowerPlays.some(p => p.id === id)).toBe(false);
         expect(next.gameState.activePowerPlays[id]).toBeTruthy();
-        expect(pp(id).description).toMatch(/^Starts the moment you pick it/);
+        expect(pp(id).description).toMatch(/^Starts right away/);
     });
     test('the Pop Quiz and race clocks start at the clock when picked', () => {
         const quiz = gameReducer(start({ powerPlayOffer: [pp('popQuizHotshot')] }, 33), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('popQuizHotshot'), allOffered: [pp('popQuizHotshot')] } });
@@ -223,7 +223,7 @@ describe('random-tile PowerPlays pick from the whole rack (v7.28.1)', () => {
 describe('The Price Is Right: a missed bid costs points (v7.28.3)', () => {
     test('each bid risks half its prize, and the description says so', () => {
         for (const b of V.priceIsRightBids) expect(b.miss).toBe(b.prize / 2);
-        expect(pp('priceIsRight').description).toContain('Fall short and you lose 50, 100, 150 or 225');
+        expect(pp('priceIsRight').description).toContain('fall short and you lose 50 to 225');
     });
 });
 
@@ -235,7 +235,7 @@ describe('Daily Double cheese fixes (v7.28.8)', () => {
         expect(next.gameState.availablePowerPlays.some(p => p.id === 'dailyDouble')).toBe(false);
         expect(next.gameState.activePowerPlays.dailyDouble).toEqual({ wager: V.dailyDoubleBet });
         expect(next.gameState.activeBuffs.find(b => b.id === 'dailyDouble')?.description).toContain(`Bet ${V.dailyDoubleBet}`);
-        expect(pp('dailyDouble').description).toMatch(/^Starts the moment you pick it/);
+        expect(pp('dailyDouble').description).toMatch(/^Starts right away/);
     });
 
     test('a Sliders undo keeps a settled bet settled', () => {
@@ -284,7 +284,7 @@ describe('gamble cheese fixes (v7.28.9)', () => {
         expect(next.gameState.activePowerPlays.missionImpossible).toBeUndefined(); // armed only when accepted
         expect(next.gameState.availablePowerPlays.some(p => p.id === 'missionImpossible')).toBe(false);
         expect(next.modalContent).toMatchObject({ type: 'gamble', data: { id: 'missionImpossible' } }); // in the offer's place (v7.39.2)
-        expect(pp('missionImpossible').description).toMatch(/^Starts the moment you pick it/);
+        expect(pp('missionImpossible').description).toMatch(/^Starts right away/);
     });
 
     test('an open gamble card keeps its board in the pop-up (saved with the run)', () => {

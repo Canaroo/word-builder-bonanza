@@ -63,11 +63,11 @@ describe('v7.62.0 charms', () => {
         expect(speedStreakPoints(20)).toBe(CHARM_BONUS.speedMax);
     });
 
-    test('Keymaster: a Score Gate pays 50% more; arcade games are untouched', () => {
+    test('Keymaster: a Score Gate pays a flat bonus (v7.89.0); arcade games are untouched', () => {
         const pay = (charms: string[], flat: boolean) => gameReducer(start({ activeCharms: charms.map(charm), score: 0 }),
             { type: 'APPLY_MINIGAME', payload: { name: 'Gate', icon: '🚪', points: 1000, headline: '+1,000', detail: 'x', flat } }).gameState!.score;
         expect(pay([], true)).toBe(1000);
-        expect(pay(['keymaster'], true)).toBe(1000 * (1 + CHARM_BONUS.keymasterPercent / 100));
+        expect(pay(['keymaster'], true)).toBe(1000 + CHARM_BONUS.keymaster);
         expect(pay(['keymaster'], false)).toBe(prizeFor(1000, 1));
     });
 });
