@@ -24,7 +24,7 @@ const MissionsPanel: React.FC<{ compact?: boolean }> = ({ compact = false }) => 
   const doneCount = missions.filter(m => m.done).length;
 
   return (
-    <section className="w-full rounded-xl bg-crt-950/70 ring-1 ring-neon-cyan/30 p-3 text-left" aria-label="Today's missions">
+    <section className="w-full rounded-xl bg-[#0b2433] ring-1 ring-neon-cyan/50 p-3 text-left" aria-label="Today's missions">
       <header className="flex items-baseline justify-between gap-2 mb-2">
         <h3 className="font-display text-base text-neon-cyan leading-none whitespace-nowrap">TODAY'S MISSIONS</h3>
         <span className="osd-text text-base leading-none text-slate-400 whitespace-nowrap">
@@ -33,7 +33,7 @@ const MissionsPanel: React.FC<{ compact?: boolean }> = ({ compact = false }) => 
       </header>
       <ul className="space-y-2">
         {missions.map(({ template: t, progress, done, reward }) => (
-          <li key={t.id} className={`rounded-lg p-2 ring-1 ${done ? 'bg-neon-green/10 ring-neon-green/50' : 'bg-crt-900/80 ring-white/10'}`}>
+          <li key={t.id} className={`rounded-lg p-2 ring-1 ${done ? 'bg-[#0d2a1e] ring-neon-green/50' : 'bg-[#081a26] ring-white/10'}`}>
             <div className="flex items-start gap-2">
               <span className="text-xl leading-none mt-0.5" aria-hidden="true">{done ? '✅' : CATEGORY_ICON[t.category]}</span>
               <div className="flex-1 min-w-0">

@@ -602,7 +602,9 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   backlit marquee with a chasing bulb border (`.cab-marquee`, `logo-marquee`). Cabinet details: a 1P tag
   on the player chip (`.cab-tag`), CREDIT on the coin chip (375 px and wider), the Play/Continue button
   breathes (`.press-start-pulse`) under the blinking PRESS START. Start-screen panels are more opaque
-  (`bg-crt-950/90`, the Spin chip solid) so text never sits on the grid. All motion stops with
+  so text never sits on the grid. **v7.90.1 (the owner: Missions was see-through):** the Today strip
+  chips and the open Missions list are fully solid, tinted per accent (Daily `#0d1838`, Spin / Power Word
+  `#2a0f35`, Missions `#0b2433`, done green `#0d2a1e`; `MissionsPanel` too); 90% black still let the grid glow through. All motion stops with
   reduced motion. Browser-checked at 390x844 and 360x640: no sideways scroll, Play on screen.
 - **Music shop (v7.53.0)** (`data/music.ts`, `services/music.ts`, `services/musicService.ts`,
   `components/SoundMenu.tsx`, `MUSIC_PRICE` and `SHOP_NEWS` in `config/progression.ts`): the shop's

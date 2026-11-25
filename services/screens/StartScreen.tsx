@@ -759,7 +759,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           {/* Today strip: the daily rituals side by side. */}
           <section className="w-full grid grid-cols-2 gap-2" aria-label="Today">
             {/* Daily Challenge chip (v7.48): the way back in to the daily, not a second Play button. */}
-            <div className="col-span-2 flex items-center gap-2 rounded-xl ring-1 ring-neon-cyan/40 bg-crt-950/90 pl-2.5 pr-1.5 py-1.5">
+            <div className="col-span-2 flex items-center gap-2 rounded-xl ring-1 ring-neon-cyan/60 bg-[#0d1838] pl-2.5 pr-1.5 py-1.5">
               <button type="button" disabled={!name.trim()} onClick={handleDailyClick} className="flex-1 min-w-0 flex items-center gap-2 text-left disabled:opacity-40"
                 aria-label={`Daily Challenge number ${today.number}: ${dailyState === 'resume' ? 'resume it' : dailyState === 'new' ? 'not played yet, try it' : 'practice'}`}>
                 <span className="text-xl leading-none" aria-hidden="true">📅</span>
@@ -782,14 +782,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 <span className="osd-text text-base min-[390px]:text-lg leading-none text-neon-pink whitespace-nowrap">SPIN POWER WORD</span>
               </button>
             ) : (
-              <button type="button" onClick={handleShowPowerWordInfo} disabled={!powerWordData} className="flex items-center justify-center gap-1.5 rounded-xl ring-1 ring-neon-pink/40 bg-crt-950/90 px-2 py-2.5 min-w-0" aria-label={powerWordData ? `Power Word: ${powerWordData.powerWord}. Show info` : powerWordService.getCooldownMessage()}>
+              <button type="button" onClick={handleShowPowerWordInfo} disabled={!powerWordData} className="flex items-center justify-center gap-1.5 rounded-xl ring-1 ring-neon-pink/60 bg-[#2a0f35] px-2 py-2.5 min-w-0" aria-label={powerWordData ? `Power Word: ${powerWordData.powerWord}. Show info` : powerWordService.getCooldownMessage()}>
                 <span className="text-lg leading-none" aria-hidden="true">💥</span>
                 <span className="osd-text text-lg leading-none text-slate-300 truncate">{powerWordData ? powerWordData.powerWord.toUpperCase() : 'SPUN'}</span>
                 {powerWordData && <span className="text-xs text-slate-500" aria-hidden="true">ⓘ</span>}
               </button>
             )}
             <button type="button" onClick={() => { soundService.playUIClick(); setShowMissions(v => !v); }} aria-expanded={showMissions}
-              className={`flex items-center justify-center gap-1.5 rounded-xl ring-1 px-2 py-2.5 ${missionSummary.done === missionSummary.total ? 'ring-neon-green/60 bg-neon-green/10' : 'ring-neon-cyan/40 bg-crt-950/90'}`}
+              className={`flex items-center justify-center gap-1.5 rounded-xl ring-1 px-2 py-2.5 ${missionSummary.done === missionSummary.total ? 'ring-neon-green/70 bg-[#0d2a1e]' : 'ring-neon-cyan/60 bg-[#0b2433]'}`}
               aria-label={`Missions: ${missionSummary.done} of ${missionSummary.total} done. ${showMissions ? 'Hide' : 'Show'}`}>
               <span className="text-lg leading-none" aria-hidden="true">🎯</span>
               <span className="osd-text text-base min-[390px]:text-lg leading-none text-neon-cyan whitespace-nowrap">MISSIONS {missionSummary.done}/{missionSummary.total}</span>
