@@ -1,9 +1,10 @@
-// The 1-minute tour (v7.78.0, the owner's design): four short hands-on screens, then a finish card.
+// The 1-minute tour (v7.78.0, the owner's design): five short hands-on screens, then a finish card.
 // A practice area: real tiles and buttons, no score, no stats, nothing saved but "seen it".
 //   1. Build a word: a finger guides C-A-T, each tile flies up to the word row, SUBMIT scores it.
 //   2. Longer words score more AND buy time: CLOSET against CAT, the seconds fly into the clock.
 //   3. The clock is your bank: a fake word earns a strike; hold SHUFFLE for new tiles and +5 sec.
 //   4. Power-ups and surprises: four cards to flip (PowerPlays, Charms, Bosses, Golden Round).
+//   5. Your gear (v7.88.0, the owner's ask): tap the 🎒 under STRIKES to open Gear; the clock stops.
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import TileComponent from './Tile';
 import ArcadeButton from './ArcadeButton';
@@ -14,6 +15,8 @@ import { GAMEPLAY, BOSS, CHARM_SLOTS } from '../config/gameplay';
 import { MAX_STRIKES_INITIAL, TILE_DISTRIBUTION } from '../constants';
 import { tourWordScore, TOUR_HAND, TOUR_FIRST_WORD, TOUR_LONG_WORD, TOUR_FAKE_WORD, TOUR_CLOCK_START } from '../services/tour';
 import type { Tile } from '../types';
+import { CHARMS_LIST } from '../data/charms';
+import { POWER_PLAYS_LIST } from '../data/powerPlays';
 
 interface QuickTourProps {
   tileClass: string;
@@ -22,11 +25,12 @@ interface QuickTourProps {
   onPlay: () => void;
   onFullGuide: () => void;
   onMenu: () => void;
-  /** Called once when the player finishes all four screens (not on Skip). */
+  /** Called once when the player finishes all five screens (not on Skip). */
   onFinished?: () => void;
 }
 
-const STEPS = 4;
+const STEPS = 5;
+const FINISH = STEPS + 1;
 const mkTile = (letter: string, i: number, round = 0): Tile => ({ id: `tour-${round}-${i}-${letter}`, letter, points: TILE_DISTRIBUTION[letter]?.points ?? 1 });
 const handFor = (letters: string[], round = 0) => letters.map((l, i) => mkTile(l, i, round));
 const SHUFFLED_HAND = ['N', 'I', 'D', 'E', 'A', 'R', 'T', 'S'];
@@ -46,7 +50,7 @@ const CARDS = [
 interface Flight { tile: Tile; from: DOMRect; to: DOMRect; go: boolean }
 
 const QuickTour: React.FC<QuickTourProps> = ({ tileClass, hasSavedRun, onPlay, onFullGuide, onMenu, onFinished }) => {
-  const [step, setStep] = useState(1); // 5 = finish
+  const [step, setStep] = useState(1); // FINISH = the finish card
   const [hand, setHand] = useState<(Tile | null)[]>(() => handFor(TOUR_HAND));
   const [row, setRow] = useState<Tile[]>([]);
   const [scored, setScored] = useState<ReturnType<typeof tourWordScore> | null>(null);
@@ -58,6 +62,7 @@ const QuickTour: React.FC<QuickTourProps> = ({ tileClass, hasSavedRun, onPlay, o
   const [shake, setShake] = useState(false);
   const [nudge, setNudge] = useState<string | null>(null);
   const [flipped, setFlipped] = useState<boolean[]>(CARDS.map(() => false));
+  const [gearSeen, setGearSeen] = useState(false);
   const [flight, setFlight] = useState<Flight | null>(null);
   const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
   const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -181,10 +186,10 @@ const QuickTour: React.FC<QuickTourProps> = ({ tileClass, hasSavedRun, onPlay, o
     setFlipped(f => f.map((v, j) => (j === i ? !v : v)));
   };
 
-  const canNext = step === 1 || step === 2 ? !!scored : step === 3 ? strikes > 0 && shuffled : true;
+  const canNext = step === 1 || step === 2 ? !!scored : step === 3 ? strikes > 0 && shuffled : step === 5 ? gearSeen : true;
 
   // ---------- finish ----------
-  if (step === 5) {
+  if (step === FINISH) {
     return (
       <div className="flex flex-col h-full min-h-0 items-center justify-center text-center gap-4 px-6 animate-fade-in" data-testid="tour-finish">
         <div className="text-6xl" aria-hidden="true">🕹️</div>
@@ -203,7 +208,7 @@ const QuickTour: React.FC<QuickTourProps> = ({ tileClass, hasSavedRun, onPlay, o
     );
   }
 
-  const title = ['BUILD A WORD', 'GO LONG', 'THE CLOCK IS YOUR BANK', 'POWER-UPS & SURPRISES'][step - 1];
+  const title = ['BUILD A WORD', 'GO LONG', 'THE CLOCK IS YOUR BANK', 'POWER-UPS & SURPRISES', 'YOUR GEAR'][step - 1];
   const showBoard = step <= 3;
 
   return (
@@ -216,7 +221,7 @@ const QuickTour: React.FC<QuickTourProps> = ({ tileClass, hasSavedRun, onPlay, o
           ))}
           <span className="osd-text text-base leading-none text-slate-400 ml-2">{step}/{STEPS}</span>
         </div>
-        <button type="button" onClick={() => goTo(5)} className="osd-text text-lg leading-none text-slate-400 hover:text-white underline" data-testid="tour-skip">SKIP TOUR</button>
+        <button type="button" onClick={() => goTo(FINISH)} className="osd-text text-lg leading-none text-slate-400 hover:text-white underline" data-testid="tour-skip">SKIP TOUR</button>
       </header>
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 flex flex-col gap-3">
@@ -227,6 +232,7 @@ const QuickTour: React.FC<QuickTourProps> = ({ tileClass, hasSavedRun, onPlay, o
             {step === 2 && <>Longer words pay twice: more points <i>and</i> more time. Spell <b className="text-neon-yellow">CLOSET</b> and compare.</>}
             {step === 3 && <>The clock never stops. Words add time; a fake word adds a <b className="text-neon-red">strike</b>, and {MAX_STRIKES_INITIAL} strikes ends your run. Go on, try one.</>}
             {step === 4 && <>Play long enough and the game starts handing you toys. Tap each card to flip it.</>}
+            {step === 5 && <>Your charms, your PowerPlay and how many strikes you have left all live in your <b className="text-neon-yellow">🎒 Gear</b>, under STRIKES. Tap it.</>}
           </p>
         </div>
 
@@ -337,6 +343,8 @@ const QuickTour: React.FC<QuickTourProps> = ({ tileClass, hasSavedRun, onPlay, o
             ))}
           </div>
         )}
+
+        {step === 5 && <GearDemo onOpened={() => setGearSeen(true)} />}
       </div>
 
       {/* Footer: back and next. */}
@@ -363,6 +371,78 @@ const QuickTour: React.FC<QuickTourProps> = ({ tileClass, hasSavedRun, onPlay, o
         >
           <TileComponent tile={flight.tile} onClick={() => {}} packTileClass={tileClass} />
         </div>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Step 5 (v7.88.0): a mini board top with the 🎒 under STRIKES. Tapping it opens a small Gear menu
+ * (sample charms, a pocket PowerPlay, strikes left) and the clock stops until it's closed.
+ */
+const SAMPLE_CHARMS = ['stonks', 'rubiksCube'].map(id => CHARMS_LIST.find(c => c.id === id)).filter(Boolean) as typeof CHARMS_LIST;
+const SAMPLE_PP = POWER_PLAYS_LIST.find(p => p.id === 'timeBoost');
+const GearDemo: React.FC<{ onOpened: () => void }> = ({ onOpened }) => {
+  const [clock, setClock] = useState(45);
+  const [open, setOpen] = useState(false);
+  const [opened, setOpened] = useState(false);
+  useEffect(() => {
+    if (open) return;
+    const t = setInterval(() => setClock(c => (c > 10 ? c - 1 : 45)), 1000);
+    return () => clearInterval(t);
+  }, [open]);
+  const toggle = () => {
+    soundService.playUIClick();
+    if (!open) { setOpened(true); onOpened(); }
+    setOpen(o => !o);
+  };
+  return (
+    <div className="flex flex-col gap-3" data-testid="tour-gear">
+      {/* A mini board top: score, clock, strikes with the 🎒 under them. */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2 rounded-xl bg-crt-950/70 ring-1 ring-white/10 px-3 py-2">
+        <div>
+          <div className="osd-text text-base leading-none text-neon-yellow">SCORE</div>
+          <div className="font-display text-2xl leading-none text-white mt-1">1,250</div>
+        </div>
+        <div className={`rounded-lg ring-2 px-3 py-1 text-center ${open ? 'ring-neon-cyan bg-neon-cyan/10' : 'ring-neon-cyan/60'}`} data-testid="tour-gear-clock">
+          <div className="font-digital text-4xl leading-none text-neon-cyan">{clock}</div>
+          <div className={`osd-text text-sm leading-none mt-0.5 ${open ? 'text-neon-yellow' : 'text-slate-400'}`}>{open ? '⏸ PAUSED' : 'SEC'}</div>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <div className="osd-text text-base leading-none text-neon-red">STRIKES</div>
+          <div className="flex gap-1" aria-hidden="true">
+            {Array.from({ length: MAX_STRIKES_INITIAL }, (_, i) => <span key={i} className={`text-sm ${i < 1 ? '' : 'opacity-25 grayscale'}`}>❌</span>)}
+          </div>
+          <button type="button" onClick={toggle} aria-label={open ? 'Close your gear' : 'Open your gear'} data-testid="tour-gear-button"
+            className={`relative mt-1 w-12 h-12 rounded-xl ring-2 bg-crt-950 grid place-items-center text-2xl ${open ? 'ring-neon-yellow' : 'ring-white/30'} ${!opened ? 'lifeline-pulse' : ''}`}>
+            🎒
+            <span className="absolute -bottom-1.5 -right-1.5 rounded-full bg-neon-purple text-white text-[11px] font-bold px-1.5 leading-4">{SAMPLE_CHARMS.length}/{CHARM_SLOTS}</span>
+            {!opened && <span className="absolute right-full mr-1 top-1/2 -translate-y-1/2 text-3xl tour-point-right pointer-events-none" aria-hidden="true">👉</span>}
+          </button>
+        </div>
+      </div>
+
+      {open ? (
+        <div className="rounded-xl ring-2 ring-white/40 bg-crt-950 p-3 flex flex-col gap-2 message-pop" data-testid="tour-gear-menu">
+          <div className="flex items-center justify-between">
+            <span className="font-display text-xl text-white tracking-wider">🎒 YOUR GEAR</span>
+            <button type="button" onClick={toggle} className="osd-text text-lg text-neon-cyan">✕ BACK</button>
+          </div>
+          <p className="osd-text text-sm leading-none text-neon-yellow">⏸ GAME PAUSED · THE CLOCK WAITS FOR YOU</p>
+          <div className="rounded-lg ring-1 ring-white/15 p-2 text-[13.5px] leading-snug text-slate-100 flex flex-col gap-1">
+            <div className="osd-text text-sm leading-none text-slate-400">CHARMS {SAMPLE_CHARMS.length}/{CHARM_SLOTS}</div>
+            {SAMPLE_CHARMS.map(c => <div key={c.id}>{c.icon} {c.name}</div>)}
+            <div className="osd-text text-sm leading-none text-slate-400 mt-1">POCKET</div>
+            {SAMPLE_PP && <div>{SAMPLE_PP.icon} {SAMPLE_PP.name} <span className="text-neon-green">▶ USE</span></div>}
+            <div className="osd-text text-sm leading-none text-slate-400 mt-1">RUN STATUS</div>
+            <div>❌ Strikes left: 2 of {MAX_STRIKES_INITIAL}</div>
+          </div>
+          <p className="text-slate-300 text-[13.5px] leading-snug">Tap any line in the real menu to read what it does. Sound, the event log and Save &amp; Quit are in here too.</p>
+        </div>
+      ) : (
+        <p className="text-center osd-text text-lg leading-tight text-slate-400">
+          {opened ? 'Clock running again. Open Gear whenever you need a breather.' : 'Watch the clock, then tap 🎒.'}
+        </p>
       )}
     </div>
   );
