@@ -62,13 +62,23 @@ reword anything.
   source in the proposal. The fun is recognizing the reference.
 - **Names** start with an emoji. Bonus names use the format `🧇 “Treat Yo' Waffle” 🧇`.
 - **Flavor text** is a short quote or quip from the reference ("Hold onto your butts."). Don't
-  wrap it in quote marks: the card adds them.
+  wrap it in quote marks: the card adds them. It should name or clearly point to the source (add
+  "(Clueless)" when the line alone won't land it). **Never use song lyrics**, quoted or closely
+  paraphrased (v7.89.0 replaced 20 of them): a short movie/TV/game catchphrase is fine, a line from a
+  song is not. Write an original line that nods to the artist instead ("Cher had the right idea.").
 - **Bonus clues (`hint`)** are punny, cryptic, dad-joke riddles that never contain the word itself
   (the build rejects that). The clue appears in the Collection before the bonus is found, *and* on
   the reveal next to "YOU PLAYED B-O-O-K" once it is. Write it so it works both as a riddle and as
   the "aha" afterward. `message` is only a fallback, but it's required, so give it a one-liner too.
 - **Descriptions** say exactly what happens with real numbers. They're player-facing, so read
   numbers from config in template strings rather than hard-coding them (see section 5).
+  **Shape (v7.89.0, the owner's copy pass):** two sentences, about 25 words: what happens, then what
+  it pays. Rules only; the joke lives in the name and flavor text (a short lead-in only when the name
+  can't carry the reference). Fixed phrases: "Your next word…", "Starts right away:" (fires on
+  pick), "Works as soon as you take it:" (rescues that wait), "+N points", "+N seconds", "x2".
+  **Flat numbers, not percentages of a score:** "+75 points", never "+50%". Percentages are only
+  for odds ("25% chance"). Edge cases (ties, what it can't copy, what breaks it) go in the optional
+  `finePrint` field, shown smaller under the rules on offer cards, in Gear and in the info pop-up.
 - **Clear AND funny (the owner's rule, v7.66.3).** Every player-facing line (descriptions, power
   word text, card copy, results) must be understood in one read *and* keep the game's pop-culture
   voice. Write like a person talking: what happens to *you*, one idea per sentence, no jargon

@@ -638,7 +638,7 @@ describe('v7.18 charms', () => {
     });
 
     test('Turbo Button and Little Mac change the meter and the boss target', () => {
-        expect(meterLettersFor(1, { activeCharms: [charm('turboButton')] })).toBe(Math.round(GAMEPLAY.powerPlayMeterLetters * 0.8));
+        expect(meterLettersFor(1, { activeCharms: [charm('turboButton')] })).toBe(GAMEPLAY.powerPlayMeterLetters - CHARM_BONUS.turboButtonLetters);
         expect(bossHitsToWin({ activeCharms: [charm('littleMac')] })).toBe(5);
         expect(bossHitsToWin({ activeCharms: [] })).toBe(6);
         expect(advanceBoss({ id: 'x', number: 1, wordsLeft: 4, hits: 4 } as any, true, 5).outcome).toBe('won');
@@ -797,8 +797,8 @@ describe('v7.25 gamble PowerPlays', () => {
 describe('Mission: Impossible', () => {
     test('v7.55.0: a secret mission within a few words for a prize; failing costs nothing', () => {
         const d = pp('missionImpossible').description;
-        expect(d).toContain(`within your next ${POWER_PLAY_VALUES.missionWords} words for +${POWER_PLAY_VALUES.missionPrize}`);
-        expect(d).toContain('Fail and nothing is lost');
+        expect(d).toContain(`within ${POWER_PLAY_VALUES.missionWords} words for +${POWER_PLAY_VALUES.missionPrize}`);
+        expect(d).toContain('fail and you lose nothing');
         expect(PRIZE_POWER_PLAY_IDS.has('missionImpossible')).toBe(true);
     });
     test('each mission tests what it says', () => {
@@ -866,7 +866,7 @@ describe('Tick-Tock Croc (v7.51.0)', () => {
     const croc = charm('tickTockCroc');
     test('the card reads its numbers from config', () => {
         expect(croc.description).toContain(`Every ${TIME_BONUS.crocEvery} words`);
-        expect(croc.description).toContain('60% it coughs up +10 seconds, 40% it bites 300 points');
+        expect(croc.description).toContain('60% +10 seconds, 40% -300 points');
     });
     test('surfaces on every 25th valid word while equipped, then counts again', () => {
         const gs = { ...screenInitialState.gameState!, activeCharms: [croc], crocWords: 0 } as GameState;
@@ -933,7 +933,7 @@ describe('Psychic Friends Network: Call It! (v7.54.0)', () => {
         expect(INSTANT_POWER_PLAY_IDS.has('psychicFriends')).toBe(true);
         expect(PRIZE_POWER_PLAY_IDS.has('psychicFriends')).toBe(true);
         expect(GAMBLE_CARD_IDS).toContain('psychicFriends');
-        expect(p.description).toContain('3 letters +50, 4 letters +100, 5 letters +250, 6 letters +500, 7+ letters +1500');
+        expect(p.description).toContain('3 letters +50, 4 letters +100, 5 letters +250, 6 letters +500, 7+ letters +1,500');
         expect(MYSTERY_TAPE.pool).not.toContain('psychicFriends'); // a bet never hides in a Mystery Tape
     });
     test('the old tile peek is gone: arming from the pocket no longer sets a word countdown', () => {

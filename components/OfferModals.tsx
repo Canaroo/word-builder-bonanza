@@ -66,6 +66,7 @@ const ItemCard: React.FC<{
             )}
           </div>
           <p className="text-sm text-slate-200 leading-snug mt-0.5">{item.description}</p>
+          {item.finePrint && <p className="text-xs text-slate-400 leading-snug mt-0.5" data-testid="fine-print">{item.finePrint}</p>}
           {!compact && <p className="text-xs text-slate-500 italic mt-0.5">“{item.flavorText}”</p>}
           {note && <p className="osd-text text-base leading-tight mt-1">{note}</p>}
         </div>
@@ -146,7 +147,7 @@ export const PowerPlayOffer: React.FC<{
         </p>
       </div>
     ) : (
-      <p className="text-sm text-slate-300 text-center mt-2">Pick one. It waits in your Buffs tray until you tap it.</p>
+      <p className="text-sm text-slate-300 text-center mt-2">Pick one. It waits in your pocket until you tap ▶ USE.</p>
     )}
 
     <div className="mt-3 space-y-2 overflow-y-auto overscroll-contain p-1 -m-1">

@@ -28,6 +28,8 @@ export interface Charm {
   instanceId?: string;
   name:string;
   description:string;
+  /** v7.89.0: edge cases kept out of the description, shown smaller under it. */
+  finePrint?: string;
   flavorText:string;
   icon:string;
   subtheme: 'score' | 'tile' | 'game' | 'utility';
@@ -48,6 +50,8 @@ export interface PowerPlay {
   instanceId?: string;
   name: string;
   description: string;
+  /** v7.89.0: edge cases kept out of the description, shown smaller under it. */
+  finePrint?: string;
   flavorText: string;
   icon: string;
   subtheme: 'score' | 'timer' | 'rack' | 'strike' | 'utility';

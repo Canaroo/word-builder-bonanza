@@ -180,7 +180,7 @@ const GearMenu: React.FC<{
                 label={<>{c.name}{up ? ' ⭐' : ''}{c.breaks ? ' 💔' : ''}{prog ? <span className="osd-text text-base text-neon-yellow"> {prog}</span> : null}</>}
                 right={earned}
                 onClick={() => choose(c.id, { icon: c.icon, name: c.name, tag: tags || undefined,
-                  text: `${c.description}${earnedText ? `\n\nThis run: ${earnedText}.` : paysDirectly(c) ? '\n\nNothing earned from it yet this run.' : "\n\nIt changes the rules instead of paying points or time, so there's no total to show."}`, flavor: c.flavorText })} />
+                  text: `${c.description}${c.finePrint ? `\n\n${c.finePrint}` : ''}${earnedText ? `\n\nThis run: ${earnedText}.` : paysDirectly(c) ? '\n\nNothing earned from it yet this run.' : "\n\nIt changes the rules instead of paying points or time, so there's no total to show."}`, flavor: c.flavorText })} />
             );
           })}
         </Box>
@@ -190,7 +190,7 @@ const GearMenu: React.FC<{
             <div key={p.id} className="flex items-center gap-2">
               <div className="flex-1 min-w-0">
                 <Row selected={sel === `pp-${p.id}`} icon={p.icon} label={p.name}
-                  onClick={() => choose(`pp-${p.id}`, { icon: p.icon, name: p.name, text: p.description, flavor: p.flavorText })} />
+                  onClick={() => choose(`pp-${p.id}`, { icon: p.icon, name: p.name, text: p.finePrint ? `${p.description}\n\n${p.finePrint}` : p.description, flavor: p.flavorText })} />
               </div>
               <ArcadeButton color="green" size="sm" onClick={() => onUse(p)}>▶ USE</ArcadeButton>
             </div>

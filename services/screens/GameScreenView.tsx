@@ -723,6 +723,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         <div className={`${modalBoxBaseClass} border-purple-400`}>
                            <h2 className="text-3xl font-bold text-purple-400 mb-4 text-center flex items-center justify-center gap-3"><span className="text-4xl">{buff.icon}</span> {buff.name}</h2>
                            <p className="text-slate-200 text-center text-lg mb-2">{buff.description}</p>
+                           {buff.finePrint && <p className="text-slate-400 text-center text-sm mb-2">{buff.finePrint}</p>}
                            {PRIZE_POWER_PLAY_IDS.has(buff.id) && prizeScaleFor(levelFor(totalWords)) > 1 && (
                                <p className="osd-text text-lg text-neon-yellow text-center mb-2">⬆ LEVEL {levelFor(totalWords)}: POINT PRIZES PAY x{prizeScaleFor(levelFor(totalWords))}</p>
                            )}

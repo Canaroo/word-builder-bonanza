@@ -96,7 +96,7 @@ describe('shards from scratch-off tickets and Lucky Charms (v7.69.1)', () => {
     });
     test('Lucky Charms says shards can fall out', async () => {
         const { POWER_PLAYS_LIST } = await import('../../../data/powerPlays');
-        expect(POWER_PLAYS_LIST.find(p => p.id === 'luckyCharms')!.description).toContain('Triforce shard');
+        expect(POWER_PLAYS_LIST.find(p => p.id === 'luckyCharms')!.finePrint).toContain('Triforce shard');
     });
 });
 
@@ -123,7 +123,7 @@ describe('fragile charms shatter on any invalid word or strike (v7.70.0)', () =>
         expect(accident.gameState.activeCharms.map(x => x.id)).toEqual(['happyLittleAccidents']);
     });
     test('descriptions say it plainly', () => {
-        for (const id of ['glassJoe', 'majorAward', 'crystalBall']) expect(c(id).description).toContain('Nothing protects it');
+        for (const id of ['glassJoe', 'majorAward', 'crystalBall']) expect(c(id).finePrint).toContain('Nothing protects it');
         expect(c('glassJoe').description).toContain(`x${2}`);
     });
 });
@@ -184,11 +184,11 @@ describe('shard stats (v7.72.6)', () => {
 
 describe("🐷 Hamm's Piggy Bank (v7.73.0)", () => {
     const hamm = () => CHARMS_LIST.find(c => c.id === 'hammPiggyBank')!;
-    test('interest first, then 50% of the word (v7.87.1), capped; five 180-point words save about 500', async () => {
+    test('a flat +100 a word (v7.89.0), capped; five words save 500', async () => {
         const { piggyAfterWord } = await import('../GameScreen');
         const { FRAGILE } = await import('../../../config/gameplay');
         expect(piggyAfterWord(0, 200)).toBe(100);
-        expect(piggyAfterWord(1000, 200)).toBe(1150);
+        expect(piggyAfterWord(1000, 200)).toBe(1100);
         expect(piggyAfterWord(FRAGILE.piggyMax, 500)).toBe(FRAGILE.piggyMax);
         let b = 0; for (let i = 0; i < FRAGILE.lifeWords; i++) b = piggyAfterWord(b, 180);
         expect(b).toBeGreaterThan(450); expect(b).toBeLessThan(550);

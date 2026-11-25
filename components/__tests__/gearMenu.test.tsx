@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 // v7.71.0: the Gear menu shows everything the run carries and explains what you tap.
+import { CHARM_BONUS } from '../../config/gameplay';
 import { describe, test, expect, vi, afterEach } from 'vitest';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -60,11 +61,11 @@ describe('Gear menu (v7.71.0)', () => {
         expect(earnedThisRun(next.gameState.log, 'Wile E. Coyote').points).toBeGreaterThan(0);
         expect(earnedThisRun(next.gameState.log, 'Wile E. Coyote').seconds).toBeGreaterThan(0);
     });
-    test("Keymaster's +50% gets its own log entry; the gate keeps its listed points", () => {
+    test("Keymaster's flat bonus gets its own log entry; the gate keeps its listed points", () => {
         const gs = { ...screenInitialState.gameState, activeCharms: [charm('keymaster')], score: 10000 } as GameState;
         const next = gameReducer({ ...screenInitialState, gameState: gs } as any, { type: 'APPLY_MINIGAME', payload: { name: 'The 10,000 Gate', icon: '🔐', points: 1000, headline: '+1,000', detail: 'x', flat: true } } as any);
-        expect(next.gameState.score).toBe(11500);
-        expect(earnedThisRun(next.gameState.log, 'Are You the Keymaster?').points).toBe(500);
+        expect(next.gameState.score).toBe(11000 + CHARM_BONUS.keymaster);
+        expect(earnedThisRun(next.gameState.log, 'Are You the Keymaster?').points).toBe(CHARM_BONUS.keymaster);
         expect(next.gameState.log.at(-2)).toMatchObject({ name: 'The 10,000 Gate', scoreChange: 1000, cumulativeScore: 11000 });
     });
     test('every charm either has a running total in Gear or is listed as changing the rules', () => {

@@ -162,7 +162,7 @@ describe('levelUpInfo', () => {
 
     test('the meter numbers include the Turbo Button charm', () => {
         const turbo = levelUpInfo(4, { activeCharms: [{ id: 'turboButton' }] });
-        expect(turbo.changes.find(c => c.label === 'PowerPlay letters')).toMatchObject({ from: '20', to: '24' });
+        expect(turbo.changes.find(c => c.label === 'PowerPlay letters')).toMatchObject({ from: '19', to: '24' });
     });
 });
 
@@ -179,10 +179,11 @@ describe('powerWordInfo', () => {
 });
 
 describe('continueCost', () => {
-    test('20% of the score, capped at 2,000', () => {
-        expect(continueCost(2000)).toBe(400);
-        expect(continueCost(10000)).toBe(2000);
-        expect(continueCost(30000)).toBe(2000);
+    test('a flat 1,500, never more than the score (v7.89.0)', () => {
+        // v7.89.0: a flat 1,500, never more than the score.
+        expect(continueCost(1000)).toBe(1000);
+        expect(continueCost(10000)).toBe(1500);
+        expect(continueCost(30000)).toBe(1500);
         expect(continueCost(0)).toBe(0);
     });
 });

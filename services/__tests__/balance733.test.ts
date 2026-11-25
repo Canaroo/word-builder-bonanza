@@ -299,7 +299,7 @@ describe('v7.35 reworks', () => {
     });
 
     test('Ludicrous Speed and Extreme Makeover read their numbers from config', () => {
-        expect(pp('ludicrousSpeed').description).toContain(`for ${POWER_PLAY_VALUES.ludicrousSeconds} seconds your clock freezes and every word scores x${POWER_PLAY_VALUES.ludicrousSpeedMultiplier}`); // v7.55.0
+        expect(pp('ludicrousSpeed').description).toContain(`For ${POWER_PLAY_VALUES.ludicrousSeconds} seconds your clock freezes and every word scores x${POWER_PLAY_VALUES.ludicrousSpeedMultiplier}`); // v7.55.0
         expect(pp('polish').name).toBe('Extreme Makeover');
         expect(pp('polish').description).toContain(`next ${POWER_PLAY_VALUES.boostWords} words`);
         const boosted = pp('polish').activate(gs(), { letter: 'S' });
@@ -356,8 +356,9 @@ describe('upgrade preview for percentage charms (v7.51.2)', () => {
         const { charmUpgradePercentPreview, charmUpgradePreview } = await import('../rules');
         const { CHARMS_LIST, UPGRADABLE_CHARM_IDS } = await import('../../data/charms');
         const d = (id: string) => CHARMS_LIST.find(c => c.id === id)!.description;
-        expect(charmUpgradePreview(d('downToYourBoxers'))).toBeNull();
-        expect(charmUpgradePercentPreview(d('downToYourBoxers'))).toEqual([{ from: 50, to: 75 }]);
+        // v7.89.0: Boxers pays a flat +75 now, so its preview is +75 -> +113 like any point charm.
+        expect(charmUpgradePreview(d('downToYourBoxers'))).toEqual([{ from: 75, to: 113 }]);
+        expect(charmUpgradePercentPreview(d('downToYourBoxers'))).toBeNull();
         // v7.67: the family charms pay flat points now, so their preview is +75 -> +113 and so on.
         expect(charmUpgradePreview(d('nicolesGrace'))).not.toBeNull();
         expect(charmUpgradePreview(d('lenaOfTheLostLights'))).not.toBeNull();

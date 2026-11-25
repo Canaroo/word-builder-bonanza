@@ -80,7 +80,7 @@ export const meterLettersFor = (level: number, gs?: WithCharms): number => {
     const { fromLevel, perLevel, perLateLevel, max } = GAMEPLAY.powerPlayMeterGrowth;
     const { early, late } = rampSteps(level, fromLevel);
     const letters = Math.min(max, GAMEPLAY.powerPlayMeterLetters + perLevel * early + perLateLevel * late);
-    return equipped(gs, 'turboButton') ? Math.round(letters * (1 - CHARM_BONUS.turboButtonPercent / 100)) : letters;
+    return equipped(gs, 'turboButton') ? Math.max(1, letters - CHARM_BONUS.turboButtonLetters) : letters;
 };
 
 /** Hits a boss round needs for the Badge: fewer for the hardest rules (boss.hitsToWin) and with the Little Mac charm. */
@@ -503,8 +503,8 @@ export const dealGame = (rand: () => number = Math.random) => {
 
 /** Continue?: the points a rescue costs, a share of the score up to a cap. */
 export const continueCost = (score: number): number => {
-    const { continueScoreCostPercent, continueScoreCostMax } = POWER_PLAY_VALUES;
-    return Math.min(continueScoreCostMax, Math.round(Math.max(0, score) * continueScoreCostPercent / 100));
+    // v7.89.0: a flat cost, never more than the score.
+    return Math.min(Math.max(0, score), POWER_PLAY_VALUES.continueCost);
 };
 
 // --- v7.28 PowerPlays: pure rules (POWER_PLAY_VALUES). ---
