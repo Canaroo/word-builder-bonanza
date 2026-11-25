@@ -593,6 +593,17 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   in `StartScreen.tsx`); opened from Me, their ◀ goes back to Me. Small choices stay pop-ups.
   In a run, Golden Round, PowerPlay meter and Word Combo share one compact row (`GameScreenView`),
   and the buffs tray labels itself inline ("BUFFS 2/5").
+- **Arcade-cabinet look for the menus (v7.90.0, the owner's ask: lighter, a 90s arcade cabinet; their
+  picks: cabinet side-art, start + menu screens, all three extras).** `components/CabinetBackdrop.tsx`
+  (`.cabinet-backdrop`, `.cab-*` in `index.css`) renders behind every screen except the game board and
+  the tour (App.tsx; z-index -1 inside the app frame, so shop themes still own the board): a violet sky,
+  two layers of drifting stars, a small striped sunset and a neon grid floor scrolling toward you, the
+  horizon at 86% so the sun sits behind the Today strip. The logo (flashing WORD, NERD, tagline) sits in a
+  backlit marquee with a chasing bulb border (`.cab-marquee`, `logo-marquee`). Cabinet details: a 1P tag
+  on the player chip (`.cab-tag`), CREDIT on the coin chip (375 px and wider), the Play/Continue button
+  breathes (`.press-start-pulse`) under the blinking PRESS START. Start-screen panels are more opaque
+  (`bg-crt-950/90`, the Spin chip solid) so text never sits on the grid. All motion stops with
+  reduced motion. Browser-checked at 390x844 and 360x640: no sideways scroll, Play on screen.
 - **Music shop (v7.53.0)** (`data/music.ts`, `services/music.ts`, `services/musicService.ts`,
   `components/SoundMenu.tsx`, `MUSIC_PRICE` and `SHOP_NEWS` in `config/progression.ts`): the shop's
   🎵 Music tab sells four original tracks at 80 Credits each: 🏡 Pixel Hometown (a cozy 3/4 waltz

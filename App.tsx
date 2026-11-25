@@ -1,4 +1,5 @@
 
+import CabinetBackdrop from './components/CabinetBackdrop';
 import React, { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import StartScreen from './services/screens/StartScreen';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -670,6 +671,8 @@ const App: React.FC = () => {
             <div className="corner-bolt bottom-right"></div>
           </>
         )}
+        {/* v7.90.0: arcade-cabinet side art behind the start and menu screens (the board keeps its theme). */}
+        {screen !== Screen.Game && screen !== Screen.Tour && <CabinetBackdrop />}
         <ErrorBoundary key={screen} onRecover={handleRecoverFromCrash}>
           <Suspense fallback={<ScreenFallback />}>{renderScreen()}</Suspense>
         </ErrorBoundary>

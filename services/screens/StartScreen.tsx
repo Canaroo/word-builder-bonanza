@@ -463,7 +463,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         ) : eventLogs.length > 0 ? (
           <ul className="space-y-2">
             {eventLogs.map(run => (
-              <li key={run.saveTimestamp} className="bg-crt-950/70 ring-1 ring-white/10 px-3 py-2 rounded-xl flex items-center gap-2">
+              <li key={run.saveTimestamp} className="bg-crt-950/90 ring-1 ring-white/10 px-3 py-2 rounded-xl flex items-center gap-2">
                 <div className="flex-1 min-w-0 text-left">
                   <p className="flex items-center gap-2">
                     <span className="font-osd text-2xl leading-none text-neon-yellow tabular-nums">{run.score.toLocaleString()}</span>
@@ -490,7 +490,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         {missedWords.length > 0 ? (
           <ul className="space-y-2">
             {missedWords.map(word => (
-              <li key={word.timestamp} className="bg-crt-950/70 ring-1 ring-white/10 px-3 py-2 rounded-xl text-left">
+              <li key={word.timestamp} className="bg-crt-950/90 ring-1 ring-white/10 px-3 py-2 rounded-xl text-left">
                 <p className="font-osd text-2xl leading-none uppercase tracking-wider text-neon-pink">{word.word}</p>
                 <p className="text-sm text-slate-300 italic leading-snug mt-0.5">{word.definition}</p>
               </li>
@@ -541,7 +541,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               </span>
             </button>
             <button type="button" onClick={() => answerChooser('regular')} aria-label="Regular game"
-              className="w-full text-left rounded-xl p-3 ring-2 ring-neon-yellow/70 bg-crt-950/70 hover:bg-neon-yellow/10 flex gap-3 items-start outline-none focus-visible:ring-white">
+              className="w-full text-left rounded-xl p-3 ring-2 ring-neon-yellow/70 bg-crt-950/90 hover:bg-neon-yellow/10 flex gap-3 items-start outline-none focus-visible:ring-white">
               <span className="text-3xl leading-none" aria-hidden="true">🎲</span>
               <span className="flex-1">
                 <span className="block font-display text-lg text-neon-yellow leading-tight">Regular game</span>
@@ -563,7 +563,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               You're about to start the <strong className="text-white">Daily Challenge</strong>. Everyone in the world gets the
               <strong className="text-white"> same tiles, offers and bosses</strong> today, so it's a fair fight.
             </p>
-            <ul className="text-left text-sm text-slate-200 space-y-1.5 rounded-lg bg-crt-950/70 ring-1 ring-white/10 p-3">
+            <ul className="text-left text-sm text-slate-200 space-y-1.5 rounded-lg bg-crt-950/90 ring-1 ring-white/10 p-3">
               <li>🎯 <strong className="text-white">One scored try.</strong> Once you start, this is the one that counts. Replays later are just practice.</li>
               <li>📅 Your score goes on <strong className="text-white">today's Daily board</strong>, and you can add it to the <strong className="text-white">🏆 Top 50</strong> too.</li>
               <li>🪙 Finish for <strong className="text-neon-yellow">+{DAILY_RUN.finishCredits} Credits</strong>, plus <strong className="text-neon-yellow">+{DAILY_RUN.topCredits}</strong> for a top-{DAILY_RUN.topRank} finish.</li>
@@ -664,9 +664,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <button
             type="button"
             onClick={() => { soundService.playUIClick(); setShowSwitcher(true); }}
-            className="min-w-0 flex items-center gap-1.5 bg-crt-950/70 ring-1 ring-neon-cyan/50 hover:ring-neon-cyan pl-2 pr-3 py-1.5 rounded-full"
+            className="min-w-0 flex items-center gap-1.5 bg-crt-950/90 ring-1 ring-neon-cyan/50 hover:ring-neon-cyan pl-2 pr-3 py-1.5 rounded-full"
             aria-label={name.trim() ? `Playing as ${name.trim()}. Switch player` : 'Choose a player'}
           >
+            <span className="cab-tag" aria-hidden="true">1P</span>
             {profile.badge ? <BadgeIcon id={profile.badge} size="sm" /> : <span className="text-lg leading-none" aria-hidden="true">👤</span>}
             <span className="osd-text text-xl leading-none text-neon-cyan uppercase truncate max-w-[7rem]">{showNameEntry ? 'NEW PLAYER' : name.trim()}</span>
             <span className="text-slate-400 text-xs" aria-hidden="true">▾</span>
@@ -674,19 +675,20 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => { soundService.playUIClick(); setShowStreak(true); }}
-              className={`flex items-center gap-1 pl-2 pr-2.5 py-1.5 rounded-full ring-1 ${bankedToday ? 'bg-neon-orange/15 ring-neon-orange' : 'bg-crt-950/70 ring-neon-orange/50 hover:ring-neon-orange'}`}
+              className={`flex items-center gap-1 pl-2 pr-2.5 py-1.5 rounded-full ring-1 ${bankedToday ? 'bg-neon-orange/15 ring-neon-orange' : 'bg-crt-950/90 ring-neon-orange/50 hover:ring-neon-orange'}`}
               aria-label={`Daily streak: ${streak} days${bankedToday ? ', today banked' : ''}`}
             >
               <span className={`text-lg leading-none ${streak > 0 && !bankedToday ? 'animate-pulse' : ''}`} aria-hidden="true">🔥</span>
               <span className="osd-text text-xl leading-none text-neon-orange">{streak}</span>
             </button>
-            <button onClick={() => onShowVibez()} className="flex items-center gap-1 bg-crt-950/70 ring-1 ring-neon-yellow/50 hover:ring-neon-yellow pl-2 pr-2.5 py-1.5 rounded-full" aria-label={`${lexCoins} credits. Open the shop`}>
+            <button onClick={() => onShowVibez()} className="flex items-center gap-1 bg-crt-950/90 ring-1 ring-neon-yellow/50 hover:ring-neon-yellow pl-2 pr-2.5 py-1.5 rounded-full" aria-label={`${lexCoins} credits. Open the shop`}>
               <span className="text-lg leading-none" aria-hidden="true">🪙</span>
+              <span className="osd-text text-xs leading-none text-neon-yellow/80 hidden min-[375px]:inline" aria-hidden="true">CREDIT</span>
               <span className="osd-text text-xl leading-none text-neon-yellow">{lexCoins}</span>
             </button>
             {tourDone && (
               <button type="button" onClick={() => { soundService.playUIClick(); onShowTour(name.trim(), false); }} data-testid="tour-icon"
-                className="w-8 h-8 rounded-full flex items-center justify-center text-base ring-1 ring-neon-cyan/50 bg-crt-950/70 hover:ring-neon-cyan"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-base ring-1 ring-neon-cyan/50 bg-crt-950/90 hover:ring-neon-cyan"
                 aria-label="How to play: replay the 1-minute tour">❓</button>
             )}
             <button onClick={() => { soundService.initialize(); soundService.playUIClick(); setShowSound(true); }} className="text-xl text-slate-400 hover:text-white p-1.5" aria-label={`Sound and music (${isMuted ? 'sound off' : 'sound on'})`}>
@@ -706,12 +708,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 <button type="button" onClick={() => { soundService.playUIClick(); closeShopNews(); }} className="text-neon-yellow/70 hover:text-white px-2.5 border-l border-neon-yellow/40" aria-label="Dismiss">✕</button>
               </div>
             )}
-            <h1 className="font-display text-4xl min-[375px]:text-5xl [@media(min-height:760px)]:text-6xl tracking-widest neon-text-cyan neon-flicker animate-slide-in-down leading-none">WORD</h1>
-            <h2 className="font-display text-6xl min-[375px]:text-7xl [@media(min-height:760px)]:text-8xl tracking-normal marquee-3d animate-bounce-in-up leading-none" style={{ animationDelay: '0.1s' }}>NERD</h2>
-            <p className="osd-text text-lg text-neon-pink mt-1 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>SERIOUS WORDS. RIDICULOUS FUN.</p>
-            <p className="osd-text text-sm leading-none text-slate-500 mt-1">VER {__APP_VERSION__}</p>
+            <div className="cab-marquee flex flex-col items-center" data-testid="logo-marquee">
+              <h1 className="font-display text-4xl min-[375px]:text-5xl [@media(min-height:760px)]:text-6xl tracking-widest neon-text-cyan neon-flicker animate-slide-in-down leading-none">WORD</h1>
+              <h2 className="font-display text-6xl min-[375px]:text-7xl [@media(min-height:760px)]:text-8xl tracking-normal marquee-3d animate-bounce-in-up leading-none" style={{ animationDelay: '0.1s' }}>NERD</h2>
+              <p className="osd-text text-lg text-neon-pink mt-1 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>SERIOUS WORDS. RIDICULOUS FUN.</p>
+            </div>
+            <p className="osd-text text-sm leading-none text-slate-300/80 mt-1.5">VER {__APP_VERSION__}</p>
             {!tourDone && <button type="button" onClick={() => { soundService.playUIClick(); onShowTour(name.trim(), false); }} data-testid="tour-pill"
-              className="mt-3 flex items-center gap-1.5 rounded-full ring-1 ring-neon-cyan/60 bg-crt-950/70 hover:bg-neon-cyan/10 hover:ring-neon-cyan px-3 py-1.5 animate-fade-in"
+              className="mt-3 flex items-center gap-1.5 rounded-full ring-1 ring-neon-cyan/60 bg-crt-950/90 hover:bg-neon-cyan/10 hover:ring-neon-cyan px-3 py-1.5 animate-fade-in"
               aria-label="How to play: a 1-minute tour">
               <span className="text-base leading-none" aria-hidden="true">❓</span>
               <span className="osd-text text-lg leading-none text-neon-cyan">HOW TO PLAY · 1-MIN TOUR</span>
@@ -732,12 +736,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   aria-label="Player name"
                   className="w-full px-4 py-2 font-osd text-3xl uppercase tracking-widest text-center bg-crt-950/80 border-2 border-neon-cyan/50 rounded-lg focus:outline-none focus:border-neon-cyan focus:shadow-glow-cyan text-neon-cyan placeholder:text-neon-cyan/40 placeholder:normal-case"
                 />
-                <p className="osd-text text-base leading-none text-slate-400">{isNewName ? '✨ NEW PLAYER · PRESS START TO MAKE YOUR ID' : 'ENTER YOUR NAME TO PLAY'}</p>
+                <p className="osd-text text-base leading-none text-slate-200">{isNewName ? '✨ NEW PLAYER · PRESS START TO MAKE YOUR ID' : 'ENTER YOUR NAME TO PLAY'}</p>
               </div>
             )}
             {continueRun ? (
               <>
-                <ArcadeButton color="yellow" size="lg" className="w-full flex-col !gap-0" onClick={handleResumeClick}>
+                <ArcadeButton color="yellow" size="lg" className="w-full flex-col !gap-0 press-start-pulse" onClick={handleResumeClick}>
                   <span>▶ Continue</span>
                   <span className="osd-text text-base leading-none normal-case tracking-normal opacity-80">{continueRun.label}</span>
                 </ArcadeButton>
@@ -746,7 +750,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               </>
             ) : (
               <>
-                <ArcadeButton color="yellow" size="lg" className="w-full" disabled={!name.trim()} onClick={handlePlayClick}>▶ Play</ArcadeButton>
+                <ArcadeButton color="yellow" size="lg" className={`w-full ${name.trim() ? 'press-start-pulse' : ''}`} disabled={!name.trim()} onClick={handlePlayClick}>▶ Play</ArcadeButton>
                 {!showNameEntry && <p className="osd-text text-lg leading-none text-neon-yellow blink -mt-1">PRESS START</p>}
               </>
             )}
@@ -755,7 +759,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           {/* Today strip: the daily rituals side by side. */}
           <section className="w-full grid grid-cols-2 gap-2" aria-label="Today">
             {/* Daily Challenge chip (v7.48): the way back in to the daily, not a second Play button. */}
-            <div className="col-span-2 flex items-center gap-2 rounded-xl ring-1 ring-neon-cyan/40 bg-crt-950/70 pl-2.5 pr-1.5 py-1.5">
+            <div className="col-span-2 flex items-center gap-2 rounded-xl ring-1 ring-neon-cyan/40 bg-crt-950/90 pl-2.5 pr-1.5 py-1.5">
               <button type="button" disabled={!name.trim()} onClick={handleDailyClick} className="flex-1 min-w-0 flex items-center gap-2 text-left disabled:opacity-40"
                 aria-label={`Daily Challenge number ${today.number}: ${dailyState === 'resume' ? 'resume it' : dailyState === 'new' ? 'not played yet, try it' : 'practice'}`}>
                 <span className="text-xl leading-none" aria-hidden="true">📅</span>
@@ -773,19 +777,19 @@ const StartScreen: React.FC<StartScreenProps> = ({
               {dailyState === 'done' && <button type="button" onClick={handleShareDaily} className="osd-text text-base leading-none px-2 py-1.5 rounded-md ring-1 ring-neon-cyan text-neon-cyan shrink-0">SHARE</button>}
             </div>
             {canSpin ? (
-              <button type="button" onClick={onSpin} className="flex items-center justify-center gap-2 rounded-xl ring-1 ring-neon-pink/60 bg-neon-pink/10 hover:bg-neon-pink/20 px-2 py-2.5" aria-label="Spin for your daily Power Word">
+              <button type="button" onClick={onSpin} className="flex items-center justify-center gap-2 rounded-xl ring-1 ring-neon-pink/60 bg-[#2a0f35] hover:bg-[#3a1448] px-2 py-2.5" aria-label="Spin for your daily Power Word">
                 <span className="text-xl leading-none animate-spin" aria-hidden="true">💥</span>
                 <span className="osd-text text-base min-[390px]:text-lg leading-none text-neon-pink whitespace-nowrap">SPIN POWER WORD</span>
               </button>
             ) : (
-              <button type="button" onClick={handleShowPowerWordInfo} disabled={!powerWordData} className="flex items-center justify-center gap-1.5 rounded-xl ring-1 ring-neon-pink/40 bg-crt-950/70 px-2 py-2.5 min-w-0" aria-label={powerWordData ? `Power Word: ${powerWordData.powerWord}. Show info` : powerWordService.getCooldownMessage()}>
+              <button type="button" onClick={handleShowPowerWordInfo} disabled={!powerWordData} className="flex items-center justify-center gap-1.5 rounded-xl ring-1 ring-neon-pink/40 bg-crt-950/90 px-2 py-2.5 min-w-0" aria-label={powerWordData ? `Power Word: ${powerWordData.powerWord}. Show info` : powerWordService.getCooldownMessage()}>
                 <span className="text-lg leading-none" aria-hidden="true">💥</span>
                 <span className="osd-text text-lg leading-none text-slate-300 truncate">{powerWordData ? powerWordData.powerWord.toUpperCase() : 'SPUN'}</span>
                 {powerWordData && <span className="text-xs text-slate-500" aria-hidden="true">ⓘ</span>}
               </button>
             )}
             <button type="button" onClick={() => { soundService.playUIClick(); setShowMissions(v => !v); }} aria-expanded={showMissions}
-              className={`flex items-center justify-center gap-1.5 rounded-xl ring-1 px-2 py-2.5 ${missionSummary.done === missionSummary.total ? 'ring-neon-green/60 bg-neon-green/10' : 'ring-neon-cyan/40 bg-crt-950/70'}`}
+              className={`flex items-center justify-center gap-1.5 rounded-xl ring-1 px-2 py-2.5 ${missionSummary.done === missionSummary.total ? 'ring-neon-green/60 bg-neon-green/10' : 'ring-neon-cyan/40 bg-crt-950/90'}`}
               aria-label={`Missions: ${missionSummary.done} of ${missionSummary.total} done. ${showMissions ? 'Hide' : 'Show'}`}>
               <span className="text-lg leading-none" aria-hidden="true">🎯</span>
               <span className="osd-text text-base min-[390px]:text-lg leading-none text-neon-cyan whitespace-nowrap">MISSIONS {missionSummary.done}/{missionSummary.total}</span>

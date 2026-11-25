@@ -1360,3 +1360,88 @@ body {
 /* v7.88.0: the tour's 👉 nudging toward the 🎒. */
 @keyframes tour-point-right { 0%, 100% { transform: translate(0, -50%); } 50% { transform: translate(6px, -50%); } }
 .tour-point-right { animation: tour-point-right 0.8s ease-in-out infinite; }
+
+/* ---------- v7.90.0: arcade-cabinet side art behind the start and menu screens ---------- */
+.cabinet-backdrop {
+  position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(120, 220, 255, 0.18), transparent 60%),
+    linear-gradient(180deg, #2c1f6e 0%, #3d2384 30%, #5a2a92 55%, #8d2f93 76%, #c8457f 86%, #2a1450 86.2%, #1f0f3f 100%);
+}
+.cab-stars {
+  position: absolute; inset: -50% 0 14% 0;
+  background-repeat: repeat;
+  animation: cab-drift 90s linear infinite;
+}
+.cab-stars-far {
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, rgba(255,255,255,.8), transparent 60%),
+    radial-gradient(1px 1px at 37% 62%, rgba(255,255,255,.7), transparent 60%),
+    radial-gradient(1px 1px at 71% 33%, rgba(255,255,255,.8), transparent 60%),
+    radial-gradient(1px 1px at 88% 77%, rgba(255,255,255,.6), transparent 60%),
+    radial-gradient(1px 1px at 55% 8%, rgba(255,255,255,.7), transparent 60%);
+  background-size: 180px 180px;
+  opacity: .8;
+}
+.cab-stars-near {
+  background-image:
+    radial-gradient(1.6px 1.6px at 22% 44%, #fff, transparent 60%),
+    radial-gradient(1.6px 1.6px at 64% 72%, #ffe27a, transparent 60%),
+    radial-gradient(1.6px 1.6px at 82% 18%, #7ff3ff, transparent 60%);
+  background-size: 260px 260px;
+  animation-duration: 55s;
+}
+@keyframes cab-drift { from { transform: translateY(0); } to { transform: translateY(33.333%); } }
+.cab-sun {
+  position: absolute; left: 50%; bottom: 14%; width: min(52%, 230px); aspect-ratio: 1; max-width: 100%;
+  transform: translate(-50%, 50%); border-radius: 50%;
+  background: linear-gradient(180deg, #ffe27a 0%, #ffb347 40%, #ff4fa0 75%, #c43ba8 100%);
+  -webkit-mask: linear-gradient(180deg, #000 0 52%, transparent 52% 56%, #000 56% 63%, transparent 63% 67%, #000 67% 73%, transparent 73% 78%, #000 78% 83%, transparent 83% 89%, #000 89%);
+          mask: linear-gradient(180deg, #000 0 52%, transparent 52% 56%, #000 56% 63%, transparent 63% 67%, #000 67% 73%, transparent 73% 78%, #000 78% 83%, transparent 83% 89%, #000 89%);
+  box-shadow: 0 0 60px rgba(255, 79, 160, .55);
+  opacity: .7;
+}
+.cab-floor {
+  position: absolute; left: -50%; right: -50%; bottom: 0; height: 14%;
+  perspective: 220px; perspective-origin: 50% 0%;
+  background: linear-gradient(180deg, rgba(255, 79, 160, .35), rgba(31, 15, 63, 0) 60%);
+}
+.cab-grid {
+  position: absolute; inset: 0 0 -60% 0; transform-origin: 50% 0; transform: rotateX(62deg);
+  background-image:
+    linear-gradient(rgba(127, 243, 255, .75) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(255, 79, 216, .7) 2px, transparent 2px);
+  background-size: 48px 48px;
+  animation: cab-grid 1.6s linear infinite;
+  -webkit-mask: linear-gradient(180deg, transparent, #000 25%);
+          mask: linear-gradient(180deg, transparent, #000 25%);
+}
+@keyframes cab-grid { from { background-position: 0 0; } to { background-position: 0 48px; } }
+
+/* The backlit marquee behind the logo, with a chasing bulb border. */
+.cab-marquee {
+  position: relative; border-radius: 20px; padding: 14px 18px 12px;
+  background: radial-gradient(120% 90% at 50% 40%, rgba(255, 210, 120, .22), rgba(60, 20, 90, .55) 70%);
+  box-shadow: inset 0 0 0 2px rgba(255, 226, 122, .55), inset 0 0 26px rgba(255, 180, 90, .35), 0 0 30px rgba(255, 79, 160, .35);
+}
+.cab-marquee::before {
+  content: ''; position: absolute; inset: 5px; border-radius: 15px; pointer-events: none;
+  border: 3px dotted rgba(255, 226, 122, .95);
+  filter: drop-shadow(0 0 3px #ffd23f);
+  animation: cab-bulbs .9s steps(2, end) infinite;
+}
+@keyframes cab-bulbs { 0% { border-color: rgba(255, 226, 122, .95); } 50% { border-color: rgba(255, 120, 200, .95); } 100% { border-color: rgba(255, 226, 122, .95); } }
+
+/* PRESS START: the Play button breathes like an attract screen. */
+.press-start-pulse { animation: press-start-pulse 1.4s ease-in-out infinite; }
+@keyframes press-start-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 210, 63, 0), 0 6px 0 rgba(0,0,0,.35); transform: translateY(0); }
+  50% { box-shadow: 0 0 22px 4px rgba(255, 210, 63, .6), 0 6px 0 rgba(0,0,0,.35); transform: translateY(-1px); }
+}
+.cab-tag {
+  font-family: 'VT323', 'Roboto Mono', monospace; font-size: 0.85rem; line-height: 1; letter-spacing: .06em;
+  padding: 1px 4px; border-radius: 4px; background: #ffd23f; color: #1a1030; text-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cab-stars, .cab-grid, .cab-marquee::before, .press-start-pulse { animation: none !important; }
+}
