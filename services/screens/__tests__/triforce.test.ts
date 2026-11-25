@@ -184,14 +184,14 @@ describe('shard stats (v7.72.6)', () => {
 
 describe("🐷 Hamm's Piggy Bank (v7.73.0)", () => {
     const hamm = () => CHARMS_LIST.find(c => c.id === 'hammPiggyBank')!;
-    test('interest first, then 30% of the word, capped; a 180-point word grows it like the design table', async () => {
+    test('interest first, then 50% of the word (v7.87.1), capped; five 180-point words save about 500', async () => {
         const { piggyAfterWord } = await import('../GameScreen');
         const { FRAGILE } = await import('../../../config/gameplay');
-        expect(piggyAfterWord(0, 200)).toBe(60);
-        expect(piggyAfterWord(1000, 200)).toBe(1110);
+        expect(piggyAfterWord(0, 200)).toBe(100);
+        expect(piggyAfterWord(1000, 200)).toBe(1150);
         expect(piggyAfterWord(FRAGILE.piggyMax, 500)).toBe(FRAGILE.piggyMax);
-        let b = 0; for (let i = 0; i < 20; i++) b = piggyAfterWord(b, 180);
-        expect(b).toBeGreaterThan(1700); expect(b).toBeLessThan(1900);
+        let b = 0; for (let i = 0; i < FRAGILE.lifeWords; i++) b = piggyAfterWord(b, 180);
+        expect(b).toBeGreaterThan(450); expect(b).toBeLessThan(550);
     });
     test('smashing pays the savings and removes him for the run', () => {
         const s = start({ activeCharms: [hamm()], piggyBank: 2500, score: 1000 });

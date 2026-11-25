@@ -319,13 +319,13 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   logs "Fragile charm broke". Hamm smashes himself and pays out when he wears out. Gear shows "N WORDS
   LEFT", offer cards "💔 FRAGILE · 5 WORDS". **Major Award** now grows every word (+50, +75 ... +150 =
   500 over its life; it grew every 10 words, which 5 words never reach). Over 5 words of ~180 points:
-  Glass Joe about +900, Major Award +500, Crystal Ball +25 s, Hamm about +330 (his numbers were tuned
-  for 20-40 word holds; raise `piggyDeposit` if he goes unpicked). Saves from before count from 0.
+  Glass Joe about +900, Major Award +500, Crystal Ball +25 s, Hamm about +500. **v7.87.1 (the owner's
+  call):** Hamm's deposit went from 30% to 50% (`piggyDeposit`): his 5-word payout was about +300. Saves from before count from 0.
   **Greatest Hits pill** (`HitsChip` in `PowerPlayTrackers.tsx`, `hits-chip`) moved out of the stage's
   strip to right above the tiles (the owner's ask), larger, with a gold ring; hidden in Golden Rounds.
 - **🐷 Hamm's Piggy Bank (v7.73.0, the owner's pick of three designs)** (`hammPiggyBank`, a fragile
   charm; `piggy*` in `FRAGILE`, `piggyAfterWord`/`smashPiggy` in `GameScreen.tsx`, `gameState.piggyBank`):
-  every valid word adds 30% of its full score (after every multiplier, before secrets, milestones and
+  every valid word adds 30% (50% since v7.87.1) of its full score (after every multiplier, before secrets, milestones and
   Greatest Hits) to the bank, which first earns 5% interest, up to 15,000. The word keeps all its
   points. Hold the 🐷 chip above the tiles (`piggyHoldMs` 700, `SMASH_PIGGY`) to smash him: he pays out
   and is gone for the run (into `shatteredCharms`). A slip shatters him and the savings are lost (the

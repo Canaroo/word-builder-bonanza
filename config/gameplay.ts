@@ -386,7 +386,7 @@ export const FRAGILE = {
   // 🐷 Hamm's Piggy Bank (v7.73.0, the owner's pick): 30% of every word's score goes in, the bank
   // earns 5% a word, up to 15,000. Hold the chip to smash it and collect; a slip loses it all.
   // Simulated (180-point words): 679 at 10 words, 1,786 at 20, 6,523 at 40, the cap near 58.
-  piggyDeposit: 30,           // % of each word's score copied into the bank (the word keeps it all)
+  piggyDeposit: 50,           // v7.87.1: was 30 (fragile charms last 5 words now). % of each word's score copied into the bank (the word keeps it all)
   piggyInterest: 5,           // % the bank grows every valid word
   piggyMax: 15000,
   piggyHoldMs: 700,           // hold the 🐷 chip this long to smash it
