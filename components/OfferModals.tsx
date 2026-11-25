@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { Charm, PowerPlay } from '../types';
 import { INSTANT_POWER_PLAY_IDS, PRIZE_POWER_PLAY_IDS } from '../data/powerPlays';
-import { CHARM_SLOTS, CHARM_UPGRADE, MYSTERY_TAPE , TRIFORCE } from '../config/gameplay';
+import { CHARM_SLOTS, CHARM_UPGRADE, MYSTERY_TAPE , TRIFORCE, FRAGILE } from '../config/gameplay';
 import { prizeFor } from '../services/rules';
 import { UPGRADABLE_CHARM_IDS } from '../data/charms';
 import DurationBadge from '../ui/DurationBadge';
@@ -59,7 +59,7 @@ const ItemCard: React.FC<{
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-display text-sm text-white leading-tight">{item.name}</span>
             {'breaks' in item && item.breaks
-              ? <span className="osd-text text-sm leading-none px-1.5 py-0.5 rounded-md ring-1 ring-neon-red text-neon-red whitespace-nowrap">💔 FRAGILE</span>
+              ? <span className="osd-text text-sm leading-none px-1.5 py-0.5 rounded-md ring-1 ring-neon-red text-neon-red whitespace-nowrap">💔 FRAGILE · {FRAGILE.lifeWords} WORDS</span>
               : <DurationBadge tag={item.durationTag} />}
             {'oncePerRun' in item && item.oncePerRun && (
               <span className="osd-text text-sm leading-none px-1.5 py-0.5 rounded-md ring-1 ring-neon-orange text-neon-orange whitespace-nowrap">1× PER RUN</span>

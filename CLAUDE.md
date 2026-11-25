@@ -310,6 +310,19 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   offered again (charm offers, Lucky Charms). 💔 FRAGILE tag on offer cards, 💔 on the slot and the
   buffs tray, a "💥 ... SHATTERED" card. Not upgradable, not in sets or the scratch list. The
   Triforce pieces are now called "Triforce shards" in player text (the owner calls these fragile).
+- **Fragile charms last 5 words (v7.87.0, the owner's call: too strong to keep all run)**
+  (`FRAGILE.lifeWords`, `wearFragile` in `GameScreen.tsx`, `gameState.fragileWords` by id, set to 0 on
+  `CHOOSE_CHARM`): after the 5th valid word a fragile charm breaks for the run (into `shatteredCharms`,
+  never offered again), and it still shatters sooner on any invalid word or strike. It runs right after
+  the word is logged, before the charm offer, so the freed slot can be filled at once. The 4th word shows
+  "💔 🥊 Glass Joe: LAST WORD!" on the stage; the 5th opens a "💥 GLASS JOE BROKE" card (RESULT tone) and
+  logs "Fragile charm broke". Hamm smashes himself and pays out when he wears out. Gear shows "N WORDS
+  LEFT", offer cards "💔 FRAGILE · 5 WORDS". **Major Award** now grows every word (+50, +75 ... +150 =
+  500 over its life; it grew every 10 words, which 5 words never reach). Over 5 words of ~180 points:
+  Glass Joe about +900, Major Award +500, Crystal Ball +25 s, Hamm about +330 (his numbers were tuned
+  for 20-40 word holds; raise `piggyDeposit` if he goes unpicked). Saves from before count from 0.
+  **Greatest Hits pill** (`HitsChip` in `PowerPlayTrackers.tsx`, `hits-chip`) moved out of the stage's
+  strip to right above the tiles (the owner's ask), larger, with a gold ring; hidden in Golden Rounds.
 - **🐷 Hamm's Piggy Bank (v7.73.0, the owner's pick of three designs)** (`hammPiggyBank`, a fragile
   charm; `piggy*` in `FRAGILE`, `piggyAfterWord`/`smashPiggy` in `GameScreen.tsx`, `gameState.piggyBank`):
   every valid word adds 30% of its full score (after every multiplier, before secrets, milestones and

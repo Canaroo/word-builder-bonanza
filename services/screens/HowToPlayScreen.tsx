@@ -1,7 +1,7 @@
 import { Sec } from '../../components/Seconds';
 import React from 'react';
 import { soundService } from '../soundService';
-import { SCRATCH, GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, FINAL_JEOPARDY, HEAD_START, SKILL_SHOT, GEM_TILES, HOLD_SLOT, GRUDGE, BONES, GATES, GREATEST_HITS , TRIFORCE } from '../../config/gameplay';
+import { SCRATCH, GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, FINAL_JEOPARDY, HEAD_START, SKILL_SHOT, GEM_TILES, HOLD_SLOT, GRUDGE, BONES, GATES, GREATEST_HITS , TRIFORCE, FRAGILE } from '../../config/gameplay';
 import { PHOENIX_DOWN } from '../../config/progression';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import ArcadeButton from '../../components/ArcadeButton';
@@ -191,9 +191,11 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             read what it does.
           </p>
           <p>
-            <Key>💔 Fragile charms</Key> (Glass Joe, Major Award, Crystal Ball, Hamm's Piggy Bank) are the strongest charms around, but the
-            moment you play an invalid word or take a strike, every fragile charm you hold shatters for the rest of the
-            run. Nothing protects them: not shields, not Plot Armor, not the Triforce of Courage.
+            <Key>💔 Fragile charms</Key> (Glass Joe, Major Award, Crystal Ball, Hamm's Piggy Bank) are the strongest charms around, but they
+            only last <Key>{FRAGILE.lifeWords} words</Key>, then break and free up their slot (🎒 Gear shows how many words are left;
+            Hamm pays out his savings when he breaks). The moment you play an invalid word or take a strike, every fragile
+            charm you hold shatters sooner. Nothing protects them: not shields, not Plot Armor, not the Triforce of Courage.
+            A broken fragile charm isn't offered again that run.
           </p>
           <p>
             <Key>PowerPlays</Key> are a button you press once, at the moment you choose. Fill the meter by playing{' '}

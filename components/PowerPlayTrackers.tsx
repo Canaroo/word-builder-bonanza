@@ -92,16 +92,7 @@ const CenterSquareBoard: React.FC<{ board: string[]; got: boolean[]; words: numb
 const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string[]; quizLeft?: number; raceRival?: number; onStand: () => void; onJengaCash?: () => void; onPiggySmash?: () => void }> = ({ gameState, upcomingTiles = [], quizLeft, raceRival, onStand, onJengaCash, onPiggySmash }) => {
   const a = (gameState?.activePowerPlays ?? {}) as Record<string, any>;
   const chips: React.ReactNode[] = [];
-  // Greatest Hits (v7.52.0): the word closest to its next record, once it has 2 plays.
-  const hit = hitInProgress(gameState?.log ?? [], gameState?.hitsClaimed ?? []);
-  if (hit) {
-    const left = hit.tier.letters - hit.plays;
-    chips.push(
-      <span key="hits" data-testid="hits-chip" className="flex items-center gap-1 rounded-full bg-neon-yellow/15 ring-1 ring-neon-yellow/70 px-2.5 py-1 text-sm font-semibold text-white whitespace-nowrap"
-        aria-label={`Greatest Hits: ${hit.word} played ${hit.plays} of ${hit.tier.letters} times. ${left} more to go ${hit.tier.title} for ${hit.tier.points} points`}>
-        <span aria-hidden="true">{hit.tier.icon}</span>{hit.word} {hit.plays}/{hit.tier.letters} · {left === 1 ? 'ONE MORE' : `${left} MORE`} FOR {hit.tier.title} +{hit.tier.points.toLocaleString()}
-      </span>);
-  }
+  // Greatest Hits moved out to HitsChip (v7.87.0), right above the tiles.
   // Pop Quiz (v7.36.1): its own countdown in real seconds, so the player can see the 5 s running.
   if (quizLeft !== undefined) {
     const left = Math.ceil(quizLeft);
@@ -163,6 +154,24 @@ const PowerPlayTrackers: React.FC<{ gameState: GameState; upcomingTiles?: string
   if (a.psychicFriends && typeof a.psychicFriends.letters === 'number') chips.push(<Chip key="psychic" icon="🔮" label={`Psychic call: ${a.psychicFriends.letters}${a.psychicFriends.orMore ? ' or more' : ''} letters for ${a.psychicFriends.prize}`}>CALLED: {a.psychicFriends.letters}{a.psychicFriends.orMore ? '+' : ''} LETTERS · +{a.psychicFriends.prize}</Chip>);
   if (!chips.length) return null;
   return <div className="flex flex-wrap justify-center gap-1" aria-label="PowerPlay trackers">{chips}</div>;
+};
+
+/**
+ * Greatest Hits (v7.52.0): the word closest to its next record, once it has 2 plays. v7.87.0 (the
+ * owner's ask): it sits right above the tiles, where the player is looking while picking letters.
+ */
+export const HitsChip: React.FC<{ gameState: GameState | null }> = ({ gameState }) => {
+  const hit = hitInProgress(gameState?.log ?? [], gameState?.hitsClaimed ?? []);
+  if (!hit) return null;
+  const left = hit.tier.letters - hit.plays;
+  return (
+    <div className="flex justify-center">
+      <span data-testid="hits-chip" className="flex items-center gap-1.5 rounded-full bg-neon-yellow/20 ring-2 ring-neon-yellow px-3 py-1 text-base font-semibold text-white whitespace-nowrap shadow-[0_0_12px_rgba(250,204,21,0.45)] max-w-full overflow-hidden"
+        aria-label={`Greatest Hits: ${hit.word} played ${hit.plays} of ${hit.tier.letters} times. ${left} more to go ${hit.tier.title} for ${hit.tier.points} points`}>
+        <span aria-hidden="true">{hit.tier.icon}</span><span className="font-tile tracking-wide">{hit.word}</span> {hit.plays}/{hit.tier.letters} · {left === 1 ? 'ONE MORE' : `${left} MORE`} FOR {hit.tier.title} +{hit.tier.points.toLocaleString()}
+      </span>
+    </div>
+  );
 };
 
 export default PowerPlayTrackers;

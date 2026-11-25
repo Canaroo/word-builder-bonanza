@@ -3,7 +3,7 @@ import EndRunCard from '../../components/EndRunCard';
 import TriforceEmblem from '../../components/TriforceEmblem';
 import GearMenu from '../../components/GearMenu';
 import { TRIFORCE_IDS, TRIFORCE_PIECES, shardsOf, triforceDone } from '../../data/triforce';
-import { TRIFORCE } from '../../config/gameplay';
+import { TRIFORCE, FRAGILE } from '../../config/gameplay';
 import React, { useEffect, useRef, useState } from 'react';
 import ArcadeButton, { NamedLabel } from '../../components/ArcadeButton';
 import ShuffleButton from '../../components/ShuffleButton';
@@ -37,7 +37,7 @@ import BonesCard from '../../components/BonesCard';
 import { SKILL_SHOT, GATES, MYSTERY_TAPE, SHINE_BRIGHT_GEMS, CHARM_BONUS as CB } from '../../config/gameplay';
 import { skillShotPoints } from '../../services/rules';
 import GambleCard, { type GambleResult } from '../../components/GambleCard';
-import PowerPlayTrackers from '../../components/PowerPlayTrackers';
+import PowerPlayTrackers, { HitsChip } from '../../components/PowerPlayTrackers';
 import MiniGameCard from '../../components/MiniGames';
 import CharmTimeNote from '../../components/CharmTimeNote';
 import { nextGateFor, previousGateFor, powerWordInfo, prizeFor, speedStreakPoints } from '../rules';
@@ -450,7 +450,11 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         if (buff.id === 'crossTheRoad') return `${gameState?.frogStreak ?? 0}/${CHARM_BONUS.crossTheRoadWords}`;
         if (buff.id === 'sesameStreet') return gameState?.sesameLetter ? `"${gameState.sesameLetter.letter}"` : '';
         if (buff.id === 'happyLittleAccidents') return gameState?.happyAccidentLevel === levelFor(totalWords) ? 'used' : 'ready';
-        if (buff.id === 'hammPiggyBank') return `🐷${(gameState?.piggyBank ?? 0).toLocaleString()}`;
+        // v7.87.0: fragile charms last FRAGILE.lifeWords words; Gear shows how many are left.
+        const wordsLeft = 'breaks' in buff && buff.breaks ? Math.max(1, FRAGILE.lifeWords - (gameState?.fragileWords?.[buff.id] ?? 0)) : 0;
+        const leftLabel = wordsLeft ? `${wordsLeft} ${wordsLeft === 1 ? 'WORD' : 'WORDS'} LEFT` : '';
+        if (buff.id === 'hammPiggyBank') return `🐷${(gameState?.piggyBank ?? 0).toLocaleString()} · ${leftLabel}`;
+        if (leftLabel) return leftLabel;
         if (buff.id === 'survivor') return (gameState?.strikes ?? 0) > 0 ? `+${CHARM_BONUS.survivor * gameState.strikes}` : '';
         const countdown = (gameState?.activePowerPlays as any)?.[buff.id];
         if (countdown?.words) return `${countdown.words} ${countdown.words === 1 ? 'word' : 'words'}`;
@@ -1496,6 +1500,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
       {/* --- PLAY AREA (always visible) --- */}
       <div className="relative flex-shrink-0 flex flex-col gap-2 w-full max-w-sm mx-auto">
+        {/* Greatest Hits (v7.87.0): right above the tiles, in the player's eyeline while picking letters. */}
+        {gameState?.roundType !== 'golden' && <HitsChip gameState={gameState} />}
         {/* --- HAND: the standard hand in a 4x2 grid; widens to all rack slots when a power-up overfills it --- */}
         {(() => {
           const rack = hand ?? Array(RACK_SIZE).fill(null);
