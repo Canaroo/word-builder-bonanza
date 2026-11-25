@@ -1356,3 +1356,7 @@ body {
   100% { opacity: 0; transform: translateY(-8px); }
 }
 @media (prefers-reduced-motion: reduce) { .stage-cursor-pays, .landed-pop { animation: none; } }
+
+/* v7.88.0: the tour's 👉 nudging toward the 🎒. */
+@keyframes tour-point-right { 0%, 100% { transform: translate(0, -50%); } 50% { transform: translate(6px, -50%); } }
+.tour-point-right { animation: tour-point-right 0.8s ease-in-out infinite; }

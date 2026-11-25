@@ -614,11 +614,15 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   2. CLOSET +16 (x2 length), +7 sec, next to CAT's numbers;
   3. the clock ticks, a fake word (TOLC) earns strike 1 of 3, hold SHUFFLE for new tiles and +5 sec;
   4. flip cards for PowerPlays, Charms, Boss Fights and the Golden Round.
+  5. (v7.88.0, the owner's ask) YOUR GEAR: a mini board top with a ticking clock and a pulsing 🎒 under
+     STRIKES (a 👉 points at it); tapping it opens a small Gear menu (sample charms, a pocket PowerPlay,
+     strikes left) and the clock freezes ("⏸ PAUSED", "THE CLOCK WAITS FOR YOU") until ✕ BACK. Next
+     unlocks once Gear was opened (`GearDemo` in `QuickTour.tsx`, `tour-gear*` test ids).
   Then "YOU'RE READY!": ▶ Play now (▶ Back to my run when a run is saved and the tour came from the
   pill), 📖 Full How to Play, 🏠 Main menu; SKIP TOUR on every screen goes there. Scores come from
   `tourWordScore` (tile points x length bonus; a test checks it against `calculateScore`), so change
   the words in `services/tour.ts` and the text follows. **v7.78.1 (the owner's ask):** once a player
-  finishes the tour (taps "I'm ready ▶" on screen 4; SKIP TOUR doesn't count), the pill under the logo
+  finishes the tour (taps "I'm ready ▶" on the last screen; SKIP TOUR doesn't count), the pill under the logo
   is replaced by a small ❓ in the top bar next to 🔊 (`tour-icon`) that replays it. Per name on the
   device (`tourDone`, `tourFinishedBy`/`markTourFinished`), apart from `tourSeen` (offered once).
 - **Play board redesign (v7.80-7.82, the owner's asks after a design review; the proposal with a
