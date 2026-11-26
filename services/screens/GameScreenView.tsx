@@ -681,6 +681,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     onBet={b => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key: 'fjBet', value: b } })}
                     savedCategory={typeof (data?.saved as Record<string, unknown> | undefined)?.fjCategory === 'string' ? (data!.saved as Record<string, string>).fjCategory : undefined}
                     onCategory={id => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key: 'fjCategory', value: id } })}
+                    deadline={typeof (data?.saved as Record<string, unknown> | undefined)?.fjDeadline === 'number' ? (data!.saved as Record<string, number>).fjDeadline : undefined}
+                    onDeadline={at => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key: 'fjDeadline', value: at } })}
                     onDone={r => handleLastWords?.(r)} />;
 
             case 'heads-up':

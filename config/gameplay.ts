@@ -639,7 +639,8 @@ export const LAST_WORDS = { multiplier: 3 } as const;
  * a last word that fits it wins the bet, anything else (or no last word) loses it. Simulated (random
  * final hands): the categories can be met 48-86% of the time, about 60% overall.
  */
-export const FINAL_JEOPARDY = { percents: [5, 10], cap: 3000, roundTo: 10 } as const;
+// betSeconds (v7.93.0, the owner's call): a bet starts a clock to spell the last word; no bet, no clock.
+export const FINAL_JEOPARDY = { percents: [5, 10], cap: 3000, roundTo: 10, betSeconds: 30 } as const;
 export const HEAD_START = { perRun: 3, max: 15, untilLevel: 4 } as const;
 // fromLevel: the first level that lights a tile (a run's opening hand never does: v7.44.6).
 // introShows: times a player sees the explainer card.

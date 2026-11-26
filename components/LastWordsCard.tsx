@@ -34,8 +34,11 @@ const LastWordsCard: React.FC<{
   /** v7.92.0: the category actually played, checked against the final hand and saved with the card ('none': no bet). */
   savedCategory?: string;
   onCategory?: (id: string) => void;
+  /** v7.93.0: when the bet's clock runs out (epoch ms), saved with the card so a quit can't restart it. */
+  deadline?: number;
+  onDeadline?: (at: number) => void;
   onDone: (r: LastWordsResult | null) => void;
-}> = ({ reason, tiles, gameState, piggyLost = 0, category, bet, onBet, savedCategory, onCategory, onDone }) => {
+}> = ({ reason, tiles, gameState, piggyLost = 0, category, bet, onBet, savedCategory, onCategory, deadline, onDeadline, onDone }) => {
   const [picked, setPicked] = useState<number[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -70,6 +73,27 @@ const LastWordsCard: React.FC<{
   // always is one: the category was picked because a word in this hand fits it.
   const fitWord = words && catId ? finalCategorySolution(catId, words) : undefined;
   const [skipped, setSkipped] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  // v7.93.0 (the owner's call): a bet makes it a challenge, FINAL_JEOPARDY.betSeconds to spell the last
+  // word; no bet, no clock. The deadline is set once the bet is placed and saved with the card.
+  useEffect(() => {
+    if (placed > 0 && deadline === undefined && onDeadline) onDeadline(Date.now() + FINAL_JEOPARDY.betSeconds * 1000);
+  }, [placed, deadline]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [now, setNow] = useState(() => Date.now());
+  const clockOn = placed > 0 && deadline !== undefined && !result && !skipped;
+  useEffect(() => {
+    if (!clockOn) return;
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, [clockOn]);
+  const secsLeft = clockOn ? Math.max(0, Math.ceil((deadline! - now) / 1000)) : null;
+  const lastTick = React.useRef<number | null>(null);
+  useEffect(() => {
+    if (secsLeft === null) return;
+    if (secsLeft !== lastTick.current && secsLeft > 0 && secsLeft <= 10) soundService.playTick();
+    lastTick.current = secsLeft;
+    if (secsLeft === 0 && !busy) { soundService.playInvalidWord(); setTimedOut(true); setSkipped(true); }
+  }, [secsLeft, busy]);
   const fitReveal = cat && (
     <div className="w-full rounded-lg bg-crt-950/80 ring-1 ring-neon-cyan/50 px-3 py-2" data-testid="fj-fit">
       {fitWord === undefined ? <p className="text-sm text-slate-300">Checking your tiles…</p>
@@ -108,6 +132,16 @@ const LastWordsCard: React.FC<{
           <li><span className="text-neon-yellow font-bold">2.</span> A secret <strong>category</strong> is revealed, like "5+ letters".</li>
           <li><span className="text-neon-yellow font-bold">3.</span> Spell your last word from these tiles. It scores x{LAST_WORDS.multiplier}, and if it fits the category you win the bet. Miss and you lose it.</li>
         </ol>
+        <div className="w-full grid grid-cols-2 gap-2 text-left" data-testid="fj-choice">
+          <div className="rounded-lg bg-neon-yellow/15 ring-1 ring-neon-yellow px-2.5 py-2">
+            <p className="osd-text text-base leading-none text-neon-yellow">⏱ BET</p>
+            <p className="text-[13px] text-white leading-snug mt-1">You get <strong>{FINAL_JEOPARDY.betSeconds} seconds</strong> to spell it.</p>
+          </div>
+          <div className="rounded-lg bg-white/5 ring-1 ring-white/25 px-2.5 py-2">
+            <p className="osd-text text-base leading-none text-slate-200">🛋️ NO BET</p>
+            <p className="text-[13px] text-white leading-snug mt-1">No clock. Take all the time you want.</p>
+          </div>
+        </div>
         <p className="text-sm text-neon-cyan leading-snug">Your tiles can always make a word that fits.</p>
         <div className="grid grid-cols-4 gap-1.5 w-full" aria-label="Your final hand">
           {tiles.map(t => (
@@ -121,10 +155,10 @@ const LastWordsCard: React.FC<{
           {bets.map(b => (
             <ArcadeButton key={b.percent} color="yellow" variant={b.percent === bets[bets.length - 1].percent ? undefined : 'outline'} disabled={!armed || dealing}
               onClick={() => { if (!armed || dealing) return; soundService.playPowerUp(); onBet!(b.amount); }}>
-              Bet {b.amount.toLocaleString()} ({b.percent}%{b.amount === FINAL_JEOPARDY.cap ? ', the max' : ''})
+              ⏱ Bet {b.amount.toLocaleString()} ({b.percent}%{b.amount === FINAL_JEOPARDY.cap ? ', max' : ''}) · {FINAL_JEOPARDY.betSeconds} sec
             </ArcadeButton>
           ))}
-          <ArcadeButton color="slate" variant="outline" disabled={!armed || dealing} onClick={() => { if (armed && !dealing) onBet!(0); }}>No bet, just play my last word</ArcadeButton>
+          <ArcadeButton color="slate" variant="outline" disabled={!armed || dealing} onClick={() => { if (armed && !dealing) onBet!(0); }}>No bet, no clock</ArcadeButton>
         </div>
       </div>
     </div>
@@ -149,6 +183,7 @@ const LastWordsCard: React.FC<{
         ) : skipped ? (
           // No last word after a bet: the bet is lost, but show a word that would have fit first.
           <>
+            {timedOut && <p className="osd-text text-xl text-neon-red" data-testid="fj-timeout">⏱ TIME'S UP! The clock beat you to it.</p>}
             <p className="font-display text-2xl text-neon-red" data-testid="fj-result">💡 FINAL JEOPARDY: -{placed.toLocaleString()}</p>
             {fitReveal}
             <ArcadeButton color="slate" className="w-full" onClick={() => onDone(null)}>End the run</ArcadeButton>
@@ -160,11 +195,19 @@ const LastWordsCard: React.FC<{
                 <p className="osd-text text-base text-neon-cyan leading-none">💡 CATEGORY</p>
                 <p className="font-display text-xl text-white leading-tight">{cat!.label}</p>
                 <p className="text-xs text-slate-200 leading-snug">Your bet: {placed.toLocaleString()}. Fit the category to win it, miss and lose it.</p>
+                {secsLeft !== null && (
+                  <div className="mt-1.5" data-testid="fj-clock" aria-live="polite">
+                    <p className={`font-display text-2xl leading-none ${secsLeft <= 10 ? 'text-neon-red animate-pulse' : 'text-neon-yellow'}`}>⏱ {secsLeft} sec</p>
+                    <div className="h-1.5 rounded-full bg-crt-950 overflow-hidden mt-1">
+                      <div className={`h-full transition-[width] duration-200 ${secsLeft <= 10 ? 'bg-neon-red' : 'bg-neon-yellow'}`} style={{ width: `${Math.min(100, (secsLeft / FINAL_JEOPARDY.betSeconds) * 100)}%` }} />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             <p className="text-slate-200 leading-snug">
-              The clock is stopped. Play <strong className="text-white">one more word</strong> from your final hand and it scores{' '}
-              <strong className="text-neon-yellow">x{LAST_WORDS.multiplier}</strong>. No rush, and a wrong guess costs nothing.
+              {placed > 0 ? '' : 'The clock is stopped. '}Play <strong className="text-white">one more word</strong> from your final hand and it scores{' '}
+              <strong className="text-neon-yellow">x{LAST_WORDS.multiplier}</strong>. {placed > 0 ? 'Beat the clock to win your bet; a wrong guess costs only time.' : 'No clock, no rush, and a wrong guess costs nothing.'}
             </p>
             <div className="w-full min-h-[3rem] rounded-lg bg-crt-950 ring-1 ring-white/15 flex items-center justify-center gap-1 px-2 font-tile font-extrabold text-2xl tracking-widest text-white">
               {word || <span className="text-slate-600 text-base font-sans font-normal">Tap tiles to build a word</span>}

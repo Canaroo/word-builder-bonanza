@@ -1041,6 +1041,15 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   hands: the old random deal was impossible in 41% (204); now 287 keep the dealt category, 204 get one
   they can make, 9 (2%) can make none and skip the bet. Browser-checked: CATDOGZQ dealt A DOUBLE LETTER
   → STARTS WITH S OR T, skip shows TACO. Tests in `finalJeopardyFair.test.ts`.
+  **v7.93.0 (the owner's call: a bet should still be a challenge):** a bet gives the player
+  `FINAL_JEOPARDY.betSeconds` (30) to spell the last word; no bet, no clock. The bet card spells out the
+  choice in two boxes ("⏱ BET: you get 30 seconds to spell it" / "🛋️ NO BET: no clock") and on the buttons
+  ("⏱ Bet 620 (5%) · 30 sec", "No bet, no clock"). The clock shows in the category box (`fj-clock`: big
+  seconds and a bar, red and ticking for the last 10). Its deadline is saved with the card
+  (`SET_GAMBLE_STATE` key `fjDeadline`, epoch ms), so quitting doesn't restart it. Running out loses the
+  bet: "⏱ TIME'S UP!" (`fj-timeout`), the -bet line and a word that would have fit. Without a bet the
+  board still says the clock is stopped. Browser-checked at 390x844 and 360x640: 29 sec after the bet,
+  time's up after 30 s with TACO shown; no bet showed no clock.
   **Head Start** (`services/headStart.ts`, per player): a run ending before level 4 adds 3 s to the
   next starting clock (max 15), reaching level 4 clears it; a chip shows it until the first word.
   Never applied on the scored Daily Run.
