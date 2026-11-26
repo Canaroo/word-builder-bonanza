@@ -3,8 +3,7 @@ import { SCRATCH } from '../config/gameplay';
 import { CHARMS_LIST } from '../data/charms';
 import { POWER_PLAYS_LIST } from '../data/powerPlays';
 import { prizeFor } from '../services/rules';
-import { TRIFORCE_PIECES, shardCharm } from '../data/triforce';
-import { safeFirstScratch, skullOdds, type ScratchPrize } from '../services/scratch';
+import { safeFirstScratch, skullOdds, withoutShards, type ScratchPrize } from '../services/scratch';
 import { soundService } from '../services/soundService';
 import ArcadeButton from './ArcadeButton';
 import { Sec } from './Seconds';
@@ -26,7 +25,6 @@ export const scratchLabel = (p: ScratchPrize, level: number): { icon: string; bi
     case 'challenge': return { icon: '🤔', big: `+${p.amount}`, small: 'STUCK?', plain: `+${p.amount} STUCK? check${p.amount > 1 ? 's' : ''}` };
     case 'charm': { const c = charmById(p.id); return { icon: c?.icon ?? '🍀', big: c?.name ?? 'Charm', small: 'CHARM', plain: `the ${c?.name ?? 'charm'} charm` }; }
     case 'powerplay': { const pp = ppById(p.id); return { icon: pp?.icon ?? '⚡', big: pp?.name ?? 'PowerPlay', small: 'POWERPLAY', plain: `the ${pp?.name ?? ''} PowerPlay` }; }
-    case 'shard': { const name = TRIFORCE_PIECES[p.id].name.replace('Triforce of ', ''); return { icon: '🔺', big: `${name} shard`, small: 'TRIFORCE SHARD', plain: `a ${name} shard` }; }
     default: return { icon: '💀', big: 'SKULL', small: '', plain: 'a skull' };
   }
 };
@@ -40,7 +38,7 @@ const ScratchCard: React.FC<{
   onSave?: (key: string, value: unknown) => void;
   onDone: (prize: ScratchPrize | null) => void;
 }> = ({ level, squares: dealt, saved, onSave, onDone }) => {
-  const [squares, setSquares] = useState<ScratchPrize[]>(saved?.squares ?? dealt);
+  const [squares, setSquares] = useState<ScratchPrize[]>(() => withoutShards(saved?.squares ?? dealt));
   const [opened, setOpened] = useState<number[]>(saved?.opened ?? []);
   const [done, setDone] = useState(false);
   // v7.67.3 (the owner's ask): after a bank, the rest of the card turns over so you see what you passed up.
@@ -56,7 +54,6 @@ const ScratchCard: React.FC<{
   const revealAll = banked || busted;
   const infoSq = info !== null ? squares[info] : null;
   const infoItem = infoSq?.kind === 'charm' ? (() => { const c = charmById(infoSq.id); return c && { kind: 'CHARM', icon: c.icon, name: c.name, description: c.description, flavor: c.flavorText }; })()
-    : infoSq?.kind === 'shard' ? (() => { const c = shardCharm(infoSq.id); return { kind: 'TRIFORCE SHARD', icon: '🔺', name: TRIFORCE_PIECES[infoSq.id].name, description: c.description, flavor: c.flavorText }; })()
     : infoSq?.kind === 'powerplay' ? (() => { const p = ppById(infoSq.id); return p && { kind: 'POWERPLAY', icon: p.icon, name: p.name, description: p.description, flavor: p.flavorText }; })()
     : null;
   const bank = () => { if (done || !held || busted) return; soundService.playTileClick(); setBanked(true); onSave?.('banked', true); };
@@ -109,7 +106,7 @@ const ScratchCard: React.FC<{
             const missed = !isOpen && revealAll; // turned over after the bank or the bust
             const isHeld = i === last && !busted;
             const lbl = scratchLabel(sq, level);
-            const readable = sq.kind === 'charm' || sq.kind === 'powerplay' || sq.kind === 'shard';
+            const readable = sq.kind === 'charm' || sq.kind === 'powerplay';
             return (
               <button key={i} type="button" data-testid="scratch-square" disabled={!(readable && (isOpen || missed)) && (isOpen || busted || banked || done)}
                 onClick={() => (readable && (isOpen || missed) ? setInfo(info === i ? null : i) : scratch(i))} aria-label={isOpen ? `Square ${i + 1}: ${lbl.plain}` : missed ? `Square ${i + 1}, not scratched: ${lbl.plain}` : `Scratch square ${i + 1}`}
@@ -123,7 +120,7 @@ const ScratchCard: React.FC<{
                 ) : (
                   <>
                     <span className="text-2xl leading-none" aria-hidden="true">{lbl.icon}</span>
-                    {sq.kind !== 'skull' && (sq.kind === 'charm' || sq.kind === 'powerplay' || sq.kind === 'shard'
+                    {sq.kind !== 'skull' && (sq.kind === 'charm' || sq.kind === 'powerplay'
                       ? <span className="text-[10px] leading-tight text-white line-clamp-2 mt-0.5">{lbl.big}</span>
                       : <span className="font-display text-sm leading-tight text-white mt-0.5">{lbl.big}</span>)}
                     {missed && <span className="osd-text text-xs leading-none text-slate-400 mt-0.5">{sq.kind === 'skull' ? 'DODGED' : 'MISSED'}</span>}

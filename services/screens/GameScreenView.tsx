@@ -1,10 +1,8 @@
 import { assignTilesToWord } from '../rackMatch';
 import { Sec, withSec } from '../../components/Seconds';
 import EndRunCard from '../../components/EndRunCard';
-import TriforceEmblem from '../../components/TriforceEmblem';
 import GearMenu from '../../components/GearMenu';
-import { TRIFORCE_IDS, TRIFORCE_PIECES, shardsOf, triforceDone } from '../../data/triforce';
-import { TRIFORCE, FRAGILE } from '../../config/gameplay';
+import { FRAGILE } from '../../config/gameplay';
 import React, { useEffect, useRef, useState } from 'react';
 import ArcadeButton, { NamedLabel } from '../../components/ArcadeButton';
 import ShuffleButton from '../../components/ShuffleButton';
@@ -321,8 +319,6 @@ export interface GameScreenViewProps {
   handleCrocPick?: () => void;
   /** A power word can be spelled from the tiles in play (the hint chip); tapping it explains. */
   powerHint?: { icon: string; length: number; word?: string; effect?: string } | null;
-  zeldaReady?: boolean;
-  handleAskZelda?: () => void;
   handlePowerHintInfo?: () => void;
   /** Psychic Friends Network: the next tiles in the bag, in draw order. */
   upcomingTiles?: string[];
@@ -393,7 +389,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, skillShotTileId = '', holdOpen = false, holdArmed = false, handleHoldTap, handleScratchDone, handleCrocPick, handleBonesDone, lexCoins = 0, powerHint = null, handlePowerHintInfo, zeldaReady = false, handleAskZelda, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, skillShotTileId = '', holdOpen = false, holdArmed = false, handleHoldTap, handleScratchDone, handleCrocPick, handleBonesDone, lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
@@ -483,23 +479,22 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
       </span>
     ) : null;
     const nextGate = gameState?.roundType === 'golden' ? null : nextGateFor(gameState);
-    // v7.71.1 (the owner's call): the charm set and Triforce chips left the area above the tiles;
-    // both live in the Gear menu now, and the GEAR strip glows when something new lands there.
-    const shardTotal = TRIFORCE_IDS.reduce((t, id) => t + shardsOf(gameState, id), 0);
+    // v7.71.1 (the owner's call): the charm set chip left the area above the tiles; it lives in the
+    // Gear menu now, and the 🎒 button glows when something new lands there.
     const gearIds = (gameState?.activeCharms ?? []).map(c => c.id);
     const upgradeCount = (gameState?.charmUpgrades ?? []).length;
-    const gearSeen = React.useRef<{ shards: number; ids: string[]; upgrades: number } | null>(null);
+    const gearSeen = React.useRef<{ ids: string[]; upgrades: number } | null>(null);
     const [gearGlow, setGearGlow] = React.useState(false);
     React.useEffect(() => {
         const prev = gearSeen.current;
-        gearSeen.current = { shards: shardTotal, ids: gearIds, upgrades: upgradeCount };
+        gearSeen.current = { ids: gearIds, upgrades: upgradeCount };
         if (!prev) return; // not on the first render (a resumed run)
-        const gained = shardTotal > prev.shards || upgradeCount > prev.upgrades || gearIds.some(id => !prev.ids.includes(id));
+        const gained = upgradeCount > prev.upgrades || gearIds.some(id => !prev.ids.includes(id));
         if (!gained) return;
         setGearGlow(true);
         const t = setTimeout(() => setGearGlow(false), 3500);
         return () => clearTimeout(t);
-    }, [shardTotal, gearIds.join(','), upgradeCount]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [gearIds.join(','), upgradeCount]); // eslint-disable-line react-hooks/exhaustive-deps
     // The Golden Tile's letter, wherever it sits (rack or word row), for the Golden Round banner.
     const goldenLetter = gameState?.goldenTileId
       ? [...(hand ?? []), ...(buildRow ?? []).map(i => i?.tile)].find(t => t?.id === gameState.goldenTileId)?.letter
@@ -631,39 +626,6 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         trophies={MILESTONES_LIST.map(m => ({ id: m.id, icon: m.icon, name: m.name, unlocked: (gameState?.unlockedMilestoneIds ?? []).includes(m.id) }))}
                         onTrophy={id => { const m = MILESTONES_LIST.find(x => x.id === id); if (m) handleShowMilestoneInfo(m); }} />
                 );
-            case 'triforce': {
-                // Fragile charms (v7.69.0): a finished piece ("item get"), the whole Triforce, or the shelf (tapped chip).
-                const got = data?.got as keyof typeof TRIFORCE_PIECES | undefined;
-                const wish = !!data?.wish;
-                return (
-                    <div className="absolute inset-0 bg-crt-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-3 animate-fade-in" role="dialog" aria-modal="true" aria-label={title}>
-                        <div className="bg-crt-900 border-4 border-neon-yellow shadow-[0_0_28px_rgba(255,216,77,0.5)] rounded-2xl px-4 py-5 max-w-md w-full flex flex-col items-center text-center gap-3 level-stage-in">
-                            <p className="osd-text text-lg tracking-[0.3em] text-neon-yellow">{wish ? 'WISH GRANTED' : got ? 'YOU GOT IT!' : 'TRIFORCE SHARDS'}</p>
-                            <TriforceEmblem triforce={gameState?.triforce} size={120} className={got ? 'level-stage-in' : ''} />
-                            <h2 className="font-display text-2xl text-white leading-tight">{wish ? '🔺 THE TRIFORCE IS WHOLE!' : got ? `🔺 ${TRIFORCE_PIECES[got].name.toUpperCase()}` : '🔺 THE TRIFORCE'}</h2>
-                            {wish && <p className="font-display text-2xl text-neon-green">+{TRIFORCE.wishPoints.toLocaleString()}</p>}
-                            {wish && data?.badgeNew && <p className="text-neon-yellow text-sm">New badge: 🔺 Hero of Time</p>}
-                            {got && !wish && <p className="text-slate-200 leading-snug">{TRIFORCE_PIECES[got].does}</p>}
-                            {!got && (
-                                <p className="text-slate-300 text-sm leading-snug">Some charm offers, scratch-off tickets and Lucky Charms hold a shard. Collect {TRIFORCE.shards} shards to assemble a piece. A shard does nothing on its own, and the Triforce never uses a charm slot. All three pieces in one run: +{TRIFORCE.wishPoints.toLocaleString()}.</p>
-                            )}
-                            <ul className="w-full text-left space-y-1.5">
-                                {TRIFORCE_IDS.map(id => {
-                                    const have = shardsOf(gameState, id); const done = triforceDone(gameState, id);
-                                    return (
-                                        <li key={id} className={`rounded-lg px-2.5 py-1.5 ring-1 ${done ? 'ring-neon-green/60 bg-neon-green/10' : 'ring-white/10 bg-crt-950/60'}`}>
-                                            <span className="font-display text-sm" style={{ color: TRIFORCE_PIECES[id].color }}>{TRIFORCE_PIECES[id].name}</span>
-                                            <span className="osd-text text-base ml-2 text-slate-300">{done ? '✓ ACTIVE' : `${have}/${TRIFORCE.shards} SHARDS`}</span>
-                                            <span className="block text-xs text-slate-400 leading-snug">{TRIFORCE_PIECES[id].does}</span>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                            <ArcadeButton color="yellow" className="w-full" onClick={handleCloseModal}>{got ? 'Hyaaa! Continue' : 'Close'}</ArcadeButton>
-                        </div>
-                    </div>
-                );
-            }
             case 'gem-intro': {
                 const mult = Number(data?.multiplier) || 3;
                 return (
@@ -731,6 +693,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 return <CrocCard win={!!data?.win} level={Number(data?.level) || 1} saved={data?.saved} onSave={(key, value) => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key, value } })} onDone={() => handleCrocPick?.()} />;
 
             case 'fork':
+            case 'triforce': // v7.95.0: the Triforce is gone; an old save's card closes itself
                 // v7.66.0: the Fork is gone; a card saved mid-pick just closes (see GameScreen).
                 return null;
 
@@ -750,7 +713,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     onDone={r => handleLastWords?.(r)} />;
 
             case 'heads-up':
-                // v7.91.0: a small "look here" card for the power word hint and Ask Zelda; OK flashes the notice.
+                // v7.91.0: a small "look here" card for the power word hint; OK flashes the notice.
                 return (
                     <div className="absolute inset-0 z-50 bg-crt-950/70 flex items-center justify-center p-5 animate-fade-in" role="dialog" aria-modal="true" aria-label={data?.headline}>
                         <div className="w-full max-w-xs rounded-2xl bg-crt-900 ring-2 ring-neon-yellow shadow-[0_0_28px_rgba(255,210,63,0.45)] p-4 text-center flex flex-col items-center gap-2 bonus-insert" data-testid="heads-up">
@@ -876,7 +839,6 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         onChoose={(charm, replaceId) => handleChooseCharm(charm, offered, replaceId)}
                         onPass={() => handlePassCharm(offered)}
                         level={levelFor(totalWords)}
-                        triforce={gameState?.triforce}
                     />
                 );
             }
@@ -1479,12 +1441,6 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 id: 'skill', icon: '🎯', tone: 'pink', title: `SKILL SHOT +${skillShotPrize}`,
                 text: `Use the pink +${skillShotPrize} tile in your next word.`,
                 label: `Skill Shot: use the lit tile in your next word for ${skillShotPrize} points`,
-              });
-              if (zeldaReady) notices.push({
-                id: 'zelda', icon: '🔺', tone: 'sky', testId: 'ask-zelda', title: 'ASK ZELDA',
-                text: 'Once this level, she spells your longest word for you.', action: 'ASK',
-                onTap: () => handleAskZelda?.(),
-                label: 'Triforce of Wisdom: ask Zelda to spell the longest word your tiles can make. Once per level.',
               });
               if ((gameState?.headStart ?? 0) > 0 && totalWords === 0) notices.push({
                 id: 'head', icon: '🛠️', tone: 'green', title: <>HEAD START +{gameState?.headStart}<Sec /></>,

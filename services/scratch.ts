@@ -1,7 +1,6 @@
 // Scratch-off ticket (v7.66.0, the owner's design): the card dealt at levels 4, 7 and 11, where the
 // Fork used to be. Pure rules here; the card is components/ScratchCard.tsx. Values in SCRATCH.
-import { SCRATCH, TRIFORCE } from '../config/gameplay';
-import type { TriforceId } from '../data/triforce';
+import { SCRATCH } from '../config/gameplay';
 
 export type ScratchPrize =
   | { kind: 'points'; amount: number }
@@ -10,7 +9,6 @@ export type ScratchPrize =
   | { kind: 'challenge'; amount: number }
   | { kind: 'charm'; id: string }
   | { kind: 'powerplay'; id: string }
-  | { kind: 'shard'; id: TriforceId }
   | { kind: 'skull' };
 
 const pick = <T,>(list: readonly T[], rand: () => number): T => list[Math.floor(rand() * list.length)];
@@ -22,7 +20,7 @@ const pick = <T,>(list: readonly T[], rand: () => number): T => list[Math.floor(
  */
 export const dealScratch = (
   rand: () => number,
-  opts: { heldCharmIds: readonly string[]; slotOpen: boolean; pocketEmpty: boolean; shard?: TriforceId | null },
+  opts: { heldCharmIds: readonly string[]; slotOpen: boolean; pocketEmpty: boolean },
 ): ScratchPrize[] => {
   const charms = SCRATCH.charms.filter(id => !opts.heldCharmIds.includes(id));
   const pps: string[] = [...SCRATCH.powerPlays];
@@ -30,12 +28,9 @@ export const dealScratch = (
   const kinds = (Object.keys(SCRATCH.weights) as (keyof typeof SCRATCH.weights)[]).filter(k =>
     k === 'charm' ? opts.slotOpen && charms.length > 0 : k === 'powerplay' ? opts.pocketEmpty : true);
   const prizes: ScratchPrize[] = [];
-  // v7.69.1: one square at most can hold a Triforce shard (for the piece shardFor picked).
-  let shardLeft = opts.shard ? 1 : 0;
   while (prizes.length < SCRATCH.squares - SCRATCH.skulls) {
-    const total = kinds.reduce((t, k) => t + SCRATCH.weights[k], 0) + (shardLeft ? TRIFORCE.scratchWeight : 0);
+    const total = kinds.reduce((t, k) => t + SCRATCH.weights[k], 0);
     let r = rand() * total;
-    if (shardLeft && (r -= TRIFORCE.scratchWeight) < 0) { shardLeft = 0; prizes.push({ kind: 'shard', id: opts.shard! }); continue; }
     const kind = kinds.find(k => (r -= SCRATCH.weights[k]) < 0) ?? 'points';
     if (kind === 'charm') {
       const left = charms.filter(id => !usedCharms.has(id));
@@ -53,6 +48,13 @@ export const dealScratch = (
   for (let i = squares.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [squares[i], squares[j]] = [squares[j], squares[i]]; }
   return squares;
 };
+
+/**
+ * v7.95.0: the Triforce is gone. A ticket saved with a shard square turns it into the middle points
+ * prize, so an old save still plays.
+ */
+export const withoutShards = (squares: readonly ScratchPrize[]): ScratchPrize[] => squares.map(sq =>
+  (sq as { kind: string }).kind === 'shard' ? { kind: 'points', amount: SCRATCH.prizes.points[Math.floor(SCRATCH.prizes.points.length / 2)] } : sq);
 
 /**
  * The first scratch is always safe: if it lands on a skull, that skull swaps places with the

@@ -256,60 +256,27 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   clock pays 0. Simulated: ~247 on average, 425+ for the best 10%. SPIN was unused (no secret, power
   word or item on it). Held back for later: Winner's Circle (a score gate; open spots 20k / 40k / 60k),
   Lingo and Final Round (the owner wants other ways to fit them).
-- **Fragile charms: the Triforce (v7.69.0, the owner's idea and picks)** (`data/triforce.ts`,
-  `TRIFORCE` in `config/gameplay.ts`, `components/TriforceEmblem.tsx`, `dealShard` in
-  `GameScreen.tsx`): three pieces, each built from 3 shards taken from charm offers. A shard is
-  Charm-shaped (`fragile` set, ids `shard_power` etc., not in `CHARMS_LIST`) but never equipped:
-  `CHOOSE_CHARM` adds it to `gameState.triforce`, no slot needed even with 5 full, and a finished
-  piece works from the shelf. Offers: with a piece started, its next shard replaces the last card
-  `nextChance` (40%) of the time, else a fresh piece's first shard `firstChance` (30%); seeded with
-  `dailyRank`. Simulated on real run lengths: one piece finished in 31% of median runs (5 charm
-  offers), 67% with 8, 82-90% with 10+; all three in under 1%. **Power** x1.5 on the whole word after
-  Blue Steel (0 means 0 holds, "🔺 Triforce of Power" line). **Wisdom** (see v7.72.0 below). **Courage**
-  once per level (`courageLevel`): blocks a strike in `ADD_STRIKE` after shields, or the clock hitting
-  0 gives +15 s, fixed since v7.72.2 (`COURAGE_CLOCK`). All three: +5,000 and the 🔺 Hero of Time badge
-  (`b_heroOfTime`, `triforceWish`). The emblem (three triangles, 3 shards each) shows on the offer
-  card with the next shard blinking, on a 🔺 chip above the tiles (tap for the shelf) and on the
-  "YOU GOT IT!" card (`triforce` modal). The old Triforce of Courage charm is now **Master Sword**
-  (id `triforceOfCourage` kept, still in Hyrule Heroes). Tests in `triforce.test.ts`.
-  **Wisdom reworked (v7.72.0, the owner's design):** it used to light the longest word's tiles in
-  order on every hand, which gave the answer away and wasn't explained. Now, once per level
-  (`wisdomLevel`), a 🔺 ASK ZELDA FOR YOUR LONGEST WORD chip above the tiles (`zeldaReady`,
-  `handleAskZelda`) finds the longest common 4+ letter word in the hand and word row and places it
-  in the word row in order (`ZELDA_PLACE`, `zeldaPlace`); the player taps Submit. No 4+ letter word:
-  a toast says so and the ask isn't spent. Where's Waldo no longer steps aside for it.
-  v7.72.1: How to Play explains Ask Zelda, the shard sources (offers, scratch-offs, Lucky Charms) and
-  the 🎒 Gear menu; its old lines about the 🧩 set chip and the "Buffs tray" now point to Gear and the
-  green ▶ USE pocket button. The Triforce shelf card lists all shard sources too.
-  v7.72.2 (the owner's picks): Courage reads "Link takes one hit for you each level: your next strike
-  is blocked, or if your clock runs out first you get +15 seconds instead. Any shield you hold goes
-  first." Its +15 is now fixed at every level (it was charm time: 12 at level 5, 8 from level 10).
-  Power's text was kept as is.
-  **More shard sources (v7.69.1, the owner's picks):** scratch-off tickets (one square at most holds
-  a shard, `TRIFORCE.scratchWeight` 0.6: about 1 ticket in 3; bank it like any prize; "ⓘ READ"
-  shows the piece) and Lucky Charms (`luckyChance` 25%: a shard falls out instead of a charm, no
-  slot bumped). `shardFor` picks the piece: a started one first, else a fresh one, none once all
-  three are done. All sources go through `collectShard` in `GameScreen.tsx`.
-  **Rotation checked (v7.72.6, 20,000 simulated runs on real `Date.now()` seeds):** offers match the
-  design (30.0% with nothing started, split 33/33/33 over the pieces; 39.8% next shard of a started
-  piece plus 18.0% a fresh one; consecutive offers and runs 1 ms apart independent), scratch tickets
-  hold a shard 35% of the time, `shardFor` is even. Taking every shard: a piece done in 23% of runs
-  with 5 charm offers, 52% with 8, 67% with 10, 89% with 15; all three 0.3% at 10, 15% at 15, 50% at
-  20. **Stats bug fixed:** the /stats rules only allow letters and digits in `offered`/`picked`, so
-  every charm offer holding a shard (`shard_power`) was rejected and never recorded (0 of 1,315).
-  `statId` sends them as `shardPower` etc., and `/?stats` lists the three shards in the charm table.
+- **The Triforce is gone (v7.95.0, the owner's call: shards were too convoluted for most players).**
+  It ran v7.69-v7.94: three pieces (Power x1.5 a word, Wisdom's Ask Zelda, Courage's once-a-level block)
+  built from 3 shards each, dealt into charm offers, scratch-offs and Lucky Charms, +5,000 and the Hero
+  of Time badge for all three. Removed: `data/triforce.ts`, `TRIFORCE`, `TriforceEmblem`, `dealShard`,
+  `collectShard`, `shardFor`, `ZELDA_PLACE`, `COURAGE_CLOCK`, the Gear box, the How to Play section, the
+  Ask Zelda notice and heads-up card, and the `b_heroOfTime` badge (profiles drop unknown badge ids on
+  load). Old saves: a queued `triforce` card closes itself like `fork`, saved Triforce fields are ignored,
+  and a scratch ticket saved with a shard square plays it as 250 points (`withoutShards` in
+  `services/scratch.ts`). **Master Sword** (id `triforceOfCourage`, Z/X/Q words, in Hyrule Heroes) stays.
+  Tests in `triforceGone.test.ts`.
 - **Fragile charms (v7.70.0, the owner's design after Hollow Knight's)** (`FRAGILE` in
   `config/gameplay.ts`, `breaks: true` on the charm, `shatterFragile` in the `gameReducer` wrapper):
-  🥊 **Glass Joe** (every word x2, whole word, after the Triforce of Power), 🦵 **Major Award** (the
+  🥊 **Glass Joe** (every word x2, whole word), 🦵 **Major Award** (the
   leg lamp: +50 a word, +50 more for every 10 words it survives, up to +300; `majorAwardWords`) and
   🔮 **Crystal Ball** (+5 s charm time every valid word, the owner's number). The owner's rule: ANY
   invalid word or strike shatters every fragile charm held, for the rest of the run, even when a
-  shield, Plot Armor, the Triforce of Courage, a waiting Chubbs/Turn Back Time or Happy Little
+  shield, Plot Armor, a waiting Chubbs/Turn Back Time or Happy Little
   Accidents stops the strike (so strong players can't cheese them); Jackass, With Great Power and
   WILDCARD strikes too (their cards warn). Shattered ids go to `shatteredCharms` and are never
   offered again (charm offers, Lucky Charms). 💔 FRAGILE tag on offer cards, 💔 on the slot and the
-  buffs tray, a "💥 ... SHATTERED" card. Not upgradable, not in sets or the scratch list. The
-  Triforce pieces are now called "Triforce shards" in player text (the owner calls these fragile).
+  buffs tray, a "💥 ... SHATTERED" card. Not upgradable, not in sets or the scratch list.
 - **Fragile charms last 5 words (v7.87.0, the owner's call: too strong to keep all run)**
   (`FRAGILE.lifeWords`, `wearFragile` in `GameScreen.tsx`, `gameState.fragileWords` by id, set to 0 on
   `CHOOSE_CHARM`): after the 5th valid word a fragile charm breaks for the run (into `shatteredCharms`,
@@ -351,7 +318,7 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   about 1,560 for a careless player (a slip every 25 words) and 8,500 for a careful one (every 100),
   against Major Award's 3,255 / 16,866: lower, since the player picks the moment and gets the slot
   back. The owner also chose: future fragile multipliers add their bonuses instead of multiplying
-  (x2.5 + x2 = x3.5); the Triforce of Power still multiplies on top.
+  (x2.5 + x2 = x3.5).
 - **Your Gear menu (v7.71.0, the owner's idea and picks)** (`components/GearMenu.tsx`, `gear`
   modal): the buffs tray is now a slim strip of icons (🎒 GEAR n/5, timers and ⭐/💔 marks) that opens
   an old-school RPG menu when tapped anywhere (it used to be one info card per icon). The menu covers
@@ -362,10 +329,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   shared with the tray), CHARM SETS (pays now, what the next piece adds and which charm), TRIFORCE
   SHARDS (emblem + pieces). Tap any row: a ▶ cursor and the description box at the bottom explain it.
   **v7.71.1 (the owner's call): above the tiles is for what changes your next word or needs a tap.**
-  The charm set, Triforce and Hadouken chips left (Gear has them; Hadouken shows ×N in the strip).
+  The charm set and Hadouken chips left (Gear has them; Hadouken shows ×N in the strip).
   Kept: HOLD, Jenga, power word hint, Skill Shot, Head Start, Pop Quiz, the race, bids and calls,
   Inception, the speed streak, Greatest Hits and Tamagotchi. The GEAR strip glows gold for 3.5 s when
-  a shard, a new charm or an upgrade lands (`gearGlow`, not on a resume).
+  a new charm or an upgrade lands (`gearGlow`, not on a resume).
   **v7.72.3 (a player saw Last Action Hero show nothing in Gear):** it was paying (+15 on the last
   tile, upgrades and the long-word boost included); Gear only matched a score line's exact name, and
   many lines add detail ("Last Action Hero (E)", "Golden Ticket!", "Sands of Time! +5s next round").
@@ -687,7 +654,7 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   (`NoticeRail`, `Notice` in `GameScreenView.tsx`: icon, title, one plain line, a labelled button),
   one at a time with dots; a new one jumps to the front and pulses (`.notice-new`). Cards: the power
   word hint (LIGHT IT, then SPELL THE LIT TILES · MORE; `data-testid="power-hint"` kept), Skill Shot,
-  Ask Zelda (`ask-zelda` kept), Head Start. Live counters stay visible in a strip under the card
+  Head Start. Live counters stay visible in a strip under the card
   (Hold, the speed streak, `PowerPlayTrackers`: Jenga, Hamm, races, bets, quizzes) because some need a
   hold and shouldn't hide behind dots. New "above the tiles" items from the v7.71.1 rule now go in
   the rail: a card if it explains or offers one tap, the strip if it counts down or needs a hold.
@@ -735,7 +702,7 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   **v7.85.0 (the owner's screenshot: the pills under the word weren't readable, the points weren't the
   real points; their picks):** under the word: **BASE** N PTS +N sec (`base-label`): the preview is
   `calculateScore` only, and about 50 boosts land after Submit (Combo x2, upgrades, long-word boost,
-  multipliers on charms, Glass Joe, Triforce, Blue Steel, chains, charms that subtract...). So after
+  multipliers on charms, Glass Joe, Blue Steel, chains, charms that subtract...). So after
   submit the real score pops on the stage (`LandedPop`, `landed-pop`, state `landed` in `GameScreen`
   set where the old "WORD: +N" message was): the word, "+33" big, and "BASE 5 · BOOSTS +28" when they
   differ; it fades after 2.6 s, hides when a tile is placed, waits for any card the word opened to
@@ -752,7 +719,7 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   whose play would complete a record adds big news first in line: "📀 TEA GOES GOLD: +500!"
   (`hitIfPlayed`). The strip chip (`hits-chip`) is a size larger. An open record only counts words still
   short of it. Tests in `hitsBoard.test.ts`.
-- **Heads-up cards (v7.91.0, the owner's ask: players never noticed the power word hint or Ask Zelda up
+- **Heads-up cards (v7.91.0, the owner's ask: players never noticed the power word hint up
   at the top of the board).** The first time each appears in a level, a small `heads-up` modal says so and
   waits for OK (it pauses the clock and gets the 1 s tap guard like any auto-opened card): "⚡ POWER WORD
   IN THIS HAND!" with the word's length and prize, or "🔺 ZELDA CAN HELP THIS LEVEL!". OK flashes the

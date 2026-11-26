@@ -38,8 +38,6 @@ export interface Charm {
   selectionType?: 'tile_transform';
   durationTag: DurationTag;
   activate: (gameState: GameState, options?: any) => Partial<GameState>;
-  /** A fragile charm's shard (v7.69.0): which Triforce piece it builds. Never equipped. */
-  fragile?: 'power' | 'wisdom' | 'courage';
   /** A fragile charm (v7.70.0): shatters for the run on any invalid word or strike. */
   breaks?: true;
 }
@@ -346,17 +344,9 @@ export interface GameState {
   crocWords?: number;
   /** CTU Safe House (v7.67): the level its clock rescue last fired on (once a level). */
   ctuLevel?: number;
-  /** Fragile charms (v7.69.0): Triforce shards collected this run, 3 completes a piece. */
-  triforce?: Partial<Record<'power' | 'wisdom' | 'courage', number>>;
-  /** Triforce of Courage: the level its once-a-level rescue last fired on. */
-  courageLevel?: number;
-  /** Triforce of Wisdom (v7.72.0): the level Zelda last placed a word on (once a level). */
-  wisdomLevel?: number;
-  /** The full Triforce's wish was granted this run. */
-  triforceWish?: boolean;
   /** Fragile charms that shattered this run (never offered again). */
   shatteredCharms?: string[];
-  /** v7.91.0: the level each heads-up card (power word, Ask Zelda) was last shown on, so it shows once a level. */
+  /** v7.91.0: the level each heads-up card (power word) was last shown on, so it shows once a level. */
   headsUp?: Record<string, number>;
   /** v7.87.0: valid words each fragile charm has lasted (by id); it breaks at FRAGILE.lifeWords. */
   fragileWords?: Record<string, number>;

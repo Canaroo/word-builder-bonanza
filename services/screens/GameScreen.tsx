@@ -6,7 +6,6 @@ import * as gameUtils from '../gameUtils';
 import { MILESTONES_LIST } from '../../data/milestones';
 import { CHARMS_LIST, UPGRADABLE_CHARM_IDS, NO_LENGTH_BOOST_CHARM_IDS } from '../../data/charms';
 import { GAMBLE_CARD_IDS, type GambleResult } from '../../components/GambleCard';
-import { TRIFORCE_IDS, TRIFORCE_PIECES, SHARD_CHARMS, shardCharm, shardsOf, triforceDone, shardFor, type TriforceId } from '../../data/triforce';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, TIME_CARD_IDS } from '../../data/powerPlays';
 import { MINI_GAMES } from '../../data/miniGames';
 import { gatePassword, RECENT_PASSWORDS } from '../../data/gates';
@@ -25,7 +24,7 @@ import { assignTilesToWord } from '../rackMatch';
 import { useDocumentVisible } from '../useDocumentVisible';
 import { explainScoreBonus } from '../scoreBonus';
 import { addWordMultiplier, lengthMultiplier, refillCount, clampTime, advancePowerPlayMeter, bankMax, handSizeFor, levelFor, bossCloseHits, charmUpgradePoints, charmLengthPoints, charmLengthBoostFor, charmMultiplierPoints, itemMultiplierIn, prizeFor, prizeScaleFor, tickMsFor, clockSpeedFor, timeForWordAtLevel, taxWordTime, snitchTargetFor, catchVowels, slotPayout, powerWordReady, bossNumberFor, bossRewardFor, advanceBoss, bossHitsToWin, levelUpInfo, powerWordInfo, continueCost, plinkoPayout, hotTubSeconds, dailyDoubleWager, bonusTime, charmTimeAt, wordTimeScaleFor, meterLettersFor, levelTierFor, tamagotchiFeed, tamagotchiPot, blackjackPayout, blackjackCard, rivalScore, rivalRateFor, redrumReverse , missionById } from '../rules';
-import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES, GEM_INTRO_SHOWS, QUACK_ATTACK, BLUE_STEEL , TRIFORCE , FRAGILE } from '../../config/gameplay';
+import { GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, POWER_GLOVE_BANK_MAX, TIME_BONUS, POWER_PLAY_VALUES, BOSS, POWER_WORD_EFFECTS, GATES, GEM_INTRO_SHOWS, QUACK_ATTACK, BLUE_STEEL , FRAGILE } from '../../config/gameplay';
 import { GameScreenView, GameScreenViewProps, ModalContent } from './GameScreenView';
 import { recordMissionEvent } from '../missions';
 import { currentStreak, powerWordBonusFor, recordBossBadge, earnCosmetic } from '../progression';
@@ -240,7 +239,6 @@ type GameAction =
     | { type: 'APPLY_MINIGAME'; payload: { name: string; icon: string; points: number; headline: string; detail: string; flat?: boolean } }
     | { type: 'ADD_TIME', payload: number }
     | { type: 'CTU_RESCUE' }
-    | { type: 'COURAGE_CLOCK' }
     | { type: 'SET_TIME', payload: number }
     | { type: 'MOVE_TILE_TO_BUILD', payload: { tile: Tile, fromIndex: number } }
     | { type: 'RETURN_TILE_TO_HAND', payload: { fromBuildIndex: number } }
@@ -282,7 +280,6 @@ type GameAction =
     | { type: 'STORE_LAST_TURN' }
     | { type: 'RESTORE_LAST_TURN' }
     | { type: 'SET_HIGHLIGHTED_TILES', payload: { first: string | null; rest: string[] } }
-    | { type: 'ZELDA_PLACE', payload: { word: string; tileIds: string[] } }
     | { type: 'SMASH_PIGGY' }
     | { type: 'SET_LONG_WORD_BONUS_NOTIFIED', payload: boolean }
     | { type: 'CHARM_PAYOUT', payload: { id: string; points: number; description: string } }
@@ -440,7 +437,6 @@ const scratchModal = (wordsBefore: number, gs: GameState): ModalContent | null =
         heldCharmIds: gs.activeCharms.map(c => c.id),
         slotOpen: gs.activeCharms.length < CHARM_SLOTS,
         pocketEmpty: gs.availablePowerPlays.length === 0,
-        shard: shardFor(gs, Math.random),
     });
     return { type: 'scratch', title: 'Scratch-Off', data: { level, squares } };
 };
@@ -551,7 +547,7 @@ export const RESUME_COUNTDOWN = 3;
 /** JSON drops functions, so saved charms and PowerPlays inside a pop-up are swapped back for their definitions. */
 const rehydrateModal = (m: ModalContent): ModalContent => {
     if (!m) return null;
-    const defs = new Map<string, Charm | PowerPlay>([...CHARMS_LIST, ...SHARD_CHARMS, ...POWER_PLAYS_LIST].map(d => [d.id, d]));
+    const defs = new Map<string, Charm | PowerPlay>([...CHARMS_LIST, ...POWER_PLAYS_LIST].map(d => [d.id, d]));
     const fix = (x: any): any => (x && typeof x === 'object' && typeof x.id === 'string' && defs.has(x.id) && 'durationTag' in x ? { ...defs.get(x.id)!, ...x, activate: defs.get(x.id)!.activate } : x);
     return { ...m, data: Array.isArray(m.data) ? m.data.map(fix) : fix(m.data) };
 };
@@ -618,60 +614,6 @@ export const pullSetPiece = (
     return {
         offeredItems: offer.offeredItems.map((c, i) => (i === last ? piece : c)),
         offerDetails: offer.offerDetails.map((d, i) => (i === last ? { id: piece.id, score: d.score } : d)),
-    };
-};
-
-/**
- * Fragile charms (v7.69.0): one more shard of a Triforce piece, from a charm offer, a scratch-off
- * ticket or Lucky Charms. The third assembles the piece (its "YOU GOT IT!" card comes back to show),
- * and the last of all three grants the wish once (+5,000 and the Hero of Time badge).
- */
-const collectShard = (gameState: GameState, id: TriforceId): { gameState: GameState; card: ModalContent | null } => {
-    const piece = TRIFORCE_PIECES[id];
-    const have = Math.min(TRIFORCE.shards, shardsOf(gameState, id) + 1);
-    const triforce = { ...(gameState.triforce ?? {}), [id]: have };
-    const done = have >= TRIFORCE.shards;
-    const allDone = done && TRIFORCE_IDS.every(t => (triforce[t] ?? 0) >= TRIFORCE.shards) && !gameState.triforceWish;
-    let score = gameState.score;
-    let badgeNew = false;
-    if (allDone) { score += TRIFORCE.wishPoints; badgeNew = earnCosmetic(TRIFORCE.badgeId); }
-    const entry: EventLogEntry = { type: 'event', id: `triforce-${id}-${Date.now()}`, name: piece.name, icon: '🔺',
-        description: allDone ? `The Triforce is whole! Wish granted: +${TRIFORCE.wishPoints.toLocaleString()}.${badgeNew ? ' Earned the 🔺 Hero of Time badge.' : ''}`
-          : done ? `Assembled the ${piece.name}: ${piece.does}` : `Shard ${have} of ${TRIFORCE.shards} of the ${piece.name}.`,
-        scoreChange: allDone ? TRIFORCE.wishPoints : 0, cumulativeScore: score };
-    return {
-        card: done ? { type: 'triforce', title: allDone ? 'The Triforce' : piece.name, data: { got: id, wish: allDone, badgeNew } } : null,
-        gameState: {
-            ...gameState, triforce, score, log: [...gameState.log, entry],
-            ...(allDone ? { triforceWish: true } : {}),
-            lastPowerPlayResult: { message: done ? `🔺 ${piece.name} assembled!` : `🔺 Shard ${have} of ${TRIFORCE.shards}: ${piece.name}. ${TRIFORCE.shards - have} to go.`, scoreChange: 0 },
-        },
-    };
-};
-
-/**
- * Fragile charms (v7.69.0): sometimes a charm offer's last card becomes a Triforce shard. With a piece
- * started, its next shard comes TRIFORCE.nextChance of the time; otherwise a shard of a piece not
- * started yet comes TRIFORCE.firstChance of the time. Seeded like set pieces, so a Daily matches.
- */
-export const dealShard = (
-    offer: { offeredItems: Charm[]; offerDetails: { id: string; score: number }[] },
-    gs: Pick<GameState, 'triforce' | 'runSeed' | 'totalOffersMade'>,
-): { offeredItems: Charm[]; offerDetails: { id: string; score: number }[] } => {
-    if (offer.offeredItems.length === 0 || offer.offeredItems.some(c => c.fragile)) return offer;
-    const rank = (tag: string) => gameUtils.dailyRank(gs.runSeed, gs.totalOffersMade, tag);
-    const started = TRIFORCE_IDS.filter(id => shardsOf(gs, id) > 0 && !triforceDone(gs, id));
-    const fresh = TRIFORCE_IDS.filter(id => shardsOf(gs, id) === 0);
-    const byRank = (ids: TriforceId[], tag: string) => [...ids].sort((a, b) => rank(`${tag}-${a}`) - rank(`${tag}-${b}`))[0];
-    let pick: TriforceId | undefined;
-    if (started.length && rank('shard-next') < TRIFORCE.nextChance) pick = byRank(started, 'shard-next');
-    else if (fresh.length && rank('shard-first') < TRIFORCE.firstChance) pick = byRank(fresh, 'shard-first');
-    if (!pick) return offer;
-    const shard = shardCharm(pick);
-    const last = offer.offeredItems.length - 1;
-    return {
-        offeredItems: offer.offeredItems.map((c, i) => (i === last ? shard : c)),
-        offerDetails: offer.offerDetails.map((d, i) => (i === last ? { id: shard.id, score: d.score } : d)),
     };
 };
 
@@ -779,20 +721,6 @@ export const wearFragile = (gs: GameState): { gameState: GameState; card: ModalC
         log: [...gs.log, entry] } };
 };
 
-/** Triforce of Wisdom: moves the given hand tiles, in order, into an empty word row (null if one is missing). */
-export function zeldaPlace<T extends Pick<GameScreenState, 'hand' | 'buildRow'>>(state: T, tileIds: string[]): T | null {
-    const hand = [...state.hand];
-    const buildRow = Array(BUILD_ROW_SIZE).fill(null) as GameScreenState['buildRow'];
-    if (tileIds.length > BUILD_ROW_SIZE) return null;
-    for (let i = 0; i < tileIds.length; i++) {
-        const from = hand.findIndex(t => t?.id === tileIds[i]);
-        if (from < 0) return null;
-        buildRow[i] = { tile: hand[from]!, originalIndex: from };
-        hand[from] = null;
-    }
-    return { ...state, hand, buildRow };
-}
-
 /** The game reducer, plus the time ledger: clock gains from shuffles and power-ups are recorded by source. */
 export function gameReducer(state: GameScreenState, action: GameAction): GameScreenState {
     const next = shatterFragile(state, payTapeUse(state, payBackpack(state, logPowerPlayUse(state, baseGameReducer(state, action), action), action), action), action);
@@ -804,7 +732,7 @@ export function gameReducer(state: GameScreenState, action: GameAction): GameScr
 
 /**
  * Fragile charms (v7.70.0, the owner's rule): any invalid word or strike shatters every fragile charm
- * held, for the rest of the run, even when a shield, Plot Armor, the Triforce of Courage, a waiting
+ * held, for the rest of the run, even when a shield, Plot Armor, a waiting
  * Chubbs or Happy Little Accidents stops the strike itself. ADD_STRIKE runs for every invalid word
  * and every strike; Jackass and With Great Power add theirs directly, so a rising strike count counts too.
  */
@@ -1113,14 +1041,6 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     modalContent: outcome(ticket, `+${got} SECONDS`, got < prize.amount ? `Your clock was nearly full: +${got} of ${prize.amount}.` : 'Straight onto your clock.', 'win'),
                     gameState: { ...gameState, log: [...gameState.log, log(`Banked +${got} seconds.`)] } };
             }
-            if (prize.kind === 'shard') {
-                const got = collectShard(gameState, prize.id);
-                const piece = TRIFORCE_PIECES[prize.id];
-                const have = shardsOf(got.gameState, prize.id);
-                return { ...state, isPaused: true,
-                    modalContent: got.card ?? outcome(ticket, `🔺 SHARD ${have} OF ${TRIFORCE.shards}`, `A shard of the ${piece.name}. ${TRIFORCE.shards - have} more and it's yours: ${piece.does}`, 'win'),
-                    gameState: { ...got.gameState, log: [...got.gameState.log, log(`Banked a shard of the ${piece.name}.`)] } };
-            }
             if (prize.kind === 'shuffle') {
                 return { ...state, isPaused: true,
                     modalContent: outcome(ticket, `+${prize.amount} ${prize.amount === 1 ? 'SHUFFLE' : 'SHUFFLES'}`, 'Hold the Shuffle button when your hand goes cold.', 'win'),
@@ -1155,26 +1075,6 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             if (!paid) return state;
             return { ...state, isPaused: true, gameState: paid.gameState,
                 modalContent: outcome({ icon: '🐷', name: "Hamm's Piggy Bank" }, `🔨 SMASH! +${paid.points.toLocaleString()}`, `Hamm's savings are yours: +${paid.points.toLocaleString()} points. He's in pieces now, so he's gone for the rest of the run.`, 'win') };
-        }
-        case 'ZELDA_PLACE': {
-            // Triforce of Wisdom (v7.72.0, the owner's design): once a level, Zelda puts the longest word
-            // in the hand into the word row; the player only has to tap Submit.
-            const level = runLevel(gameState);
-            if (!triforceDone(gameState, 'wisdom') || gameState.wisdomLevel === level) return state;
-            const placed = zeldaPlace(withBuildRowReturned(state), action.payload.tileIds);
-            if (!placed) return state;
-            const entry: EventLogEntry = { type: 'event', id: `zelda-${Date.now()}`, name: 'Triforce of Wisdom', icon: '🔺', description: `Asked Zelda: she spelled ${action.payload.word}.`, scoreChange: 0, cumulativeScore: gameState.score };
-            return { ...placed, highlightedTileIds: { first: null, rest: [] },
-                gameState: { ...gameState, wisdomLevel: level, log: [...gameState.log, entry] } };
-        }
-        case 'COURAGE_CLOCK': {
-            // Triforce of Courage (v7.69.0): once a level, the clock hitting 0 gives charm time instead.
-            const level = runLevel(gameState);
-            if (!triforceDone(gameState, 'courage') || gameState.courageLevel === level || state.time > 0) return state;
-            const gained = TRIFORCE.courageSeconds; // v7.72.2 (the owner's call): fixed, no level shrink
-            const entry: EventLogEntry = { type: 'event', id: `courage-${Date.now()}`, name: 'Triforce of Courage', icon: '🔺', description: `Out of time, but courage held: +${gained}s.`, scoreChange: 0, cumulativeScore: gameState.score };
-            return { ...state, time: clampTime(gained, bankMax(gameState)), timeGain: { seconds: gained, key: Date.now() },
-                gameState: { ...gameState, courageLevel: level, log: [...gameState.log, entry], lastPowerPlayResult: { message: `🔺 Triforce of Courage: +${gained} seconds! (once per level)`, scoreChange: 0 } } };
         }
         case 'CTU_RESCUE': {
             // CTU Safe House (v7.67): once a level, the clock dropping under the line pays charm time.
@@ -1397,7 +1297,6 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
           let { strikes, activePowerPlays, activeBuffs, score, powerPlayProgress, consecutiveSuccesses, flawlessScore, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress } = gameState;
           let actuallyGotAStrike = false;
           let strikeBlockedByShield = false;
-          let courageBlocked = false;
           let revivedByLifeFindsAWay = false;
           
           // v7.65.0: copy before deleting (this used to edit the previous state's object in place).
@@ -1413,11 +1312,6 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
               activeBuffs = activeBuffs.filter(b => b.id !== 'plotArmor');
               score = Math.max(0, score - 150);
               lastPowerPlayResult = { message: "💸 Plot Armor was consumed, saving you from a strike for 150 points.", scoreChange: -150 };
-          } else if (triforceDone(gameState, 'courage') && gameState.courageLevel !== runLevel(gameState)) {
-              // Triforce of Courage (v7.69.0): once a level, the first hurt bounces off.
-              courageBlocked = true;
-              strikeBlockedByShield = true;
-              lastPowerPlayResult = { message: '🔺 Triforce of Courage: that strike bounced off! (once per level)', scoreChange: 0 };
           } else {
             strikes++;
             flawlessScore = 0; // Reset flawless score on strike
@@ -1478,7 +1372,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
           }
           
           const survivorWords = gameState.survivorWords; // unused since v7.35 (Survivor pays per strike carried)
-          let tempGameState = { ...gameState, ...(courageBlocked ? { courageLevel: runLevel(gameState) } : {}), strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, mixtapeChain: null, survivorWords, speedStreak: 0 };
+          let tempGameState = { ...gameState, strikes, activePowerPlays, activeBuffs, score, consecutiveSuccesses, flawlessScore, powerPlayProgress: newPowerPlayProgress, activeCharms, powerSurgeProgress, lastPowerPlayResult, duckHuntComboState, consecutiveValidWords, perfectChainProgress, mixtapeChain: null, survivorWords, speedStreak: 0 };
           
           if ((actuallyGotAStrike || strikeBlockedByShield) && action.payload?.source === 'invalid_word') {
               // An invalid word costs time from the bank (not with the I'm Always Here charm).
@@ -1966,14 +1860,6 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
 
         case 'CHOOSE_CHARM': {
             const { charm, hand, allOffered, replaceId } = action.payload;
-            // Fragile charms (v7.69.0): a shard goes on the Triforce shelf, never into a slot.
-            // Fragile charms (v7.69.0): a shard goes on the Triforce shelf, never into a slot.
-            if (charm.fragile) {
-                const charmCooldowns = { ...gameState.charmCooldowns };
-                allOffered.forEach(c => { if (!c.fragile) charmCooldowns[c.id] = 3; });
-                const got = collectShard({ ...gameState, charmCooldowns }, charm.fragile);
-                return { ...state, modalQueue: got.card ? [...state.modalQueue, got.card] : state.modalQueue, gameState: got.gameState };
-            }
             let newHand = hand;
             let returnedBag = state.tileBag;
             let newGameState = { ...gameState };
@@ -3566,7 +3452,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   useEffect(() => () => musicService.setEvent(null), []);
 
   // 👓 Where's Waldo? (a charm): each new hand, one tile that starts a playable word glows.
-  const wisdomOn = triforceDone(gameState, 'wisdom');
   const waldoOn = !!gameState?.activeCharms?.some(c => c.id === 'wheresWaldo');
   const handKey = (state.hand ?? []).map(t => t?.id ?? '-').join(',');
   useEffect(() => {
@@ -3581,25 +3466,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       });
       return () => { cancelled = true; };
   }, [waldoOn, handKey]);
-  // 🔺 Triforce of Wisdom (v7.72.0): once a level, ask Zelda and she places the longest word in the word row.
-  const zeldaReady = wisdomOn && !!gameState && gameState.wisdomLevel !== runLevel(gameState) && gameState.roundType !== 'golden';
-  const handleAskZelda = useCallback(async () => {
-      if (!zeldaReady || isPaused || isLoading || state.modalContent || state.resumeCountdown > 0) return;
-      const tiles = [...(state.hand ?? []), ...state.buildRow.map(b => b?.tile ?? null)].filter((t): t is Tile => t !== null);
-      const letters = tiles.map(t => t.letter);
-      const word = tiles.length >= TRIFORCE.wisdomMinLetters
-          ? await dictionaryService.findPlayableWord(letters, { minLength: TRIFORCE.wisdomMinLetters, longest: true })
-          : null;
-      const idx = word ? assignTilesToWord(word.toUpperCase(), letters) : null;
-      if (!word || !idx?.length) {
-          showMessage(`🔺 Zelda: no word of ${TRIFORCE.wisdomMinLetters}+ letters in these tiles. Try a shuffle. (Your ask isn't used.)`, 3500);
-          return;
-      }
-      soundService.playModalOpen();
-      dispatch({ type: 'ZELDA_PLACE', payload: { word: word.toUpperCase(), tileIds: idx.map(i => tiles[i].id) } });
-      showMessage(`🔺 Zelda spelled ${word.toUpperCase()}. Tap Submit!`, 3000);
-  }, [zeldaReady, isPaused, isLoading, state.modalContent, state.resumeCountdown, state.hand, state.buildRow]);
-
   const isStrikeChallenge = useMemo(() => (gameState?.challengeCount ?? 0) <= 0, [gameState?.challengeCount]);
   const strikesRemaining = useMemo(() => maxStrikes - (gameState?.strikes ?? 0), [maxStrikes, gameState?.strikes]);
 
@@ -3623,7 +3489,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           sendStat({ type: 'pw_hint', power: found.effect, level: hintLevel });
       }
   }, [gameState, isLoading, isPaused, tilesInPlay, hintLevel]);
-  // Heads-up cards (v7.91.0, the owner's ask: players never noticed the power word hint or Ask Zelda up at
+  // Heads-up cards (v7.91.0, the owner's ask: players never noticed the power word hint up at
   // the top of the board). The first time each shows up in a level, a small card says so and waits for OK;
   // closing it flashes the matching notice. Shown once a level each (gameState.headsUp), never mid-pop-up.
   useEffect(() => {
@@ -3638,17 +3504,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               headline: 'POWER WORD IN THIS HAND!',
               text: `Your tiles can spell a secret ${powerHint.length}-letter power word. Its prize: ${prize}.`,
               next: 'Tap the flashing ⚡ card at the top of the board to light up its tiles.' } } });
-          return;
       }
-      if (zeldaReady && seen.zelda !== level) {
-          dispatch({ type: 'UPDATE_GAME_STATE', payload: { headsUp: { ...seen, zelda: level } } });
-          soundService.playModalOpen();
-          dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'heads-up', title: 'Ask Zelda', data: { notice: 'zelda', icon: '🔺',
-              headline: 'ZELDA CAN HELP THIS LEVEL!',
-              text: 'Once this level, Zelda will spell the longest word your tiles can make.',
-              next: 'Tap the flashing 🔺 ASK ZELDA card at the top of the board, then Submit.' } } });
-      }
-  }, [gameState, isLoading, isPaused, state.modalContent, state.resumeCountdown, powerHint, zeldaReady, hintLevel]);
+  }, [gameState, isLoading, isPaused, state.modalContent, state.resumeCountdown, powerHint, hintLevel]);
   // Skill Shot (v7.42): on the level's first word, one tile in the hand is lit. If the lit tile
   // leaves (a shuffle), another lights. The pick is seeded, so a Daily Run lights the same tile.
   // Only on a level reached in this run: a new run's opening hand never has one, and every run starts its streak at zero.
@@ -3724,7 +3581,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   }, [lexCoins, onLexCoinChange, totalWords]);
 
   // v7.66.0: a run saved with the old Fork card open just closes it (the Fork is gone).
-  useEffect(() => { if (state.modalContent?.type === 'fork') handleCloseModal(); }, [state.modalContent]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (state.modalContent?.type === 'fork' || state.modalContent?.type === 'triforce') handleCloseModal(); }, [state.modalContent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Tick-Tock Croc: a clock was picked; pay what the croc rolled. */
   const handleCrocPick = () => { if (state.modalContent?.type === 'croc') dispatch({ type: 'CROC_RESULT' }); };
@@ -3961,12 +3818,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               return;
           }
           
-          // Triforce of Courage (v7.69.0): once a level, out of time means +15 seconds instead.
-          if (gameState && triforceDone(gameState, 'courage') && gameState.courageLevel !== runLevel(gameState)) {
-              dispatch({ type: 'COURAGE_CLOCK' });
-              soundService.playPowerUp();
-              return;
-          }
           // Deep Freeze (PowerPlay) check first
           if (gameState?.activePowerPlays?.deepFreeze) {
               dispatch({ type: 'PAUSE_GAME' });
@@ -5277,13 +5128,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           showMessage(`💙 BLUE STEEL! x${BLUE_STEEL.multiplier}: +${extra.toLocaleString()}`, 3000);
       }
 
-      // Triforce of Power (v7.69.0): every word scores x1.5 on everything it earned above. 0 means 0 holds.
-      if (triforceDone(newState, 'power') && !wordLocked && runningScore > oldScore) {
-          const extra = Math.round((runningScore - oldScore) * (TRIFORCE.powerMultiplier - 1));
-          runningScore += extra;
-          scoreResult.bonuses.push({ name: '🔺 Triforce of Power', description: `+${extra.toLocaleString()} pts (x${TRIFORCE.powerMultiplier} whole word)` });
-      }
-
       // 🥊 Glass Joe (v7.70.0, fragile): every word x2 on everything it earned above. 0 means 0 holds.
       if (newState.activeCharms.some(c => c.id === 'glassJoe') && !wordLocked && runningScore > oldScore) {
           const extra = Math.round((runningScore - oldScore) * (FRAGILE.glassJoeMultiplier - 1));
@@ -5754,7 +5598,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           );
           const charmOffer = gameUtils.getOffer(charmsToOfferFrom, 3, newState) as { offeredItems: Charm[]; offerDetails: { id: string; score: number }[] };
           // Charm sets (v7.41): with part of a set held, the last card is sometimes a missing piece.
-          const { offeredItems: offeredCharms, offerDetails } = dealShard(pullSetPiece(charmOffer, charmsToOfferFrom, newState), newState);
+          const { offeredItems: offeredCharms, offerDetails } = pullSetPiece(charmOffer, charmsToOfferFrom, newState);
 
           if(offeredCharms.length > 0) {
             if (offeredCharms.some(c => c.id === PHOENIX_DOWN.id)) newState.phoenixOffered = true;
@@ -6246,7 +6090,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         if (r.tile) dispatch({ type: 'ADD_FREE_TILE', payload: { letter: r.tile } });
         // Lucky Charms: the charm from the box goes on (bumping the picked one when slots are full).
         if (r.charm) {
-            const charm = [...CHARMS_LIST, ...SHARD_CHARMS].find(c => c.id === r.charm!.id);
+            const charm = CHARMS_LIST.find(c => c.id === r.charm!.id);
             if (charm) dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand: hand ?? [], allOffered: [charm], replaceId: r.charm.replaceId } });
         }
     };
@@ -6388,11 +6232,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 !(c.id === 'goldenSnitch' && snitchTargetFor(gameState.snitchCatches ?? 0) === null) &&
                 !(c.id === 'gottaCatchEmAll' && gameState.pokedexComplete) &&
                 !(c.id === 'mrGlass' && gameState.strikes >= maxStrikesFor({ ...gameState, activeCharms: [...gameState.activeCharms, c] })));
-            // v7.69.1: sometimes a Triforce shard falls out instead (it never needs a slot).
-            const shardId = shardFor(gameState) && Math.random() < TRIFORCE.luckyChance ? shardFor(gameState) : null;
-            const charm = shardId ? shardCharm(shardId) : pool[Math.floor(Math.random() * pool.length)];
+            const charm = pool[Math.floor(Math.random() * pool.length)];
             if (!charm) { showMessage('🍀 No charms left to give!', 2500); return; }
-            const replaced = !shardId && gameState.activeCharms.length >= CHARM_SLOTS ? gameState.activeCharms[Math.floor(Math.random() * gameState.activeCharms.length)] : undefined;
+            const replaced = gameState.activeCharms.length >= CHARM_SLOTS ? gameState.activeCharms[Math.floor(Math.random() * gameState.activeCharms.length)] : undefined;
             // Picked now and carried in the pop-up's data (saved with the run), so the box can't be re-shaken.
             soundService.playPowerUp();
             dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gamble', title: powerPlay.name, data: { id: powerPlay.id, icon: powerPlay.icon, charmId: charm.id, replaceId: replaced?.id } } });
@@ -6687,8 +6529,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         lexCoins,
         powerHint,
         handlePowerHintInfo,
-        zeldaReady,
-        handleAskZelda,
         skillShotTileId,
         holdOpen,
         holdArmed,

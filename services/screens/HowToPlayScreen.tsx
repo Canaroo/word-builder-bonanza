@@ -1,7 +1,7 @@
 import { Sec } from '../../components/Seconds';
 import React from 'react';
 import { soundService } from '../soundService';
-import { SCRATCH, GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, FINAL_JEOPARDY, HEAD_START, SKILL_SHOT, GEM_TILES, HOLD_SLOT, GRUDGE, BONES, GATES, GREATEST_HITS , TRIFORCE, FRAGILE } from '../../config/gameplay';
+import { SCRATCH, GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, FINAL_JEOPARDY, HEAD_START, SKILL_SHOT, GEM_TILES, HOLD_SLOT, GRUDGE, BONES, GATES, GREATEST_HITS , FRAGILE } from '../../config/gameplay';
 import { PHOENIX_DOWN } from '../../config/progression';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import ArcadeButton from '../../components/ArcadeButton';
@@ -173,28 +173,17 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             which sets you've started and what the next piece adds.
           </p>
           <p>
-            <Key>🔺 Triforce shards</Key>. Some charm offers, scratch-off tickets and Lucky Charms hold a{' '}
-            <Key>shard</Key>. Collect {TRIFORCE.shards} shards to assemble a piece. A shard does nothing on its own, but it
-            never uses a charm slot, and neither does the finished piece. <Key>Power</Key>: every word scores
-            x{TRIFORCE.powerMultiplier}. <Key>Wisdom</Key>: once per level, tap <Key>🔺 ASK ZELDA</Key> above your tiles
-            and she puts the longest word your tiles can make ({TRIFORCE.wisdomMinLetters}+ letters) in the word row, so
-            you just tap Submit. If there isn't one, she says so and you keep your ask for later (try a shuffle).{' '}
-            <Key>Courage</Key>: once per level, Link takes one hit for you: your next strike is blocked, or if your clock
-            runs out first you get +{TRIFORCE.courageSeconds} seconds instead (any shield you hold goes first). All three in one run:
-            +{TRIFORCE.wishPoints.toLocaleString()} and the Hero of Time badge.
-          </p>
-          <p>
             <Key>🎒 Your Gear</Key>. Tap the 🎒 button at the top right (its badge shows your charms, and it glows when
             something new lands). The clock pauses while it's open. Up top: 🔊 sound and music, 📖 the event log and 💾
             save &amp; quit. Below: your strikes and what protects you, every charm and what it has earned this run, your
-            pocket PowerPlay, anything running, your charm sets, your Triforce shards and your trophies. Tap any line to
+            pocket PowerPlay, anything running, your charm sets and your trophies. Tap any line to
             read what it does.
           </p>
           <p>
             <Key>💔 Fragile charms</Key> (Glass Joe, Major Award, Crystal Ball, Hamm's Piggy Bank) are the strongest charms around, but they
             only last <Key>{FRAGILE.lifeWords} words</Key>, then break and free up their slot (🎒 Gear shows how many words are left;
             Hamm pays out his savings when he breaks). The moment you play an invalid word or take a strike, every fragile
-            charm you hold shatters sooner. Nothing protects them: not shields, not Plot Armor, not the Triforce of Courage.
+            charm you hold shatters sooner. Nothing protects them: not shields, not Plot Armor, not a Pep Talk.
             A broken fragile charm isn't offered again that run.
           </p>
           <p>
