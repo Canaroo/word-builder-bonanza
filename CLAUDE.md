@@ -783,7 +783,9 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   slams in, holds `LANDED_HOLD_MS` (1.4 s) and fades. When boosts changed it, "BASE 35 → +85" shows under
   it (`landed-breakdown`); the full breakdown is in 🎒 Gear → Event log. The clock waits while it shows
   (`tallying` via `onTally`); v7.96.2 (the owner's call) removed the "TAP TO SKIP" cover: it's quick
-  enough, and placing a tile ends it. It waits for any card the word opened and never replays (`tallyDoneKey`). Reduced motion skips the roll. Browser-checked:
+  enough, and placing a tile ends it. It waits for any card the word opened and never replays (`tallyDoneKey`). v7.96.4 (the owner's
+  report): placing a tile marks the pop done (`placedCount` effect); before, it only hid the pop, so sending the tile
+  back replayed it and paused the clock again (browser-checked: 4 replays and the clock stuck at 58-59 before, 0 after). Reduced motion skips the roll. Browser-checked:
   GRAVITY with Epics ★2 rolled 35 → 56 → 85 and held 1.4 s with the clock at 29. Tests in
   `components/__tests__/scoreTally.test.ts`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
