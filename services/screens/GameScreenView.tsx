@@ -679,6 +679,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     category={typeof data?.category === 'string' ? data.category : undefined}
                     bet={typeof (data?.saved as Record<string, unknown> | undefined)?.fjBet === 'number' ? (data!.saved as Record<string, number>).fjBet : undefined}
                     onBet={b => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key: 'fjBet', value: b } })}
+                    savedCategory={typeof (data?.saved as Record<string, unknown> | undefined)?.fjCategory === 'string' ? (data!.saved as Record<string, string>).fjCategory : undefined}
+                    onCategory={id => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key: 'fjCategory', value: id } })}
                     onDone={r => handleLastWords?.(r)} />;
 
             case 'heads-up':

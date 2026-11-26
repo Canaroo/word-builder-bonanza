@@ -1018,8 +1018,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   to 10, capped at 3,000 so one bet can't swing the Top 50), or "No bet, just play". Then a category
   flips over (`FINAL_CATEGORIES`, `finalCategoryDeal`, `finalBet` in `services/rules.ts`): 6+ letters,
   J/K/Q/X/Z/V/W, a double letter, B/C/M/P, starts with S or T, one vowel in 4+ letters, 5+ letters.
-  A random final hand can meet them 48-86% of the time (about 60% overall), so you see your tiles
-  but not the category when you bet. A last word that fits wins the bet; one that doesn't, or no
+  A random final hand can meet them 48-86% of the time (about 60% overall); since v7.92.0 the
+  category is always one the hand can make. You see your tiles but not the category when you bet. A last word that fits wins the bet; one that doesn't, or no
   last word, loses it (never below 0). The category is dealt in `END_RUN` and the bet saved with the
   card (`SET_GAMBLE_STATE` key `fjBet`, now allowed on `last-words`), so a quit can't reroll either.
   The card shows ✔ FITS / ✘ DOESN'T FIT as you spell; the payout is a separate "Final Jeopardy" log
@@ -1030,6 +1030,17 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   (`playableWords`, found once the bet is placed), under the -bet line after a miss, and on a new
   step after "No last words" (it no longer ends the run at once; "End the run" does). If no word in
   the hand fits, it says so ("a tough category: nobody could have made that one").
+  **v7.92.0 (the owner's asks: the bet got lost under the board; never ask for a word the tiles can't make):**
+  the bet is its own blue card shown before the board (`fj-bet-card` in `LastWordsCard.tsx`): "💡 FINAL
+  JEOPARDY", three numbered steps (bet, a secret category is revealed, spell a last word that fits),
+  the final hand, the bets and "No bet, just play my last word". The category is now always one the hand
+  can make: when the card opens it finds every everyday word the tiles spell (`playableWords`), keeps the
+  dealt category if one fits, else picks one that does (`finalCategoryFor` in `services/rules.ts`), and
+  saves it (`SET_GAMBLE_STATE` key `fjCategory`, read by `handleLastWords`; 'none' means no bet). A miss
+  always shows a real word that fit (`finalCategorySolution`, the longest). Simulated on 500 real final
+  hands: the old random deal was impossible in 41% (204); now 287 keep the dealt category, 204 get one
+  they can make, 9 (2%) can make none and skip the bet. Browser-checked: CATDOGZQ dealt A DOUBLE LETTER
+  → STARTS WITH S OR T, skip shows TACO. Tests in `finalJeopardyFair.test.ts`.
   **Head Start** (`services/headStart.ts`, per player): a run ending before level 4 adds 3 s to the
   next starting clock (max 15), reaching level 4 clears it; a chip shows it until the first word.
   Never applied on the scored Daily Run.
