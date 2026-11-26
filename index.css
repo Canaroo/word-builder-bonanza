@@ -1463,3 +1463,10 @@ body {
 }
 @keyframes power-tile-glow { 50% { box-shadow: 0 0 0 3px #fff3b0, 0 0 24px rgba(255, 210, 63, 1); } }
 @media (prefers-reduced-motion: reduce) { .power-tile-glow { animation: none; } }
+
+/* v7.94.0: the score count-up after a word */
+@keyframes tally-line-in { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+.tally-line { animation: tally-line-in 0.22s ease-out both; }
+@keyframes tally-slam { 0% { transform: scale(1.6); opacity: 0.4; } 60% { transform: scale(0.94); opacity: 1; } 100% { transform: scale(1); } }
+.tally-slam { animation: tally-slam 0.35s cubic-bezier(.2,1.4,.4,1) both; }
+@media (prefers-reduced-motion: reduce) { .tally-line, .tally-slam { animation: none; } }

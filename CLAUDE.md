@@ -767,6 +767,17 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   never lit; they do now. The glow is its own gold pulse (`.power-tile-glow`, it shared the boss rule's
   pink). Browser-checked: SLOT in HEALSTOR lights L, S, T, O; RINGS lights R, ING, S; an S in the word row
   stays lit. Tests in `components/__tests__/powerLit.test.tsx`.
+- **Score count-up (v7.94.0, the owner's pick: full tally, clock paused):** after every word the stage
+  shows a tally card (`ScoreTally` in `GameScreenView.tsx`, `score-tally`): the word, TILES (the letters'
+  own points, `landed.tiles`), then each score line pops in every 320 ms with a rising note (`tallyLines`
+  reads "+N pts", "xN" or "+N sec" from the line's description and skips labels; at most 6, then "+ N more
+  boosts"), the big number climbs to the word's real total and slams in, holds 0.9 s and closes itself.
+  Only lines inside the word's total are shown (`tallyLineCount`: secrets and milestones pay on their own
+  cards). While it plays the clock waits (`tallying` in `GameScreen`, set through `onTally`) and a cover
+  over the tiles reads "⏸ CLOCK PAUSED · TAP TO SKIP" (`tally-skip`; a tap jumps to the total). It waits
+  for any card the word opened, never replays (`tallyDoneKey`), and stage messages hide under it. About
+  1.5-3 s a word. Reduced motion shows the total at once. Browser-checked at 390x844 and 360x640: PATRONS
+  9 → x2.5 → +23 with the clock held at 59. Tests in `components/__tests__/scoreTally.test.ts`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
