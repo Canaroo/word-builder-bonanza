@@ -46,7 +46,7 @@ import ModalTapGuard, { GUARDLESS_MODALS } from '../../components/ModalTapGuard'
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
-  type: 'milestone' | 'blue-steel' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'scratch' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack' | 'triforce' | 'gear' | 'heads-up' | 'video-store' | 'static-tile';
+  type: 'milestone' | 'blue-steel' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'scratch' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack' | 'triforce' | 'gear' | 'heads-up' | 'video-store' | 'static-tile' | 'genre-up';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -732,9 +732,12 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     onDone={r => handleLastWords?.(r)} />;
 
             case 'heads-up':
+            case 'genre-up':
                 // v7.91.0: a small "look here" card for the power word hint; OK flashes the notice.
+                // v7.96.5 (the owner's report): the board behind is fully dark, so the tiles can't be read
+                // while the card says a power word is hiding in them. 'genre-up' is the same card after a word.
                 return (
-                    <div className="absolute inset-0 z-50 bg-crt-950/70 flex items-center justify-center p-5 animate-fade-in" role="dialog" aria-modal="true" aria-label={data?.headline}>
+                    <div className="absolute inset-0 z-50 bg-crt-950 flex items-center justify-center p-5 animate-fade-in" role="dialog" aria-modal="true" aria-label={data?.headline}>
                         <div className="w-full max-w-xs rounded-2xl bg-crt-900 ring-2 ring-neon-yellow shadow-[0_0_28px_rgba(255,210,63,0.45)] p-4 text-center flex flex-col items-center gap-2 bonus-insert" data-testid="heads-up">
                             <div className="text-4xl leading-none" aria-hidden="true">{data?.icon}</div>
                             <h2 className="font-display text-xl leading-tight text-neon-yellow text-balance">{data?.headline}</h2>
