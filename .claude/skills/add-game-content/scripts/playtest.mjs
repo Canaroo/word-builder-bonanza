@@ -90,7 +90,8 @@ const baseSave = async (browser) => {
   const page = await newPage(browser);
   await page.getByPlaceholder('Enter Your Name').fill('PLAYTEST');
   // v7.48: one Play button; the first Play of the day opens a Daily / Regular chooser.
-  await page.locator('button', { hasText: /^\W*(PLAY|NEW GAME)/i }).first().click();
+  // v7.90.0: the Play button pulses, so Playwright never sees it 'stable'; click it anyway.
+  await page.locator('button', { hasText: /^\W*(PLAY|NEW GAME)/i }).first().click({ force: true });
   await page.waitForTimeout(1500);
   const regular = page.locator('button:visible', { hasText: 'Regular game' });
   if (await regular.count()) await regular.first().click();
@@ -133,7 +134,7 @@ const runScenario = async (browser, base, sc, index) => {
   await page.goto(url);
   await page.waitForTimeout(1500);
   // The saved run's main button is "▶ Continue" (v7.31 start screen; it was "Resume").
-  await page.locator('button', { hasText: /^\W*Continue/i }).first().click();
+  await page.locator('button', { hasText: /^\W*Continue/i }).first().click({ force: true });
   // A resumed run counts down 3-2-1 (board hidden) before play continues.
   await page.waitForTimeout(800);
   await page.locator('text=RUN RESTORED').waitFor({ state: 'detached', timeout: 8000 }).catch(() => {});

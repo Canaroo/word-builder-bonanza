@@ -765,6 +765,13 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Carmen Sandiego?" ran off the card. Buttons now clip (`max-w-full overflow-hidden`), and labels with
   an item name use `NamedLabel` (`components/ArcadeButton.tsx`): the action word stays, the name ends
   in "…". Use it for any button that shows a PowerPlay, charm or track name.
+- **The clock can't be stalled (v7.90.2, a player's report):** tapping a tile in and out over and
+  over stopped the clock. The tick was a `setInterval` in an effect that re-runs on every state change,
+  so each tap restarted a full tick; taps faster than one a tick meant it never fired. The clock effect
+  now uses a `setTimeout` chain and carries the real time already spent toward the next tick across
+  restarts (`tickCarry` ref in `GameScreen.tsx`). Browser-checked with taps every 0.3 s for 10 s: old
+  code 59 → 59, now 59 → 49. Browser scripts click the pulsing Play/Continue buttons with
+  `{ force: true }` (Playwright waits for them to stop moving otherwise; `playtest.mjs` too).
 - **Shuffle** is press-and-hold (450 ms), adds +5 s, and never pauses the clock.
 - **Tiles** act on touch-down (pointerdown), not click.
 - **Combo Breaker:** next 3 words, each 4+ letter word scores x3, a shorter word scores 0 and ends
