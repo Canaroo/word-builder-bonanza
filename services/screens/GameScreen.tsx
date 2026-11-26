@@ -3788,7 +3788,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     }
     // 💡 Final Jeopardy (v7.75.0): the bet saved on the card wins if the last word fits the category.
     const bet = Number((card.data?.saved as Record<string, unknown> | undefined)?.fjBet) || 0;
-    const category = FINAL_CATEGORIES[String(card.data?.category ?? '')];
+    // v7.92.0: the category actually played is the one the card checked against the hand (fjCategory).
+    const savedCat = (card.data?.saved as Record<string, unknown> | undefined)?.fjCategory;
+    const category = FINAL_CATEGORIES[String(typeof savedCat === 'string' ? savedCat : card.data?.category ?? '')];
     if (bet > 0 && category) {
       const won = !!r && category.test(r.word);
       const change = won ? bet : -Math.min(bet, score);

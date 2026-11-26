@@ -577,6 +577,23 @@ export const finalCategoryDeal = (rand: () => number = Math.random): string => {
     const ids = Object.keys(FINAL_CATEGORIES);
     return ids[Math.min(ids.length - 1, Math.floor(rand() * ids.length))];
 };
+/**
+ * v7.92.0 (the owner's rule: never ask for a word the tiles can't make): the category a final hand
+ * plays. `words` are the everyday words the hand can spell. The dealt category stays if some word fits
+ * it; otherwise one that a word fits is picked instead. 'none' when no category can be made (no bet then).
+ */
+export const finalCategoryFor = (dealt: string, words: readonly string[], rand: () => number = Math.random): string => {
+    const fits = (id: string) => words.some(w => FINAL_CATEGORIES[id]?.test(w));
+    if (FINAL_CATEGORIES[dealt] && fits(dealt)) return dealt;
+    const open = Object.keys(FINAL_CATEGORIES).filter(fits);
+    return open.length ? open[Math.min(open.length - 1, Math.floor(rand() * open.length))] : 'none';
+};
+/** The longest word in `words` that fits the category (the solution shown after a miss). */
+export const finalCategorySolution = (category: string, words: readonly string[]): string | null => {
+    const cat = FINAL_CATEGORIES[category];
+    if (!cat) return null;
+    return [...words].sort((a, b) => b.length - a.length).find(w => cat.test(w)) ?? null;
+};
 /** A Final Jeopardy bet: this percent of the score, rounded, never more than the cap. */
 export const finalBet = (score: number, percent: number): number =>
     Math.min(FINAL_JEOPARDY.cap, Math.round((Math.max(0, score) * percent / 100) / FINAL_JEOPARDY.roundTo) * FINAL_JEOPARDY.roundTo);

@@ -6,7 +6,7 @@ import { dictionaryService } from '../services/dictionaryService';
 import { calculateScore } from '../services/gameUtils';
 import { assignTilesToWord } from '../services/rackMatch';
 import { LAST_WORDS, FINAL_JEOPARDY } from '../config/gameplay';
-import { FINAL_CATEGORIES, finalBet } from '../services/rules';
+import { FINAL_CATEGORIES, finalBet, finalCategoryFor, finalCategorySolution } from '../services/rules';
 import { useArmDelay, END_CARD_ARM_MS } from './useArmDelay';
 
 // Last Words (v7.42): the run is over, but the clock is stopped and the final hand is still on the
@@ -31,8 +31,11 @@ const LastWordsCard: React.FC<{
   category?: string;
   bet?: number;
   onBet?: (bet: number) => void;
+  /** v7.92.0: the category actually played, checked against the final hand and saved with the card ('none': no bet). */
+  savedCategory?: string;
+  onCategory?: (id: string) => void;
   onDone: (r: LastWordsResult | null) => void;
-}> = ({ reason, tiles, gameState, piggyLost = 0, category, bet, onBet, onDone }) => {
+}> = ({ reason, tiles, gameState, piggyLost = 0, category, bet, onBet, savedCategory, onCategory, onDone }) => {
   const [picked, setPicked] = useState<number[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -42,29 +45,38 @@ const LastWordsCard: React.FC<{
 
   const word = picked.map(i => tiles[i].letter).join('');
   // 💡 Final Jeopardy: bet before a tile can be tapped; the category only shows after the bet.
-  const cat = category ? FINAL_CATEGORIES[category] : undefined;
+  // v7.92.0 (the owner's rule): the category must be one this final hand can actually make. The card
+  // finds every everyday word the tiles spell, keeps the dealt category if one fits it, else picks one
+  // that a word fits, and saves the choice ('none' when nothing fits: no bet is offered).
+  const [words, setWords] = useState<string[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    dictionaryService.playableWords(tiles.map(t => t.letter)).then(ws => { if (alive) setWords(ws); }).catch(() => { if (alive) setWords([]); });
+    return () => { alive = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!words || savedCategory !== undefined || !onCategory) return;
+    // A bet placed before this check (an older save) keeps the category it was placed on.
+    onCategory(bet !== undefined ? (category ?? 'none') : finalCategoryFor(category ?? '', words));
+  }, [words, savedCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+  const catId = savedCategory ?? (onCategory ? undefined : category);
+  const cat = catId ? FINAL_CATEGORIES[catId] : undefined;
   const bets = FINAL_JEOPARDY.percents.map(p => ({ percent: p, amount: finalBet(gameState.score, p) })).filter(b => b.amount > 0);
-  const betting = !!cat && !!onBet && bet === undefined && bets.length > 0;
+  const dealing = !!category && catId === undefined;
+  const betting = (!!cat || dealing) && !!onBet && bet === undefined && bets.length > 0;
   const placed = cat && bet && bet > 0 ? bet : 0;
   const fits = placed && word.length >= 3 ? cat!.test(word) : null;
-  // v7.77.1 (the owner's ask): after a lost bet, show a word from these tiles that would have fit,
-  // so the player sees it was possible and learns one. Found once the bet is placed: the longest
-  // everyday word that fits (null when no word in the tiles fits the category).
-  const [fitWord, setFitWord] = useState<string | null | undefined>(undefined);
+  // v7.77.1: after a lost bet, show a word from these tiles that would have fit. Since v7.92.0 there
+  // always is one: the category was picked because a word in this hand fits it.
+  const fitWord = words && catId ? finalCategorySolution(catId, words) : undefined;
   const [skipped, setSkipped] = useState(false);
-  useEffect(() => {
-    if (!placed || !cat || fitWord !== undefined) return;
-    let alive = true;
-    dictionaryService.playableWords(tiles.map(t => t.letter)).then(ws => { if (alive) setFitWord(ws.find(w => cat.test(w)) ?? null); });
-    return () => { alive = false; };
-  }, [placed]); // eslint-disable-line react-hooks/exhaustive-deps
   const fitReveal = cat && (
     <div className="w-full rounded-lg bg-crt-950/80 ring-1 ring-neon-cyan/50 px-3 py-2" data-testid="fj-fit">
       {fitWord === undefined ? <p className="text-sm text-slate-300">Checking your tiles…</p>
         : fitWord ? (<>
           <p className="osd-text text-base text-neon-cyan leading-none">A WORD THAT FIT {cat.label}</p>
           <p className="font-tile font-extrabold text-2xl tracking-widest text-white">{fitWord}</p>
-        </>) : <p className="text-sm text-slate-200 leading-snug">No word in these tiles fit {cat.label}. A tough category: nobody could have made that one.</p>}
+        </>) : <p className="text-sm text-slate-200 leading-snug">No word in these tiles fit {cat.label}.</p>}
     </div>
   );
   const submit = async () => {
@@ -81,6 +93,42 @@ const LastWordsCard: React.FC<{
     setResult({ word, points });
   };
   const canSpell = (w: string) => assignTilesToWord(w, tiles.map(t => t.letter));
+
+  // v7.92.0 (the owner's ask: players missed the bet under the board): the bet is its own card, shown
+  // before the Last Words board. It says what Final Jeopardy is in three steps, shows the final hand,
+  // and offers the bets. The category stays hidden until the bet is placed.
+  if (betting) return (
+    <div className="absolute inset-0 bg-crt-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-3 animate-fade-in" role="dialog" aria-modal="true" aria-label="Final Jeopardy">
+      <div className="rounded-2xl px-4 py-5 max-w-md w-full flex flex-col items-center text-center gap-3 level-stage-in bg-[#0b1f6b] ring-4 ring-neon-yellow shadow-[0_0_32px_rgba(255,210,63,0.45)]" data-testid="fj-bet-card">
+        <p className="osd-text text-base tracking-[0.25em] text-slate-200">{reason === 'strikes' ? 'STRUCK OUT' : "TIME'S UP"} · ONE LAST CHANCE</p>
+        <h2 className="font-display text-3xl text-neon-yellow leading-none">💡 FINAL JEOPARDY</h2>
+        {piggyLost > 0 && <p className="text-sm text-neon-red leading-snug" data-testid="piggy-lost">🐷 Time ran out before you smashed Hamm: his {piggyLost.toLocaleString()} in savings are gone.</p>}
+        <ol className="w-full text-left text-[15px] text-white leading-snug flex flex-col gap-1.5" data-testid="fj-steps">
+          <li><span className="text-neon-yellow font-bold">1.</span> Bet some of your score, or skip it.</li>
+          <li><span className="text-neon-yellow font-bold">2.</span> A secret <strong>category</strong> is revealed, like "5+ letters".</li>
+          <li><span className="text-neon-yellow font-bold">3.</span> Spell your last word from these tiles. It scores x{LAST_WORDS.multiplier}, and if it fits the category you win the bet. Miss and you lose it.</li>
+        </ol>
+        <p className="text-sm text-neon-cyan leading-snug">Your tiles can always make a word that fits.</p>
+        <div className="grid grid-cols-4 gap-1.5 w-full" aria-label="Your final hand">
+          {tiles.map(t => (
+            <div key={t.id} className="relative h-11 rounded-lg grid place-items-center font-tile font-extrabold text-xl bg-[#f6e7c1] text-crt-900">
+              {t.letter}<span className="absolute bottom-0.5 right-1 font-osd text-xs">{t.points}</span>
+            </div>
+          ))}
+        </div>
+        {(!armed || dealing) && <ArmBar />}
+        <div className="w-full grid gap-2">
+          {bets.map(b => (
+            <ArcadeButton key={b.percent} color="yellow" variant={b.percent === bets[bets.length - 1].percent ? undefined : 'outline'} disabled={!armed || dealing}
+              onClick={() => { if (!armed || dealing) return; soundService.playPowerUp(); onBet!(b.amount); }}>
+              Bet {b.amount.toLocaleString()} ({b.percent}%{b.amount === FINAL_JEOPARDY.cap ? ', the max' : ''})
+            </ArcadeButton>
+          ))}
+          <ArcadeButton color="slate" variant="outline" disabled={!armed || dealing} onClick={() => { if (armed && !dealing) onBet!(0); }}>No bet, just play my last word</ArcadeButton>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="absolute inset-0 bg-crt-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-3 animate-fade-in" role="dialog" aria-modal="true" aria-label="Last Words">
@@ -105,30 +153,7 @@ const LastWordsCard: React.FC<{
             {fitReveal}
             <ArcadeButton color="slate" className="w-full" onClick={() => onDone(null)}>End the run</ArcadeButton>
           </>
-        ) : betting ? (
-          // 💡 Final Jeopardy: the bet comes first. The tiles show (you've seen them), the category doesn't.
-          <>
-            <p className="osd-text text-lg tracking-[0.2em] text-neon-cyan">💡 FINAL JEOPARDY</p>
-            <p className="text-slate-200 leading-snug">Bet on your last word? After you bet, a <strong className="text-white">category</strong> is revealed. If your last word fits it, you win the bet. If not, you lose it.</p>
-            <div className="grid grid-cols-4 gap-1.5 w-full opacity-80" aria-label="Your final hand">
-              {tiles.map(t => (
-                <div key={t.id} className="relative h-12 rounded-lg grid place-items-center font-tile font-extrabold text-xl bg-[#f6e7c1] text-crt-900">
-                  {t.letter}<span className="absolute bottom-0.5 right-1 font-osd text-xs">{t.points}</span>
-                </div>
-              ))}
-            </div>
-            {!armed && <ArmBar />}
-            <div className="w-full grid gap-2">
-              {bets.map(b => (
-                <ArcadeButton key={b.percent} color="cyan" variant={b.percent === bets[bets.length - 1].percent ? undefined : 'outline'} disabled={!armed}
-                  onClick={() => { if (!armed) return; soundService.playPowerUp(); onBet!(b.amount); }}>
-                  Bet {b.amount.toLocaleString()} ({b.percent}%{b.amount === FINAL_JEOPARDY.cap ? ', the max' : ''})
-                </ArcadeButton>
-              ))}
-              <ArcadeButton color="slate" variant="outline" disabled={!armed} onClick={() => { if (armed) onBet!(0); }}>No bet, just play</ArcadeButton>
-            </div>
-          </>
-        ) : (
+        ) : betting ? null : (
           <>
             {placed > 0 && (
               <div className="w-full rounded-lg bg-[#0b2a6b] ring-2 ring-neon-cyan px-3 py-2 level-stage-in" data-testid="fj-category">
