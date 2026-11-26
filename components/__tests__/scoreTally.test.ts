@@ -1,18 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { tallyLines } from '../../services/screens/GameScreenView';
+import { rollValue, LANDED_ROLL_MS, LANDED_HOLD_MS } from '../../services/screens/GameScreenView';
 
-describe('score count-up lines (v7.94.0)', () => {
-  it('reads points, multipliers and seconds, and skips labels', () => {
-    const out = tallyLines([
-      { name: 'Length Bonus', d: 'x1.5 (5 letters)' },
-      { name: 'Rubik\'s Cube', d: '+60 pts' },
-      { name: 'Hammer Time', d: '-10 pts' },
-      { name: 'Sands of Time!', d: '+5s next round' },
-      { name: 'Space Invader (Miss)', d: 'Capped at 50 pts' },
-      { name: 'Ice', d: 'Value set to 15' },
-    ]);
-    expect(out.map(l => l.chip)).toEqual(['x1.5', '+60', '−10', '+5 sec']);
-    expect(out.map(l => l.tone)).toEqual(['mult', 'pts', 'neg', 'sec']);
+describe('the landed score pop (v7.94.1)', () => {
+  it('rolls from the base to the real total, then stays on it', () => {
+    expect(rollValue(25, 150, 0)).toBe(25);
+    const mid = rollValue(25, 150, LANDED_ROLL_MS / 2);
+    expect(mid).toBeGreaterThan(25);
+    expect(mid).toBeLessThan(150);
+    expect(rollValue(25, 150, LANDED_ROLL_MS)).toBe(150);
+    expect(rollValue(25, 150, LANDED_ROLL_MS * 3)).toBe(150);
   });
-  it('handles no lines', () => { expect(tallyLines()).toEqual([]); });
+  it('does not roll when nothing changed the score', () => {
+    expect(rollValue(40, 40, 0)).toBe(40);
+  });
+  it('holds the final number for at least a second', () => {
+    expect(LANDED_HOLD_MS).toBeGreaterThanOrEqual(1000);
+  });
 });

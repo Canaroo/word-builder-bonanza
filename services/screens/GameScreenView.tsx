@@ -197,78 +197,71 @@ const NoticeRail: React.FC<{ notices: Notice[]; flash?: { id: string; key: numbe
  * after 2.6 s and disappears the moment the next tile is placed.
  */
 /**
- * v7.94.0 (the owner's call): after each word the score counts up on the stage while the clock waits.
- * BASE first, then every boost line pops in (with a rising note) while the big number climbs, then the
- * total slams down. It ends on its own after a short hold; a tap anywhere skips to the total. Only lines
- * that read as points, a multiplier or seconds are shown (the rest are labels), at most TALLY_MAX_LINES.
+ * v7.94.1 (the owner's call: the line-by-line tally was too long and too fast to read). After each word
+ * a quick payoff pops on the stage: the word, then the big number rolls from the BASE the player saw while
+ * spelling up to what the word really scored (about half a second), slams in, holds, and fades. When boosts
+ * changed it, "BASE 25 → +150" shows under it; the full breakdown is in 🎒 Gear → Event log. The clock waits
+ * while it shows and a tap skips it.
  */
-const TALLY_MAX_LINES = 6;
-const TALLY_STEP_MS = 320;
-const TALLY_HOLD_MS = 900;
-export const tallyLines = (lines: { name: string; d: string }[] = []): { name: string; chip: string; tone: 'pts' | 'neg' | 'mult' | 'sec' }[] => {
-  const out: { name: string; chip: string; tone: 'pts' | 'neg' | 'mult' | 'sec' }[] = [];
-  for (const l of lines) {
-    const pts = l.d.match(/(?:^|\s|\()([+\-\u2212])\s?([\d,]+)\s*pts/i);
-    const mult = l.d.match(/(?:^|\s|\()x(\d+(?:\.\d+)?)/i);
-    const sec = l.d.match(/\+(\d+)\s*(?:s\b|sec)/i);
-    if (pts) out.push({ name: l.name, chip: `${pts[1] === '+' ? '+' : '−'}${pts[2]}`, tone: pts[1] === '+' ? 'pts' : 'neg' });
-    else if (mult) out.push({ name: l.name, chip: `x${mult[1]}`, tone: 'mult' });
-    else if (sec) out.push({ name: l.name, chip: `+${sec[1]} sec`, tone: 'sec' });
-  }
-  return out;
+export const LANDED_ROLL_MS = 550;
+export const LANDED_HOLD_MS = 1400;
+const LANDED_FADE_MS = 250;
+/** The rolling number at time t (ms): eased from base to total over LANDED_ROLL_MS. */
+export const rollValue = (base: number, total: number, t: number): number => {
+  if (t >= LANDED_ROLL_MS || base === total) return total;
+  const k = Math.max(0, t) / LANDED_ROLL_MS;
+  return Math.round(base + (total - base) * (1 - Math.pow(1 - k, 3)));
 };
-const ScoreTally: React.FC<{ word: string; total: number; base: number; tiles?: number; lines?: { name: string; d: string }[]; skip: number; onShown: (v: boolean) => void; onDone: () => void }> = ({ word, total, base, tiles, lines, skip, onShown, onDone }) => {
-  // The count starts from the letters' own points, so every line visibly builds the total.
-  const start = Math.max(0, Math.min(tiles ?? base, total));
-  const shown = React.useMemo(() => tallyLines(lines), [lines]);
-  const visible = shown.slice(0, TALLY_MAX_LINES);
-  const extra = shown.length - visible.length;
-  const steps = visible.length;
+const ScoreTally: React.FC<{ word: string; total: number; base: number; skip: number; onShown: (v: boolean) => void; onDone: () => void }> = ({ word, total, base, skip, onShown, onDone }) => {
   const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const [step, setStep] = useState(reduce ? steps + 1 : 0); // 0 = base only, 1..steps = lines, steps+1 = total
-  const [gone, setGone] = useState(false);
+  const rolls = total !== base && !reduce;
+  const [value, setValue] = useState(rolls ? base : total);
+  const [phase, setPhase] = useState<'roll' | 'hold' | 'fade' | 'gone'>(rolls ? 'roll' : 'hold');
   useEffect(() => { onShown(true); return () => onShown(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (step > steps) return;
-    const t = setTimeout(() => { setStep(s => s + 1); }, step === 0 ? 420 : TALLY_STEP_MS);
-    return () => clearTimeout(t);
-  }, [step, steps]);
+    if (phase !== 'roll') return;
+    const start = performance.now();
+    let raf = 0, lastTick = -1;
+    const step = () => {
+      const t = performance.now() - start;
+      const v = rollValue(base, total, t);
+      setValue(v);
+      const tick = Math.floor(t / 90);
+      if (tick !== lastTick) { lastTick = tick; soundService.playTilePlace(Math.min(7, tick)); }
+      if (t >= LANDED_ROLL_MS) { setPhase('hold'); return; }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (step === 0) return;
-    if (step <= steps) soundService.playTilePlace(step - 1);
-    else if (total > start) soundService.playShimmer();
-  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (step <= steps) return;
-    const t = setTimeout(() => { setGone(true); onShown(false); onDone(); }, TALLY_HOLD_MS);
-    return () => clearTimeout(t);
-  }, [step, steps]); // eslint-disable-line react-hooks/exhaustive-deps
-  // A tap on the cover skips straight to the total (and then a short hold).
-  useEffect(() => { if (skip > 0 && step <= steps) setStep(steps + 1); }, [skip]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (gone) return null;
-  const done = step > steps;
-  const running = done ? total : Math.round(start + (total - start) * (steps ? Math.min(step, steps) / (steps + 1) : 0));
-  const toneCls = { pts: 'text-neon-yellow', neg: 'text-neon-red', mult: 'text-neon-pink', sec: 'text-neon-cyan' } as const;
+    if (phase === 'hold') {
+      setValue(total);
+      if (total > base) soundService.playShimmer();
+      const t = setTimeout(() => setPhase('fade'), LANDED_HOLD_MS);
+      return () => clearTimeout(t);
+    }
+    if (phase === 'fade') {
+      const t = setTimeout(() => { setPhase('gone'); onShown(false); onDone(); }, LANDED_FADE_MS);
+      return () => clearTimeout(t);
+    }
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A tap on the cover skips: straight to the total, or out if it's already holding.
+  useEffect(() => { if (skip > 0) setPhase(p => (p === 'roll' ? 'hold' : p === 'hold' ? 'fade' : p)); }, [skip]);
+  if (phase === 'gone') return null;
+  const landed = phase !== 'roll';
   return (
-    <div className="absolute inset-0 z-20 flex items-center justify-center px-3 pointer-events-none" role="status" aria-live="polite" data-testid="score-tally">
-      <div className="w-full max-w-[19rem] rounded-2xl bg-crt-950/95 ring-2 ring-neon-cyan/60 shadow-[0_0_26px_rgba(34,228,255,0.25)] px-4 py-3 text-center">
-        <div className="osd-text text-xl leading-none text-slate-300 tracking-widest">{word.toUpperCase()}</div>
-        <div className="flex items-center justify-between mt-2 osd-text text-lg leading-none text-slate-200" data-testid="tally-base">
-          <span>TILES</span><span className="font-tile text-white">{start.toLocaleString()}</span>
+    <div className={`absolute inset-0 z-20 flex items-center justify-center px-3 pointer-events-none transition-opacity duration-200 ${phase === 'fade' ? 'opacity-0' : 'opacity-100'}`} role="status" aria-live="polite" data-testid="score-tally">
+      <div className="flex flex-col items-center text-center" data-testid="landed-pop">
+        <div className="osd-text text-2xl leading-none text-slate-300 tracking-widest">{word.toUpperCase()}</div>
+        <div className={`font-display leading-none mt-2 tabular-nums text-7xl ${landed ? 'tally-slam' : ''} ${total > 0 ? 'text-neon-green drop-shadow-[0_0_18px_rgba(61,255,140,0.7)]' : 'text-slate-400'}`} data-testid="tally-total">
+          +{value.toLocaleString()}
         </div>
-        <div className="mt-1 flex flex-col gap-1" data-testid="tally-lines">
-          {visible.slice(0, Math.min(step, steps)).map((l, i) => (
-            <div key={i} className="flex items-center justify-between gap-2 text-[13px] leading-tight tally-line">
-              <span className="truncate text-left text-slate-100">{l.name}</span>
-              <span className={`shrink-0 osd-text text-lg leading-none ${toneCls[l.tone]}`}>{l.chip}</span>
-            </div>
-          ))}
-          {done && extra > 0 && <div className="text-[12px] text-slate-400 text-left">+ {extra} more {extra === 1 ? 'boost' : 'boosts'}</div>}
-        </div>
-        <div className={`font-display leading-none mt-2 tabular-nums ${done ? 'text-5xl tally-slam' : 'text-4xl'} ${total > 0 ? 'text-neon-green drop-shadow-[0_0_14px_rgba(61,255,140,0.7)]' : 'text-slate-400'}`} data-testid="tally-total">
-          +{running.toLocaleString()}
-        </div>
-        {done && total !== base && <div className="osd-text text-base leading-none mt-1 text-slate-300" data-testid="landed-breakdown">BASE {base.toLocaleString()} · BOOSTS {total - base > 0 ? '+' : '−'}{Math.abs(total - base).toLocaleString()}</div>}
+        {total !== base && landed && (
+          <div className="osd-text text-xl leading-none mt-2 text-slate-300" data-testid="landed-breakdown">
+            BASE {base.toLocaleString()} → <span className="text-neon-yellow">+{total.toLocaleString()}</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1503,7 +1496,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             <div className="stage-body relative flex-1 min-h-0 flex flex-col items-center gap-2 [@media(max-height:700px)]:gap-1">
               {/* The pop waits for any card the word opened (a PowerPlay offer, a level-up...) to close, so it plays
                   where the player can see it; after 30 s it's old news and is skipped. */}
-              {n === 0 && landed && tallyDoneKey !== landed.key && !modalContent && !isPaused && Date.now() - landed.key < 30000 && <ScoreTally key={landed.key} {...landed} skip={tallySkip} onShown={setLandedShown} onDone={() => setTallyDoneKey(landed.key)} />}
+              {n === 0 && landed && tallyDoneKey !== landed.key && !modalContent && !isPaused && Date.now() - landed.key < 30000 && <ScoreTally key={landed.key} word={landed.word} total={landed.total} base={landed.base} skip={tallySkip} onShown={setLandedShown} onDone={() => setTallyDoneKey(landed.key)} />}
               {/* v7.83.0: a message never covers the word. With an empty word row it sits in the middle of the
                   stage; while you're spelling it sits under the word's chips instead (see below). */}
               {message && n === 0 && !landedShown && (
@@ -1591,7 +1584,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                   <button type="button" data-testid="tally-skip" aria-label="Skip the score count"
                     onPointerDown={(e) => { e.preventDefault(); setTallySkip(k => k + 1); }}
                     className="absolute inset-0 z-30 rounded-xl bg-crt-950/85 backdrop-blur-[2px] flex items-center justify-center">
-                    <span className="px-4 py-1.5 rounded-full bg-crt-900 ring-1 ring-neon-cyan/60 osd-text text-xl leading-none text-neon-cyan tracking-widest animate-pulse">⏸ CLOCK PAUSED · TAP TO SKIP</span>
+                    <span className="px-4 py-1.5 rounded-full bg-crt-900 ring-1 ring-neon-cyan/60 osd-text text-xl leading-none text-neon-cyan tracking-widest animate-pulse">⏸ TAP TO SKIP</span>
                   </button>
                 )}
         {/* Greatest Hits (v7.87.0): right above the tiles, in the player's eyeline while picking letters. */}
