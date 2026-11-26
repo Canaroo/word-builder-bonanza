@@ -2,6 +2,8 @@ import React from 'react';
 import { GAMEPLAY } from '../config/gameplay';
 import { Tile } from '../types';
 
+const COLLECTOR_ICON: Record<string, string> = { chrome: '💿', holo: '✨', static: '📺', rewind: '⏪' };
+
 interface TileProps {
   tile: Tile;
   onClick: () => void;
@@ -59,6 +61,8 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
   
   const tileStyle = isGolden
     ? 'golden-tile'
+    : tile.collector
+    ? `tile-key tile-collector tile-collector-${tile.collector}`
     : tile.isCombo
     ? 'bg-green-500 text-white'
     : (tile.isSuper || (hasMultiplier && tile.multiplier === 4 && !tile.isGem)
@@ -79,7 +83,7 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
       onContextMenu={e => e.preventDefault()}
       disabled={tile.isLocked}
       className={`tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none ${tileStyle} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed' : ''} ${powerLit ? 'power-tile-glow' : bossHint === 'dim' ? 'boss-tile-dim' : bossHint === 'glow' ? 'boss-tile-glow' : ''}`}
-      aria-label={`Tile ${tile.letter} with ${tile.tempPoints ?? tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${skillShot ? `, Skill Shot tile: use it in this word for ${skillShot} points` : ''}${tile.isGem ? `, gem x${tile.multiplier}` : ''}${tile.isLocked ? ' (locked for this turn)' : ''}${bossHint === 'dim' ? ', breaks the boss rule' : bossHint === 'glow' ? ', the boss rule needs this tile' : ''}${powerLit ? ', part of the hidden power word' : ''}`}
+      aria-label={`Tile ${tile.letter} with ${tile.tempPoints ?? tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${skillShot ? `, Skill Shot tile: use it in this word for ${skillShot} points` : ''}${tile.isGem ? `, gem x${tile.multiplier}` : ''}${tile.collector ? `, ${tile.collector} Collector's Tile${tile.collector === 'static' && tile.letter === '?' ? ': tap to pick its letter' : ''}` : ''}${tile.isLocked ? ' (locked for this turn)' : ''}${bossHint === 'dim' ? ', breaks the boss rule' : bossHint === 'glow' ? ', the boss rule needs this tile' : ''}${powerLit ? ', part of the hidden power word' : ''}`}
     >
       {/* v7.80.0: the dished face of the keycap (cream on plain tiles, a soft see-through dish on special ones). */}
       {!isGolden && <span className="tile-face" aria-hidden="true" />}
@@ -113,6 +117,8 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
         </span>
       )}
       {tile.isGem && !tile.isSuper && <span className="absolute top-0.5 left-0.5 text-[10px] z-10 leading-none" aria-hidden="true">💎</span>}
+      {/* v7.96.0: a Collector's Tile wears its icon in the corner and a sheen ring (tile-collector-*). */}
+      {tile.collector && <span className="absolute top-0.5 left-0.5 text-[10px] z-10 leading-none" aria-hidden="true">{COLLECTOR_ICON[tile.collector]}</span>}
       {skillShot && (
         <>
           <span className="tile-overlay ring-4 ring-neon-pink animate-pulse" aria-hidden="true" />

@@ -124,6 +124,8 @@ export const drawTiles = (count: number, tileBag: string[], isForGoldenRound = f
     } else {
       // This should not fail as the bag is replenished if empty.
       const letter = currentBag.pop();
+      // v7.96.0: a Static Tile's blank never belongs in the bag; skip one if it got there.
+      if (letter === '?') { i--; continue; }
       if (letter) {
         drawnLetters.push(letter);
       }

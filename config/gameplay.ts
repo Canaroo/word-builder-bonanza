@@ -655,7 +655,7 @@ export const SCRATCH = {
     shuffle: [1, 2],
     challenge: [1],
   },
-  weights: { points: 3, time: 2, shuffle: 1.5, challenge: 1, charm: 1, powerplay: 1 },
+  weights: { points: 3, time: 2, shuffle: 1.5, challenge: 1, charm: 1, powerplay: 1, tile: 0.8 }, // tile: a Collector's Tile (v7.96.0)
   charms: ['powerGlove', 'sTierScorer', 'goldenTicket', 'theDudeAbides', 'finisher', 'chaosTheory', 'oneRing', 'thrillerNight', 'strikeBank', 'theOpposite', 'pianoManEncore', 'glitchInTheCode'],
   powerPlays: ['timeBoost', 'neosChoice', 'multiverseOfSadness', 'plinko', 'biglyScore', 'gumpLuck', 'letterUpgrade'],
 } as const;
@@ -812,3 +812,43 @@ export const QUACK_ATTACK = { word: 'QUA', plays: 4, multiplier: 4, words: 4, ba
  * like Quack Attack, it's a long-run jackpot.
  */
 export const BLUE_STEEL = { word: 'ZOO', plays: 4, multiplier: 5, badgeId: 'b_blueSteel' } as const;
+
+// 📼 The Video Store (v7.96.0, the owner's design and picks): opens after the level-up card on every
+// other level (2, 4, 6...) with the run's clock paused. Everything costs seconds off your clock.
+// Clock data (the old Fork events): at level 4 the median player held 43 s (10% held 8 s or less), so
+// one rental is about a fifth of a typical clock and you can never spend below `keepAtLeast`.
+export const VIDEO_STORE = {
+  firstLevel: 2,
+  every: 2,                 // levels 2, 4, 6...
+  prices: { charm: 8, fragile: 6, powerPlay: 5, poster: 6 } as Record<'charm' | 'fragile' | 'powerPlay' | 'poster', number>,
+  restockBase: 2,           // the first restock costs 2 s...
+  restockStep: 1,           // ...and each one after costs 1 more
+  keepAtLeast: 15,          // a purchase can't take your clock under this
+  walkOut: 150,             // walking out with nothing pays this (a prize: grows with the level)
+  tradeBack: 0.5,           // a traded-in charm gives back half its price in seconds (all of it when upgraded)
+  tileChance: 0.4,          // the second tape is a Collector's Tile this often (else a PowerPlay)
+} as const;
+
+// 🎬 Genre Levels (v7.96.0): words that fit a genre pay +perStar per ★ on every word, up to maxStars.
+// A genre gains ★ from a poster in the Video Store, or by itself every `playsPerStar` words that fit it.
+// Simulated (8-tile hands, 54 words a run): a casual player's words fit Shorts 89%, Cult Classics 17%,
+// Sequels 9%, Musicals 3%, Remakes 3%, Epics 0%; a player aiming long fits Shorts 45%, Epics 22%,
+// Musicals 20%, Cult Classics 18%, Sequels 12%. Rare genres pay more per star, so a ★ is worth about
+// +2 to +7 points a word on average, and much more to a player who leans into it.
+export const GENRE_VALUES = {
+  maxStars: 5,
+  perStar: { shorts: 5, epics: 25, sequels: 30, cult: 25, musicals: 20, remakes: 40 } as Record<string, number>,
+  playsPerStar: { shorts: 20, epics: 10, sequels: 10, cult: 10, musicals: 10, remakes: 10 } as Record<string, number>,
+} as const;
+
+// 💿 Collector's Tiles (v7.96.0): bought in the Video Store (or found on a scratch-off), they're yours for
+// the run. Each one lands on a tile of your next hand, and after you play it, it comes back on a later
+// hand (`returnChance` a hand). At most `max` a run.
+export const COLLECTOR = {
+  prices: { chrome: 8, holo: 6, static: 7, rewind: 7 } as Record<'chrome' | 'holo' | 'static' | 'rewind', number>,
+  chromeMultiplier: 2,      // 💿 Chrome: a word using it scores x2
+  holoPoints: 25,           // ✨ Holo: +25 points in any word
+  rewindSeconds: 3,         // ⏪ Rewind: +3 seconds when a word uses it
+  returnChance: 0.5,
+  max: 4,
+} as const;

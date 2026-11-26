@@ -1,7 +1,7 @@
 import { Sec } from '../../components/Seconds';
 import React from 'react';
 import { soundService } from '../soundService';
-import { SCRATCH, GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, FINAL_JEOPARDY, HEAD_START, SKILL_SHOT, GEM_TILES, HOLD_SLOT, GRUDGE, BONES, GATES, GREATEST_HITS , FRAGILE } from '../../config/gameplay';
+import { VIDEO_STORE, GENRE_VALUES, COLLECTOR, SCRATCH, GAMEPLAY, CHARM_BONUS, CHARM_SLOTS, CHARM_UPGRADE, CHARM_LENGTH_BOOST, PRIZE_GROWTH, BOSS, CHARM_SET_BONUS, MYSTERY_TAPE, LAST_WORDS, FINAL_JEOPARDY, HEAD_START, SKILL_SHOT, GEM_TILES, HOLD_SLOT, GRUDGE, BONES, GATES, GREATEST_HITS , FRAGILE } from '../../config/gameplay';
 import { PHOENIX_DOWN } from '../../config/progression';
 import { DAILY_RUN, DAILY_RESET_HOUR } from '../../config/progression';
 import ArcadeButton from '../../components/ArcadeButton';
@@ -24,6 +24,7 @@ const Section: React.FC<{ title: string; icon: string; tone: string; open?: bool
   </details>
 );
 
+import { GENRES, COLLECTOR_TILES, COLLECTOR_RULE } from '../../data/videoStore';
 const Key: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <strong className="text-neon-yellow font-semibold">{children}</strong>
 );
@@ -206,6 +207,30 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             clock while your bank waits, and no strikes. Your one word scores in full (length, charms and all), then{' '}
             <Key>x{GAMEPLAY.goldenRound.multiplier}</Key>, or <Key>x{GAMEPLAY.goldenRound.tileMultiplier}</Key> if it uses the
             glowing <Key>★ Golden Tile</Key>. The ★ GOLDEN box counts your streak; a strike resets it.
+          </p>
+        </Section>
+
+        <Section title="The Video Store" icon="📼" tone="text-neon-pink">
+          <p>
+            After the level-up on every other level ({VIDEO_STORE.firstLevel}, {VIDEO_STORE.firstLevel + VIDEO_STORE.every},{' '}
+            {VIDEO_STORE.firstLevel + 2 * VIDEO_STORE.every}...) you walk into <Key>📼 the Video Store</Key>. Your clock is paused
+            while you shop, and <Key>your seconds are your money</Key>: every price comes off your clock, and you can't spend
+            below {VIDEO_STORE.keepAtLeast} seconds. The shelf has three tapes: a charm, a PowerPlay or a Collector's Tile, and
+            a genre poster. Tap one to read it, then rent it. <Key>🔄 Restock</Key> deals a new shelf ({VIDEO_STORE.restockBase}{' '}
+            seconds, then 1 more each time). <Key>💵 Trade in</Key> sells a charm for half its price in seconds (all of it if
+            it's upgraded ⭐) and frees its slot. <Key>🚪 Walk out</Key> with nothing for +{VIDEO_STORE.walkOut} points (more at
+            higher levels). A receipt adds it all up.
+          </p>
+          <p>
+            <Key>🎬 Genres</Key>. Every word has genres: {GENRES.map((g, i) => <React.Fragment key={g.id}>{i ? ', ' : ''}{g.icon} {g.name} ({g.rule})</React.Fragment>)}.
+            Once a genre has a ★, every word that fits it earns bonus points: each ★ adds{' '}
+            {GENRES.map((g, i) => <React.Fragment key={g.id}>{i ? ', ' : ''}+{GENRE_VALUES.perStar[g.id]} for {g.name}</React.Fragment>)}, up to ★{GENRE_VALUES.maxStars}.
+            A genre gains a ★ from its poster in the store, or by itself every {GENRE_VALUES.playsPerStar.epics} words that fit it
+            ({GENRE_VALUES.playsPerStar.shorts} for Shorts). The word on the stage shows what its genres will pay, and 🎒 Gear shows every genre.
+          </p>
+          <p>
+            <Key>💿 Collector's Tiles</Key> come from the store and scratch-off tickets (up to {COLLECTOR.max} a run).{' '}
+            {COLLECTOR_RULE} {COLLECTOR_TILES.map((t, i) => <React.Fragment key={t.kind}>{i ? ' ' : ''}{t.icon} <b>{t.name}</b>: {t.text}</React.Fragment>)}
           </p>
         </Section>
 

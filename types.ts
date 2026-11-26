@@ -16,6 +16,9 @@ export interface Tile {
   isLocked?: boolean; // For Rescue Drop powerplay
   /** A gem tile (v7.42): a word-multiplier tile earned by a long word. */
   isGem?: boolean;
+  /** 💿 A Collector's Tile (v7.96.0): which kind, and the owned tile it belongs to (GameState.collectorTiles). */
+  collector?: 'chrome' | 'holo' | 'static' | 'rewind';
+  collectorId?: string;
 }
 
 export interface GameConfig {
@@ -344,6 +347,13 @@ export interface GameState {
   crocWords?: number;
   /** CTU Safe House (v7.67): the level its clock rescue last fired on (once a level). */
   ctuLevel?: number;
+  /** 🎬 Genre Levels (v7.96.0): stars per genre (data/videoStore.ts), and words toward the next star. */
+  genreStars?: Record<string, number>;
+  genrePlays?: Record<string, number>;
+  /** 💿 Collector's Tiles owned this run. `fresh` lands on the very next hand (then returnChance a hand). */
+  collectorTiles?: { id: string; kind: 'chrome' | 'holo' | 'static' | 'rewind'; fresh?: boolean }[];
+  /** 📼 The Video Store: the last level it opened on. */
+  storeLevel?: number;
   /** Fragile charms that shattered this run (never offered again). */
   shatteredCharms?: string[];
   /** v7.91.0: the level each heads-up card (power word) was last shown on, so it shows once a level. */

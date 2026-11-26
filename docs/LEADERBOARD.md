@@ -200,7 +200,7 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         ".write": "!data.exists()",
         ".validate": "newData.hasChildren(['type','timestamp'])",
 
-        "type": { ".validate": "newData.isString() && newData.val().matches(/^(boss_start|boss_end|mission_shown|mission_done|run_end|power_word|charm_offer|pp_offer|pp_use|continue_offer|pw_hint|bones|fork|golden|gate)$/)" },
+        "type": { ".validate": "newData.isString() && newData.val().matches(/^(boss_start|boss_end|mission_shown|mission_done|run_end|power_word|charm_offer|pp_offer|pp_use|continue_offer|pw_hint|bones|fork|golden|gate|store)$/)" },
         "timestamp": { ".validate": "newData.isNumber() && newData.val() > now - 5 * 60 * 1000 && newData.val() < now + 5 * 60 * 1000" },
 
         // Bosses
@@ -263,6 +263,12 @@ Adding a cosmetic needs no rules change as long as its id follows the existing p
         "skill":     { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999" },
         "gems":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
         "lastWords": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" },
+        // v7.96.0: store (level, rented, spent, back, restocks, walked): one Video Store visit
+        "rented":    { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99" },
+        "spent":     { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999" },
+        "back":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999" },
+        "restocks":  { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99" },
+        "walked":    { ".validate": "newData.isBoolean()" },
 
         "$other": { ".validate": false }
       }

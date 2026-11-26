@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Charm, GameState, PowerPlay } from '../types';
-import { CHARM_BONUS, CHARM_SLOTS } from '../config/gameplay';
+import { CHARM_BONUS, CHARM_SLOTS, GENRE_VALUES, COLLECTOR } from '../config/gameplay';
+import { GENRES, starsOf, perStar, playsPerStar, collectorInfo, COLLECTOR_RULE } from '../data/videoStore';
 import { CHARMS_LIST, CHARM_TIME_SECONDS, UPGRADABLE_CHARM_IDS } from '../data/charms';
 import { CHARM_SETS, setPayFor } from '../data/charmSets';
 import { clockSpeedFor, prizeScaleFor, wordTimeScaleFor } from '../services/rules';
@@ -223,6 +224,36 @@ const GearMenu: React.FC<{
           </Box>
         )}
 
+        {/* v7.96.0: Genre Levels and Collector's Tiles. */}
+        <Box title="GENRES" right={`★${GENRES.reduce((t, g) => t + starsOf(gs, g.id), 0)}`}>
+          <div data-testid="gear-genres">
+            {GENRES.map(g => {
+              const st = starsOf(gs, g.id);
+              const plays = gs.genrePlays?.[g.id] ?? 0;
+              const need = playsPerStar(g.id);
+              const maxed = st >= GENRE_VALUES.maxStars;
+              const e = earnedThisRun(gs.log, `${g.icon} ${g.name}`);
+              return (
+                <Row key={g.id} selected={sel === `genre-${g.id}`} icon={g.icon} dim={st === 0}
+                  label={<>{g.name} <span className="osd-text text-base text-neon-yellow">{'★'.repeat(st)}{'☆'.repeat(GENRE_VALUES.maxStars - st)}</span></>}
+                  right={st ? `+${st * perStar(g.id)}/WORD` : `${plays}/${need}`}
+                  onClick={() => choose(`genre-${g.id}`, { icon: g.icon, name: `${g.name} ★${st}`, tag: maxed ? 'MAXED' : `${plays}/${need} words to ★${st + 1}`,
+                    text: `Words with ${g.rule}. ${st ? `Each one earns +${st * perStar(g.id)} points now.` : 'No bonus yet.'} Every ★ adds +${perStar(g.id)}, up to ★${GENRE_VALUES.maxStars}. ${maxed ? '' : `It gains a ★ every ${need} words that fit, or from a poster in the 📼 Video Store.`}${e.points ? `\n\nThis run: +${e.points.toLocaleString()} points.` : ''}`,
+                    flavor: g.flavor })} />
+              );
+            })}
+          </div>
+        </Box>
+        {(gs.collectorTiles ?? []).length > 0 && (
+          <Box title="COLLECTOR'S TILES" right={`${(gs.collectorTiles ?? []).length}/${COLLECTOR.max}`}>
+            {(gs.collectorTiles ?? []).map(c => {
+              const info = collectorInfo(c.kind)!;
+              return <Row key={c.id} selected={sel === `col-${c.id}`} icon={info.icon} label={info.name}
+                onClick={() => choose(`col-${c.id}`, { icon: info.icon, name: info.name, text: `${info.text} ${COLLECTOR_RULE}`, flavor: info.flavor })} />;
+            })}
+          </Box>
+        )}
+
         {(() => {
           // v7.86.0 (the owner's ask): Greatest Hits, so players can see which word to replay for a record.
           const rows = hitsBoard(gs.log ?? [], gs.hitsClaimed ?? []);
@@ -274,7 +305,7 @@ const GearMenu: React.FC<{
             {pick.flavor && <p className="text-xs italic text-slate-400 mt-1">"{pick.flavor}"</p>}
           </>
         ) : (
-          <p className="text-sm text-slate-300 leading-snug">▶ Tap a charm, PowerPlay or set to read what it does and what it has earned you this run.</p>
+          <p className="text-sm text-slate-300 leading-snug">▶ Tap a charm, PowerPlay, set or genre to read what it does and what it has earned you this run.</p>
         )}
       </div>
     </div>

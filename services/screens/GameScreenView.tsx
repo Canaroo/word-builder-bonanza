@@ -3,6 +3,8 @@ import { Sec, withSec } from '../../components/Seconds';
 import EndRunCard from '../../components/EndRunCard';
 import GearMenu from '../../components/GearMenu';
 import { FRAGILE } from '../../config/gameplay';
+import VideoStore from '../../components/VideoStore';
+import { genrePay, earlierKeys } from '../../data/videoStore';
 import React, { useEffect, useRef, useState } from 'react';
 import ArcadeButton, { NamedLabel } from '../../components/ArcadeButton';
 import ShuffleButton from '../../components/ShuffleButton';
@@ -44,7 +46,7 @@ import ModalTapGuard, { GUARDLESS_MODALS } from '../../components/ModalTapGuard'
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
-  type: 'milestone' | 'blue-steel' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'scratch' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack' | 'triforce' | 'gear' | 'heads-up';
+  type: 'milestone' | 'blue-steel' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'scratch' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack' | 'triforce' | 'gear' | 'heads-up' | 'video-store' | 'static-tile';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -316,6 +318,13 @@ export interface GameScreenViewProps {
   handleBonesDone?: (word: string | null) => void;
   /** Fork in the Road: the route picked. */
   handleScratchDone?: (prize: ScratchPrize | null) => void;
+  /** 📼 The Video Store (v7.96.0). */
+  handleStoreRent?: (index: number) => void;
+  handleStoreRestock?: () => void;
+  handleStoreTradeIn?: (charmId: string) => void;
+  handleStoreLeave?: () => void;
+  /** 📺 Static Tile: the letter the player picked for the blank. */
+  handleStaticLetter?: (letter: string) => void;
   handleCrocPick?: () => void;
   /** A power word can be spelled from the tiles in play (the hint chip); tapping it explains. */
   powerHint?: { icon: string; length: number; word?: string; effect?: string } | null;
@@ -389,7 +398,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, skillShotTileId = '', holdOpen = false, holdArmed = false, handleHoldTap, handleScratchDone, handleCrocPick, handleBonesDone, lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, handleStoreRent, handleStoreRestock, handleStoreTradeIn, handleStoreLeave, handleStaticLetter, skillShotTileId = '', holdOpen = false, holdArmed = false, handleHoldTap, handleScratchDone, handleCrocPick, handleBonesDone, lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
@@ -696,6 +705,22 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             case 'triforce': // v7.95.0: the Triforce is gone; an old save's card closes itself
                 // v7.66.0: the Fork is gone; a card saved mid-pick just closes (see GameScreen).
                 return null;
+
+            case 'video-store':
+                return gameState ? <VideoStore data={data} clock={time} gameState={gameState}
+                    onRent={i => handleStoreRent?.(i)} onRestock={() => handleStoreRestock?.()} onTradeIn={id => handleStoreTradeIn?.(id)} onLeave={() => handleStoreLeave?.()} /> : null;
+
+            case 'static-tile':
+                return (
+                    <div className="absolute inset-0 z-50 bg-crt-950/85 flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label="Static Tile">
+                        <div className="w-full max-w-sm rounded-2xl bg-crt-900 ring-2 ring-neon-cyan p-4 flex flex-col gap-2" data-testid="static-picker">
+                            <h2 className="font-display text-xl text-neon-cyan text-center leading-tight">📺 STATIC TILE</h2>
+                            <p className="text-slate-100 text-[15px] leading-snug text-center">Pick any letter for your blank. It scores 0 points itself. The clock waits.</p>
+                            <LetterPicker key={String(data?.tileId)} tone="green" onConfirm={l => handleStaticLetter?.(l)} />
+                            <button type="button" onClick={handleCloseModal} className="w-full mt-1 text-sm text-slate-400 hover:text-white">Not now</button>
+                        </div>
+                    </div>
+                );
 
             case 'scratch':
                 return <ScratchCard key={`scratch-${data?.level}`} level={Number(data?.level) || 1} squares={data?.squares ?? []} saved={data?.saved}
@@ -1379,6 +1404,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         const level = levelFor(totalWords ?? 0);
         const normal = (gameState?.roundType ?? 'normal') === 'normal';
         const secs = n >= minLen ? timeForWordAtLevel(n, level) : 0;
+        // 🎬 v7.96.0: the genres this word fits that already have a ★ (paid on submit).
+        const stageWord = placed.map(p => p.tile.letter).join('');
+        const genreLine = n >= minLen && normal && gameState && !stageWord.includes('?')
+            ? genrePay(gameState, stageWord, earlierKeys(gameState.log ?? [])) : [];
         // v7.85.0 (the owner's call): no routine pills under the word (the meters up top already preview the
         // fill). Only big news, one readable line each: the word fills the meter, starts a Golden Round, or
         // gets the Combo x2.
@@ -1521,6 +1550,13 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                   ) : n < minLen ? (
                     <span className="osd-text text-xl leading-none text-slate-400">{minLen - n} MORE {minLen - n === 1 ? 'LETTER' : 'LETTERS'} TO SUBMIT</span>
                   ) : null}
+                </div>
+              )}
+              {genreLine.length > 0 && (
+                <div className="w-full flex flex-wrap justify-center gap-x-3 gap-y-0.5 pr-11 pl-1" data-testid="stage-genres">
+                  {genreLine.map(g => (
+                    <span key={g.genre.id} className="osd-text text-lg leading-none text-neon-yellow">{g.genre.icon} {g.genre.name.toUpperCase()} ★{g.stars} +{g.points}</span>
+                  ))}
                 </div>
               )}
               {effects.length > 0 && (

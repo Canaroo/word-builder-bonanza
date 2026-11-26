@@ -3,7 +3,7 @@
 //   1. Build a word: a finger guides C-A-T, each tile flies up to the word row, SUBMIT scores it.
 //   2. Longer words score more AND buy time: CLOSET against CAT, the seconds fly into the clock.
 //   3. The clock is your bank: a fake word earns a strike; hold SHUFFLE for new tiles and +5 sec.
-//   4. Power-ups and surprises: four cards to flip (PowerPlays, Charms, Bosses, Golden Round).
+//   4. Power-ups and surprises: six cards to flip (PowerPlays, Charms, Bosses, Golden Round, Video Store, Genres).
 //   5. Your gear (v7.88.0, the owner's ask): tap the 🎒 under STRIKES to open Gear; the clock stops.
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import TileComponent from './Tile';
@@ -44,6 +44,10 @@ const CARDS = [
     back: `Every ${BOSS.everyLevels === 3 ? '3rd' : `${BOSS.everyLevels}th`} level a villain sets a rule for your next ${BOSS.words} words. Follow it enough times to win a Boss Badge. Breaking it costs you nothing.` },
   { icon: '🌟', name: 'Golden Round', tone: 'text-neon-yellow ring-neon-yellow/60',
     back: `Chain enough good words and you get one Golden word: it scores x${GAMEPLAY.goldenRound.multiplier}, or x${GAMEPLAY.goldenRound.tileMultiplier} with the glowing ★ tile.` },
+  { icon: '📼', name: 'Video Store', tone: 'text-neon-pink ring-neon-pink/60',
+    back: `Every other level you go shopping, and your seconds are the money. Rent charms, PowerPlays, genre posters and Collector's Tiles while the clock waits.` },
+  { icon: '🎬', name: 'Genres', tone: 'text-neon-cyan ring-neon-cyan/60',
+    back: `Short words, long words, double letters... each genre earns stars as you play it. Every ★ makes those words pay more for the rest of the run.` },
 ];
 
 /** A tile that flies from a hand slot to the word row. */
