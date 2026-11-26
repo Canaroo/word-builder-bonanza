@@ -38,7 +38,7 @@ import { currentPlayer } from '../players';
 import { BONES } from '../../config/gameplay';
 import { SCRATCH, HOLD_SLOT, GRUDGE, SKILL_SHOT } from '../../config/gameplay';
 import { dealScratch, type ScratchPrize } from '../scratch';
-import { dealShelf, storeOpensAt, restockCost, canAfford, tradeInValue, genreById, collectorInfo, earlierKeys, genrePay, countGenrePlays, GENRES, COLLECTOR_RULE, type Tape } from '../../data/videoStore';
+import { dealShelf, storeOpensAt, restockCost, canAfford, tradeInValue, genreById, collectorInfo, earlierKeys, genrePay, countGenrePlays, playsPerStar, GENRES, COLLECTOR_RULE, type Tape } from '../../data/videoStore';
 import { introSeen, markIntro } from '../intros';
 import { VIDEO_STORE, GENRE_VALUES, COLLECTOR } from '../../config/gameplay';
 import { gemMultiplierFor, skillShotPoints, freakyFridayMatch, jengaPot, nextSpeedStreak, speedStreakPoints, finalCategoryDeal, FINAL_CATEGORIES, CENTER_SQUARES, centerSquareClaim, centerSquareLines, centerSquarePrize } from '../rules';
@@ -568,7 +568,7 @@ const levelUpModal = (wordsBefore: number, gs?: GameState): ModalContent | null 
  * stuck in the old round: v7.19.0's level-up card was, so a word whose only pop-up was a
  * level-up lost its word time, and Groundhog's Day saw a word "already played" and didn't fire.
  */
-export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['blue-steel', 'milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork', 'scratch', 'bones', 'croc', 'greatest-hit', 'quack', 'video-store'];
+export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['blue-steel', 'milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork', 'scratch', 'bones', 'croc', 'greatest-hit', 'quack', 'video-store', 'genre-up'];
 
 /**
  * A chance PowerPlay's result (a roll, a coin flip, a random tile): a centered card that waits
@@ -5346,7 +5346,20 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
               newState.log = [...newState.log, ...counted.up.map(g => ({ type: 'event', id: `genre-${g.id}-${Date.now()}`, name: 'Genre level-up', icon: g.icon,
                   description: `${g.name} reached ★${counted.genreStars[g.id]} by playing it: words with ${g.rule} now earn +${counted.genreStars[g.id] * (GENRE_VALUES.perStar[g.id] ?? 0)}.`,
                   scoreChange: 0, cumulativeScore: newState.score } as EventLogEntry))];
-              showMessage(`🎬 GENRE UP! ${text}`, 3000);
+              // v7.96.5 (the owner's ask: a genre leveling up by play was easy to miss): a card that waits for OK,
+              // saying what the player did, what the genre pays now and how to reach the next star.
+              void text;
+              for (const g of counted.up) {
+                  const st = counted.genreStars[g.id];
+                  const per = GENRE_VALUES.perStar[g.id] ?? 0;
+                  const need = playsPerStar(g.id);
+                  modalQueue.push({ type: 'genre-up', title: `${g.name} ★${st}`, data: { icon: g.icon,
+                      headline: `${g.name.toUpperCase()} IS NOW ★${st}!`,
+                      text: `You played ${need} words with ${g.rule}. From now on, every word like that earns +${st * per} points.`,
+                      next: st >= GENRE_VALUES.maxStars ? `That's the top: ★${GENRE_VALUES.maxStars}. Keep playing them for +${st * per} a word.`
+                          : `Play ${need} more to reach ★${st + 1} (+${(st + 1) * per} a word), or grab its poster in the 📼 Video Store. 🎒 Gear shows every genre.` } });
+              }
+              markIntro('genres');
           }
       }
 

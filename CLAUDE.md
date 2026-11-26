@@ -728,6 +728,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   pulse for about 4 s, still under reduced motion) and brings it to the front. Once a level each, kept in
   `gameState.headsUp` (`power`, `zelda` → level) so a resumed run doesn't repeat it; never in a Golden Round
   or over another card (it waits). Browser-checked at 390x844 and 360x640: clock 50 → 50 while open.
+  v7.96.5 (the owner's report: the hand showed through and gave the power word away): heads-up cards sit on a fully
+  dark backdrop (`bg-crt-950`), so the tiles can't be read until OK.
 - **Power word tiles light correctly (v7.91.1, the owner: "sometimes it wasn't firing").** Three gaps fixed
   in `powerLitIds` (`GameScreenView.tsx`): it matched single letters only, so a word needing a combo tile
   (RINGS with an ING tile) lit just R and S; it now uses `assignTilesToWord`, the game's own speller. A boss
@@ -762,7 +764,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   shows "+50 A WORD" or NOT PAYING YET, a bar with "1/10 TO ★3", and EARNED +N this run from `genreEarned`
   (its score lines in the log); the header totals all genres; a tap explains the math, "★2 × 25", and both
   ways to earn stars); a "GENRE LEVELS!"
-  heads-up card the first time any genre has a ★; "🎬 GENRE UP!" when one levels by play.
+  heads-up card the first time any genre has a ★. v7.96.5 (the owner's ask: a level-up by play was easy to miss): a
+  `genre-up` card (the heads-up card's look, in `POST_WORD_MODALS` so closing it deals the next hand) waits for OK:
+  "SEQUELS IS NOW ★1!", what the player did ("You played 10 words with a double letter..."), what it pays now and how
+  to reach the next ★ (play N more, or its poster in the store). It replaced the "🎬 GENRE UP!" stage message.
   **Collector's Tiles** (`COLLECTOR_TILES`, `gameState.collectorTiles`, max 4 a run): 💿 Chrome (x2 word tile,
   uses the normal tile multiplier), ✨ Holo (+25 a word), 📺 Static (a "?" blank: tapping it opens the
   `static-tile` letter picker, `SET_STATIC_LETTER`, worth 0), ⏪ Rewind (+3 s, onto `pendingTimeBonus`). From
