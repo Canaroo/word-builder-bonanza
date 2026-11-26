@@ -3621,6 +3621,32 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           sendStat({ type: 'pw_hint', power: found.effect, level: hintLevel });
       }
   }, [gameState, isLoading, isPaused, tilesInPlay, hintLevel]);
+  // Heads-up cards (v7.91.0, the owner's ask: players never noticed the power word hint or Ask Zelda up at
+  // the top of the board). The first time each shows up in a level, a small card says so and waits for OK;
+  // closing it flashes the matching notice. Shown once a level each (gameState.headsUp), never mid-pop-up.
+  useEffect(() => {
+      if (!gameState || isLoading || isPaused || state.modalContent || (state.resumeCountdown ?? 0) > 0 || gameState.roundType === 'golden') return;
+      const seen = gameState.headsUp ?? {};
+      const level = runLevel(gameState);
+      if (powerHint && seen.power !== hintLevel) {
+          const prize = powerWordInfo(powerHint.effect).prize.toLowerCase();
+          dispatch({ type: 'UPDATE_GAME_STATE', payload: { headsUp: { ...seen, power: hintLevel } } });
+          soundService.playModalOpen();
+          dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'heads-up', title: 'Power word', data: { notice: 'power', icon: '⚡',
+              headline: 'POWER WORD IN THIS HAND!',
+              text: `Your tiles can spell a secret ${powerHint.length}-letter power word. Its prize: ${prize}.`,
+              next: 'Tap the flashing ⚡ card at the top of the board to light up its tiles.' } } });
+          return;
+      }
+      if (zeldaReady && seen.zelda !== level) {
+          dispatch({ type: 'UPDATE_GAME_STATE', payload: { headsUp: { ...seen, zelda: level } } });
+          soundService.playModalOpen();
+          dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'heads-up', title: 'Ask Zelda', data: { notice: 'zelda', icon: '🔺',
+              headline: 'ZELDA CAN HELP THIS LEVEL!',
+              text: 'Once this level, Zelda will spell the longest word your tiles can make.',
+              next: 'Tap the flashing 🔺 ASK ZELDA card at the top of the board, then Submit.' } } });
+      }
+  }, [gameState, isLoading, isPaused, state.modalContent, state.resumeCountdown, powerHint, zeldaReady, hintLevel]);
   // Skill Shot (v7.42): on the level's first word, one tile in the hand is lit. If the lit tile
   // leaves (a shuffle), another lights. The pick is seeded, so a Daily Run lights the same tile.
   // Only on a level reached in this run: a new run's opening hand never has one, and every run starts its streak at zero.

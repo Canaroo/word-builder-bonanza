@@ -1445,3 +1445,11 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .cab-stars, .cab-grid, .cab-marquee::before, .press-start-pulse { animation: none !important; }
 }
+
+/* v7.91.0: a notice the player was just told about flashes after the heads-up card's OK. */
+.notice-flash { animation: notice-flash 0.7s ease-in-out 6; position: relative; z-index: 1; }
+@keyframes notice-flash {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 210, 63, 0); }
+  50% { transform: scale(1.04); box-shadow: 0 0 0 3px rgba(255, 210, 63, .95), 0 0 24px 6px rgba(255, 210, 63, .6); }
+}
+@media (prefers-reduced-motion: reduce) { .notice-flash { animation: none; box-shadow: 0 0 0 3px rgba(255, 210, 63, .95); } }

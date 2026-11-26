@@ -752,6 +752,14 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   whose play would complete a record adds big news first in line: "📀 TEA GOES GOLD: +500!"
   (`hitIfPlayed`). The strip chip (`hits-chip`) is a size larger. An open record only counts words still
   short of it. Tests in `hitsBoard.test.ts`.
+- **Heads-up cards (v7.91.0, the owner's ask: players never noticed the power word hint or Ask Zelda up
+  at the top of the board).** The first time each appears in a level, a small `heads-up` modal says so and
+  waits for OK (it pauses the clock and gets the 1 s tap guard like any auto-opened card): "⚡ POWER WORD
+  IN THIS HAND!" with the word's length and prize, or "🔺 ZELDA CAN HELP THIS LEVEL!". OK flashes the
+  matching notice (`noticeFlash` in `GameScreenView`, `NoticeRail`'s `flash` prop, `.notice-flash`, a gold
+  pulse for about 4 s, still under reduced motion) and brings it to the front. Once a level each, kept in
+  `gameState.headsUp` (`power`, `zelda` → level) so a resumed run doesn't repeat it; never in a Golden Round
+  or over another card (it waits). Browser-checked at 390x844 and 360x640: clock 50 → 50 while open.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
