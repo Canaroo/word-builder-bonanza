@@ -769,7 +769,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   the store (Chrome 8, Holo 6, Static 7, Rewind 7 s) and scratch-offs (`SCRATCH.weights.tile` 0.8, one a
   ticket, only with room). `landCollectors` (in `START_NEXT_ROUND`, after gems) puts each owned tile that
   isn't in play onto a plain tile: a fresh one always, then `returnChance` (50%) a hand, rolled with
-  `tileRoll`. Tiles show a corner icon and a colored ring (`.tile-collector-*`); each kind explains itself the
+  `tileRoll`. Tiles show a corner icon and, since v7.96.3 (the owner's ask: the icon alone got lost), a thick
+  frame of their own around the keycap and its base (`.collector-frame`, `.collector-<kind>` in `index.css`, a span in
+  `Tile.tsx`): Chrome polished silver, Holo a shifting rainbow, Static cyan TV-snow stripes, Rewind VHS orange, each
+  with a soft glow. Chrome's shine sweep runs on an inner layer (`innerGlimmer`), since `glimmer-effect` clips
+  everything outside the tile; `.tile-key::after` is the keycap grain, so don't use it for frames. Each kind explains itself the
   first time (heads-up card). `drawTiles` skips a stray "?" in the bag. How to Play has a "The Video Store"
   section; the tour's step 4 has Video Store and Genres flip cards.
 - **Score pop after each word (v7.94.1, the owner's call; replaced v7.94.0's line-by-line tally, which took
