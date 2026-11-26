@@ -45,7 +45,7 @@ import ModalTapGuard, { GUARDLESS_MODALS } from '../../components/ModalTapGuard'
 import { POWER_PLAY_VALUES } from '../../config/gameplay';
 
 export type ModalContent = {
-  type: 'milestone' | 'blue-steel' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'scratch' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack' | 'triforce' | 'gear';
+  type: 'milestone' | 'blue-steel' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'scratch' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack' | 'triforce' | 'gear' | 'heads-up';
   title: string;
   content?: React.ReactNode;
   data?: any;
@@ -142,10 +142,18 @@ const NOTICE_TONES: Record<Notice['tone'], { box: string; title: string; btn: st
  * button when it does something); dots flip between several. A new notice jumps to the front and
  * pulses once.
  */
-const NoticeRail: React.FC<{ notices: Notice[] }> = ({ notices }) => {
+const NoticeRail: React.FC<{ notices: Notice[]; flash?: { id: string; key: number } | null }> = ({ notices, flash }) => {
   const [pick, setPick] = useState<string | null>(null);
   const seen = useRef<Set<string>>(new Set());
   const [fresh, setFresh] = useState<string | null>(null);
+  // v7.91.0: after a heads-up card's OK, its notice jumps to the front and flashes for a few seconds.
+  const [flashing, setFlashing] = useState<string | null>(null);
+  useEffect(() => {
+    if (!flash) return;
+    setPick(flash.id); setFlashing(flash.id);
+    const t = setTimeout(() => setFlashing(f => (f === flash.id ? null : f)), 4200);
+    return () => clearTimeout(t);
+  }, [flash?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const added = notices.find(n => !seen.current.has(n.id));
     notices.forEach(n => seen.current.add(n.id));
@@ -164,7 +172,7 @@ const NoticeRail: React.FC<{ notices: Notice[] }> = ({ notices }) => {
       {n.action && <span className={`shrink-0 osd-text text-base leading-none rounded-md px-2 py-1.5 ${tone.btn}`}>{n.action}</span>}
     </>
   );
-  const cls = `w-full flex items-center gap-2 rounded-xl ring-1 px-2 py-1.5 ${tone.box} ${fresh === n.id ? 'notice-new' : ''}`;
+  const cls = `w-full flex items-center gap-2 rounded-xl ring-1 px-2 py-1.5 ${tone.box} ${flashing === n.id ? 'notice-flash' : fresh === n.id ? 'notice-new' : ''}`;
   return (
     <div>
       {n.onTap
@@ -386,6 +394,8 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     }, [modalContent]);
     // v7.61.0: power word hint: the prize on the chip, and (after a tap) the tiles that spell it lit.
     const [powerLitWord, setPowerLitWord] = React.useState('');
+    // v7.91.0: which notice to flash after a heads-up card's OK.
+    const [noticeFlash, setNoticeFlash] = React.useState<{ id: string; key: number } | null>(null);
     const powerLit = !!powerHint?.word && powerLitWord === powerHint.word;
     const powerPrize = powerHint?.effect ? powerWordInfo(powerHint.effect as any).prize : 'A BONUS';
     const powerLitIds = React.useMemo(() => {
@@ -669,6 +679,21 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     bet={typeof (data?.saved as Record<string, unknown> | undefined)?.fjBet === 'number' ? (data!.saved as Record<string, number>).fjBet : undefined}
                     onBet={b => dispatch({ type: 'SET_GAMBLE_STATE', payload: { key: 'fjBet', value: b } })}
                     onDone={r => handleLastWords?.(r)} />;
+
+            case 'heads-up':
+                // v7.91.0: a small "look here" card for the power word hint and Ask Zelda; OK flashes the notice.
+                return (
+                    <div className="absolute inset-0 z-50 bg-crt-950/70 flex items-center justify-center p-5 animate-fade-in" role="dialog" aria-modal="true" aria-label={data?.headline}>
+                        <div className="w-full max-w-xs rounded-2xl bg-crt-900 ring-2 ring-neon-yellow shadow-[0_0_28px_rgba(255,210,63,0.45)] p-4 text-center flex flex-col items-center gap-2 bonus-insert" data-testid="heads-up">
+                            <div className="text-4xl leading-none" aria-hidden="true">{data?.icon}</div>
+                            <h2 className="font-display text-xl leading-tight text-neon-yellow text-balance">{data?.headline}</h2>
+                            <p className="text-slate-100 text-[15px] leading-snug">{data?.text}</p>
+                            <p className="text-neon-cyan text-sm leading-snug">{data?.next}</p>
+                            <ArcadeButton color="yellow" className="w-full mt-1" data-testid="heads-up-ok"
+                                onClick={() => { const id = data?.notice; handleCloseModal(); if (id) setNoticeFlash({ id, key: Date.now() }); }}>OK</ArcadeButton>
+                        </div>
+                    </div>
+                );
 
             case 'outcome':
                 return <OutcomeCard name={title} detail={typeof content === 'string' ? content : undefined} data={data} onClose={handleCloseModal} />;
@@ -1399,7 +1424,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
               });
               return (
                 <div className="relative z-10 flex-shrink-0 flex flex-col gap-1.5 mt-1 [@media(max-height:700px)]:gap-1 [@media(max-height:700px)]:mt-0.5" data-testid="notice-rail">
-                  {notices.length > 0 && <NoticeRail notices={notices} />}
+                  {notices.length > 0 && <NoticeRail notices={notices} flash={noticeFlash} />}
           {(holdOpen || speedChip) && (
             <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
               {holdOpen && (

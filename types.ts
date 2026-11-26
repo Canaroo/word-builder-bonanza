@@ -356,6 +356,8 @@ export interface GameState {
   triforceWish?: boolean;
   /** Fragile charms that shattered this run (never offered again). */
   shatteredCharms?: string[];
+  /** v7.91.0: the level each heads-up card (power word, Ask Zelda) was last shown on, so it shows once a level. */
+  headsUp?: Record<string, number>;
   /** v7.87.0: valid words each fragile charm has lasted (by id); it breaks at FRAGILE.lifeWords. */
   fragileWords?: Record<string, number>;
   /** Major Award: valid words played since it was equipped. */
