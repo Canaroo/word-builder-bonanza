@@ -769,17 +769,16 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   `tileRoll`. Tiles show a corner icon and a colored ring (`.tile-collector-*`); each kind explains itself the
   first time (heads-up card). `drawTiles` skips a stray "?" in the bag. How to Play has a "The Video Store"
   section; the tour's step 4 has Video Store and Genres flip cards.
-- **Score count-up (v7.94.0, the owner's pick: full tally, clock paused):** after every word the stage
-  shows a tally card (`ScoreTally` in `GameScreenView.tsx`, `score-tally`): the word, TILES (the letters'
-  own points, `landed.tiles`), then each score line pops in every 320 ms with a rising note (`tallyLines`
-  reads "+N pts", "xN" or "+N sec" from the line's description and skips labels; at most 6, then "+ N more
-  boosts"), the big number climbs to the word's real total and slams in, holds 0.9 s and closes itself.
-  Only lines inside the word's total are shown (`tallyLineCount`: secrets and milestones pay on their own
-  cards). While it plays the clock waits (`tallying` in `GameScreen`, set through `onTally`) and a cover
-  over the tiles reads "⏸ CLOCK PAUSED · TAP TO SKIP" (`tally-skip`; a tap jumps to the total). It waits
-  for any card the word opened, never replays (`tallyDoneKey`), and stage messages hide under it. About
-  1.5-3 s a word. Reduced motion shows the total at once. Browser-checked at 390x844 and 360x640: PATRONS
-  9 → x2.5 → +23 with the clock held at 59. Tests in `components/__tests__/scoreTally.test.ts`.
+- **Score pop after each word (v7.94.1, the owner's call; replaced v7.94.0's line-by-line tally, which took
+  too long and went by too fast to read):** the stage shows the BASE while spelling; after Submit a quick
+  pop (`ScoreTally` in `GameScreenView.tsx`, `score-tally`, `landed-pop`) shows the word, then the big
+  number rolls from that BASE to the real total in `LANDED_ROLL_MS` (550 ms, eased, ticking notes; `rollValue`),
+  slams in, holds `LANDED_HOLD_MS` (1.4 s) and fades. When boosts changed it, "BASE 35 → +85" shows under
+  it (`landed-breakdown`); the full breakdown is in 🎒 Gear → Event log. The clock waits while it shows
+  (`tallying` via `onTally`), a cover over the tiles says "⏸ TAP TO SKIP" (`tally-skip`), it waits for any
+  card the word opened and never replays (`tallyDoneKey`). Reduced motion skips the roll. Browser-checked:
+  GRAVITY with Epics ★2 rolled 35 → 56 → 85 and held 1.4 s with the clock at 29. Tests in
+  `components/__tests__/scoreTally.test.ts`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
