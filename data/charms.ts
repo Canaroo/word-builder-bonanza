@@ -185,7 +185,7 @@ export const CHARMS_LIST: Charm[] = [
     activate: createPassiveBuff('millenniumFalcon')
   },
   {
-    // v7.69.0: was named Triforce of Courage (the name now belongs to a fragile charm). Id kept.
+    // v7.69.0: was named Triforce of Courage. Id kept for stats and saves.
     id: 'triforceOfCourage',
     name: 'Master Sword',
     description: `Words with a Z, X, or Q earn +${CHARM_BONUS.triforceOfCourage} points.`,

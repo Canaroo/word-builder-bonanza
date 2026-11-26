@@ -1,7 +1,7 @@
 
 import { PowerPlay, GameState, EventLogEntry } from '../types';
 import { labelize } from '../services/durationTags';
-import { TIME_BONUS, POWER_PLAY_VALUES , TRIFORCE } from '../config/gameplay';
+import { TIME_BONUS, POWER_PLAY_VALUES } from '../config/gameplay';
 import { tamagotchiPot, dailyDoubleWager, levelFor, prizeFor, jengaPot } from '../services/rules';
 
 // The 'activate' function is for declaring the state change that should happen upon activation.
@@ -1242,7 +1242,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
     id: 'luckyCharms',
     name: 'Lucky Charms',
     description: `Equips a random charm now, even a trade-off one.`,
-    finePrint: `With full slots it replaces a random charm. ${Math.round(TRIFORCE.luckyChance * 100)}% of the time a Triforce shard falls out instead (no slot needed).`,
+    finePrint: 'With full slots it replaces a random charm.',
     flavorText: "They're always after me Lucky Charms!",
     icon: '🍀',
     subtheme: 'utility',

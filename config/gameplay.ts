@@ -351,29 +351,9 @@ export const POWER_PLAY_VALUES = {
 };
 
 // Seconds from the time PowerPlays and charms (before the bonus-time rules above).
-// Fragile charms (v7.69.0, the owner's idea and picks): three Triforce pieces, each built from 3
-// shards collected from charm offers. A shard does nothing on its own and needs no charm slot; a
-// finished piece sits on the Triforce shelf (no slot either). The nudge, like charm-set pieces: a
-// charm offer swaps its last card for a shard of an unstarted piece `firstChance` of the time, and
-// for the next shard of a started piece `nextChance` of the time. Simulated with the real run
-// lengths: one piece is finished in 31% of median runs (5 charm offers), 67% with 8, 82-90% with 10+.
-export const TRIFORCE = {
-  shards: 3,
-  firstChance: 0.3,
-  nextChance: 0.4,
-  powerMultiplier: 1.5,     // Power: every word x1.5, charm points included
-  wisdomMinLetters: 4,      // Wisdom (v7.72.0): once a level, Zelda places the longest word of this many letters or more
-  courageSeconds: 15,       // Courage: once a level, the clock hitting 0 gives this (v7.72.2: a fixed amount, no level shrink)
-  wishPoints: 5000,         // all three pieces in one run
-  // v7.69.1 (the owner's picks): shards also come from scratch-off tickets and Lucky Charms.
-  scratchWeight: 0.6,       // weight of a shard square (points 3, time 2...): about 1 ticket in 3 has one; max 1 a ticket
-  luckyChance: 0.25,        // Lucky Charms: a shard falls out instead of a charm
-  badgeId: 'b_heroOfTime',
-} as const;
-
 // Fragile charms (v7.70.0, the owner's design, after Hollow Knight's): very strong charms that
 // shatter for the rest of the run on ANY invalid word or strike. Nothing protects them (shields,
-// Plot Armor, the Triforce of Courage, Chubbs, Happy Little Accidents), so strong players can't
+// Plot Armor, Chubbs, Happy Little Accidents), so strong players can't
 // cheese them, and every fragile charm held breaks together.
 export const FRAGILE = {
   // v7.87.0 (the owner's call: too strong to keep all run): every fragile charm breaks after this many

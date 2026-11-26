@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
 import type { Charm, GameState, PowerPlay } from '../types';
-import { CHARM_BONUS, CHARM_SLOTS, TRIFORCE } from '../config/gameplay';
+import { CHARM_BONUS, CHARM_SLOTS } from '../config/gameplay';
 import { CHARMS_LIST, CHARM_TIME_SECONDS, UPGRADABLE_CHARM_IDS } from '../data/charms';
 import { CHARM_SETS, setPayFor } from '../data/charmSets';
-import { TRIFORCE_IDS, TRIFORCE_PIECES, shardsOf, triforceDone, anyShards } from '../data/triforce';
 import { clockSpeedFor, prizeScaleFor, wordTimeScaleFor } from '../services/rules';
-import TriforceEmblem from './TriforceEmblem';
 import { hitsBoard } from '../services/greatestHits';
 import { GREATEST_HITS } from '../config/gameplay';
 import ArcadeButton from './ArcadeButton';
 
 // "Your Gear" (v7.71.0, the owner's idea): an old-school RPG menu with everything the run is
 // carrying in one place: charms (and what each has earned this run), the pocket PowerPlay (usable
-// from here), running effects, charm sets, the Triforce and a run summary. Tap anything and the box
+// from here), running effects, charm sets and a run summary. Tap anything and the box
 // at the bottom explains it. The game is paused and the board is covered while it's open.
 
 const plainQuotes = (s: string) => s.replace(/[‘’]/g, "'");
@@ -136,7 +134,6 @@ const GearMenu: React.FC<{
     gs.activePowerPlays?.plotArmor && '🎬 Plot Armor: your next strike costs 150 points instead',
     gs.activePowerPlays?.chubbsPepTalk && "💪 Chubbs' Pep Talk erases your next strike",
     gs.activePowerPlays?.rewind && '⏪ Turn Back Time erases your next strike',
-    triforceDone(gs, 'courage') && gs.courageLevel !== level && '🔺 Triforce of Courage is ready this level',
   ].filter(Boolean) as string[];
   const fragile = charms.filter(c => c.breaks);
 
@@ -255,25 +252,6 @@ const GearMenu: React.FC<{
           );
         })()}
 
-        <Box title="TRIFORCE SHARDS">
-          {!anyShards(gs) ? (
-            <Row selected={sel === 'tri'} icon="🔺" label="No shards yet" dim
-              onClick={() => choose('tri', { icon: '🔺', name: 'Triforce shards', text: `Some charm offers, scratch-off tickets and Lucky Charms hold a shard. Collect ${TRIFORCE.shards} to assemble a piece. Shards never use a charm slot. All three pieces in one run: +${TRIFORCE.wishPoints.toLocaleString()}.` })} />
-          ) : (
-            <div className="flex items-center gap-2">
-              <TriforceEmblem triforce={gs.triforce} size={64} />
-              <div className="flex-1 min-w-0">
-                {TRIFORCE_IDS.map(id => {
-                  const done = triforceDone(gs, id);
-                  return (
-                    <Row key={id} selected={sel === `tri-${id}`} icon="🔺" label={TRIFORCE_PIECES[id].name.replace('Triforce of ', '')} right={done ? '✓' : `${shardsOf(gs, id)}/${TRIFORCE.shards}`} dim={!done && shardsOf(gs, id) === 0}
-                      onClick={() => choose(`tri-${id}`, { icon: '🔺', name: TRIFORCE_PIECES[id].name, tag: !done ? `${shardsOf(gs, id)} of ${TRIFORCE.shards} shards` : id === 'wisdom' ? (gs.wisdomLevel === level ? 'Used this level' : 'Ready: tap ASK ZELDA') : 'Active', text: TRIFORCE_PIECES[id].does, flavor: TRIFORCE_PIECES[id].flavor })} />
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </Box>
         {trophies && trophies.length > 0 && (
           <Box title="TROPHIES" right={`${trophies.filter(t => t.unlocked).length}/${trophies.length}`}>
             <div className="flex flex-wrap gap-2 pt-0.5" data-testid="gear-trophies">
@@ -296,7 +274,7 @@ const GearMenu: React.FC<{
             {pick.flavor && <p className="text-xs italic text-slate-400 mt-1">"{pick.flavor}"</p>}
           </>
         ) : (
-          <p className="text-sm text-slate-300 leading-snug">▶ Tap a charm, PowerPlay, set or shard to read what it does and what it has earned you this run.</p>
+          <p className="text-sm text-slate-300 leading-snug">▶ Tap a charm, PowerPlay or set to read what it does and what it has earned you this run.</p>
         )}
       </div>
     </div>
