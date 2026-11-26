@@ -1,3 +1,4 @@
+import { assignTilesToWord } from '../rackMatch';
 import { Sec, withSec } from '../../components/Seconds';
 import EndRunCard from '../../components/EndRunCard';
 import TriforceEmblem from '../../components/TriforceEmblem';
@@ -401,11 +402,11 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     const powerLitIds = React.useMemo(() => {
       const ids = new Set<string>();
       if (!powerLit || !powerHint?.word) return ids;
+      // v7.91.1: the same matcher the game uses to spell words, so a combo tile (QU, ING...) lights
+      // as one tile instead of leaving those letters dark (it used to match single letters only).
       const pool = [...(hand ?? []), ...(buildRow ?? []).map(i => i?.tile)].filter((t): t is Tile => !!t);
-      for (const letter of powerHint.word) {
-        const t = pool.find(x => x.letter.toUpperCase() === letter && !ids.has(x.id));
-        if (t) ids.add(t.id);
-      }
+      const picked = assignTilesToWord(powerHint.word, pool.map(t => t.letter.toUpperCase()));
+      (picked ?? []).forEach(i => ids.add(pool[i].id));
       return ids;
     }, [powerLit, powerHint?.word, hand, buildRow]);
     // v7.66.0: I Feel the Need… for Speed: the streak, so the player knows it's counting.
@@ -1464,7 +1465,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 {placed.map(item => (
                   <div key={item.tile.id} className="tile-land stage-tile shrink-0" style={{ width: tileW }}>
                     <div className="w-full aspect-[1/1.08]">
-                      <TileComponent tile={item.tile} onClick={() => handleReturnToHand(item.index)} packTileClass={tileClass} isGolden={item.tile.id === gameState?.goldenTileId} skillShot={item.tile.id === skillShotTileId ? skillShotPrize : undefined} />
+                      <TileComponent tile={item.tile} onClick={() => handleReturnToHand(item.index)} packTileClass={tileClass} isGolden={item.tile.id === gameState?.goldenTileId} skillShot={item.tile.id === skillShotTileId ? skillShotPrize : undefined} powerLit={powerLitIds.has(item.tile.id)} />
                     </div>
                   </div>
                 ))}
