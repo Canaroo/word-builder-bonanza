@@ -117,3 +117,21 @@ export const dealShelf = (opts: {
   if (poster) shelf.push({ kind: 'poster', id: poster.id, price: VIDEO_STORE.prices.poster });
   return shelf;
 };
+
+/**
+ * v7.96.2 (the owner's ask): what a genre has paid this run, for the Gear menu. Reads the genre's score
+ * lines ("🎬 Sequels ★2", "+60 pts ...") on valid words in the log.
+ */
+export const genreEarned = (log: GameState['log'], g: Pick<Genre, 'icon' | 'name'>): { points: number; words: number } => {
+  let points = 0, words = 0;
+  const prefix = `${g.icon} ${g.name} ★`;
+  for (const e of log) {
+    if (e.type !== 'word' || e.status !== 'valid') continue;
+    for (const b of (e as { bonuses?: { name: string; description: string }[] }).bonuses ?? []) {
+      if (!String(b.name).startsWith(prefix)) continue;
+      const m = String(b.description).match(/\+([\d,]+)\s*pts/);
+      if (m) { points += Number(m[1].replace(/,/g, '')); words++; }
+    }
+  }
+  return { points, words };
+};

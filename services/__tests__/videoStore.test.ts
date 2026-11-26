@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { gameReducer, screenInitialState, storeShelf, landCollectors, type GameScreenState } from '../screens/GameScreen';
-import { GENRES, genresFor, genrePay, countGenrePlays, earlierKeys, letterKey, storeOpensAt, restockCost, canAfford, tradeInValue, dealShelf } from '../../data/videoStore';
+import { GENRES, genreEarned, genresFor, genrePay, countGenrePlays, earlierKeys, letterKey, storeOpensAt, restockCost, canAfford, tradeInValue, dealShelf } from '../../data/videoStore';
 import { VIDEO_STORE, GENRE_VALUES, COLLECTOR, CHARM_SLOTS } from '../../config/gameplay';
 import { CHARMS_LIST } from '../../data/charms';
 import { POWER_PLAYS_LIST, INSTANT_POWER_PLAY_IDS, TIME_CARD_IDS } from '../../data/powerPlays';
@@ -40,6 +40,16 @@ describe('genres (v7.96.0)', () => {
     const log = [{ type: 'word', word: 'tab', status: 'valid' }, { type: 'word', word: 'xyz', status: 'invalid' }] as never;
     expect(earlierKeys(log).has(letterKey('BAT'))).toBe(true);
     expect(earlierKeys(log).has(letterKey('XYZ'))).toBe(false);
+  });
+  it('Gear adds up what a genre has paid this run (v7.96.2)', () => {
+    const log = [
+      { type: 'word', word: 'gravity', status: 'valid', bonuses: [{ name: '🎞️ Epics ★2', description: '+50 pts (6 or more letters)' }, { name: '🦇 Cult Classics ★1', description: '+25 pts (x)' }] },
+      { type: 'word', word: 'planets', status: 'valid', bonuses: [{ name: '🎞️ Epics ★2', description: '+50 pts (6 or more letters)' }] },
+      { type: 'word', word: 'zzzzzz', status: 'invalid', bonuses: [{ name: '🎞️ Epics ★2', description: '+50 pts' }] },
+    ] as never;
+    expect(genreEarned(log, GENRES.find(g => g.id === 'epics')!)).toEqual({ points: 100, words: 2 });
+    expect(genreEarned(log, GENRES.find(g => g.id === 'cult')!)).toEqual({ points: 25, words: 1 });
+    expect(genreEarned(log, GENRES.find(g => g.id === 'shorts')!)).toEqual({ points: 0, words: 0 });
   });
   it('every genre has a value and a play count', () => {
     for (const g of GENRES) { expect(GENRE_VALUES.perStar[g.id]).toBeGreaterThan(0); expect(GENRE_VALUES.playsPerStar[g.id]).toBeGreaterThan(0); }
