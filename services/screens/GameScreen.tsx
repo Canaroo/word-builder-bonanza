@@ -3896,6 +3896,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     }
   }, [state.modalContent, dispatch]);
   
+  // Real time already spent toward the next clock tick, kept across restarts of the clock effect below.
+  const tickCarry = useRef(0);
   useEffect(() => {
       // Apply guards for pause, load, a backgrounded app, or special rounds/power-ups that stop time.
       if (!isVisible || isPaused || isLoading || (state.resumeCountdown ?? 0) > 0 || gameState?.activePowerPlays?.leafOnTheWind) return;
@@ -4014,11 +4016,22 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       // ⏪ REWIND (a power word) runs this level's clock at the previous level's speed.
       const clockLevel = levelFor(totalWords) - (gameState.rewindLevel === levelFor(totalWords) ? 1 : 0);
       const tickMs = frozen ? 1000 : gameState.roundType === 'golden' ? 1000 : tickMsFor(Math.max(1, clockLevel)) * slow;
-      const interval = setInterval(() => {
+      // v7.90.2 (a player's report: tapping a tile in and out over and over stopped the clock): this effect
+      // restarts whenever the game state changes, and a plain setInterval restarted the full tick every
+      // time, so moves faster than one a tick meant the clock never ticked. The time already spent toward
+      // the next tick is carried over (tickCarry), so a restart never pushes a tick later than it was due.
+      let last = performance.now();
+      let timer = setTimeout(function fire() {
           dispatch(frozen ? { type: 'TICK_FREEZE' } : { type: 'TICK_TIMER', ms: tickMs });
-      }, tickMs);
+          tickCarry.current = 0;
+          last = performance.now();
+          timer = setTimeout(fire, tickMs);
+      }, Math.max(0, tickMs - tickCarry.current));
 
-      return () => clearInterval(interval);
+      return () => {
+          clearTimeout(timer);
+          tickCarry.current = Math.min(tickMs, tickCarry.current + (performance.now() - last));
+      };
   }, [gameState, time, onGameOver, isPaused, isLoading, isVisible, showMessage, maxStrikes, endGoldenRound, totalWords]);
   
   // First time a player's clock runs low (ever), point them at the Shuffle lifeline.
