@@ -196,21 +196,79 @@ const NoticeRail: React.FC<{ notices: Notice[]; flash?: { id: string; key: numbe
  * the base and what the boosts added (Combo x2, upgrades, multipliers, charms...). It fades on its own
  * after 2.6 s and disappears the moment the next tile is placed.
  */
-const LandedPop: React.FC<{ word: string; total: number; base: number; onShown: (v: boolean) => void }> = ({ word, total, base, onShown }) => {
+/**
+ * v7.94.0 (the owner's call): after each word the score counts up on the stage while the clock waits.
+ * BASE first, then every boost line pops in (with a rising note) while the big number climbs, then the
+ * total slams down. It ends on its own after a short hold; a tap anywhere skips to the total. Only lines
+ * that read as points, a multiplier or seconds are shown (the rest are labels), at most TALLY_MAX_LINES.
+ */
+const TALLY_MAX_LINES = 6;
+const TALLY_STEP_MS = 320;
+const TALLY_HOLD_MS = 900;
+export const tallyLines = (lines: { name: string; d: string }[] = []): { name: string; chip: string; tone: 'pts' | 'neg' | 'mult' | 'sec' }[] => {
+  const out: { name: string; chip: string; tone: 'pts' | 'neg' | 'mult' | 'sec' }[] = [];
+  for (const l of lines) {
+    const pts = l.d.match(/(?:^|\s|\()([+\-\u2212])\s?([\d,]+)\s*pts/i);
+    const mult = l.d.match(/(?:^|\s|\()x(\d+(?:\.\d+)?)/i);
+    const sec = l.d.match(/\+(\d+)\s*(?:s\b|sec)/i);
+    if (pts) out.push({ name: l.name, chip: `${pts[1] === '+' ? '+' : '−'}${pts[2]}`, tone: pts[1] === '+' ? 'pts' : 'neg' });
+    else if (mult) out.push({ name: l.name, chip: `x${mult[1]}`, tone: 'mult' });
+    else if (sec) out.push({ name: l.name, chip: `+${sec[1]} sec`, tone: 'sec' });
+  }
+  return out;
+};
+const ScoreTally: React.FC<{ word: string; total: number; base: number; tiles?: number; lines?: { name: string; d: string }[]; skip: number; onShown: (v: boolean) => void; onDone: () => void }> = ({ word, total, base, tiles, lines, skip, onShown, onDone }) => {
+  // The count starts from the letters' own points, so every line visibly builds the total.
+  const start = Math.max(0, Math.min(tiles ?? base, total));
+  const shown = React.useMemo(() => tallyLines(lines), [lines]);
+  const visible = shown.slice(0, TALLY_MAX_LINES);
+  const extra = shown.length - visible.length;
+  const steps = visible.length;
+  const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const [step, setStep] = useState(reduce ? steps + 1 : 0); // 0 = base only, 1..steps = lines, steps+1 = total
   const [gone, setGone] = useState(false);
-  useEffect(() => { onShown(true); const t = setTimeout(() => { setGone(true); onShown(false); }, 2600); return () => { clearTimeout(t); onShown(false); }; }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onShown(true); return () => onShown(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (step > steps) return;
+    const t = setTimeout(() => { setStep(s => s + 1); }, step === 0 ? 420 : TALLY_STEP_MS);
+    return () => clearTimeout(t);
+  }, [step, steps]);
+  useEffect(() => {
+    if (step === 0) return;
+    if (step <= steps) soundService.playTilePlace(step - 1);
+    else if (total > start) soundService.playShimmer();
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (step <= steps) return;
+    const t = setTimeout(() => { setGone(true); onShown(false); onDone(); }, TALLY_HOLD_MS);
+    return () => clearTimeout(t);
+  }, [step, steps]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A tap on the cover skips straight to the total (and then a short hold).
+  useEffect(() => { if (skip > 0 && step <= steps) setStep(steps + 1); }, [skip]); // eslint-disable-line react-hooks/exhaustive-deps
   if (gone) return null;
-  const diff = total - base;
+  const done = step > steps;
+  const running = done ? total : Math.round(start + (total - start) * (steps ? Math.min(step, steps) / (steps + 1) : 0));
+  const toneCls = { pts: 'text-neon-yellow', neg: 'text-neon-red', mult: 'text-neon-pink', sec: 'text-neon-cyan' } as const;
   return (
-    <div className="absolute inset-x-0 top-[18%] flex justify-center pointer-events-none z-20" role="status" aria-live="polite" data-testid="landed-pop">
-      <div className="landed-pop text-center">
+    <div className="absolute inset-0 z-20 flex items-center justify-center px-3 pointer-events-none" role="status" aria-live="polite" data-testid="score-tally">
+      <div className="w-full max-w-[19rem] rounded-2xl bg-crt-950/95 ring-2 ring-neon-cyan/60 shadow-[0_0_26px_rgba(34,228,255,0.25)] px-4 py-3 text-center">
         <div className="osd-text text-xl leading-none text-slate-300 tracking-widest">{word.toUpperCase()}</div>
-        <div className={`font-display text-5xl leading-none mt-1 ${total > 0 ? 'text-neon-green drop-shadow-[0_0_14px_rgba(61,255,140,0.7)]' : 'text-slate-400'}`}>+{total.toLocaleString()}</div>
-        {diff !== 0 && (
-          <div className="osd-text text-lg leading-none mt-1.5 text-slate-200" data-testid="landed-breakdown">
-            BASE {base.toLocaleString()} · <span className={diff > 0 ? 'text-neon-yellow' : 'text-neon-red'}>BOOSTS {diff > 0 ? '+' : '−'}{Math.abs(diff).toLocaleString()}</span>
-          </div>
-        )}
+        <div className="flex items-center justify-between mt-2 osd-text text-lg leading-none text-slate-200" data-testid="tally-base">
+          <span>TILES</span><span className="font-tile text-white">{start.toLocaleString()}</span>
+        </div>
+        <div className="mt-1 flex flex-col gap-1" data-testid="tally-lines">
+          {visible.slice(0, Math.min(step, steps)).map((l, i) => (
+            <div key={i} className="flex items-center justify-between gap-2 text-[13px] leading-tight tally-line">
+              <span className="truncate text-left text-slate-100">{l.name}</span>
+              <span className={`shrink-0 osd-text text-lg leading-none ${toneCls[l.tone]}`}>{l.chip}</span>
+            </div>
+          ))}
+          {done && extra > 0 && <div className="text-[12px] text-slate-400 text-left">+ {extra} more {extra === 1 ? 'boost' : 'boosts'}</div>}
+        </div>
+        <div className={`font-display leading-none mt-2 tabular-nums ${done ? 'text-5xl tally-slam' : 'text-4xl'} ${total > 0 ? 'text-neon-green drop-shadow-[0_0_14px_rgba(61,255,140,0.7)]' : 'text-slate-400'}`} data-testid="tally-total">
+          +{running.toLocaleString()}
+        </div>
+        {done && total !== base && <div className="osd-text text-base leading-none mt-1 text-slate-300" data-testid="landed-breakdown">BASE {base.toLocaleString()} · BOOSTS {total - base > 0 ? '+' : '−'}{Math.abs(total - base).toLocaleString()}</div>}
       </div>
     </div>
   );
@@ -288,7 +346,9 @@ export interface GameScreenViewProps {
   totalWords: number;
   potentialScore: number;
   /** v7.85.0: the score the last word really earned (and its base), popped on the stage after submit. */
-  landed?: { word: string; total: number; base: number; key: number } | null;
+  landed?: { word: string; total: number; base: number; key: number; tiles?: number; lines?: { name: string; d: string }[] } | null;
+  /** v7.94.0: tells the game the score count-up is playing, so the clock waits. */
+  onTally?: (on: boolean) => void;
   maxStrikes: number;
   challengeButtonText: string;
   tileClass: string;
@@ -340,9 +400,13 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     handleMoveToBuild, handleReturnToHand, handleShuffle, handleSubmit, handleClear,
     handleChallenge, handleSaveClick, handleConfirmSave, handleEndRun, endRun, onLostSave, showBuffInfo,
     handleActivatePowerPlay, handleActivateCharm, handleChoosePowerPlay, handleChooseCharm, handlePassCharm, handleUpgradeCharm, handleKeepPowerPlay,
-    handleAddTileToSwap, handleRemoveTileFromSwap, handleExecuteSwap, dispatch, landed = null
+    handleAddTileToSwap, handleRemoveTileFromSwap, handleExecuteSwap, dispatch, landed = null, onTally
 }) => {
     const [landedShown, setLandedShown] = useState(false);
+    // v7.94.0: the count-up runs while landedShown; the clock waits and a tap on the cover skips it.
+    const [tallySkip, setTallySkip] = useState(0);
+    const [tallyDoneKey, setTallyDoneKey] = useState(0);
+    useEffect(() => { onTally?.(landedShown); }, [landedShown]); // eslint-disable-line react-hooks/exhaustive-deps
     const skillShotPrize = skillShotPoints((gameState?.skillShot?.streak ?? 0) + 1);
     const timerRef = useRef<HTMLDivElement>(null);
     // Bird Box (v7.28): new tiles show their letters for a few seconds, then flip face down.
@@ -1454,10 +1518,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             <div className="stage-body relative flex-1 min-h-0 flex flex-col items-center gap-2 [@media(max-height:700px)]:gap-1">
               {/* The pop waits for any card the word opened (a PowerPlay offer, a level-up...) to close, so it plays
                   where the player can see it; after 30 s it's old news and is skipped. */}
-              {n === 0 && landed && !modalContent && !isPaused && Date.now() - landed.key < 30000 && <LandedPop key={landed.key} {...landed} onShown={setLandedShown} />}
+              {n === 0 && landed && tallyDoneKey !== landed.key && !modalContent && !isPaused && Date.now() - landed.key < 30000 && <ScoreTally key={landed.key} {...landed} skip={tallySkip} onShown={setLandedShown} onDone={() => setTallyDoneKey(landed.key)} />}
               {/* v7.83.0: a message never covers the word. With an empty word row it sits in the middle of the
                   stage; while you're spelling it sits under the word's chips instead (see below). */}
-              {message && n === 0 && (
+              {message && n === 0 && !landedShown && (
                 <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center pointer-events-none z-20" role="status" aria-live="polite">
                   <div key={message} className="message-pop max-w-full px-3 py-1.5 rounded-lg bg-crt-950/95 ring-1 ring-neon-cyan/60 shadow-glow-cyan osd-text text-xl leading-tight text-neon-cyan text-center whitespace-pre-line">
                     {withSec(message ?? '')}
@@ -1531,6 +1595,13 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
       {/* --- PLAY AREA (always visible) --- */}
       <div className="relative flex-shrink-0 flex flex-col gap-2 w-full max-w-sm mx-auto">
+                {landedShown && (
+                  <button type="button" data-testid="tally-skip" aria-label="Skip the score count"
+                    onPointerDown={(e) => { e.preventDefault(); setTallySkip(k => k + 1); }}
+                    className="absolute inset-0 z-30 rounded-xl bg-crt-950/85 backdrop-blur-[2px] flex items-center justify-center">
+                    <span className="px-4 py-1.5 rounded-full bg-crt-900 ring-1 ring-neon-cyan/60 osd-text text-xl leading-none text-neon-cyan tracking-widest animate-pulse">⏸ CLOCK PAUSED · TAP TO SKIP</span>
+                  </button>
+                )}
         {/* Greatest Hits (v7.87.0): right above the tiles, in the player's eyeline while picking letters. */}
         {gameState?.roundType !== 'golden' && <HitsChip gameState={gameState} />}
         {/* --- HAND: the standard hand in a 4x2 grid; widens to all rack slots when a power-up overfills it --- */}

@@ -3238,7 +3238,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
     // A Daily Run saves to its own slot, so a regular run can't wipe an unfinished daily attempt.
     const saveSlot = daily ? STORAGE_KEYS.savedDailyGame : STORAGE_KEYS.savedGame;
     // v7.85.0: the score the last word really earned, popped on the stage after submit.
-    const [landed, setLanded] = useState<{ word: string; total: number; base: number; key: number } | null>(null);
+    const [landed, setLanded] = useState<{ word: string; total: number; base: number; key: number; tiles?: number; lines?: { name: string; d: string }[] } | null>(null);
+    // v7.94.0 (the owner's call): the clock waits while the score counts up after a word.
+    const [tallying, setTallying] = useState(false);
     // v7.67.5: only the newest open copy of the game may write this save slot. The owner found an
     // old run coming back on Continue: a second window (the app and a browser tab, or one left in
     // the background) still had the old run open, and its auto-save wrote it over the new run every
@@ -3928,7 +3930,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   const tickCarry = useRef(0);
   useEffect(() => {
       // Apply guards for pause, load, a backgrounded app, or special rounds/power-ups that stop time.
-      if (!isVisible || isPaused || isLoading || (state.resumeCountdown ?? 0) > 0 || gameState?.activePowerPlays?.leafOnTheWind) return;
+      if (!isVisible || isPaused || tallying || isLoading || (state.resumeCountdown ?? 0) > 0 || gameState?.activePowerPlays?.leafOnTheWind) return;
 
       // Phoenix Down: the continue card opens only for a player holding the charm (once a run).
       const continueOpen = !gameState?.continueOffered && !(gameState?.daily && !gameState.daily.practice)
@@ -4060,7 +4062,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           clearTimeout(timer);
           tickCarry.current = Math.min(tickMs, tickCarry.current + (performance.now() - last));
       };
-  }, [gameState, time, onGameOver, isPaused, isLoading, isVisible, showMessage, maxStrikes, endGoldenRound, totalWords]);
+  }, [gameState, time, onGameOver, isPaused, tallying, isLoading, isVisible, showMessage, maxStrikes, endGoldenRound, totalWords]);
   
   // First time a player's clock runs low (ever), point them at the Shuffle lifeline.
   const lowOnTime = !!gameState && gameState.roundType !== 'golden' && !isPaused && !isLoading
@@ -5291,6 +5293,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
       // --- 6. Aggregate Score and Check Aggregate Bonuses ---
       const turnScorePreMilestone = runningScore - oldScore;
+      // v7.94.0: the count-up shows only the lines inside this word's total (secrets and milestones pay on their own cards).
+      const tallyLineCount = scoreResult.bonuses.length;
 
       // 🐷 Hamm's Piggy Bank (v7.73.0, fragile): interest on the savings, then a share of this word's
       // full score (after every multiplier) goes in. The word keeps its points; the bank is extra.
@@ -5612,7 +5616,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
       // v7.85.0 (the owner's call): the stage shows BASE while spelling; here the score that really landed
       // pops big, with what the boosts added on top of the base.
-      setLanded({ word, total: Math.round(turnScorePreMilestone), base: Math.round(finalWordScore), key: Date.now() });
+      // v7.94.0: the lines behind it, so the count-up can show each boost arriving.
+      setLanded({ word, total: Math.round(turnScorePreMilestone), base: Math.round(finalWordScore), key: Date.now(),
+          tiles: submittedTiles.reduce((s, t) => s + (t.tempPoints ?? t.points ?? 0), 0),
+          lines: scoreResult.bonuses.slice(0, tallyLineCount).map(b => ({ name: String(b.name), d: String(b.description ?? '') })) });
 
       const wordLogEntry: WordLogEntry = {
         type: 'word',
@@ -6716,6 +6723,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         challengeButtonText,
         tileClass,
         landed,
+        onTally: setTallying,
         isMuted,
         isChallengeLock,
         highlightedTileIds: state.highlightedTileIds,
