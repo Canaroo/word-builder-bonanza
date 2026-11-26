@@ -40,7 +40,10 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
   const hasTempPoints = tile.tempPoints && tile.tempPoints > 0;
   
   const isSpecialTile = tile.isCombo || tile.isSuper || hasMultiplier;
-  const glimmerClass = isSpecialTile ? 'glimmer-effect' : '';
+  // v7.96.3: a Collector's Tile gets its shine on an inner layer, so the clip that keeps the sweep inside
+  // the keycap doesn't cut off its frame (Chrome always shines).
+  const glimmerClass = isSpecialTile && !tile.collector ? 'glimmer-effect' : '';
+  const innerGlimmer = !!tile.collector && (isSpecialTile || tile.collector === 'chrome');
 
   // Tiles act the moment a finger (or mouse button) goes down. A click only arrives after the
   // finger lifts, and phones drop it if the finger slid a little or pressed a bit long, which made
@@ -62,7 +65,7 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
   const tileStyle = isGolden
     ? 'golden-tile'
     : tile.collector
-    ? `tile-key tile-collector tile-collector-${tile.collector}`
+    ? 'tile-key'
     : tile.isCombo
     ? 'bg-green-500 text-white'
     : (tile.isSuper || (hasMultiplier && tile.multiplier === 4 && !tile.isGem)
@@ -87,6 +90,7 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
     >
       {/* v7.80.0: the dished face of the keycap (cream on plain tiles, a soft see-through dish on special ones). */}
       {!isGolden && <span className="tile-face" aria-hidden="true" />}
+      {innerGlimmer && <span className="tile-overlay glimmer-effect" aria-hidden="true" />}
       {/* Rings and glows are overlays: the tile's own box-shadow is its 3D edge. */}
       {isSuperLook && <span className="tile-overlay ring-4 ring-red-400 animate-pulse" aria-hidden="true" />}
       {isGolden && (
@@ -117,8 +121,9 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
         </span>
       )}
       {tile.isGem && !tile.isSuper && <span className="absolute top-0.5 left-0.5 text-[10px] z-10 leading-none" aria-hidden="true">💎</span>}
-      {/* v7.96.0: a Collector's Tile wears its icon in the corner and a sheen ring (tile-collector-*). */}
+      {/* v7.96.0: a Collector's Tile wears its icon in the corner; v7.96.3: and a frame of its own (collector-*). */}
       {tile.collector && <span className="absolute top-0.5 left-0.5 text-[10px] z-10 leading-none" aria-hidden="true">{COLLECTOR_ICON[tile.collector]}</span>}
+      {tile.collector && <><span className={`collector-frame-glow collector-${tile.collector}`} aria-hidden="true" /><span className={`collector-frame collector-${tile.collector}`} aria-hidden="true" data-testid="collector-frame" /></>}
       {skillShot && (
         <>
           <span className="tile-overlay ring-4 ring-neon-pink animate-pulse" aria-hidden="true" />

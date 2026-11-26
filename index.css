@@ -1471,13 +1471,20 @@ body {
 .tally-slam { animation: tally-slam 0.35s cubic-bezier(.2,1.4,.4,1) both; }
 @media (prefers-reduced-motion: reduce) { .tally-line, .tally-slam { animation: none; } }
 
-/* v7.96.0: Collector's Tiles keep the keycap with a colored sheen ring */
-.tile-collector { position: relative; }
-.tile-collector::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 2px var(--col, #fff), 0 0 10px var(--col, #fff); opacity: .9; }
-.tile-collector-chrome { --col: #d7e1ee; }
-.tile-collector-holo { --col: #ff7ae0; }
-.tile-collector-static { --col: #22e4ff; }
-.tile-collector-rewind { --col: #ff8a2a; }
-@keyframes holo-shift { 0%,100% { filter: hue-rotate(0deg); } 50% { filter: hue-rotate(90deg); } }
-.tile-collector-holo::after { animation: holo-shift 3s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .tile-collector-holo::after { animation: none; } }
+/* v7.96.0: Collector's Tiles keep the keycap. v7.96.3 (the owner's ask: the icon alone got lost): each kind
+   wears a thick frame of its own around the keycap and its skirt (`.collector-frame`, a span in Tile.tsx;
+   the keycap's own ::after is its grain), so it stands out at a glance. */
+.collector-frame {
+  position: absolute; inset: -5px -5px -10px -5px; border-radius: 14px; padding: 4px; pointer-events: none; z-index: 15;
+  background: var(--frame);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.collector-frame-glow { position: absolute; inset: -5px -5px -10px -5px; border-radius: 14px; pointer-events: none; z-index: -1; box-shadow: 0 0 12px 1px var(--glow); }
+.collector-chrome { --frame: linear-gradient(135deg, #ffffff 0%, #9aa6b6 28%, #f4f8fc 50%, #6f7a8b 74%, #e3e9f0 100%); --glow: rgba(220, 230, 245, 0.7); }
+.collector-holo { --frame: conic-gradient(from 0deg, #ff5fd2, #ffd23f, #3dff8c, #22e4ff, #b45cff, #ff5fd2); --glow: rgba(255, 122, 224, 0.7); }
+.collector-static { --frame: repeating-linear-gradient(90deg, #22e4ff 0 3px, #0a5a6e 3px 5px, #b9f6ff 5px 7px, #22e4ff 7px 10px); --glow: rgba(34, 228, 255, 0.7); }
+.collector-rewind { --frame: linear-gradient(180deg, #ffc067 0%, #ff8a2a 50%, #e2560e 100%); --glow: rgba(255, 138, 42, 0.75); }
+@keyframes holo-shift { 0%,100% { filter: hue-rotate(0deg); } 50% { filter: hue-rotate(140deg); } }
+.collector-holo.collector-frame { animation: holo-shift 3s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .collector-holo.collector-frame { animation: none; } }
