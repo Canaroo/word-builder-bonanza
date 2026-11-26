@@ -25,7 +25,8 @@ export type StatEvent =
     // v7.61.1 (docs/FEATURE_REVIEW.md): the Fork pick (or a cool-off), each Golden Round, each Score Gate.
     | { type: 'fork'; choice: 'easy' | 'danger' | 'bail'; level: number; clock: number; advice?: 'easy' | 'danger' | 'either' }
     | { type: 'golden'; level: number; score: number; tile: boolean; ok: boolean }
-    | { type: 'gate'; gate: number; result: 'played' | 'skip'; points: number };
+    | { type: 'gate'; gate: number; result: 'played' | 'skip'; points: number }
+    | { type: 'store'; level: number; rented: number; spent: number; back: number; restocks: number; walked: boolean };
 
 export type StoredStat = StatEvent & StatExtras & { timestamp: number };
 

@@ -48,6 +48,7 @@ tap ▶ Continue (wait out the 3-2-1 countdown before tapping tiles).
 | PowerPlays / charms (106 / 112) | `data/powerPlays.ts`, `data/charms.ts` |
 | Charm sets, Mystery Tape, Phoenix Down, power word hint (v7.41) | `data/charmSets.ts`, `CHARM_SET_BONUS` and `MYSTERY_TAPE` in `config/gameplay.ts`, `PHOENIX_DOWN` in `config/progression.ts`, `services/powerWordHint.ts` |
 | Borrowed mechanics (v7.42-7.44): Last Words, Head Start, Skill Shot, Gem Tiles, Hold Slot, Grudge Match, Bones; the scratch-off ticket (v7.66, where the Fork was) | `LAST_WORDS`, `HEAD_START`, `SKILL_SHOT`, `GEM_TILES`, `SCRATCH`, `HOLD_SLOT`, `GRUDGE`, `BONES` in `config/gameplay.ts`; `services/headStart.ts`, `services/grudges.ts`, `services/bones.ts`, `services/scratch.ts`; cards in `components/` (`LastWordsCard`, `ScratchCard`, `BonesCard`) |
+| Video Store, Genre Levels, Collector's Tiles (v7.96) | `data/videoStore.ts` (genres, tiles, shelf), `VIDEO_STORE`, `GENRE_VALUES`, `COLLECTOR` in `config/gameplay.ts`, `components/VideoStore.tsx`, `STORE_*` and `landCollectors` in `GameScreen.tsx`, `services/intros.ts` |
 | Secret bonuses (122 words, 10 scores) | `data/secretBonuses.ts`; preview all at `/?bonuses` |
 | Hidden desktop pages | `/?stats` and `/?bonuses` (tabs: `&tab=words`, `scores`, `counts`, `charms`, `powerPlays`) render full-width outside the phone frame (`showToolPage` in `App.tsx`) |
 | Bosses (24) and Boss Badges | `data/bosses.ts` (villains, rules), `BOSS` in `config/gameplay.ts` (timing, rewards); badges in the profile (`recordBossBadge`) |
@@ -734,6 +735,40 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   never lit; they do now. The glow is its own gold pulse (`.power-tile-glow`, it shared the boss rule's
   pink). Browser-checked: SLOT in HEALSTOR lights L, S, T, O; RINGS lights R, ING, S; an S in the word row
   stays lit. Tests in `components/__tests__/powerLit.test.tsx`.
+- **📼 The Video Store, 🎬 Genre Levels and 💿 Collector's Tiles (v7.96.0, one drop, the owner's picks;
+  the approved mockup is the "Word Nerd Video Store" artifact).** Tests in `services/__tests__/videoStore.test.ts`.
+  **The store** (`storeModal`, queued after the level-up card on levels 2, 4, 6..., `storeOpensAt`; modal
+  `video-store`, `components/VideoStore.tsx`): the clock is paused (a modal) and **seconds are the money**:
+  every price comes off `state.time`, never below `keepAtLeast` (15 s). Shelf of 3 tapes (`dealShelf`,
+  seeded with `dailyRank(runSeed, level*100 + deal)`, so the Daily matches): a charm (NEW RELEASE, 8 s, a
+  fragile one 6 s; pool `storeCharmPool`: offer filters, never Phoenix Down or a selection charm), a pocket
+  PowerPlay (RENTAL, 5 s; `storePowerPlayPool`: no instant, time or fire-on-pick cards, not Continue?, not the
+  one held) or `tileChance` (40%) a Collector's Tile instead, and a genre poster (6 s). 🔄 Restock 2 s, +1 each
+  time; 💵 Trade in a charm for half its price in seconds (all of it when upgraded; fragile charms can't);
+  🚪 Walk out with nothing for +150 (a prize), else "✓ Done". A receipt totals it ("CLOCK 49 → 33 sec").
+  Reducer: `STORE_RENT` (reuses `CHOOSE_CHARM`/`CHOOSE_POWER_PLAY`), `STORE_RESTOCK`, `STORE_TRADE_IN`,
+  `STORE_LEAVE`; the card's shelf, `sold`, `lines` and `deal` live in the pop-up's data, so a save keeps them.
+  Prices come from the old Fork events: the median clock at level 4 was 43 s (10% at 8 s or less). A first
+  visit shows a "WELCOME TO THE VIDEO STORE" panel (once per player, `services/intros.ts`). Stats: a `store`
+  event (level, rented, spent, back, restocks, walked); **paste the new rules from `docs/LEADERBOARD.md`**.
+  **Genres** (`GENRES`): 🩳 Shorts (3-4 letters), 🎞️ Epics (6+), 🎬 Sequels (a double letter), 🦇 Cult Classics
+  (J/K/Q/X/Z/V/W), 🎤 Musicals (3+ vowels), 🔁 Remakes (same letters as an earlier word this run, the same word
+  counts). Each ★ (up to 5) pays `perStar` on every word that fits: +5, +25, +30, +25, +20, +40. Stars come
+  from posters and by themselves every 10 words that fit (20 for Shorts; `countGenrePlays`, `genrePlays`).
+  Simulated fit rates: casual Shorts 89%, Cult 17%, Sequels 9%, Musicals 3%, Remakes 3%; long-word players
+  Shorts 45%, Epics 22%, Musicals 20%, Cult 18%, Sequels 12%. Paid in `completeSubmission` after the charm
+  sets ("🎬 Sequels ★2" lines, 0 means 0 holds); the stage shows "🦇 CULT CLASSICS ★1 +25" while spelling
+  (`stage-genres`); Gear has a GENRES box (`gear-genres`, stars and words to the next ★); a "GENRE LEVELS!"
+  heads-up card the first time any genre has a ★; "🎬 GENRE UP!" when one levels by play.
+  **Collector's Tiles** (`COLLECTOR_TILES`, `gameState.collectorTiles`, max 4 a run): 💿 Chrome (x2 word tile,
+  uses the normal tile multiplier), ✨ Holo (+25 a word), 📺 Static (a "?" blank: tapping it opens the
+  `static-tile` letter picker, `SET_STATIC_LETTER`, worth 0), ⏪ Rewind (+3 s, onto `pendingTimeBonus`). From
+  the store (Chrome 8, Holo 6, Static 7, Rewind 7 s) and scratch-offs (`SCRATCH.weights.tile` 0.8, one a
+  ticket, only with room). `landCollectors` (in `START_NEXT_ROUND`, after gems) puts each owned tile that
+  isn't in play onto a plain tile: a fresh one always, then `returnChance` (50%) a hand, rolled with
+  `tileRoll`. Tiles show a corner icon and a colored ring (`.tile-collector-*`); each kind explains itself the
+  first time (heads-up card). `drawTiles` skips a stray "?" in the bag. How to Play has a "The Video Store"
+  section; the tour's step 4 has Video Store and Genres flip cards.
 - **Score count-up (v7.94.0, the owner's pick: full tally, clock paused):** after every word the stage
   shows a tally card (`ScoreTally` in `GameScreenView.tsx`, `score-tally`): the word, TILES (the letters'
   own points, `landed.tiles`), then each score line pops in every 320 ms with a rising note (`tallyLines`

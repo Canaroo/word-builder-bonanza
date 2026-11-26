@@ -38,6 +38,9 @@ import { currentPlayer } from '../players';
 import { BONES } from '../../config/gameplay';
 import { SCRATCH, HOLD_SLOT, GRUDGE, SKILL_SHOT } from '../../config/gameplay';
 import { dealScratch, type ScratchPrize } from '../scratch';
+import { dealShelf, storeOpensAt, restockCost, canAfford, tradeInValue, genreById, collectorInfo, earlierKeys, genrePay, countGenrePlays, GENRES, COLLECTOR_RULE, type Tape } from '../../data/videoStore';
+import { introSeen, markIntro } from '../intros';
+import { VIDEO_STORE, GENRE_VALUES, COLLECTOR } from '../../config/gameplay';
 import { gemMultiplierFor, skillShotPoints, freakyFridayMatch, jengaPot, nextSpeedStreak, speedStreakPoints, finalCategoryDeal, FINAL_CATEGORIES, CENTER_SQUARES, centerSquareClaim, centerSquareLines, centerSquarePrize } from '../rules';
 import { findPowerWordHint, powerWordHintStands } from '../powerWordHint';
 import { BOSSES, bossById, pickBoss } from '../../data/bosses';
@@ -294,6 +297,11 @@ type GameAction =
     | { type: 'SET_GAMBLE_STATE', payload: { key: string; value: unknown } }
     | { type: 'DRAFT_TILES', payload: { letters: string[] } }
     | { type: 'ADD_FREE_TILE', payload: { letter: string } }
+    | { type: 'STORE_RENT', payload: { index: number } }
+    | { type: 'STORE_RESTOCK' }
+    | { type: 'STORE_TRADE_IN', payload: { charmId: string } }
+    | { type: 'STORE_LEAVE' }
+    | { type: 'SET_STATIC_LETTER', payload: { tileId: string; letter: string } }
     | { type: 'CROC_RESULT' };
 
 
@@ -437,8 +445,62 @@ const scratchModal = (wordsBefore: number, gs: GameState): ModalContent | null =
         heldCharmIds: gs.activeCharms.map(c => c.id),
         slotOpen: gs.activeCharms.length < CHARM_SLOTS,
         pocketEmpty: gs.availablePowerPlays.length === 0,
+        tileOk: (gs.collectorTiles ?? []).length < COLLECTOR.max,
     });
     return { type: 'scratch', title: 'Scratch-Off', data: { level, squares } };
+};
+
+/**
+ * 📼 The Video Store (v7.96.0): what it may stock. Charms like an offer's pool (not held, can work,
+ * never Phoenix Down or a pick-a-tile charm); PowerPlays only pocket ones (no instant, time or
+ * fire-on-pick cards), never the one in your pocket or a taken once-a-run one.
+ */
+export const storeCharmPool = (gs: GameState): Charm[] => CHARMS_LIST.filter(c =>
+    !gs.activeCharms.some(a => a.id === c.id) && c.id !== PHOENIX_DOWN.id && c.effectType !== 'selection' &&
+    !(gs.shatteredCharms ?? []).includes(c.id) &&
+    !(c.id === 'goldenSnitch' && snitchTargetFor(gs.snitchCatches ?? 0) === null) &&
+    !(c.id === 'gottaCatchEmAll' && gs.pokedexComplete) &&
+    !(c.id === 'mrGlass' && gs.strikes >= maxStrikesFor({ ...gs, activeCharms: [...gs.activeCharms, c] })) &&
+    !(c.id === 'keymaster' && (gs.score < CHARM_BONUS.keymasterFromScore || (gs.gatesPassed ?? []).length >= GATE_LIST.length)));
+export const storePowerPlayPool = (gs: GameState): PowerPlay[] => POWER_PLAYS_LIST.filter(p =>
+    !INSTANT_POWER_PLAY_IDS.has(p.id) && !TIME_CARD_IDS.has(p.id) && !CARD_ON_PICK.has(p.id) &&
+    p.id !== 'continueScreen' && gs.availablePowerPlays[0]?.id !== p.id &&
+    !(p.oncePerRun && (gs.oncePerRunTaken ?? []).includes(p.id)));
+export const storeShelf = (gs: GameState, level: number, deal: number): Tape[] => dealShelf({
+    rank: tag => gameUtils.dailyRank(gs.runSeed, level * 100 + deal, `store-${tag}`),
+    charms: storeCharmPool(gs), powerPlays: storePowerPlayPool(gs),
+    genreStars: gs.genreStars, collectorOwned: (gs.collectorTiles ?? []).length,
+});
+/** 💿 Puts owned Collector's Tiles that aren't in play onto plain tiles of the hand (see START_NEXT_ROUND). */
+export const landCollectors = (
+    hand: (Tile | null)[], buildRow: GameScreenState['buildRow'], gs: Pick<GameState, 'collectorTiles' | 'goldenTileId' | 'holdTile'>, rand: () => number = gameUtils.tileRoll,
+): { hand: (Tile | null)[]; owned: NonNullable<GameState['collectorTiles']>; messages: string[] } => {
+    const inPlay = new Set([...hand, ...buildRow.map(b => b?.tile ?? null), gs.holdTile ?? null].map(t => t?.collectorId).filter(Boolean));
+    let next = [...hand];
+    const messages: string[] = [];
+    const owned = (gs.collectorTiles ?? []).map(c => {
+        if (inPlay.has(c.id)) return c;
+        if (!c.fresh && rand() >= COLLECTOR.returnChance) return c;
+        const plain = next.filter((t): t is Tile => !!t && !t.collector && !t.isCombo && !t.isSuper && !t.isGem && !(t.multiplier && t.multiplier > 1) && t.id !== gs.goldenTileId && t.letter.length === 1);
+        if (!plain.length) return c;
+        const pick = plain[Math.floor(rand() * plain.length)];
+        const info = collectorInfo(c.kind)!;
+        const tile: Tile = c.kind === 'static' ? { ...pick, letter: '?', points: 0, collector: 'static', collectorId: c.id }
+            : c.kind === 'chrome' ? { ...pick, multiplier: COLLECTOR.chromeMultiplier, collector: 'chrome', collectorId: c.id }
+            : { ...pick, collector: c.kind, collectorId: c.id };
+        next = next.map(t => (t && t.id === pick.id ? tile : t));
+        messages.push(c.kind === 'static' ? `${info.icon} Your ${info.name} is in your hand: tap it to pick its letter.` : `${info.icon} Your ${info.name} is on the ${pick.letter}.`);
+        return { ...c, fresh: false };
+    });
+    return { hand: next, owned, messages };
+};
+
+/** The store opens after the level-up card on every other level (2, 4, 6...). */
+const storeModal = (wordsBefore: number, gs: GameState): ModalContent | null => {
+    const level = levelFor(wordsBefore + 1);
+    if (level <= levelFor(wordsBefore) || !storeOpensAt(level) || gs.storeLevel === level) return null;
+    gs.storeLevel = level;
+    return { type: 'video-store', title: 'The Video Store', data: { level, deal: 0, shelf: storeShelf(gs, level, 0), sold: [], lines: [] } };
 };
 
 /**
@@ -506,7 +568,7 @@ const levelUpModal = (wordsBefore: number, gs?: GameState): ModalContent | null 
  * stuck in the old round: v7.19.0's level-up card was, so a word whose only pop-up was a
  * level-up lost its word time, and Groundhog's Day saw a word "already played" and didn't fire.
  */
-export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['blue-steel', 'milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork', 'scratch', 'bones', 'croc', 'greatest-hit', 'quack'];
+export const POST_WORD_MODALS: NonNullable<ModalContent>['type'][] = ['blue-steel', 'milestone', 'easter-egg', 'minigame', 'word-bonus', 'powerplay-selection', 'charm-selection', 'super-hand', 'info', 'slot-machine', 'level-up', 'outcome', 'fork', 'scratch', 'bones', 'croc', 'greatest-hit', 'quack', 'video-store'];
 
 /**
  * A chance PowerPlay's result (a roll, a coin flip, a random tile): a centered card that waits
@@ -851,6 +913,104 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         case 'SET_LOADING_MESSAGE': return { ...state, loadingMessage: action.payload };
         case 'RETURN_BUILD_ROW': return withBuildRowReturned(state);
         // A gamble card's board, kept in its pop-up so the auto-save stores it (v7.28.9).
+        // 📼 The Video Store (v7.96.0). The card's shelf, what's sold and the receipt live in the pop-up's
+        // data (saved with the run); every price comes off the clock, never under VIDEO_STORE.keepAtLeast.
+        case 'STORE_RENT': {
+            const m = state.modalContent;
+            if (m?.type !== 'video-store') return state;
+            const shelf = (m.data?.shelf ?? []) as Tape[];
+            const sold = (m.data?.sold ?? []) as number[];
+            const tape = shelf[action.payload.index];
+            if (!tape || sold.includes(action.payload.index) || !canAfford(state.time, tape.price)) return state;
+            let next: GameScreenState = state;
+            let name = '';
+            if (tape.kind === 'charm') {
+                const charm = CHARMS_LIST.find(c => c.id === tape.id);
+                if (!charm || gameState.activeCharms.length >= CHARM_SLOTS || gameState.activeCharms.some(c => c.id === charm.id)) return state;
+                next = baseGameReducer(state, { type: 'CHOOSE_CHARM', payload: { charm, hand: state.hand, allOffered: [charm] } });
+                name = `${charm.icon} ${charm.name}`;
+            } else if (tape.kind === 'powerPlay') {
+                const pp = POWER_PLAYS_LIST.find(p => p.id === tape.id);
+                if (!pp) return state;
+                next = baseGameReducer(state, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp, allOffered: [pp] } });
+                name = `${pp.icon} ${pp.name}`;
+            } else if (tape.kind === 'poster') {
+                const g = genreById(tape.id);
+                if (!g) return state;
+                const stars = Math.min(GENRE_VALUES.maxStars, (gameState.genreStars?.[g.id] ?? 0) + 1);
+                next = { ...state, gameState: { ...gameState, genreStars: { ...(gameState.genreStars ?? {}), [g.id]: stars },
+                    lastPowerPlayResult: { message: `${g.icon} ${g.name} is now ★${stars}: words with ${g.rule} earn +${stars * (GENRE_VALUES.perStar[g.id] ?? 0)}.`, scoreChange: 0 } } };
+                name = `${g.icon} ${g.name} poster (★${stars})`;
+            } else {
+                const info = collectorInfo(tape.id);
+                if (!info || (gameState.collectorTiles ?? []).length >= COLLECTOR.max) return state;
+                next = { ...state, gameState: { ...gameState, collectorTiles: [...(gameState.collectorTiles ?? []), { id: `col-${Date.now()}-${(gameState.collectorTiles ?? []).length}`, kind: info.kind, fresh: true }] } };
+                name = `${info.icon} ${info.name}`;
+            }
+            const gs2 = next.gameState;
+            const entry: EventLogEntry = { type: 'event', id: `store-rent-${Date.now()}`, name: 'Video Store', icon: '📼', description: `Rented ${name} for ${tape.price}s.`, scoreChange: 0, cumulativeScore: gs2.score };
+            return { ...next, isPaused: true, time: next.time - tape.price,
+                modalContent: { ...m, data: { ...m.data, sold: [...sold, action.payload.index], lines: [...(m.data?.lines ?? []), { t: name, d: -tape.price }] } },
+                gameState: { ...gs2, log: [...gs2.log, entry] } };
+        }
+        case 'STORE_RESTOCK': {
+            const m = state.modalContent;
+            if (m?.type !== 'video-store') return state;
+            const restocks = Number(m.data?.deal ?? 0);
+            const cost = restockCost(restocks);
+            if (!canAfford(state.time, cost)) return state;
+            const deal = restocks + 1;
+            return { ...state, time: state.time - cost,
+                modalContent: { ...m, data: { ...m.data, deal, shelf: storeShelf(gameState, Number(m.data?.level ?? runLevel(gameState)), deal), sold: [],
+                    lines: [...(m.data?.lines ?? []), { t: 'Restock the shelf', d: -cost }] } } };
+        }
+        case 'STORE_TRADE_IN': {
+            const m = state.modalContent;
+            if (m?.type !== 'video-store') return state;
+            const charm = gameState.activeCharms.find(c => c.id === action.payload.charmId);
+            if (!charm || charm.breaks) return state;
+            const upgraded = (gameState.charmUpgrades ?? []).includes(charm.id);
+            const back = tradeInValue(charm, upgraded);
+            let hand = state.hand;
+            let tileBag = state.tileBag;
+            let gs = { ...gameState,
+                activeCharms: gameState.activeCharms.filter(c => c.id !== charm.id),
+                activeBuffs: gameState.activeBuffs.filter(b => b.id !== charm.id),
+                charmUpgrades: (gameState.charmUpgrades ?? []).filter(id => id !== charm.id) };
+            // Trading in Hold That Thought hands back the parked tile (or returns it to the bag).
+            if (charm.id === HOLD_SLOT.charmId && gs.holdTile) {
+                const slot = hand.indexOf(null);
+                if (slot !== -1) { hand = [...hand]; hand[slot] = gs.holdTile; } else tileBag = [...tileBag, gs.holdTile.letter];
+                gs.holdTile = null;
+            }
+            const cap = charm.id === 'powerGlove' ? GAMEPLAY.timeBank.max : bankMax(gs);
+            const time = Math.max(state.time, clampTime(state.time + back, cap));
+            const entry: EventLogEntry = { type: 'event', id: `store-trade-${Date.now()}`, name: 'Video Store', icon: '📼', description: `Traded in ${charm.icon} ${charm.name} for ${back}s.`, scoreChange: 0, cumulativeScore: gs.score };
+            gs = { ...gs, log: [...gs.log, entry] };
+            return { ...state, hand, tileBag, time, gameState: gs,
+                modalContent: { ...m, data: { ...m.data, lines: [...(m.data?.lines ?? []), { t: `Traded in ${charm.icon} ${charm.name}${upgraded ? ' ⭐' : ''}`, d: back }] } } };
+        }
+        case 'STORE_LEAVE': {
+            // Walking out with nothing pays a small prize; once you've rented anything it's just "Done".
+            const m = state.modalContent;
+            if (m?.type !== 'video-store' || m.data?.left) return state;
+            const rented = ((m.data?.sold ?? []) as number[]).length > 0 || ((m.data?.lines ?? []) as unknown[]).length > 0;
+            const done = { ...state, modalContent: { ...m, data: { ...m.data, left: true } } };
+            if (rented) return done;
+            const pts = prizeFor(VIDEO_STORE.walkOut, runLevel(gameState));
+            const score = gameState.score + pts;
+            const entry: EventLogEntry = { type: 'event', id: `store-walk-${Date.now()}`, name: 'Video Store', icon: '📼', description: `Walked out with nothing: +${pts} points.`, scoreChange: pts, cumulativeScore: score };
+            return { ...done, gameState: { ...gameState, score, log: [...gameState.log, entry],
+                lastPowerPlayResult: { message: `🚪 Walked out of the Video Store: +${pts} points.`, scoreChange: pts } } };
+        }
+        // 📺 Static Tile (v7.96.0): the blank becomes the letter the player picked (worth 0 points).
+        case 'SET_STATIC_LETTER': {
+            const letter = action.payload.letter.toUpperCase();
+            if (!/^[A-Z]$/.test(letter)) return state;
+            const fix = (t: Tile | null) => (t && t.id === action.payload.tileId && t.collector === 'static' ? { ...t, letter, points: 0 } : t);
+            return { ...state, hand: state.hand.map(fix),
+                buildRow: state.buildRow.map(b => (b && b.tile.id === action.payload.tileId ? { ...b, tile: fix(b.tile)! } : b)) };
+        }
         case 'SET_GAMBLE_STATE': {
             const m = state.modalContent;
             if (m?.type !== 'gamble' && m?.type !== 'minigame' && m?.type !== 'croc' && m?.type !== 'scratch' && m?.type !== 'last-words') return state;
@@ -1040,6 +1200,14 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 return { ...state, time, isPaused: true, timeGain: { seconds: got, key: Date.now() },
                     modalContent: outcome(ticket, `+${got} SECONDS`, got < prize.amount ? `Your clock was nearly full: +${got} of ${prize.amount}.` : 'Straight onto your clock.', 'win'),
                     gameState: { ...gameState, log: [...gameState.log, log(`Banked +${got} seconds.`)] } };
+            }
+            if (prize.kind === 'tile') {
+                const info = collectorInfo(prize.id)!;
+                if ((gameState.collectorTiles ?? []).length >= COLLECTOR.max) return { ...state, isPaused: true, modalContent: outcome(ticket, `${info.icon} NO ROOM`, `You already own ${COLLECTOR.max} Collector's Tiles this run.`, 'lose') };
+                return { ...state, isPaused: true,
+                    modalContent: outcome(ticket, `${info.icon} ${info.name.toUpperCase()}`, `${info.text} ${COLLECTOR_RULE}`, 'win'),
+                    gameState: { ...gameState, collectorTiles: [...(gameState.collectorTiles ?? []), { id: `col-${Date.now()}`, kind: prize.id, fresh: true }],
+                        log: [...gameState.log, log(`Banked a ${info.name}.`)] } };
             }
             if (prize.kind === 'shuffle') {
                 return { ...state, isPaused: true,
@@ -1780,6 +1948,15 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     newGameState.lastPowerPlayResult = { message: `💎 Gem tile! Your ${pick.letter} is a x${multiplier} word tile.`, scoreChange: 0 };
                     newGameState.pendingGem = 0;
                 }
+            }
+
+            // 💿 Collector's Tiles (v7.96.0): each owned tile that isn't already in play lands on a plain
+            // tile of this hand: a fresh purchase always, after that `returnChance` of the time.
+            if ((newGameState.collectorTiles ?? []).length > 0 && newGameState.roundType !== 'golden') {
+                const landed = landCollectors(hand, state.buildRow, newGameState);
+                hand = landed.hand;
+                newGameState.collectorTiles = landed.owned;
+                if (landed.messages.length) newGameState.lastPowerPlayResult = { message: landed.messages.join(' '), scoreChange: 0 };
             }
 
             const diceRollCharm = newGameState.activeCharms.find(c => c.id === 'diceRollProtocol');
@@ -3545,6 +3722,32 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gem-intro', title: 'Gem Tile', data: { letter: gem.letter, points: gem.points, multiplier: gem.multiplier ?? 3 } } });
   }, [gameState, isLoading, isPaused, state.modalContent, state.resumeCountdown, hand, skillShotOpen, hintLevel]);
 
+  // v7.96.0: first-time explainers for Genre Levels and each Collector's Tile (once per player each).
+  useEffect(() => {
+      if (!gameState || isLoading || isPaused || state.modalContent || (state.resumeCountdown ?? 0) > 0) return;
+      const col = (hand ?? []).find((t): t is Tile => !!t && !!t.collector && !introSeen(`tile-${t.collector}`));
+      if (col) {
+          const info = collectorInfo(col.collector!)!;
+          markIntro(`tile-${col.collector}`);
+          soundService.playModalOpen();
+          dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'heads-up', title: info.name, data: { icon: info.icon,
+              headline: `YOUR ${info.name.toUpperCase()}!`,
+              text: `${info.text} ${COLLECTOR_RULE}`,
+              next: col.collector === 'static' ? 'Tap the 📺 tile in your hand to pick its letter.' : `It's the ${col.letter} with the ${info.icon} in the corner.` } } });
+          return;
+      }
+      const g = GENRES.find(x => (gameState.genreStars?.[x.id] ?? 0) > 0);
+      if (g && !introSeen('genres')) {
+          markIntro('genres');
+          soundService.playModalOpen();
+          const stars = gameState.genreStars?.[g.id] ?? 0;
+          dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'heads-up', title: 'Genre Levels', data: { icon: '🎬',
+              headline: 'GENRE LEVELS!',
+              text: `Your words have genres. ${g.icon} ${g.name} (words with ${g.rule}) is now ★${stars}: each of those words earns +${stars * (GENRE_VALUES.perStar[g.id] ?? 0)} points. Genres gain a ★ by playing them, or from a poster in the Video Store.`,
+              next: 'Your 🎒 Gear shows every genre, its stars and how close the next one is.' } } });
+      }
+  }, [gameState, isLoading, isPaused, state.modalContent, state.resumeCountdown, hand]);
+
   const handlePowerHintInfo = useCallback(() => {
       if (!powerHint) return;
       soundService.playModalOpen();
@@ -3601,6 +3804,27 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         if (charm && gameState.activeCharms.length < CHARM_SLOTS) dispatch({ type: 'CHOOSE_CHARM', payload: { charm, hand: hand ?? [], allOffered: [charm] } });
     }
     dispatch({ type: 'SCRATCH_RESULT', payload: { prize } });
+  };
+
+  // 📼 The Video Store (v7.96.0).
+  const handleStoreRent = (index: number) => { soundService.playPowerUp(); dispatch({ type: 'STORE_RENT', payload: { index } }); };
+  const handleStoreRestock = () => { soundService.playTileClick(); dispatch({ type: 'STORE_RESTOCK' }); };
+  const handleStoreTradeIn = (charmId: string) => { soundService.playTileClick(); dispatch({ type: 'STORE_TRADE_IN', payload: { charmId } }); };
+  const handleStoreLeave = () => {
+    const card = state.modalContent;
+    if (card?.type !== 'video-store' || card.data?.left) return;
+    const lines = (card.data?.lines ?? []) as { t: string; d: number }[];
+    sendStat({ type: 'store', level: Number(card.data?.level ?? 0), rented: ((card.data?.sold ?? []) as number[]).length,
+        spent: -lines.filter(l => l.d < 0).reduce((a, l) => a + l.d, 0), back: lines.filter(l => l.d > 0).reduce((a, l) => a + l.d, 0),
+        restocks: Number(card.data?.deal ?? 0), walked: lines.length === 0 });
+    dispatch({ type: 'STORE_LEAVE' });
+    handleCloseModal();
+  };
+  const handleStaticLetter = (letter: string) => {
+    const card = state.modalContent;
+    if (card?.type !== 'static-tile') return;
+    dispatch({ type: 'SET_STATIC_LETTER', payload: { tileId: String(card.data?.tileId), letter } });
+    dispatch({ type: 'CLOSE_MODAL' });
   };
 
   /**
@@ -3957,6 +4181,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         return;
     }
     if (tile.isLocked || isChallengeLock || (buildRow?.filter(t => t).length ?? 0) >= BUILD_ROW_SIZE) return;
+    // 📺 A Static Tile's blank asks for its letter first (the clock waits while you pick).
+    if (tile.collector === 'static' && tile.letter === '?') {
+        soundService.playModalOpen();
+        dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'static-tile', title: 'Static Tile', data: { tileId: tile.id } } });
+        return;
+    }
     
     if (gameState?.activePowerPlays?.['wordLock'] && (buildRow?.filter(t => t).length ?? 0) >= 5) {
         showMessage("Game Genie allows a max of 5 tiles.", 2000);
@@ -4109,6 +4339,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             if (levelUp) modalQueue.push(levelUp);
             const goldenFork = scratchModal(totalWords, newState);
             if (goldenFork) modalQueue.push(goldenFork);
+            const goldenStore = storeModal(totalWords, newState);
+            if (goldenStore) modalQueue.push(goldenStore);
             const goldenBones = bonesModal(newState, totalWords);
             if (goldenBones) modalQueue.push(goldenBones);
             const goldenCroc = crocModal(newState);
@@ -4149,6 +4381,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       if (levelUp) modalQueue.push(levelUp);
       const fork = scratchModal(totalWords, newState);
       if (fork) modalQueue.push(fork);
+      const store = storeModal(totalWords, newState);
+      if (store) modalQueue.push(store);
       const bones = bonesModal(newState, totalWords);
       if (bones) modalQueue.push(bones);
       const croc = crocModal(newState);
@@ -5091,6 +5325,44 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           for (const { set, held, points, complete } of payingSets(newState.activeCharms.map(c => c.id))) {
               runningScore += points;
               scoreResult.bonuses.push({ name: `🧩 ${set.name} set`, description: `+${points} pts (${complete ? `all ${set.members.length}` : `${held} of ${set.members.length}`} charms held)` });
+          }
+      }
+
+      // 🎬 Genre Levels (v7.96.0): every genre this word fits pays +perStar for each ★ it has; then the
+      // word counts toward each genre's next ★. 0 means 0 still holds for the points.
+      {
+          const earlier = earlierKeys(newState.log);
+          if (!wordLocked) {
+              for (const { genre, stars, points } of genrePay(newState, word, earlier)) {
+                  runningScore += points;
+                  scoreResult.bonuses.push({ name: `${genre.icon} ${genre.name} ★${stars}`, description: `+${points} pts (${genre.rule})` });
+              }
+          }
+          const counted = countGenrePlays(newState, word, earlier);
+          newState.genreStars = counted.genreStars;
+          newState.genrePlays = counted.genrePlays;
+          if (counted.up.length) {
+              const text = counted.up.map(g => `${g.icon} ${g.name.toUpperCase()} ★${counted.genreStars[g.id]}`).join(' · ');
+              newState.log = [...newState.log, ...counted.up.map(g => ({ type: 'event', id: `genre-${g.id}-${Date.now()}`, name: 'Genre level-up', icon: g.icon,
+                  description: `${g.name} reached ★${counted.genreStars[g.id]} by playing it: words with ${g.rule} now earn +${counted.genreStars[g.id] * (GENRE_VALUES.perStar[g.id] ?? 0)}.`,
+                  scoreChange: 0, cumulativeScore: newState.score } as EventLogEntry))];
+              showMessage(`🎬 GENRE UP! ${text}`, 3000);
+          }
+      }
+
+      // 💿 Collector's Tiles (v7.96.0): Holo pays points, Rewind pays seconds (Chrome is a x2 word tile).
+      {
+          const holo = submittedTiles.filter(t => t.collector === 'holo').length;
+          if (holo > 0 && !wordLocked) {
+              const pts = holo * COLLECTOR.holoPoints;
+              runningScore += pts;
+              scoreResult.bonuses.push({ name: '✨ Holo tile', description: `+${pts} pts` });
+          }
+          const rewind = submittedTiles.filter(t => t.collector === 'rewind').length;
+          if (rewind > 0) {
+              const secs = rewind * COLLECTOR.rewindSeconds;
+              newState.pendingTimeBonus = (newState.pendingTimeBonus ?? 0) + secs;
+              scoreResult.bonuses.push({ name: '⏪ Rewind tile', description: `+${secs} sec on your clock` });
           }
       }
 
@@ -6534,6 +6806,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         holdArmed,
         handleHoldTap,
         handleScratchDone,
+        handleStoreRent, handleStoreRestock, handleStoreTradeIn, handleStoreLeave, handleStaticLetter,
         handleCrocPick,
         handleBonesDone,
         upcomingTiles: [], // Psychic Friends no longer peeks at tiles (v7.54.0)

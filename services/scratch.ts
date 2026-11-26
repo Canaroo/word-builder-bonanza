@@ -9,6 +9,7 @@ export type ScratchPrize =
   | { kind: 'challenge'; amount: number }
   | { kind: 'charm'; id: string }
   | { kind: 'powerplay'; id: string }
+  | { kind: 'tile'; id: 'chrome' | 'holo' | 'static' | 'rewind' }
   | { kind: 'skull' };
 
 const pick = <T,>(list: readonly T[], rand: () => number): T => list[Math.floor(rand() * list.length)];
@@ -20,13 +21,13 @@ const pick = <T,>(list: readonly T[], rand: () => number): T => list[Math.floor(
  */
 export const dealScratch = (
   rand: () => number,
-  opts: { heldCharmIds: readonly string[]; slotOpen: boolean; pocketEmpty: boolean },
+  opts: { heldCharmIds: readonly string[]; slotOpen: boolean; pocketEmpty: boolean; tileOk?: boolean },
 ): ScratchPrize[] => {
   const charms = SCRATCH.charms.filter(id => !opts.heldCharmIds.includes(id));
   const pps: string[] = [...SCRATCH.powerPlays];
   const usedCharms = new Set<string>(), usedPPs = new Set<string>();
   const kinds = (Object.keys(SCRATCH.weights) as (keyof typeof SCRATCH.weights)[]).filter(k =>
-    k === 'charm' ? opts.slotOpen && charms.length > 0 : k === 'powerplay' ? opts.pocketEmpty : true);
+    k === 'charm' ? opts.slotOpen && charms.length > 0 : k === 'powerplay' ? opts.pocketEmpty : k === 'tile' ? !!opts.tileOk : true);
   const prizes: ScratchPrize[] = [];
   while (prizes.length < SCRATCH.squares - SCRATCH.skulls) {
     const total = kinds.reduce((t, k) => t + SCRATCH.weights[k], 0);
@@ -40,6 +41,9 @@ export const dealScratch = (
       const left = pps.filter(id => !usedPPs.has(id));
       if (!left.length) continue;
       const id = pick(left, rand); usedPPs.add(id); prizes.push({ kind, id });
+    } else if (kind === 'tile') {
+      if (prizes.some(p => p.kind === 'tile')) continue; // one a ticket
+      prizes.push({ kind, id: pick(['chrome', 'holo', 'static', 'rewind'] as const, rand) });
     } else {
       prizes.push({ kind, amount: pick(SCRATCH.prizes[kind], rand) });
     }
