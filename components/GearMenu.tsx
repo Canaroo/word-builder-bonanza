@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Charm, GameState, PowerPlay } from '../types';
 import { CHARM_BONUS, CHARM_SLOTS, GENRE_VALUES, COLLECTOR } from '../config/gameplay';
-import { GENRES, starsOf, perStar, playsPerStar, collectorInfo, COLLECTOR_RULE } from '../data/videoStore';
+import { GENRES, starsOf, perStar, playsPerStar, collectorInfo, COLLECTOR_RULE, genreEarned } from '../data/videoStore';
 import { CHARMS_LIST, CHARM_TIME_SECONDS, UPGRADABLE_CHARM_IDS } from '../data/charms';
 import { CHARM_SETS, setPayFor } from '../data/charmSets';
 import { clockSpeedFor, prizeScaleFor, wordTimeScaleFor } from '../services/rules';
@@ -224,26 +224,44 @@ const GearMenu: React.FC<{
           </Box>
         )}
 
-        {/* v7.96.0: Genre Levels and Collector's Tiles. */}
-        <Box title="GENRES" right={`★${GENRES.reduce((t, g) => t + starsOf(gs, g.id), 0)}`}>
-          <div data-testid="gear-genres">
-            {GENRES.map(g => {
-              const st = starsOf(gs, g.id);
-              const plays = gs.genrePlays?.[g.id] ?? 0;
-              const need = playsPerStar(g.id);
-              const maxed = st >= GENRE_VALUES.maxStars;
-              const e = earnedThisRun(gs.log, `${g.icon} ${g.name}`);
-              return (
-                <Row key={g.id} selected={sel === `genre-${g.id}`} icon={g.icon} dim={st === 0}
-                  label={<>{g.name} <span className="osd-text text-base text-neon-yellow">{'★'.repeat(st)}{'☆'.repeat(GENRE_VALUES.maxStars - st)}</span></>}
-                  right={st ? `+${st * perStar(g.id)}/WORD` : `${plays}/${need}`}
-                  onClick={() => choose(`genre-${g.id}`, { icon: g.icon, name: `${g.name} ★${st}`, tag: maxed ? 'MAXED' : `${plays}/${need} words to ★${st + 1}`,
-                    text: `Words with ${g.rule}. ${st ? `Each one earns +${st * perStar(g.id)} points now.` : 'No bonus yet.'} Every ★ adds +${perStar(g.id)}, up to ★${GENRE_VALUES.maxStars}. ${maxed ? '' : `It gains a ★ every ${need} words that fit, or from a poster in the 📼 Video Store.`}${e.points ? `\n\nThis run: +${e.points.toLocaleString()} points.` : ''}`,
-                    flavor: g.flavor })} />
-              );
-            })}
-          </div>
-        </Box>
+        {/* v7.96.0: Genre Levels and Collector's Tiles. v7.96.2 (the owner's ask): each genre shows what it pays
+            a word, what it has earned this run and how close the next ★ is. */}
+        {(() => {
+          const rows = GENRES.map(g => ({ g, st: starsOf(gs, g.id), plays: gs.genrePlays?.[g.id] ?? 0, need: playsPerStar(g.id), earned: genreEarned(gs.log ?? [], g) }));
+          const total = rows.reduce((t, r) => t + r.earned.points, 0);
+          return (
+            <Box title="GENRES" right={total ? `+${total.toLocaleString()} THIS RUN` : `★${rows.reduce((t, r) => t + r.st, 0)}`}>
+              <div className="flex flex-col gap-1" data-testid="gear-genres">
+                {rows.map(({ g, st, plays, need, earned }) => {
+                  const maxed = st >= GENRE_VALUES.maxStars;
+                  const pay = st * perStar(g.id);
+                  return (
+                    <button key={g.id} type="button" data-testid="gear-genre"
+                      onClick={() => choose(`genre-${g.id}`, { icon: g.icon, name: `${g.name} ★${st}`, tag: earned.points ? `+${earned.points.toLocaleString()} THIS RUN` : maxed ? 'MAXED' : undefined,
+                        text: `Words with ${g.rule}. ${st ? `Each one earns +${pay} points (★${st} × ${perStar(g.id)}).` : 'No bonus yet: it starts paying at ★1.'}${earned.points ? ` This run it has paid +${earned.points.toLocaleString()} on ${earned.words} word${earned.words === 1 ? '' : 's'}.` : ''}\n\nStars come two ways: buy its poster in the 📼 Video Store, or play ${need} words that fit it${maxed ? '' : ` (${plays}/${need} toward ★${st + 1})`}. Every ★ adds +${perStar(g.id)}, up to ★${GENRE_VALUES.maxStars}.`,
+                        flavor: g.flavor })}
+                      className={`w-full text-left rounded-lg px-2 py-1.5 ${sel === `genre-${g.id}` ? 'bg-white/10 ring-1 ring-white/30' : 'hover:bg-white/5'} ${st === 0 && !plays ? 'opacity-60' : ''}`}>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-lg leading-none" aria-hidden="true">{g.icon}</span>
+                        <span className="text-sm text-white leading-tight">{g.name}</span>
+                        <span className="osd-text text-base leading-none text-neon-yellow">{'★'.repeat(st)}<span className="text-slate-600">{'★'.repeat(GENRE_VALUES.maxStars - st)}</span></span>
+                        <span className={`ml-auto osd-text text-base leading-none whitespace-nowrap ${st ? 'text-neon-green' : 'text-slate-400'}`}>{st ? `+${pay} A WORD` : 'NOT PAYING YET'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 pl-7">
+                        <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden" aria-hidden="true">
+                          <div className="h-full bg-neon-yellow" style={{ width: `${maxed ? 100 : Math.round((plays / need) * 100)}%` }} />
+                        </div>
+                        <span className="osd-text text-sm leading-none text-slate-300 whitespace-nowrap">{maxed ? 'MAX ★' : `${plays}/${need} TO ★${st + 1}`}</span>
+                        <span className={`osd-text text-sm leading-none whitespace-nowrap ${earned.points ? 'text-neon-green' : 'text-slate-500'}`} data-testid="gear-genre-earned">EARNED +{earned.points.toLocaleString()}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+                <p className="text-[12px] text-slate-400 leading-snug pt-0.5">★ come from posters in the 📼 Video Store, or by playing words that fit.</p>
+              </div>
+            </Box>
+          );
+        })()}
         {(gs.collectorTiles ?? []).length > 0 && (
           <Box title="COLLECTOR'S TILES" right={`${(gs.collectorTiles ?? []).length}/${COLLECTOR.max}`}>
             {(gs.collectorTiles ?? []).map(c => {

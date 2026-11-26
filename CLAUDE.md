@@ -758,7 +758,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Simulated fit rates: casual Shorts 89%, Cult 17%, Sequels 9%, Musicals 3%, Remakes 3%; long-word players
   Shorts 45%, Epics 22%, Musicals 20%, Cult 18%, Sequels 12%. Paid in `completeSubmission` after the charm
   sets ("🎬 Sequels ★2" lines, 0 means 0 holds); the stage shows "🦇 CULT CLASSICS ★1 +25" while spelling
-  (`stage-genres`); Gear has a GENRES box (`gear-genres`, stars and words to the next ★); a "GENRE LEVELS!"
+  (`stage-genres`); Gear has a GENRES box (`gear-genres`; v7.96.2, the owner's ask: each genre row
+  shows "+50 A WORD" or NOT PAYING YET, a bar with "1/10 TO ★3", and EARNED +N this run from `genreEarned`
+  (its score lines in the log); the header totals all genres; a tap explains the math, "★2 × 25", and both
+  ways to earn stars); a "GENRE LEVELS!"
   heads-up card the first time any genre has a ★; "🎬 GENRE UP!" when one levels by play.
   **Collector's Tiles** (`COLLECTOR_TILES`, `gameState.collectorTiles`, max 4 a run): 💿 Chrome (x2 word tile,
   uses the normal tile multiplier), ✨ Holo (+25 a word), 📺 Static (a "?" blank: tapping it opens the
@@ -775,8 +778,8 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   number rolls from that BASE to the real total in `LANDED_ROLL_MS` (550 ms, eased, ticking notes; `rollValue`),
   slams in, holds `LANDED_HOLD_MS` (1.4 s) and fades. When boosts changed it, "BASE 35 → +85" shows under
   it (`landed-breakdown`); the full breakdown is in 🎒 Gear → Event log. The clock waits while it shows
-  (`tallying` via `onTally`), a cover over the tiles says "⏸ TAP TO SKIP" (`tally-skip`), it waits for any
-  card the word opened and never replays (`tallyDoneKey`). Reduced motion skips the roll. Browser-checked:
+  (`tallying` via `onTally`); v7.96.2 (the owner's call) removed the "TAP TO SKIP" cover: it's quick
+  enough, and placing a tile ends it. It waits for any card the word opened and never replays (`tallyDoneKey`). Reduced motion skips the roll. Browser-checked:
   GRAVITY with Epics ★2 rolled 35 → 56 → 85 and held 1.4 s with the clock at 29. Tests in
   `components/__tests__/scoreTally.test.ts`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in

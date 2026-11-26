@@ -201,7 +201,7 @@ const NoticeRail: React.FC<{ notices: Notice[]; flash?: { id: string; key: numbe
  * a quick payoff pops on the stage: the word, then the big number rolls from the BASE the player saw while
  * spelling up to what the word really scored (about half a second), slams in, holds, and fades. When boosts
  * changed it, "BASE 25 → +150" shows under it; the full breakdown is in 🎒 Gear → Event log. The clock waits
- * while it shows and a tap skips it.
+ * while it shows (v7.96.2: no tap-to-skip cover; it's quick enough, and placing a tile ends it).
  */
 export const LANDED_ROLL_MS = 550;
 export const LANDED_HOLD_MS = 1400;
@@ -212,7 +212,7 @@ export const rollValue = (base: number, total: number, t: number): number => {
   const k = Math.max(0, t) / LANDED_ROLL_MS;
   return Math.round(base + (total - base) * (1 - Math.pow(1 - k, 3)));
 };
-const ScoreTally: React.FC<{ word: string; total: number; base: number; skip: number; onShown: (v: boolean) => void; onDone: () => void }> = ({ word, total, base, skip, onShown, onDone }) => {
+const ScoreTally: React.FC<{ word: string; total: number; base: number; onShown: (v: boolean) => void; onDone: () => void }> = ({ word, total, base, onShown, onDone }) => {
   const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const rolls = total !== base && !reduce;
   const [value, setValue] = useState(rolls ? base : total);
@@ -246,8 +246,6 @@ const ScoreTally: React.FC<{ word: string; total: number; base: number; skip: nu
       return () => clearTimeout(t);
     }
   }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
-  // A tap on the cover skips: straight to the total, or out if it's already holding.
-  useEffect(() => { if (skip > 0) setPhase(p => (p === 'roll' ? 'hold' : p === 'hold' ? 'fade' : p)); }, [skip]);
   if (phase === 'gone') return null;
   const landed = phase !== 'roll';
   return (
@@ -401,8 +399,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     handleAddTileToSwap, handleRemoveTileFromSwap, handleExecuteSwap, dispatch, landed = null, onTally
 }) => {
     const [landedShown, setLandedShown] = useState(false);
-    // v7.94.0: the count-up runs while landedShown; the clock waits and a tap on the cover skips it.
-    const [tallySkip, setTallySkip] = useState(0);
+    // v7.94.0: the score pop runs while landedShown, and the clock waits.
     const [tallyDoneKey, setTallyDoneKey] = useState(0);
     useEffect(() => { onTally?.(landedShown); }, [landedShown]); // eslint-disable-line react-hooks/exhaustive-deps
     const skillShotPrize = skillShotPoints((gameState?.skillShot?.streak ?? 0) + 1);
@@ -1496,7 +1493,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
             <div className="stage-body relative flex-1 min-h-0 flex flex-col items-center gap-2 [@media(max-height:700px)]:gap-1">
               {/* The pop waits for any card the word opened (a PowerPlay offer, a level-up...) to close, so it plays
                   where the player can see it; after 30 s it's old news and is skipped. */}
-              {n === 0 && landed && tallyDoneKey !== landed.key && !modalContent && !isPaused && Date.now() - landed.key < 30000 && <ScoreTally key={landed.key} word={landed.word} total={landed.total} base={landed.base} skip={tallySkip} onShown={setLandedShown} onDone={() => setTallyDoneKey(landed.key)} />}
+              {n === 0 && landed && tallyDoneKey !== landed.key && !modalContent && !isPaused && Date.now() - landed.key < 30000 && <ScoreTally key={landed.key} word={landed.word} total={landed.total} base={landed.base} onShown={setLandedShown} onDone={() => setTallyDoneKey(landed.key)} />}
               {/* v7.83.0: a message never covers the word. With an empty word row it sits in the middle of the
                   stage; while you're spelling it sits under the word's chips instead (see below). */}
               {message && n === 0 && !landedShown && (
@@ -1580,13 +1577,6 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
 
       {/* --- PLAY AREA (always visible) --- */}
       <div className="relative flex-shrink-0 flex flex-col gap-2 w-full max-w-sm mx-auto">
-                {landedShown && (
-                  <button type="button" data-testid="tally-skip" aria-label="Skip the score count"
-                    onPointerDown={(e) => { e.preventDefault(); setTallySkip(k => k + 1); }}
-                    className="absolute inset-0 z-30 rounded-xl bg-crt-950/85 backdrop-blur-[2px] flex items-center justify-center">
-                    <span className="px-4 py-1.5 rounded-full bg-crt-900 ring-1 ring-neon-cyan/60 osd-text text-xl leading-none text-neon-cyan tracking-widest animate-pulse">⏸ TAP TO SKIP</span>
-                  </button>
-                )}
         {/* Greatest Hits (v7.87.0): right above the tiles, in the player's eyeline while picking letters. */}
         {gameState?.roundType !== 'golden' && <HitsChip gameState={gameState} />}
         {/* --- HAND: the standard hand in a 4x2 grid; widens to all rack slots when a power-up overfills it --- */}
