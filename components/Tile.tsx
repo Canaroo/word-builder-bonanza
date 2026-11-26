@@ -78,7 +78,7 @@ const TileComponent: React.FC<TileProps> = ({ tile, onClick, packTileClass, hint
       onClick={handleClick}
       onContextMenu={e => e.preventDefault()}
       disabled={tile.isLocked}
-      className={`tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none ${tileStyle} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed' : ''} ${bossHint === 'dim' ? 'boss-tile-dim' : bossHint === 'glow' || powerLit ? 'boss-tile-glow' : ''}`}
+      className={`tile-3d relative w-full h-full rounded-lg flex items-center justify-center cursor-pointer select-none ${tileStyle} ${glimmerClass} ${tile.isLocked ? 'opacity-50 cursor-not-allowed' : ''} ${powerLit ? 'power-tile-glow' : bossHint === 'dim' ? 'boss-tile-dim' : bossHint === 'glow' ? 'boss-tile-glow' : ''}`}
       aria-label={`Tile ${tile.letter} with ${tile.tempPoints ?? tile.points} points${hintOrder ? `, hint letter ${hintOrder}` : ''}${isGolden ? ', Golden Tile' : ''}${skillShot ? `, Skill Shot tile: use it in this word for ${skillShot} points` : ''}${tile.isGem ? `, gem x${tile.multiplier}` : ''}${tile.isLocked ? ' (locked for this turn)' : ''}${bossHint === 'dim' ? ', breaks the boss rule' : bossHint === 'glow' ? ', the boss rule needs this tile' : ''}${powerLit ? ', part of the hidden power word' : ''}`}
     >
       {/* v7.80.0: the dished face of the keycap (cream on plain tiles, a soft see-through dish on special ones). */}

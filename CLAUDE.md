@@ -760,6 +760,13 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   pulse for about 4 s, still under reduced motion) and brings it to the front. Once a level each, kept in
   `gameState.headsUp` (`power`, `zelda` → level) so a resumed run doesn't repeat it; never in a Golden Round
   or over another card (it waits). Browser-checked at 390x844 and 360x640: clock 50 → 50 while open.
+- **Power word tiles light correctly (v7.91.1, the owner: "sometimes it wasn't firing").** Three gaps fixed
+  in `powerLitIds` (`GameScreenView.tsx`): it matched single letters only, so a word needing a combo tile
+  (RINGS with an ING tile) lit just R and S; it now uses `assignTilesToWord`, the game's own speller. A boss
+  rule dimming a tile won over the glow; the glow now wins (`Tile.tsx`). Letters already in the word row
+  never lit; they do now. The glow is its own gold pulse (`.power-tile-glow`, it shared the boss rule's
+  pink). Browser-checked: SLOT in HEALSTOR lights L, S, T, O; RINGS lights R, ING, S; an S in the word row
+  stays lit. Tests in `components/__tests__/powerLit.test.tsx`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
