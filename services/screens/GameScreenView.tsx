@@ -401,6 +401,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     const [landedShown, setLandedShown] = useState(false);
     // v7.94.0: the score pop runs while landedShown, and the clock waits.
     const [tallyDoneKey, setTallyDoneKey] = useState(0);
+    // v7.96.4 (the owner's report): placing a tile ends this word's pop for good. It used to only hide it, so
+    // sending the tile back brought the pop (and its clock pause) back, again and again.
+    const placedCount = (buildRow ?? []).filter(Boolean).length;
+    useEffect(() => { if (placedCount > 0 && landed && tallyDoneKey !== landed.key) setTallyDoneKey(landed.key); }, [placedCount, landed?.key]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => { onTally?.(landedShown); }, [landedShown]); // eslint-disable-line react-hooks/exhaustive-deps
     const skillShotPrize = skillShotPoints((gameState?.skillShot?.streak ?? 0) + 1);
     const timerRef = useRef<HTMLDivElement>(null);
