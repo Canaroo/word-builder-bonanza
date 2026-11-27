@@ -53,6 +53,9 @@ export const levelProgressFor = (validWords: number) => ({
     needed: GAMEPLAY.levels.wordsPerLevel,
 });
 
+/** v7.96.9: the clock speed with 🛑 Hammer Time held: every level's speed, hammerTimeSlowPercent slower. */
+export const hammerClockFor = (level: number): number => Math.round(clockSpeedFor(level) * (100 - CHARM_BONUS.hammerTimeSlowPercent)) / 100;
+
 /** Milliseconds per clock tick at this level. */
 export const tickMsFor = (level: number): number => Math.round(1000 / clockSpeedFor(level));
 

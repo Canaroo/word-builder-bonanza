@@ -1,6 +1,7 @@
 import { PHOENIX_DOWN } from '../config/progression';
 import { Charm, GameState, EventLogEntry } from '../types';
 import { labelize } from '../services/durationTags';
+import { clockSpeedFor, hammerClockFor } from '../services/rules';
 import { BOSS, CHARM_BONUS, CHARM_SLOTS, GAMEPLAY, POWER_GLOVE_BANK_MAX, TIME_BONUS, SHINE_BRIGHT_GEMS, GEM_TILES, GATES , FRAGILE } from '../config/gameplay';
 
 // The 'activate' function is for effects that happen immediately upon selection for passive buffs.
@@ -990,7 +991,10 @@ export const CHARMS_LIST: Charm[] = [
   {
     id: 'hammerTime',
     name: 'Hammer Time',
-    description: `Your clock runs slower: a minute lasts about ${Math.round(6000 / (100 - CHARM_BONUS.hammerTimeSlowPercent))} seconds. Every word scores ${CHARM_BONUS.hammerTimeCost} fewer points.`,
+    // v7.96.9 (the owner: unclear how it works once the clock speeds up): it takes 15% off whatever speed the
+    // level runs at, so the numbers below are the real speeds (clockSpeedFor, hammerClockFor).
+    description: `Slow your roll: your clock runs ${CHARM_BONUS.hammerTimeSlowPercent}% slower at every level, speed-ups included. Every word scores ${CHARM_BONUS.hammerTimeCost} fewer points.`,
+    finePrint: `The clock still speeds up as you level, just ${CHARM_BONUS.hammerTimeSlowPercent}% less: level 1 x${clockSpeedFor(1).toFixed(2)} → x${hammerClockFor(1).toFixed(2)}, level 10 x${clockSpeedFor(10).toFixed(2)} → x${hammerClockFor(10).toFixed(2)}, the top speed x${clockSpeedFor(99).toFixed(2)} → x${hammerClockFor(99).toFixed(2)}. Golden Rounds keep their own clock.`,
     flavorText: 'MC Hammer pants not included.',
     icon: '🛑',
     subtheme: 'game',

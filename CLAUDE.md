@@ -809,6 +809,12 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   800/650/520 ms (`MINI_GAME_VALUES.monte.swaps`/`swapMs`); a card moves for 60% of each swap and rests the rest
   (`moveShare`), and the two cards trading places arc past each other, one lifted and bigger, one lower and smaller,
   so they never slide through each other. Shuffles take about 4-4.6 s. Browser-checked: Fluncle 30 → 38 sec, +400.
+- **Hammer Time text (v7.96.9, the owner: unclear how it works once the clock speeds up).** Same effect: every tick
+  is stretched, so it takes `CHARM_BONUS.hammerTimeSlowPercent` (15%) off whatever speed the level runs at, all run
+  long (level 1 x1.00 → x0.85, level 10 x1.53 → x1.30, top x2.40 → x2.04); Golden Rounds keep their own clock. The
+  description says so ("15% slower at every level, speed-ups included"), a `finePrint` lists those speeds from
+  `clockSpeedFor`/`hammerClockFor` (`services/rules.ts`), and Gear's clock row shows the slowed speed with a 🛑 and
+  explains it on tap. It used to say "a minute lasts about 71 seconds". Tests in `hammerTime.test.ts`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

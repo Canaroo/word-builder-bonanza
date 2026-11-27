@@ -4,7 +4,7 @@ import { CHARM_BONUS, CHARM_SLOTS, GENRE_VALUES, COLLECTOR } from '../config/gam
 import { GENRES, starsOf, perStar, playsPerStar, collectorInfo, COLLECTOR_RULE, genreEarned } from '../data/videoStore';
 import { CHARMS_LIST, CHARM_TIME_SECONDS, UPGRADABLE_CHARM_IDS } from '../data/charms';
 import { CHARM_SETS, setPayFor } from '../data/charmSets';
-import { clockSpeedFor, prizeScaleFor, wordTimeScaleFor } from '../services/rules';
+import { clockSpeedFor, hammerClockFor, prizeScaleFor, wordTimeScaleFor } from '../services/rules';
 import { hitsBoard } from '../services/greatestHits';
 import { GREATEST_HITS } from '../config/gameplay';
 import ArcadeButton from './ArcadeButton';
@@ -126,6 +126,7 @@ const GearMenu: React.FC<{
   const [pick, setPick] = useState<Pick | null>(null);
   const choose = (key: string, p: Pick) => { setSel(key); setPick(p); };
   const charms = gs.activeCharms ?? [];
+  const hammer = charms.some(c => c.id === 'hammerTime');
   const charmIds = charms.map(c => c.id);
   const running = (gs.activeBuffs ?? []).filter(b => !charmIds.includes(b.id));
   const pocket = gs.availablePowerPlays ?? [];
@@ -157,8 +158,8 @@ const GearMenu: React.FC<{
         <Box title="RUN STATUS" right={`LEVEL ${level}${words !== undefined ? ` · ${words} WORDS` : ''}`}>
           <Row selected={sel === 'strikes'} icon="❌" label={<>Strikes left: <strong>{strikesLeft} of {maxStrikes}</strong>{shields.length ? ` · ${shields.length} protection${shields.length > 1 ? 's' : ''} up` : ''}</>}
             onClick={() => choose('strikes', { icon: '❌', name: 'Strikes', text: `An invalid word is a strike. ${maxStrikes} strikes and the run ends.${shields.length ? `\n\nProtecting you now:\n${shields.join('\n')}` : ' Nothing is protecting you right now.'}${fragile.length ? `\n\n💔 Your fragile charms (${fragile.map(c => c.name).join(', ')}) break on any invalid word or strike, even a blocked one.` : ''}` })} />
-          <Row selected={sel === 'clock'} icon="⏱️" label={<>Clock speed <strong>x{clockSpeedFor(level).toFixed(2)}</strong> · word time <strong>{Math.round(wordTimeScaleFor(level) * 100)}%</strong></>}
-            onClick={() => choose('clock', { icon: '⏱️', name: 'The clock', text: `At level ${level} the clock runs x${clockSpeedFor(level).toFixed(2)} speed, and each word earns ${Math.round(wordTimeScaleFor(level) * 100)}% of its normal time. Both get tougher as the levels climb.` })} />
+          <Row selected={sel === 'clock'} icon="⏱️" label={<>Clock speed <strong>x{(hammer ? hammerClockFor(level) : clockSpeedFor(level)).toFixed(2)}</strong>{hammer ? ' 🛑' : ''} · word time <strong>{Math.round(wordTimeScaleFor(level) * 100)}%</strong></>}
+            onClick={() => choose('clock', { icon: '⏱️', name: 'The clock', text: `At level ${level} the clock runs x${clockSpeedFor(level).toFixed(2)} speed, and each word earns ${Math.round(wordTimeScaleFor(level) * 100)}% of its normal time. Both get tougher as the levels climb.${hammer ? `\n\n🛑 Hammer Time takes ${CHARM_BONUS.hammerTimeSlowPercent}% off: your clock runs x${hammerClockFor(level).toFixed(2)} instead of x${clockSpeedFor(level).toFixed(2)}. It keeps working as the clock speeds up.` : ''}` })} />
           <Row selected={sel === 'prizes'} icon="🏆" label={<>PowerPlay prizes <strong>x{prizeScaleFor(level).toFixed(1)}</strong></>}
             onClick={() => choose('prizes', { icon: '🏆', name: 'Prize boost', text: `PowerPlay point prizes grow with the level. At level ${level} they pay x${prizeScaleFor(level).toFixed(1)}.` })} />
         </Box>
