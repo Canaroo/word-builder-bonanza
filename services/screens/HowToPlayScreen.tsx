@@ -216,7 +216,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             {VIDEO_STORE.firstLevel + 2 * VIDEO_STORE.every}...) you walk into <Key>📼 the Video Store</Key>. Your clock is paused
             while you shop, and <Key>your seconds are your money</Key>: every price comes off your clock, and you can't spend
             below {VIDEO_STORE.keepAtLeast} seconds. The shelf has three tapes: a charm, a PowerPlay or a Collector's Tile, and
-            a genre poster. Tap one to read it, then rent it. <Key>🔄 Restock</Key> deals a new shelf ({VIDEO_STORE.restockBase}{' '}
+            a genre poster. Tap one to read it, then check it out: it's yours for the rest of the run. <Key>🔄 Restock</Key> deals a new shelf ({VIDEO_STORE.restockBase}{' '}
             seconds, then 1 more each time). <Key>💵 Trade in</Key> sells a charm for half its price in seconds (all of it if
             it's upgraded ⭐) and frees its slot. <Key>🚪 Walk out</Key> with nothing for +{VIDEO_STORE.walkOut} points (more at
             higher levels). A receipt adds it all up.

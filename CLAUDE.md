@@ -854,6 +854,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Chili's), AIR (unreadable), HEX (no Harry Potter link). Rule for new clues: point at the reference plus a second,
   everyday meaning; no "minus/dropped/chop" letter math, no fill-in of a title that ends in the word, no lyrics.
   Left as they are, loosely tied: LANE (Kingpin), RING (Big), NOTE (Guitar Hero).
+- **Checkout, not Rent (v7.97.2, the owner's ask: "rent" made players think it was temporary).** Store wording:
+  "▶ Check out · −N sec", "✓ CHECKED OUT · IT'S YOURS" (detail), "✓ YOURS" (tape), "NOTHING CHECKED OUT YET" (receipt),
+  the PowerPlay tape's label is POWERPLAY (was RENTAL), the welcome panel, How to Play and the tour say it's yours for
+  the rest of the run, and the log says "Checked out X". Code ids keep "rent" (`STORE_RENT`, `store-rent`, the `store`
+  stat's `rented`). Use "check out" in new store text.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

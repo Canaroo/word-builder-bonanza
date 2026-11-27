@@ -15,7 +15,7 @@ import type { Charm, GameState } from '../types';
 
 const KIND: Record<Tape['kind'], { label: string; ring: string; text: string; bg: string }> = {
   charm: { label: 'NEW RELEASE', ring: 'ring-neon-green', text: 'text-neon-green', bg: 'bg-[#0d2a1e]' },
-  powerPlay: { label: 'RENTAL', ring: 'ring-neon-purple', text: 'text-neon-purple', bg: 'bg-[#22113a]' },
+  powerPlay: { label: 'POWERPLAY', ring: 'ring-neon-purple', text: 'text-neon-purple', bg: 'bg-[#22113a]' },
   poster: { label: 'POSTER', ring: 'ring-neon-yellow', text: 'text-neon-yellow', bg: 'bg-[#2a2208]' },
   tile: { label: "COLLECTOR'S", ring: 'ring-neon-cyan', text: 'text-neon-cyan', bg: 'bg-[#0b2433]' },
 };
@@ -62,7 +62,7 @@ const StoreIntro: React.FC<{ onOk: () => void }> = ({ onOk }) => (
       <p className="text-slate-100 text-[15px] leading-snug">It opens every other level. Your clock is paused while you shop.</p>
       <ul className="text-[14px] text-slate-200 leading-snug space-y-1.5">
         <li><b className="text-neon-yellow">⏱ Your seconds are your money.</b> Every price comes off your clock. You can't spend below {VIDEO_STORE.keepAtLeast} seconds.</li>
-        <li><b className="text-neon-green">📼 Tap a tape</b> to read the back of the box, then rent it: a charm, a PowerPlay, a genre poster or a Collector's Tile.</li>
+        <li><b className="text-neon-green">📼 Tap a tape</b> to read the back of the box, then check it out. It's yours for the rest of the run: a charm, a PowerPlay, a genre poster or a Collector's Tile.</li>
         <li><b className="text-neon-cyan">🔄 Restock</b> for a new shelf, or <b className="text-neon-cyan">💵 trade in</b> a charm for seconds back.</li>
         <li><b className="text-neon-pink">🚪 Walk out</b> with nothing for +{VIDEO_STORE.walkOut} points.</li>
       </ul>
@@ -131,7 +131,7 @@ const VideoStore: React.FC<{
                 <span className={`osd-text text-[11px] leading-none tracking-wider ${k.text}`}>{k.label}</span>
                 <span className="text-3xl leading-none mt-1.5" aria-hidden="true">{ti?.icon}</span>
                 <span className="text-[12px] leading-tight text-white mt-1 line-clamp-2">{ti?.name}</span>
-                <span className="mt-auto osd-text text-base leading-none rounded bg-neon-yellow text-crt-950 px-1.5 py-0.5">{gone ? '✓ RENTED' : <>−{t.price}<Sec /></>}</span>
+                <span className="mt-auto osd-text text-base leading-none rounded bg-neon-yellow text-crt-950 px-1.5 py-0.5">{gone ? '✓ YOURS' : <>−{t.price}<Sec /></>}</span>
               </button>
             );
           })}
@@ -149,9 +149,9 @@ const VideoStore: React.FC<{
               {info.flavor && <p className="text-slate-400 text-[12px] italic leading-snug">“{info.flavor}”</p>}
               {tape.kind === 'powerPlay' && pocket && !isSold && <p className="text-neon-yellow text-[12px] leading-snug">This swaps out {pocket.icon} {pocket.name} from your pocket.</p>}
               {blockedBy && <p className="text-neon-red text-[13px] leading-snug" data-testid="store-blocked">{blockedBy}</p>}
-              {isSold ? <p className="osd-text text-lg text-neon-green">✓ RENTED</p> : (
+              {isSold ? <p className="osd-text text-lg text-neon-green">✓ CHECKED OUT · IT'S YOURS</p> : (
                 <ArcadeButton color="green" className="w-full" data-testid="store-rent" disabled={!!blockedBy} onClick={() => onRent(pick!)}>
-                  ▶ Rent it · −{tape.price}<Sec />
+                  ▶ Check out · −{tape.price}<Sec />
                 </ArcadeButton>
               )}
             </div>
@@ -200,7 +200,7 @@ const VideoStore: React.FC<{
         <div className="rounded-sm bg-[#f4f0e2] text-[#222] px-3 py-2 font-mono text-[12px] leading-snug shadow-inner" data-testid="store-receipt">
           <p className="text-center tracking-widest">RECEIPT · LEVEL {data.level}</p>
           <div className="border-t border-dashed border-[#888] my-1" />
-          {lines.length === 0 ? <p>NOTHING RENTED YET</p> : lines.map((l, i) => {
+          {lines.length === 0 ? <p>NOTHING CHECKED OUT YET</p> : lines.map((l, i) => {
             // v7.96.10 (the owner's ask): a trade-in can be taken back until Done.
             const block = l.trade ? takeBackBlock(l, clock, charms) : null;
             return (

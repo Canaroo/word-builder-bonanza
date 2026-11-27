@@ -951,7 +951,7 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                 name = `${info.icon} ${info.name}`;
             }
             const gs2 = next.gameState;
-            const entry: EventLogEntry = { type: 'event', id: `store-rent-${Date.now()}`, name: 'Video Store', icon: '📼', description: `Rented ${name} for ${tape.price}s.`, scoreChange: 0, cumulativeScore: gs2.score };
+            const entry: EventLogEntry = { type: 'event', id: `store-rent-${Date.now()}`, name: 'Video Store', icon: '📼', description: `Checked out ${name} for ${tape.price}s.`, scoreChange: 0, cumulativeScore: gs2.score };
             return { ...next, isPaused: true, time: next.time - tape.price,
                 modalContent: { ...m, data: { ...m.data, sold: [...sold, action.payload.index], lines: [...(m.data?.lines ?? []), { t: name, d: -tape.price }] } },
                 gameState: { ...gs2, log: [...gs2.log, entry] } };

@@ -45,7 +45,7 @@ const CARDS = [
   { icon: '🌟', name: 'Golden Round', tone: 'text-neon-yellow ring-neon-yellow/60',
     back: `Chain enough good words and you get one Golden word: it scores x${GAMEPLAY.goldenRound.multiplier}, or x${GAMEPLAY.goldenRound.tileMultiplier} with the glowing ★ tile.` },
   { icon: '📼', name: 'Video Store', tone: 'text-neon-pink ring-neon-pink/60',
-    back: `Every other level you go shopping, and your seconds are the money. Rent charms, PowerPlays, genre posters and Collector's Tiles while the clock waits.` },
+    back: `Every other level you go shopping, and your seconds are the money. Check out charms, PowerPlays, genre posters and Collector's Tiles to keep, while the clock waits.` },
   { icon: '🎬', name: 'Genres', tone: 'text-neon-cyan ring-neon-cyan/60',
     back: `Short words, long words, double letters... each genre earns stars as you play it. Every ★ makes those words pay more for the rest of the run.` },
 ];
