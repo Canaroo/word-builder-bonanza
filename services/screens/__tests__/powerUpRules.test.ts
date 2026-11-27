@@ -473,7 +473,7 @@ describe('v7.8 additions', () => {
         expect(noPack.gameState.score).toBe(POWER_PLAY_VALUES.actClearMaxSeconds * POWER_PLAY_VALUES.actClearPointsPerSecond);
 
         const instant = gameReducer(start({ ...withPack, score: 0 }), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('fluncleIsProud'), allOffered: [pp('fluncleIsProud')] } });
-        expect(instant.gameState.score).toBe(300 + CHARM_BONUS.backpack);
+        expect(instant.gameState.score).toBe(POWER_PLAY_VALUES.fluncleProud + CHARM_BONUS.backpack);
 
         const swap = gameReducer(start({ ...withPack, score: 0, availablePowerPlays: [pp('timeBoost')] }), { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp('konamiCode'), allOffered: [pp('konamiCode')] } });
         expect(swap.gameState.score).toBe(0);

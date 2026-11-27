@@ -2264,30 +2264,30 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             }
 
             if (powerPlay.id === 'fluncleIsProud') {
-                let newGameState = { ...gameState };
-                const scoreChange = prizeFor(300, runLevel(gameState));
-                const newScore = newGameState.score + scoreChange;
-                const changes = { score: newScore };
-
+                // v7.96.8: a sure prize plus PowerPlay seconds (full at any level).
+                const scoreChange = prizeFor(POWER_PLAY_VALUES.fluncleProud, runLevel(gameState));
+                const newScore = gameState.score + scoreChange;
+                const time = clampTime(state.time + powerPlaySeconds(POWER_PLAY_VALUES.fluncleSeconds), bankMax(gameState));
+                const secs = time - state.time;
                 const newLogEntry: EventLogEntry = {
                     type: 'event', id: `pp-fluncleIsProud-${Date.now()}`, name: powerPlay.name,
-                    description: `Fluncle is proud! +${scoreChange} points.`, icon: '🧓',
-                    scoreChange: scoreChange, cumulativeScore: newScore
+                    description: `Fluncle is proud! +${scoreChange} points${secs > 0 ? ` and +${secs} sec` : ''}.`, icon: '🧓',
+                    scoreChange, cumulativeScore: newScore,
                 };
-                const newLog = [...newGameState.log, newLogEntry];
-
-                newGameState = {
-                    ...newGameState,
-                    ...changes,
-                    log: newLog,
+                const newGameState = {
+                    ...gameState,
+                    score: newScore,
+                    log: [...gameState.log, newLogEntry],
                     powerPlayOffer: [],
                     powerPlayProgress: resetProgress,
                     powerPlayCooldowns: newPowerPlayCooldowns,
                 };
-                const newModalContent: ModalContent = { type: 'info', title: 'Fluncle is Proud', content: `Fluncle is very proud of you. You gain ${scoreChange} points!${swappedOut}` };
+                const newModalContent: ModalContent = { type: 'info', title: 'Fluncle is Proud', content: `Fluncle is very proud of you. You gain ${scoreChange} points${secs > 0 ? ` and ${secs} seconds` : ''}!${swappedOut}` };
                 // The card takes the offer's place (see CARD_ON_PICK): queued, it was wiped by the next round.
                 return {
                     ...state,
+                    time,
+                    timeGain: secs > 0 ? { seconds: secs, key: Date.now() } : state.timeGain,
                     gameState: newGameState,
                     isPaused: true,
                     modalContent: newModalContent,

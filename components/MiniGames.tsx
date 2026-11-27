@@ -849,8 +849,12 @@ const Monte: React.FC<{ finish: Finish }> = ({ finish }) => {
   const [phase, setPhase] = useState<'show' | 'shuffle' | 'pick' | 'reveal'>('show');
   const [picked, setPicked] = useState<number | null>(null);
   const ended = useRef(false);
-  const swapMs = [420, 300, 210][Math.min(state.round, 2)];
-  const swaps = [5, 7, 9][Math.min(state.round, 2)];
+  // v7.96.8 (the owner: following the queen was nearly impossible): fewer, slower swaps with a pause
+  // between them, and the two cards trading places arc past each other (one high, one low) instead of
+  // sliding through each other. Was 5/7/9 swaps at 420/300/210 ms with no pause.
+  const swapMs = D.swapMs[Math.min(state.round, 2)];
+  const swaps = D.swaps[Math.min(state.round, 2)];
+  const [lift, setLift] = useState<Record<number, number>>({});
   useEffect(() => {
     if (ended.current) return;
     setPicked(null); setPhase('show');
@@ -860,8 +864,10 @@ const Monte: React.FC<{ finish: Finish }> = ({ finish }) => {
     for (let k = 0; k < swaps; k++) {
       timers.push(setTimeout(() => {
         const a = Math.floor(Math.random() * 3); let b = Math.floor(Math.random() * 2); if (b >= a) b++;
+        const ca = order[a], cb = order[b];
         order = [...order]; [order[a], order[b]] = [order[b], order[a]];
-        setSlots(order); tick();
+        setSlots(order); setLift({ [ca]: -1, [cb]: 1 }); tick();
+        timers.push(setTimeout(() => setLift({}), swapMs * D.moveShare));
       }, 1500 + k * swapMs));
     }
     timers.push(setTimeout(() => setPhase('pick'), 1500 + swaps * swapMs + 150));
@@ -893,8 +899,8 @@ const Monte: React.FC<{ finish: Finish }> = ({ finish }) => {
           const at = slots.indexOf(card);
           return (
             <button key={card} type="button" disabled={phase !== 'pick'} onClick={() => pick(card)} aria-label={phase === 'pick' ? `Card ${at + 1}` : faceUp(card) ? (card === 0 ? 'The queen' : 'A plain card') : 'A face-down card'}
-              className={`absolute top-0 w-[30%] h-full rounded-xl ring-2 grid place-items-center text-4xl font-display transition-[left] ease-in-out ${faceUp(card) ? 'bg-white text-crt-900 ring-white' : 'bg-gradient-to-br from-neon-purple to-neon-pink ring-white/40'} ${phase === 'pick' ? 'hover:-translate-y-1' : ''}`}
-              style={{ left: `${at * 35}%`, transitionDuration: `${swapMs * 0.8}ms` }}>
+              className={`absolute top-0 w-[30%] h-full rounded-xl ring-2 grid place-items-center text-4xl font-display transition-[left,transform] ease-in-out ${faceUp(card) ? 'bg-white text-crt-900 ring-white' : 'bg-gradient-to-br from-neon-purple to-neon-pink ring-white/40'} ${phase === 'pick' ? 'hover:-translate-y-1' : ''}`}
+              style={{ left: `${at * 35}%`, transitionDuration: `${swapMs * D.moveShare}ms`, transform: lift[card] ? `translateY(${lift[card] * 22}px) scale(${lift[card] < 0 ? 1.06 : 0.94})` : undefined, zIndex: lift[card] ? (lift[card] < 0 ? 2 : 1) : 0 }}>
               {faceUp(card) ? (card === 0 ? '👸' : '🂠') : ''}
             </button>
           );
