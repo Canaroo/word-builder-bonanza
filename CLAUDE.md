@@ -897,6 +897,13 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   pays `DAILY_CHAMP.credits` (25) per win through App's `handleLexCoinChange` and marks the days seen
   (`dailyWinsSeen`, per player). Browser-checked: card, 0 → 25 Credits, gone after a reload, chip 🏆1. Tests in
   `dailyChamps.test.ts`. Names are how players are told apart, like the Top 50.
+- **Collector's Tiles show what they earned (v7.99.1, the owner's ask).** `gameState.collectorEarned` (per kind:
+  points, seconds, words; fresh each run) is filled in `completeSubmission`'s Collector block: Holo its +25s, Rewind its
+  seconds, Static the words it spelled, and Chrome the word's score with its x2 minus the same word scored as a plain
+  tile (`calculateScore` twice), since its x2 shows as an ordinary "Tile Multiplier" line. Gear's legend shows EARNED
+  +N / +N SEC / N WORDS under YOU HAVE (`gear-collector-earned`), the header totals it ("+30 THIS RUN"), and a row tap
+  says "This run: +N points from its x2, over 1 word." Golden words don't count toward it. Browser-checked: CAT with a
+  Chrome C and a Holo A → EARNED +5 and +25, header +30.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

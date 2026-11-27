@@ -5426,19 +5426,35 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       }
 
       // 💿 Collector's Tiles (v7.96.0): Holo pays points, Rewind pays seconds (Chrome is a x2 word tile).
+      // v7.99.1 (the owner's ask): Gear shows what each kind earned this run, kept in collectorEarned. Chrome's share
+      // is the word's score with its x2 minus the same word scored as a plain tile; Static counts the words it spelled.
       {
+          const earned = { ...(newState.collectorEarned ?? {}) };
+          const add = (kind: 'chrome' | 'holo' | 'static' | 'rewind', points: number, seconds: number) => {
+              const was = earned[kind] ?? { points: 0, seconds: 0, words: 0 };
+              earned[kind] = { points: was.points + points, seconds: was.seconds + seconds, words: was.words + 1 };
+          };
+          if (submittedTiles.some(t => t.collector === 'chrome')) {
+              const plain = submittedTiles.map(t => (t.collector === 'chrome' ? { ...t, multiplier: undefined } : t));
+              const share = wordLocked ? 0 : Math.max(0, gameUtils.calculateScore(word, submittedTiles, newState).totalScore - gameUtils.calculateScore(word, plain, newState).totalScore);
+              add('chrome', share, 0);
+          }
+          if (submittedTiles.some(t => t.collector === 'static')) add('static', 0, 0);
           const holo = submittedTiles.filter(t => t.collector === 'holo').length;
           if (holo > 0 && !wordLocked) {
               const pts = holo * COLLECTOR.holoPoints;
               runningScore += pts;
               scoreResult.bonuses.push({ name: '✨ Holo tile', description: `+${pts} pts` });
           }
+          if (holo > 0) add('holo', wordLocked ? 0 : holo * COLLECTOR.holoPoints, 0);
           const rewind = submittedTiles.filter(t => t.collector === 'rewind').length;
           if (rewind > 0) {
               const secs = rewind * COLLECTOR.rewindSeconds;
               newState.pendingTimeBonus = (newState.pendingTimeBonus ?? 0) + secs;
               scoreResult.bonuses.push({ name: '⏪ Rewind tile', description: `+${secs} sec on your clock` });
+              add('rewind', 0, secs);
           }
+          if (Object.keys(earned).length) newState.collectorEarned = earned;
       }
 
       // Skill Shot (v7.42): the level's first word. Using the lit tile pays, more for each level in a row.
