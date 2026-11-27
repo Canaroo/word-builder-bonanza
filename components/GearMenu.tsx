@@ -246,8 +246,27 @@ const GearMenu: React.FC<{
         {(() => {
           const owned = gs.collectorTiles ?? [];
           const sample: Record<string, string> = { chrome: 'C', holo: 'H', static: '?', rewind: 'R' };
+          // v7.99.1 (the owner's ask): what each kind has earned this run, like the genres.
+          const got = gs.collectorEarned ?? {};
+          const earnedText = (kind: string) => {
+            const e = got[kind as keyof typeof got];
+            if (!e) return null;
+            return kind === 'rewind' ? `+${e.seconds} SEC` : kind === 'static' ? `${e.words} WORD${e.words === 1 ? '' : 'S'}` : `+${e.points.toLocaleString()}`;
+          };
+          const earnedLine = (kind: string) => {
+            const e = got[kind as keyof typeof got];
+            if (!e) return 'It hasn\'t been in a word yet this run.';
+            const n = `${e.words} word${e.words === 1 ? '' : 's'}`;
+            return kind === 'rewind' ? `This run: +${e.seconds} seconds over ${n}.`
+              : kind === 'static' ? `This run: it filled in a letter in ${n}.`
+              : kind === 'chrome' ? `This run: +${e.points.toLocaleString()} points from its x2, over ${n}.`
+              : `This run: +${e.points.toLocaleString()} points over ${n}.`;
+          };
+          const totalPts = (got.chrome?.points ?? 0) + (got.holo?.points ?? 0);
+          const totalSec = got.rewind?.seconds ?? 0;
+          const headerRight = totalPts || totalSec ? `${totalPts ? `+${totalPts.toLocaleString()}` : ''}${totalPts && totalSec ? ' · ' : ''}${totalSec ? `+${totalSec} SEC` : ''} THIS RUN` : `${owned.length}/${COLLECTOR.max} OWNED`;
           return (
-            <Box title="COLLECTOR'S TILES" right={`${owned.length}/${COLLECTOR.max} OWNED`}
+            <Box title="COLLECTOR'S TILES" right={headerRight}
               infoOn={sel === 'info-collector'} info={() => choose('info-collector', { icon: '💿', name: "How Collector's Tiles work",
                 text: `Collector's Tiles are special tiles you keep for the rest of the run. Each kind wears its own frame, so you can spot it in your hand:\n${COLLECTOR_TILES.map(c => `${c.icon} ${c.name}: ${c.look}. ${c.text}`).join('\n')}\n\n${COLLECTOR_RULE} Get them in the 📼 Video Store or from a scratch-off ticket, up to ${COLLECTOR.max} a run.` })}>
               <div className="flex flex-col gap-1" data-testid="gear-collectors">
@@ -256,8 +275,8 @@ const GearMenu: React.FC<{
                   const key = `col-${c.kind}`;
                   return (
                     <button key={c.kind} type="button" data-testid="gear-collector" data-kind={c.kind}
-                      onClick={() => choose(key, { icon: c.icon, name: c.name, tag: have ? `YOU HAVE ${have}` : 'NOT IN YOUR RUN YET',
-                        text: `${c.text}\n\nHow to spot it: ${c.look}.\n\n${COLLECTOR_RULE}${have ? '' : ` Find one in the 📼 Video Store (${COLLECTOR.prices[c.kind]} sec) or on a scratch-off ticket.`}`, flavor: c.flavor })}
+                      onClick={() => choose(key, { icon: c.icon, name: c.name, tag: have ? `YOU HAVE ${have}${earnedText(c.kind) ? ` · EARNED ${earnedText(c.kind)}` : ''}` : 'NOT IN YOUR RUN YET',
+                        text: `${c.text}${have ? `\n\n${earnedLine(c.kind)}` : ''}\n\nHow to spot it: ${c.look}.\n\n${COLLECTOR_RULE}${have ? '' : ` Find one in the 📼 Video Store (${COLLECTOR.prices[c.kind]} sec) or on a scratch-off ticket.`}`, flavor: c.flavor })}
                       className={`w-full flex items-center gap-2.5 text-left rounded-lg px-1.5 py-1.5 ${sel === key ? 'bg-white/10 ring-1 ring-white/30' : 'hover:bg-white/5'}`}>
                       <span className="relative shrink-0 w-9 h-10 pointer-events-none" aria-hidden="true">
                         <TileComponent tile={{ id: `legend-${c.kind}`, letter: sample[c.kind], points: c.kind === 'static' ? 0 : 1, collector: c.kind }} onClick={() => {}} packTileClass="" />
@@ -266,7 +285,10 @@ const GearMenu: React.FC<{
                         <span className="block text-sm text-white leading-tight">{c.icon} {c.name}</span>
                         <span className="block text-[12px] text-slate-300 leading-tight">{c.short}</span>
                       </span>
-                      <span className={`shrink-0 osd-text text-sm leading-none whitespace-nowrap ${have ? 'text-neon-green' : 'text-slate-500'}`}>{have ? `YOU HAVE ${have}` : 'VIDEO STORE'}</span>
+                      <span className="shrink-0 flex flex-col items-end gap-1">
+                        <span className={`osd-text text-sm leading-none whitespace-nowrap ${have ? 'text-neon-green' : 'text-slate-500'}`}>{have ? `YOU HAVE ${have}` : 'VIDEO STORE'}</span>
+                        {have > 0 && <span className={`osd-text text-sm leading-none whitespace-nowrap ${earnedText(c.kind) ? 'text-neon-green' : 'text-slate-500'}`} data-testid="gear-collector-earned">EARNED {earnedText(c.kind) ?? '+0'}</span>}
+                      </span>
                     </button>
                   );
                 })}

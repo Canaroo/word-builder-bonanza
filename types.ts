@@ -352,6 +352,8 @@ export interface GameState {
   genrePlays?: Record<string, number>;
   /** 💿 Collector's Tiles owned this run. `fresh` lands on the very next hand (then returnChance a hand). */
   collectorTiles?: { id: string; kind: 'chrome' | 'holo' | 'static' | 'rewind'; fresh?: boolean }[];
+  /** v7.99.1: what each Collector's Tile kind has done this run (points, seconds, words it was used in). */
+  collectorEarned?: Partial<Record<'chrome' | 'holo' | 'static' | 'rewind', { points: number; seconds: number; words: number }>>;
   /** 📼 The Video Store: the last level it opened on. */
   storeLevel?: number;
   /** Fragile charms that shattered this run (never offered again). */
