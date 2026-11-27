@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import type { Charm, GameState, PowerPlay } from '../types';
-import { CHARM_BONUS, CHARM_SLOTS, GENRE_VALUES, COLLECTOR } from '../config/gameplay';
-import { GENRES, starsOf, perStar, playsPerStar, collectorInfo, COLLECTOR_RULE, genreEarned } from '../data/videoStore';
+import { CHARM_BONUS, CHARM_SLOTS, GENRE_VALUES, COLLECTOR, CHARM_SET_BONUS } from '../config/gameplay';
+import { GENRES, starsOf, perStar, playsPerStar, collectorInfo, COLLECTOR_RULE, COLLECTOR_TILES, genreEarned } from '../data/videoStore';
+import TileComponent from './Tile';
 import { CHARMS_LIST, CHARM_TIME_SECONDS, UPGRADABLE_CHARM_IDS } from '../data/charms';
 import { CHARM_SETS, setPayFor } from '../data/charmSets';
 import { clockSpeedFor, hammerClockFor, prizeScaleFor, wordTimeScaleFor } from '../services/rules';
@@ -86,10 +87,16 @@ export const paysDirectly = (c: Charm): boolean =>
 
 type Pick = { icon: string; name: string; tag?: string; text: string; flavor?: string };
 
-const Box: React.FC<{ title: string; right?: React.ReactNode; children: React.ReactNode }> = ({ title, right, children }) => (
+/** v7.98.0 (the owner's ask): a title with `info` gets a ⓘ; tapping it explains how the whole section works. */
+const Box: React.FC<{ title: string; right?: React.ReactNode; children: React.ReactNode; info?: () => void; infoOn?: boolean }> = ({ title, right, children, info, infoOn }) => (
   <section className="rounded-lg border-2 border-white/80 bg-[#0b1a4a] shadow-[inset_0_0_0_2px_#0b1a4a,inset_0_0_0_3px_rgba(255,255,255,0.25)] px-2.5 py-2">
     <div className="flex items-baseline justify-between mb-1">
-      <h3 className="osd-text text-lg leading-none text-neon-yellow tracking-widest">{title}</h3>
+      {info ? (
+        <button type="button" onClick={info} data-testid={`gear-info-${title.toLowerCase().replace(/[^a-z]+/g, '-')}`} aria-label={`How ${title.toLowerCase()} work`}
+          className={`osd-text text-lg leading-none tracking-widest text-left rounded px-1 -mx-1 ${infoOn ? 'bg-white/10 text-white' : 'text-neon-yellow hover:bg-white/5'}`}>
+          {title} <span className="inline-block rounded-full ring-1 ring-current px-1.5 text-sm leading-[1.1rem] align-middle tracking-normal">ⓘ HOW IT WORKS</span>
+        </button>
+      ) : <h3 className="osd-text text-lg leading-none text-neon-yellow tracking-widest">{title}</h3>}
       {right && <span className="osd-text text-base leading-none text-slate-300">{right}</span>}
     </div>
     {children}
@@ -215,7 +222,8 @@ const GearMenu: React.FC<{
         </Box>
 
         {sets.length > 0 && (
-          <Box title="CHARM SETS">
+          <Box title="CHARM SETS" infoOn={sel === 'info-sets'} info={() => choose('info-sets', { icon: '🧩', name: 'How charm sets work',
+            text: `Some charms belong to a themed set of 2 or 3. Hold the whole pair and every word earns +${CHARM_SET_BONUS.pair}. A trio pays +${CHARM_SET_BONUS.trioPartial} a word once you hold 2 of the 3, and +${CHARM_SET_BONUS.trio} with all 3.\n\nWhile you hold part of a set, charm offers sometimes deal you a missing piece. Swapping a piece out stops the set paying.` })}>
             {sets.map(({ set, held }) => {
               const n = set.members.length;
               const now = setPayFor(set, held);
@@ -233,13 +241,49 @@ const GearMenu: React.FC<{
           </Box>
         )}
 
+        {/* v7.98.0 (the owner's ask: players saw framed tiles and didn't know why): a legend of all four Collector's
+            Tiles, each shown in its real frame, owned or not, so the frames can always be looked up. */}
+        {(() => {
+          const owned = gs.collectorTiles ?? [];
+          const sample: Record<string, string> = { chrome: 'C', holo: 'H', static: '?', rewind: 'R' };
+          return (
+            <Box title="COLLECTOR'S TILES" right={`${owned.length}/${COLLECTOR.max} OWNED`}
+              infoOn={sel === 'info-collector'} info={() => choose('info-collector', { icon: '💿', name: "How Collector's Tiles work",
+                text: `Collector's Tiles are special tiles you keep for the rest of the run. Each kind wears its own frame, so you can spot it in your hand:\n${COLLECTOR_TILES.map(c => `${c.icon} ${c.name}: ${c.look}. ${c.text}`).join('\n')}\n\n${COLLECTOR_RULE} Get them in the 📼 Video Store or from a scratch-off ticket, up to ${COLLECTOR.max} a run.` })}>
+              <div className="flex flex-col gap-1" data-testid="gear-collectors">
+                {COLLECTOR_TILES.map(c => {
+                  const have = owned.filter(o => o.kind === c.kind).length;
+                  const key = `col-${c.kind}`;
+                  return (
+                    <button key={c.kind} type="button" data-testid="gear-collector" data-kind={c.kind}
+                      onClick={() => choose(key, { icon: c.icon, name: c.name, tag: have ? `YOU HAVE ${have}` : 'NOT IN YOUR RUN YET',
+                        text: `${c.text}\n\nHow to spot it: ${c.look}.\n\n${COLLECTOR_RULE}${have ? '' : ` Find one in the 📼 Video Store (${COLLECTOR.prices[c.kind]} sec) or on a scratch-off ticket.`}`, flavor: c.flavor })}
+                      className={`w-full flex items-center gap-2.5 text-left rounded-lg px-1.5 py-1.5 ${sel === key ? 'bg-white/10 ring-1 ring-white/30' : 'hover:bg-white/5'}`}>
+                      <span className="relative shrink-0 w-9 h-10 pointer-events-none" aria-hidden="true">
+                        <TileComponent tile={{ id: `legend-${c.kind}`, letter: sample[c.kind], points: c.kind === 'static' ? 0 : 1, collector: c.kind }} onClick={() => {}} packTileClass="" />
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm text-white leading-tight">{c.icon} {c.name}</span>
+                        <span className="block text-[12px] text-slate-300 leading-tight">{c.short}</span>
+                      </span>
+                      <span className={`shrink-0 osd-text text-sm leading-none whitespace-nowrap ${have ? 'text-neon-green' : 'text-slate-500'}`}>{have ? `YOU HAVE ${have}` : 'VIDEO STORE'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Box>
+          );
+        })()}
+
         {/* v7.96.0: Genre Levels and Collector's Tiles. v7.96.2 (the owner's ask): each genre shows what it pays
             a word, what it has earned this run and how close the next ★ is. */}
         {(() => {
           const rows = GENRES.map(g => ({ g, st: starsOf(gs, g.id), plays: gs.genrePlays?.[g.id] ?? 0, need: playsPerStar(g.id), earned: genreEarned(gs.log ?? [], g) }));
           const total = rows.reduce((t, r) => t + r.earned.points, 0);
           return (
-            <Box title="GENRES" right={total ? `+${total.toLocaleString()} THIS RUN` : `★${rows.reduce((t, r) => t + r.st, 0)}`}>
+            <Box title="GENRES" right={total ? `+${total.toLocaleString()} THIS RUN` : `★${rows.reduce((t, r) => t + r.st, 0)}`}
+              infoOn={sel === 'info-genres'} info={() => choose('info-genres', { icon: '🎬', name: 'How genres work',
+                text: `Every word you play can fit a genre, like a movie on the shelf:\n${GENRES.map(g => `${g.icon} ${g.name}: words with ${g.rule}.`).join('\n')}\n\nOnce a genre has a ★, every word that fits it earns bonus points, and each ★ adds more (up to ★${GENRE_VALUES.maxStars}). Stars come two ways: buy the genre's poster in the 📼 Video Store, or keep playing words that fit it.\n\nWhile you spell, the stage shows which genres your word fits and what they'll pay.` })}>
               <div className="flex flex-col gap-1" data-testid="gear-genres">
                 {rows.map(({ g, st, plays, need, earned }) => {
                   const maxed = st >= GENRE_VALUES.maxStars;
@@ -271,23 +315,15 @@ const GearMenu: React.FC<{
             </Box>
           );
         })()}
-        {(gs.collectorTiles ?? []).length > 0 && (
-          <Box title="COLLECTOR'S TILES" right={`${(gs.collectorTiles ?? []).length}/${COLLECTOR.max}`}>
-            {(gs.collectorTiles ?? []).map(c => {
-              const info = collectorInfo(c.kind)!;
-              return <Row key={c.id} selected={sel === `col-${c.id}`} icon={info.icon} label={info.name}
-                onClick={() => choose(`col-${c.id}`, { icon: info.icon, name: info.name, text: `${info.text} ${COLLECTOR_RULE}`, flavor: info.flavor })} />;
-            })}
-          </Box>
-        )}
-
         {(() => {
           // v7.86.0 (the owner's ask): Greatest Hits, so players can see which word to replay for a record.
           const rows = hitsBoard(gs.log ?? [], gs.hitsClaimed ?? []);
           const live = rows.filter(r => r.done || r.word);
           const first = GREATEST_HITS.tiers[0];
           return (
-            <Box title="GREATEST HITS" right={`${rows.filter(r => r.done).length}/${rows.length} RECORDS`}>
+            <Box title="GREATEST HITS" right={`${rows.filter(r => r.done).length}/${rows.length} RECORDS`}
+              infoOn={sel === 'info-hits'} info={() => choose('info-hits', { icon: '📀', name: 'How Greatest Hits work',
+                text: `Replay the same word to make it a record. The word's length is how many times you play it:\n${GREATEST_HITS.tiers.slice(0, 3).map(t => `${t.icon} A ${t.letters}-letter word played ${t.letters} times goes ${t.title}: +${t.points.toLocaleString()}.`).join('\n')}\n\nEach record pays once a run, on top of the word. The closest one shows above your tiles.` })}>
               <div data-testid="gear-hits">
                 {live.length === 0 && (
                   <Row selected={sel === 'hits-none'} icon={first.icon} label={<>Play the same {first.letters}-letter word {first.letters} times for {first.title}</>} right={`+${first.points.toLocaleString()}`}
@@ -332,7 +368,7 @@ const GearMenu: React.FC<{
             {pick.flavor && <p className="text-xs italic text-slate-400 mt-1">"{pick.flavor}"</p>}
           </>
         ) : (
-          <p className="text-sm text-slate-300 leading-snug">▶ Tap a charm, PowerPlay, set or genre to read what it does and what it has earned you this run.</p>
+          <p className="text-sm text-slate-300 leading-snug">▶ Tap a charm, PowerPlay, set, genre or tile to read what it does. Tap ⓘ HOW IT WORKS on a box to learn how that part of the game works.</p>
         )}
       </div>
     </div>

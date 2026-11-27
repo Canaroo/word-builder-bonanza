@@ -69,12 +69,13 @@ export const countGenrePlays = (gs: Pick<GameState, 'genreStars' | 'genrePlays'>
 // ---------- Collector's Tiles ----------
 
 export type CollectorKind = 'chrome' | 'holo' | 'static' | 'rewind';
-export interface CollectorInfo { kind: CollectorKind; name: string; icon: string; text: string; flavor: string }
+/** `short` fits a Gear row; `look` says how to spot its frame in the hand (v7.98.0, the owner's ask). */
+export interface CollectorInfo { kind: CollectorKind; name: string; icon: string; text: string; short: string; look: string; flavor: string }
 export const COLLECTOR_TILES: CollectorInfo[] = [
-  { kind: 'chrome', name: 'Chrome Tile', icon: '💿', text: `A word that uses it scores x${COLLECTOR.chromeMultiplier}.`, flavor: 'Shiny side up.' },
-  { kind: 'holo', name: 'Holo Tile', icon: '✨', text: `A word that uses it earns +${COLLECTOR.holoPoints} points.`, flavor: 'Tilt it in the light.' },
-  { kind: 'static', name: 'Static Tile', icon: '📺', text: 'A blank: tap it and pick any letter. It scores 0 points itself.', flavor: 'Snow on channel 3.' },
-  { kind: 'rewind', name: 'Rewind Tile', icon: '⏪', text: `A word that uses it earns +${COLLECTOR.rewindSeconds} seconds.`, flavor: 'Back to the start of the tape.' },
+  { kind: 'chrome', name: 'Chrome Tile', icon: '💿', text: `A word that uses it scores x${COLLECTOR.chromeMultiplier}.`, short: `Word scores x${COLLECTOR.chromeMultiplier}`, look: 'a polished silver frame with a shine that sweeps across it', flavor: 'Shiny side up.' },
+  { kind: 'holo', name: 'Holo Tile', icon: '✨', text: `A word that uses it earns +${COLLECTOR.holoPoints} points.`, short: `+${COLLECTOR.holoPoints} points a word`, look: 'a rainbow frame that shifts colors', flavor: 'Tilt it in the light.' },
+  { kind: 'static', name: 'Static Tile', icon: '📺', text: 'A blank: tap it and pick any letter. It scores 0 points itself.', short: 'Pick any letter', look: 'a cyan frame of TV-snow stripes, and a ? until you pick its letter', flavor: 'Snow on channel 3.' },
+  { kind: 'rewind', name: 'Rewind Tile', icon: '⏪', text: `A word that uses it earns +${COLLECTOR.rewindSeconds} seconds.`, short: `+${COLLECTOR.rewindSeconds} seconds a word`, look: 'an orange frame, like a VHS tape label', flavor: 'Back to the start of the tape.' },
 ];
 export const collectorInfo = (kind: string) => COLLECTOR_TILES.find(c => c.kind === kind);
 /** How Collector's Tiles are explained everywhere (store, How to Play, the first-time card). */
