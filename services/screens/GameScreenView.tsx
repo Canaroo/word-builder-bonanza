@@ -313,6 +313,7 @@ export interface GameScreenViewProps {
   handleStoreRent?: (index: number) => void;
   handleStoreRestock?: () => void;
   handleStoreTradeIn?: (charmId: string) => void;
+  handleStoreUndoTrade?: (line: number) => void;
   handleStoreLeave?: () => void;
   /** 📺 Static Tile: the letter the player picked for the blank. */
   handleStaticLetter?: (letter: string) => void;
@@ -389,7 +390,7 @@ export interface GameScreenViewProps {
 }
 
 export const GameScreenView: React.FC<GameScreenViewProps> = ({
-    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, handleStoreRent, handleStoreRestock, handleStoreTradeIn, handleStoreLeave, handleStaticLetter, skillShotTileId = '', holdOpen = false, holdArmed = false, handleHoldTap, handleScratchDone, handleCrocPick, handleBonesDone, lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
+    gameState, time, resumeCountdown = 0, handleResolveGamble, handleResolveMiniGame, handleContinueOffer, handleLastWords, handleStoreRent, handleStoreRestock, handleStoreTradeIn, handleStoreUndoTrade, handleStoreLeave, handleStaticLetter, skillShotTileId = '', holdOpen = false, holdArmed = false, handleHoldTap, handleScratchDone, handleCrocPick, handleBonesDone, lexCoins = 0, powerHint = null, handlePowerHintInfo, upcomingTiles, quizLeft, raceRival, timeGain, message, hand, buildRow, isPaused, isLoading, modalContent, tilesToSwap,
     tileToTransform, tileForSelection, wordFromBuildRow, totalWords, potentialScore, maxStrikes, challengeButtonText,
     tileClass, isMuted, isChallengeLock, highlightedTileIds, isStrikeChallenge, strikesRemaining,
     handleMuteToggle, handleCloseModal, handlePhoneAFriend, handleShowMilestoneInfo, handleShowEventLog,
@@ -618,7 +619,18 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                     </div>
                 );
 
-            case 'gear':
+            case 'gear': {
+                // Opened from the Video Store (v7.96.10): it's a look, so ✕ BACK returns to the store and the
+                // run actions (USE, sound, log, save) are left out until the player is back on the board.
+                const backTo = data?.returnTo as ModalContent | undefined;
+                if (backTo) return (
+                    <GearMenu gameState={gameState!} level={levelFor(totalWords)} strikesLeft={strikesRemaining} maxStrikes={maxStrikes} progressFor={progressFor}
+                        onClose={() => { soundService.playUIClick(); dispatch({ type: 'SET_MODAL_CONTENT', payload: backTo }); }}
+                        backLabel="◀ STORE" note="📼 You're in the Video Store. Tap ◀ STORE to go back and shop."
+                        words={totalWords ?? 0}
+                        trophies={MILESTONES_LIST.map(m => ({ id: m.id, icon: m.icon, name: m.name, unlocked: (gameState?.unlockedMilestoneIds ?? []).includes(m.id) }))}
+                        onTrophy={() => {}} />
+                );
                 return (
                     <GearMenu gameState={gameState!} level={levelFor(totalWords)} strikesLeft={strikesRemaining} maxStrikes={maxStrikes} progressFor={progressFor}
                         onUse={pp => { handleCloseModal(); handleActivatePowerPlay(pp); }} onClose={handleCloseModal}
@@ -629,6 +641,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         trophies={MILESTONES_LIST.map(m => ({ id: m.id, icon: m.icon, name: m.name, unlocked: (gameState?.unlockedMilestoneIds ?? []).includes(m.id) }))}
                         onTrophy={id => { const m = MILESTONES_LIST.find(x => x.id === id); if (m) handleShowMilestoneInfo(m); }} />
                 );
+            }
             case 'gem-intro': {
                 const mult = Number(data?.multiplier) || 3;
                 return (
@@ -701,8 +714,10 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 return null;
 
             case 'video-store':
+                // v7.96.10: 🎒 opens the normal Gear menu, and closing it comes back to the store (returnTo).
                 return gameState ? <VideoStore data={data} clock={time} gameState={gameState}
-                    onRent={i => handleStoreRent?.(i)} onRestock={() => handleStoreRestock?.()} onTradeIn={id => handleStoreTradeIn?.(id)} onLeave={() => handleStoreLeave?.()} /> : null;
+                    onRent={i => handleStoreRent?.(i)} onRestock={() => handleStoreRestock?.()} onTradeIn={id => handleStoreTradeIn?.(id)} onUndoTrade={i => handleStoreUndoTrade?.(i)} onLeave={() => handleStoreLeave?.()}
+                    onGear={() => { soundService.playUIClick(); dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'gear', title: 'Your Gear', data: { returnTo: modalContent } } }); }} /> : null;
 
             case 'static-tile':
                 return (

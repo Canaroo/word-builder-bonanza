@@ -4,7 +4,7 @@ import { Sec } from './Seconds';
 import { CHARMS_LIST } from '../data/charms';
 import { POWER_PLAYS_LIST } from '../data/powerPlays';
 import { CHARM_SLOTS, VIDEO_STORE, GENRE_VALUES, COLLECTOR } from '../config/gameplay';
-import { genreById, collectorInfo, restockCost, canAfford, tradeInValue, perStar, playsPerStar, starsOf, COLLECTOR_RULE, type Tape, type GenreId } from '../data/videoStore';
+import { genreById, collectorInfo, restockCost, canAfford, tradeInValue, perStar, playsPerStar, starsOf, takeBackBlock, COLLECTOR_RULE, type Tape, type GenreId, type StoreLine } from '../data/videoStore';
 import { introSeen, markIntro } from '../services/intros';
 import { prizeFor } from '../services/rules';
 import type { Charm, GameState } from '../types';
@@ -72,14 +72,16 @@ const StoreIntro: React.FC<{ onOk: () => void }> = ({ onOk }) => (
 );
 
 const VideoStore: React.FC<{
-  data: { level: number; shelf: Tape[]; sold?: number[]; lines?: { t: string; d: number }[]; deal?: number };
+  data: { level: number; shelf: Tape[]; sold?: number[]; lines?: StoreLine[]; deal?: number };
   clock: number;
   gameState: GameState;
   onRent: (index: number) => void;
   onRestock: () => void;
   onTradeIn: (charmId: string) => void;
+  onUndoTrade: (line: number) => void;
   onLeave: () => void;
-}> = ({ data, clock, gameState: gs, onRent, onRestock, onTradeIn, onLeave }) => {
+  onGear: () => void;
+}> = ({ data, clock, gameState: gs, onRent, onRestock, onTradeIn, onUndoTrade, onLeave, onGear }) => {
   const [pick, setPick] = useState<number | null>(null);
   const [trading, setTrading] = useState(false);
   const [intro, setIntro] = useState(() => !introSeen('store'));
@@ -181,18 +183,39 @@ const VideoStore: React.FC<{
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-1.5" aria-label="Your charms">
-          <span className="osd-text text-sm text-slate-400 mr-1">YOUR CHARMS {charms.length}/{CHARM_SLOTS}</span>
-          {charms.map(c => <span key={c.id} className="text-lg leading-none" title={c.name}>{c.icon}</span>)}
-          {Array.from({ length: Math.max(0, CHARM_SLOTS - charms.length) }, (_, i) => <span key={i} className="w-5 h-5 rounded border border-dashed border-white/30" />)}
-        </div>
+        {/* v7.96.10 (the owner's ask): one clear way to check what you hold. It opens the normal Gear menu;
+            its ◀ STORE brings you back here. */}
+        <button type="button" data-testid="store-gear" onClick={onGear}
+          className="w-full rounded-xl ring-2 ring-neon-purple bg-[#22113a] px-3 py-2 flex items-center gap-3 text-left active:scale-[0.98] transition-transform">
+          <span className="relative text-3xl leading-none" aria-hidden="true">🎒
+            <span className="absolute -bottom-1.5 -right-2 rounded-full bg-neon-purple text-white osd-text text-xs leading-[1rem] px-1">{charms.length}/{CHARM_SLOTS}</span>
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block font-display text-[15px] text-white leading-tight">CHECK YOUR GEAR</span>
+            <span className="block text-[12px] text-slate-300 leading-snug">See your charms, pocket and genres before you buy. You'll come right back here.</span>
+          </span>
+          <span className="osd-text text-xl text-neon-purple" aria-hidden="true">▶</span>
+        </button>
 
         <div className="rounded-sm bg-[#f4f0e2] text-[#222] px-3 py-2 font-mono text-[12px] leading-snug shadow-inner" data-testid="store-receipt">
           <p className="text-center tracking-widest">RECEIPT · LEVEL {data.level}</p>
           <div className="border-t border-dashed border-[#888] my-1" />
-          {lines.length === 0 ? <p>NOTHING RENTED YET</p> : lines.map((l, i) => (
-            <p key={i} className="flex justify-between gap-2"><span className="truncate">{l.t}</span><span className="shrink-0">{l.d > 0 ? '+' : '−'}{Math.abs(l.d)} sec</span></p>
-          ))}
+          {lines.length === 0 ? <p>NOTHING RENTED YET</p> : lines.map((l, i) => {
+            // v7.96.10 (the owner's ask): a trade-in can be taken back until Done.
+            const block = l.trade ? takeBackBlock(l, clock, charms) : null;
+            return (
+              <div key={i} className="py-0.5">
+                <p className="flex justify-between gap-2"><span className="truncate">{l.t}</span><span className="shrink-0">{l.d > 0 ? '+' : '−'}{Math.abs(l.d)} sec</span></p>
+                {l.trade && (
+                  <div className="flex items-center justify-between gap-2 mt-0.5 mb-1">
+                    <span className="text-[11px] text-[#666] leading-tight">{block ?? `Changed your mind? It goes back in a slot for −${l.d} sec.`}</span>
+                    <button type="button" data-testid="store-take-back" disabled={!!block} onClick={() => onUndoTrade(i)}
+                      className="shrink-0 rounded border-2 border-[#222] bg-white px-2 py-0.5 font-bold text-[12px] active:scale-95 disabled:opacity-40">↩ TAKE BACK</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
           <div className="border-t border-dashed border-[#888] my-1" />
           <p className="flex justify-between"><span>CLOCK</span><span>{startClock} → {clock} sec</span></p>
         </div>

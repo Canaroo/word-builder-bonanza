@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Charm, GameState, PowerPlay } from '../types';
 import { CHARM_BONUS, CHARM_SLOTS, GENRE_VALUES, COLLECTOR } from '../config/gameplay';
 import { GENRES, starsOf, perStar, playsPerStar, collectorInfo, COLLECTOR_RULE, genreEarned } from '../data/videoStore';
@@ -112,7 +112,11 @@ const GearMenu: React.FC<{
   maxStrikes: number;
   /** What each running PowerPlay or charm has left (the tray's own labels). */
   progressFor: (buff: Charm | PowerPlay) => string;
-  onUse: (pp: PowerPlay) => void;
+  /** Leave out to hide ▶ USE (Gear opened from the Video Store). */
+  onUse?: (pp: PowerPlay) => void;
+  /** The close button's text (default ✕ BACK) and an optional line under the title. */
+  backLabel?: string;
+  note?: string;
   onClose: () => void;
   /** v7.84.0: what left the top of the board lives here now. */
   words?: number;
@@ -121,7 +125,7 @@ const GearMenu: React.FC<{
   onSave?: () => void;
   trophies?: { id: string; icon: string; name: string; unlocked: boolean }[];
   onTrophy?: (id: string) => void;
-}> = ({ gameState: gs, level, strikesLeft, maxStrikes, progressFor, onUse, onClose, words, onSound, onLog, onSave, trophies, onTrophy }) => {
+}> = ({ gameState: gs, level, strikesLeft, maxStrikes, progressFor, onUse, onClose, backLabel, note, words, onSound, onLog, onSave, trophies, onTrophy }) => {
   const [sel, setSel] = useState<string | null>(null);
   const [pick, setPick] = useState<Pick | null>(null);
   const choose = (key: string, p: Pick) => { setSel(key); setPick(p); };
@@ -138,14 +142,18 @@ const GearMenu: React.FC<{
     gs.activePowerPlays?.rewind && '⏪ Turn Back Time erases your next strike',
   ].filter(Boolean) as string[];
   const fragile = charms.filter(c => c.breaks);
+  // v7.96.10: the menu covers the app frame, so its top must be on screen. A tall card opened before it (the
+  // Video Store) can leave the frame scrolled, which hid Gear's title and ◀ STORE.
+  useEffect(() => { document.getElementById('main-container')?.scrollTo(0, 0); }, []);
 
   return (
     <div className="absolute inset-0 z-50 bg-crt-950 flex flex-col p-2.5 gap-2 animate-fade-in" role="dialog" aria-modal="true" aria-label="Your gear">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-2xl text-white tracking-wider">🎒 YOUR GEAR</h2>
-        <button type="button" onClick={onClose} className="osd-text text-xl text-neon-cyan px-2" aria-label="Close and keep playing">✕ BACK</button>
+        <button type="button" onClick={onClose} className="osd-text text-xl text-neon-cyan px-2" aria-label={backLabel ? 'Back to the Video Store' : 'Close and keep playing'} data-testid="gear-close">{backLabel ?? '✕ BACK'}</button>
       </div>
       <p className="osd-text text-sm leading-none text-slate-400 -mt-1">GAME PAUSED · TAP ANYTHING FOR DETAILS</p>
+      {note && <p className="text-[13px] leading-snug text-neon-yellow rounded-lg ring-1 ring-neon-yellow/40 bg-[#2a2208] px-2.5 py-1.5" data-testid="gear-note">{note}</p>}
       {(onSound || onLog || onSave) && (
         <div className="grid grid-cols-3 gap-1.5" data-testid="gear-actions">
           {onSound && <button type="button" onClick={onSound} className="rounded-lg ring-1 ring-white/30 bg-[#0b1a4a] py-1.5 flex flex-col items-center gap-0.5 hover:ring-neon-cyan" aria-label="Sound and music"><span className="text-xl leading-none" aria-hidden="true">🔊</span><span className="osd-text text-sm leading-none text-white">SOUND</span></button>}
@@ -191,7 +199,7 @@ const GearMenu: React.FC<{
                 <Row selected={sel === `pp-${p.id}`} icon={p.icon} label={p.name}
                   onClick={() => choose(`pp-${p.id}`, { icon: p.icon, name: p.name, text: p.finePrint ? `${p.description}\n\n${p.finePrint}` : p.description, flavor: p.flavorText })} />
               </div>
-              <ArcadeButton color="green" size="sm" onClick={() => onUse(p)}>▶ USE</ArcadeButton>
+              {onUse && <ArcadeButton color="green" size="sm" onClick={() => onUse(p)}>▶ USE</ArcadeButton>}
             </div>
           ))}
         </Box>

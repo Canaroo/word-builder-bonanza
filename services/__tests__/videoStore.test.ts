@@ -129,6 +129,26 @@ describe('the Video Store (v7.96.0)', () => {
     const g = store({ activeCharms: [glass] });
     expect(gameReducer(g, { type: 'STORE_TRADE_IN', payload: { charmId: glass.id } })).toBe(g);
   });
+  it('a trade-in can be taken back until Done: charm, upgrade and seconds return (v7.96.10)', () => {
+    const charm = CHARMS_LIST.find(c => c.id === 'stonks')!;
+    const s0 = store({ activeCharms: [charm], activeBuffs: [charm], charmUpgrades: ['stonks'] });
+    const traded = gameReducer(s0, { type: 'STORE_TRADE_IN', payload: { charmId: charm.id } });
+    expect(traded.gameState.activeCharms).toHaveLength(0);
+    const back = gameReducer(traded, { type: 'STORE_UNDO_TRADE', payload: { line: 0 } });
+    expect(back.time).toBe(s0.time);
+    expect(back.gameState.activeCharms.map(c => c.id)).toEqual(['stonks']);
+    expect(back.gameState.activeBuffs.map(c => c.id)).toEqual(['stonks']);
+    expect(back.gameState.charmUpgrades).toEqual(['stonks']);
+    expect(back.modalContent?.data.lines).toHaveLength(0);
+    // Not after Done, and not with the seconds spent or the slots full.
+    const left = { ...traded, modalContent: { ...traded.modalContent!, data: { ...traded.modalContent!.data, left: true } } };
+    expect(gameReducer(left, { type: 'STORE_UNDO_TRADE', payload: { line: 0 } })).toBe(left);
+    const broke = { ...traded, time: VIDEO_STORE.keepAtLeast };
+    expect(gameReducer(broke, { type: 'STORE_UNDO_TRADE', payload: { line: 0 } })).toBe(broke);
+    const others = CHARMS_LIST.filter(c => !c.breaks && c.id !== 'stonks').slice(0, CHARM_SLOTS);
+    const full = { ...traded, gameState: { ...traded.gameState, activeCharms: others } };
+    expect(gameReducer(full, { type: 'STORE_UNDO_TRADE', payload: { line: 0 } })).toBe(full);
+  });
   it('walking out with nothing pays points; after a rental it pays nothing', () => {
     const s = store();
     const walked = gameReducer(s, { type: 'STORE_LEAVE' });

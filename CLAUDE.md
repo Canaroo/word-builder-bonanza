@@ -815,6 +815,17 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   description says so ("15% slower at every level, speed-ups included"), a `finePrint` lists those speeds from
   `clockSpeedFor`/`hammerClockFor` (`services/rules.ts`), and Gear's clock row shows the slowed speed with a 🛑 and
   explains it on tap. It used to say "a minute lasts about 71 seconds". Tests in `hammerTime.test.ts`.
+- **Video Store take-backs and Gear (v7.96.10, the owner's asks).** A trade-in can be taken back until Done:
+  each trade line on the receipt has "↩ TAKE BACK" (`store-take-back`, `STORE_UNDO_TRADE`), which puts the charm
+  back in a slot with its ⭐ upgrade and buff (its counters were never reset) and takes the seconds back off the
+  clock. The line keeps what that needs (`trade` on `StoreLine`, `data/videoStore.ts`); `takeBackBlock` says why it
+  can't: slots full, already held, or the seconds were spent (the clock can't drop under `keepAtLeast`, or under the
+  clock before the trade when that was lower). With every line taken back, Done turns back into Walk out (+points).
+  The "YOUR CHARMS" strip is gone: a 🎒 CHECK YOUR GEAR button (`store-gear`) opens the normal Gear menu with
+  `data.returnTo` set to the store card; there ✕ BACK reads ◀ STORE and returns to the store, a note says you're
+  shopping, and ▶ USE, sound, log and save are hidden. Gear scrolls `#main-container` to the top when it opens (the
+  store could leave it scrolled, hiding Gear's title). Browser-checked at 390x844: 29 → 33 sec on trade, 29 after
+  the take-back, Gear and back. Tests in `videoStore.test.ts`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

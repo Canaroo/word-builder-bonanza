@@ -38,7 +38,7 @@ import { currentPlayer } from '../players';
 import { BONES } from '../../config/gameplay';
 import { SCRATCH, HOLD_SLOT, GRUDGE, SKILL_SHOT } from '../../config/gameplay';
 import { dealScratch, type ScratchPrize } from '../scratch';
-import { dealShelf, storeOpensAt, restockCost, canAfford, tradeInValue, genreById, collectorInfo, earlierKeys, genrePay, countGenrePlays, playsPerStar, GENRES, COLLECTOR_RULE, type Tape } from '../../data/videoStore';
+import { dealShelf, storeOpensAt, restockCost, canAfford, tradeInValue, genreById, collectorInfo, earlierKeys, genrePay, countGenrePlays, playsPerStar, GENRES, COLLECTOR_RULE, canTakeBack, type Tape, type StoreLine } from '../../data/videoStore';
 import { introSeen, markIntro } from '../intros';
 import { VIDEO_STORE, GENRE_VALUES, COLLECTOR } from '../../config/gameplay';
 import { gemMultiplierFor, skillShotPoints, freakyFridayMatch, jengaPot, nextSpeedStreak, speedStreakPoints, finalCategoryDeal, FINAL_CATEGORIES, CENTER_SQUARES, centerSquareClaim, centerSquareLines, centerSquarePrize } from '../rules';
@@ -301,6 +301,7 @@ type GameAction =
     | { type: 'STORE_RESTOCK' }
     | { type: 'STORE_TRADE_IN', payload: { charmId: string } }
     | { type: 'STORE_LEAVE' }
+    | { type: 'STORE_UNDO_TRADE', payload: { line: number } }
     | { type: 'SET_STATIC_LETTER', payload: { tileId: string; letter: string } }
     | { type: 'CROC_RESULT' };
 
@@ -989,7 +990,27 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             const entry: EventLogEntry = { type: 'event', id: `store-trade-${Date.now()}`, name: 'Video Store', icon: '📼', description: `Traded in ${charm.icon} ${charm.name} for ${back}s.`, scoreChange: 0, cumulativeScore: gs.score };
             gs = { ...gs, log: [...gs.log, entry] };
             return { ...state, hand, tileBag, time, gameState: gs,
-                modalContent: { ...m, data: { ...m.data, lines: [...(m.data?.lines ?? []), { t: `Traded in ${charm.icon} ${charm.name}${upgraded ? ' ⭐' : ''}`, d: back }] } } };
+                modalContent: { ...m, data: { ...m.data, lines: [...(m.data?.lines ?? []), { t: `Traded in ${charm.icon} ${charm.name}${upgraded ? ' ⭐' : ''}`, d: time - state.time,
+                    // v7.96.10: what a take-back needs (until Done): the charm, its upgrade and buff, the clock before.
+                    trade: { id: charm.id, up: upgraded, buff: gameState.activeBuffs.some(b => b.id === charm.id), at: state.time } }] } } };
+        }
+        // v7.96.10 (the owner's ask): a trade-in can be taken back until the player taps Done. The charm returns
+        // with its upgrade and its counters (a trade-in never reset them), and the seconds come back off the clock.
+        case 'STORE_UNDO_TRADE': {
+            const m = state.modalContent;
+            if (m?.type !== 'video-store' || m.data?.left) return state;
+            const lines = (m.data?.lines ?? []) as StoreLine[];
+            const line = lines[action.payload.line];
+            const charm = line?.trade ? CHARMS_LIST.find(c => c.id === line.trade!.id) : undefined;
+            if (!line?.trade || !charm || !canTakeBack(line, state.time, gameState.activeCharms)) return state;
+            const time = state.time - line.d;
+            const gs = { ...gameState,
+                activeCharms: [...gameState.activeCharms, charm],
+                activeBuffs: line.trade.buff ? [...gameState.activeBuffs, charm] : gameState.activeBuffs,
+                charmUpgrades: line.trade.up ? [...(gameState.charmUpgrades ?? []), charm.id] : gameState.charmUpgrades };
+            const entry: EventLogEntry = { type: 'event', id: `store-untrade-${Date.now()}`, name: 'Video Store', icon: '📼', description: `Took back ${charm.icon} ${charm.name} (−${line.d}s).`, scoreChange: 0, cumulativeScore: gs.score };
+            return { ...state, time, gameState: { ...gs, log: [...gs.log, entry] },
+                modalContent: { ...m, data: { ...m.data, lines: lines.filter((_, i) => i !== action.payload.line) } } };
         }
         case 'STORE_LEAVE': {
             // Walking out with nothing pays a small prize; once you've rented anything it's just "Done".
@@ -3824,6 +3845,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
   const handleStoreRent = (index: number) => { soundService.playPowerUp(); dispatch({ type: 'STORE_RENT', payload: { index } }); };
   const handleStoreRestock = () => { soundService.playTileClick(); dispatch({ type: 'STORE_RESTOCK' }); };
   const handleStoreTradeIn = (charmId: string) => { soundService.playTileClick(); dispatch({ type: 'STORE_TRADE_IN', payload: { charmId } }); };
+  const handleStoreUndoTrade = (line: number) => { soundService.playTileClick(); dispatch({ type: 'STORE_UNDO_TRADE', payload: { line } }); };
   const handleStoreLeave = () => {
     const card = state.modalContent;
     if (card?.type !== 'video-store' || card.data?.left) return;
@@ -6833,7 +6855,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
         holdArmed,
         handleHoldTap,
         handleScratchDone,
-        handleStoreRent, handleStoreRestock, handleStoreTradeIn, handleStoreLeave, handleStaticLetter,
+        handleStoreRent, handleStoreRestock, handleStoreTradeIn, handleStoreUndoTrade, handleStoreLeave, handleStaticLetter,
         handleCrocPick,
         handleBonesDone,
         upcomingTiles: [], // Psychic Friends no longer peeks at tiles (v7.54.0)
