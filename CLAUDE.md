@@ -845,6 +845,15 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Browser-checked at 390x844 and 360x640: the last hand tile stays at 700 px with or without a word, the nudge starts
   after the 3rd unused word, light lit 4 tiles and logged −5 sec, find left the rail clue. Tests in
   `powerWordLight.test.ts`.
+- **Clue audit (v7.97.1, the owner's ask: clues must fit their reference and never hand over the word).** All 132
+  secret-bonus clues (`hint` in `data/secretBonuses.ts`, the only thing the Collection shows before a find) were read;
+  23 were rewritten, the owner approved all. 11 gave the word away by subtraction or fill-in ("minus the ning", "Chop the
+  Terminator down to size", "Look at this game's title", "Put on your shades and ___ with it"): TERM, PARK, NERD, WIN, RAP,
+  POET, DEAL, GOT, STAR, OOPS, LEAP. 9 quoted or paraphrased song lyrics (TEEN, KISS, BYE, DOGS, ZOMBIE, SPICE, SPIN,
+  SCRUBS, WORD; SPICE's also came from Wannabe). 3 had the reference wrong or loose: OFFICE (the Dundies are at
+  Chili's), AIR (unreadable), HEX (no Harry Potter link). Rule for new clues: point at the reference plus a second,
+  everyday meaning; no "minus/dropped/chop" letter math, no fill-in of a title that ends in the word, no lyrics.
+  Left as they are, loosely tied: LANE (Kingpin), RING (Big), NOTE (Guitar Hero).
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
