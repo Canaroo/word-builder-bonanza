@@ -868,6 +868,14 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   word (it isn't timed). Accuracy: the quiz counts whole clock ticks, so it can read up to one tick short (1 sec at
   level 1, about 0.4 sec at top speed), in the player's favor. Browser-checked: Golden word fast → +300 and +5 sec,
   7 sec late → TOO SLOW, normal word still graded, no quiz left running after either.
+- **Gear explains itself (v7.98.0, the owner's ask: players saw framed tiles and didn't know why; their picks).**
+  **Collector's Tiles legend** (`gear-collectors`, one `gear-collector` row per kind with `data-kind`): always shows
+  all four, owned or not, each as a real mini `TileComponent` in its frame (silver, rainbow, TV-snow, VHS orange),
+  with its name, a short effect (`short` on `COLLECTOR_TILES`) and YOU HAVE N or VIDEO STORE. A row tap says what it
+  does, how to spot it (`look`) and where to get it. It sits right after RUNNING NOW, above GENRES. **ⓘ HOW IT WORKS**
+  on box titles (`Box`'s `info`/`infoOn`, test ids `gear-info-<title>`) for Collector's Tiles, Genres, Charm Sets and
+  Greatest Hits: the full explanation shows in the description box at the bottom. Trophies stay, as the last box.
+  Browser-checked at 390x844 and 360x640: 4 frames drawn, row and ⓘ text correct.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
