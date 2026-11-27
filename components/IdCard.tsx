@@ -11,10 +11,12 @@ const IdCard: React.FC<{
   title?: string | null;
   streak?: number;
   bosses?: number;
+  /** v7.99.0: Daily Challenge wins (🏆 Daily Champ). */
+  dailyWins?: number;
   card?: IdCardStats;
   /** Footer line, e.g. "AS OF OCT 30, 2026" or "ISSUED OCT 2026". */
   stamp?: string;
-}> = ({ name, badge, title, streak = 0, bosses = 0, card, stamp }) => {
+}> = ({ name, badge, title, streak = 0, bosses = 0, dailyWins = 0, card, stamp }) => {
   const stats: { label: string; value: string; hint: string }[] = card ? [
     { label: 'Best score', value: card.best.toLocaleString(), hint: 'Highest single run' },
     { label: 'Runs', value: card.runs.toLocaleString(), hint: 'Games finished' },
@@ -50,6 +52,12 @@ const IdCard: React.FC<{
               {streak > 0 ? <StreakFlame count={streak} className="text-lg" /> : <span className="osd-text text-sm text-slate-600">NO STREAK</span>}
               <span className="osd-text text-sm text-slate-500">DAY STREAK</span>
             </div>
+            {dailyWins > 0 && (
+              <div className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-neon-yellow/15 ring-1 ring-neon-yellow px-2 py-0.5" data-testid="id-daily-champ">
+                <span className="text-base leading-none" aria-hidden="true">🏆</span>
+                <span className="osd-text text-base leading-none text-neon-yellow">{dailyWins}-TIME DAILY CHAMP</span>
+              </div>
+            )}
           </div>
         </div>
 

@@ -585,6 +585,7 @@ const App: React.FC = () => {
           onSpin={handleSpin}
           profileVersion={profileVersion}
           onBuyFreeze={handleBuyFreeze}
+          onAwardCredits={handleLexCoinChange}
           />;
       case Screen.Game:
         return <GameScreen 
@@ -646,7 +647,7 @@ const App: React.FC = () => {
           onSelectTrack={handleSelectTrack}
           />;
       default:
-        return <StartScreen onPlay={handlePlay} onPlayDaily={handlePlayDaily} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowTour={handleShowTour} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} onShowBadgeCase={handleShowBadgeCase} onShowProfile={handleShowProfile} onTab={handleTab} openOnMount={startOpen} onOpened={() => setStartOpen(null)} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin} profileVersion={profileVersion} onBuyFreeze={handleBuyFreeze}/>;
+        return <StartScreen onPlay={handlePlay} onPlayDaily={handlePlayDaily} onResumeGame={handleResumeGame} onShowHowToPlay={handleShowHowToPlay} onShowTour={handleShowTour} onShowVibez={handleShowVibez} onShowCollection={handleShowCollection} onShowBadgeCase={handleShowBadgeCase} onShowProfile={handleShowProfile} onTab={handleTab} openOnMount={startOpen} onOpened={() => setStartOpen(null)} lexCoins={lexCoins} autoShowLeaderboard={autoShowLeaderboard} setAutoShowLeaderboard={setAutoShowLeaderboard} rankingModalData={rankingModalData} setRankingModalData={setRankingModalData} powerWordData={powerWordData} canSpin={canSpin} onSpin={handleSpin} profileVersion={profileVersion} onBuyFreeze={handleBuyFreeze} onAwardCredits={handleLexCoinChange}/>;
     }
   };
 

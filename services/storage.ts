@@ -49,6 +49,7 @@ export const STORAGE_KEYS = {
     bonesLooted: 'wordNerdBonesLooted',
     /** Per player (v7.96.0): explainer cards already shown (the Video Store, Genre Levels, each Collector's Tile). */
     introsSeen: 'wordNerdIntrosSeen',
+    dailyWinsSeen: 'wordNerdDailyWinsSeen',
     /** Per player: each boss's record against them, for Grudge Matches (services/grudges.ts). */
     grudges: 'wordNerdGrudges',
     /** Per player: early run endings in a row, for the Head Start (services/headStart.ts). */

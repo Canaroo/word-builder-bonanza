@@ -883,6 +883,20 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   STUCK? (play the word for 0) or a strike, so it can't be farmed. The message reads "You called it! No word in your
   tiles: +10 sec...", and the first-tap explainer, the button's label and How to Play say +10 seconds. Browser-checked
   with IIEUIANE: clock 25 → 35. Tests in `stuckWin.test.ts`.
+- **🏆 Daily Champ (v7.99.0, the owner's design and picks).** The top score on each finished Daily Challenge board
+  wins that day; ties all win. Counted from `DAILY_CHAMP.firstDay` (2026-11-27, Daily #21: the owner chose to start
+  fresh, so the 13/5/1 earlier wins don't count). Nothing new is stored online: every client reads the boards from
+  that day on (`onlineLeaderboard.dailyBoardsFrom`, `daily.json?orderBy="$key"&startAt=...`), and
+  `services/dailyChamps.ts` works out `championsByDay` (finished days only, today never counts), `winsByName` (by
+  `champKey`, any case, like `sameName`) and `unseenWins`. `useDailyChamps()` shares one fetch per session
+  (sessionStorage `wordNerdDailyChamps`, refreshed after `refreshMs` or when the day turns). The icon is 🏆 (the owner
+  saw 👑 in the plan, but the Top 50 already crowns its #1 row). Shown: `ChampCount` (🏆N, hidden at 0) in Top 50 /
+  Recent / Today rows, a "🏆 N-TIME DAILY CHAMP" pill on the ID card (`dailyWins`, `id-daily-champ`) on My ID and the
+  Top 50 card, and in the start screen's player chip (375 px and wider; at 360 it squeezed the name). A win the
+  player hasn't seen opens a `champ-card` on the start screen ("You won Daily #21!", N-time Daily Champ) whose button
+  pays `DAILY_CHAMP.credits` (25) per win through App's `handleLexCoinChange` and marks the days seen
+  (`dailyWinsSeen`, per player). Browser-checked: card, 0 → 25 Credits, gone after a reload, chip 🏆1. Tests in
+  `dailyChamps.test.ts`. Names are how players are told apart, like the Top 50.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

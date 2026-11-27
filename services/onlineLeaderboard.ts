@@ -142,4 +142,8 @@ const submit = async (name: string, score: number, flair?: PlayerFlair, path: st
     return (await post(base)).name;
 };
 
-export const onlineLeaderboard = { list, listRecent, submit };
+/** v7.99.0: the Daily Challenge boards from `firstDay` on, for Daily Champ wins. */
+const dailyBoardsFrom = async (firstDay: string): Promise<Record<string, Record<string, { name?: unknown; score?: unknown }>>> =>
+    (await request(`daily.json?orderBy=%22%24key%22&startAt=%22${encodeURIComponent(firstDay)}%22`)) ?? {};
+
+export const onlineLeaderboard = { list, listRecent, submit, dailyBoardsFrom };
