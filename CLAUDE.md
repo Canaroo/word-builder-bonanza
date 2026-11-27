@@ -826,6 +826,25 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   shopping, and ▶ USE, sound, log and save are hidden. Gear scrolls `#main-container` to the top when it opens (the
   store could leave it scrolled, hiding Gear's title). Browser-checked at 390x844: 29 → 33 sec on trade, 29 after
   the take-back, Gear and back. Tests in `videoStore.test.ts`.
+- **Pocket dock, power word choice, CLEAR (v7.97.0, the owner's asks and picks).** **The pocket PowerPlay docks
+  above the tiles** (`PocketDock` in `GameScreenView.tsx`, `pocket-dock` in a `pocket-row` at the bottom of the stage,
+  so the tiles never move): icon, name, the first sentence of its description and ▶ USE (Multiplicity: ▶ COPY / WAIT),
+  plus the 📼 tape bonus. It used to be a pill at the top of the stage, and players forgot it. A soft green glow breathes
+  (`.pocket-breathe`, 3.2 s); after `POCKET_NUDGE_WORDS` (3) words unused it bounces once per word with a gold glow and
+  says "DON'T FORGET ME! Tap to use it." (`.pocket-nudge`, `data-nudge`; counted from when the screen first saw it, so a
+  resume starts again). Still under reduced motion; the description line hides under 700 px tall.
+  **Power word heads-up is the choice (the owner's design):** the card shows the prize, "4 LETTERS · STARTS WITH S" and
+  what it does, with 💡 Light up its tiles · −5 sec (`pw-light`) or 🔍 I'll find it myself (`pw-find`); either closes
+  it and play goes on. Lighting costs a flat `POWER_WORD_EFFECTS.lightSeconds` (5, the owner's pick over a 20% prize
+  cut, since most prizes are all-or-nothing), never leaves the clock under 1 sec (`canLightPowerWord` in
+  `services/powerWordHint.ts`), reducer `LIGHT_POWER_WORD`, logged as "Power word hint". The lit state is saved with the
+  run (`gameState.powerHint.lit`; it was screen state, free). The rail notice gives the same clue and a paid "LIGHT IT
+  −5 SEC" button (none when the clock is too low); once lit it says SPELL THE LIT TILES · MORE.
+  **CLEAR is back** (`clear-word`, right of the dock, above the tiles; shows while the word row has tiles) and replaces
+  the stage's ⌫ (`BackspaceButton` is gone): tapping a word tile still sends back that one letter. How to Play updated.
+  Browser-checked at 390x844 and 360x640: the last hand tile stays at 700 px with or without a word, the nudge starts
+  after the 3rd unused word, light lit 4 tiles and logged −5 sec, find left the rail clue. Tests in
+  `powerWordLight.test.ts`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

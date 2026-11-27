@@ -571,6 +571,9 @@ export const BOSS = {
  * time to the bank, they only hold or slow the clock.
  */
 export const POWER_WORD_EFFECTS = {
+  // v7.97.0 (the owner's call): lighting a hinted power word's tiles costs this many seconds off the clock
+  // (one flat cost for every power word; the prize stays whole). Never leaves the clock under 1 second.
+  lightSeconds: 5,
   slot: [
     { seconds: 1, chance: 0.5, reels: '🍒' },
     { seconds: 3, chance: 0.35, reels: '🔔' },
