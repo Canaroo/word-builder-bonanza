@@ -391,6 +391,9 @@ const withSesameLetter = (gs: GameState): GameState => {
 const runLevel = (gs: GameState): number => levelFor(gs.log.filter(e => e.type === 'word' && e.status === 'valid').length);
 const CAPTAIN_PLANET_POINTS = 20;
 const ONE_TILE_NAME = 'One Tile to Rule Them All';
+/** v7.100.1 (the owner's report: a Captain Planet A came back as 1 point): picked-tile boosts that stay in the hand through a
+ * shuffle, and say so when they wear off unused. One Tile to Rule Them All keeps its own shuffle rule. */
+const KEPT_BOOSTS = new Set(['Captain Planet', 'Rescue Rangers']);
 const TREEHOUSE_NAME = 'Treehouse of Horror';
 
 // Speed-up levels: every few words the clock runs a little faster. Announced when this word crosses a level.
@@ -1823,6 +1826,15 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             let timerDuration = settled.time + taxedWordTime;
             newGameState.pendingTimeBonus = 0;
     
+            // v7.100.1: a Captain Planet / Rescue Rangers tile that wasn't in the word loses its boost now; say so.
+            const woreOff = state.hand.filter((t): t is Tile => !!t && !!t.tempPointsSource && KEPT_BOOSTS.has(t.tempPointsSource));
+            if (woreOff.length) {
+                const t = woreOff[0];
+                newGameState = { ...newGameState,
+                    log: [...newGameState.log, { type: 'event', id: `boost-off-${Date.now()}`, name: `${t.tempPointsSource} wore off`, icon: t.tempPointsSource === 'Captain Planet' ? '🌎' : '🐿️',
+                        description: `Your ${t.tempPoints}-point ${t.letter} wasn't in your word, so it's back to ${t.points} ${t.points === 1 ? 'point' : 'points'}.`, scoreChange: 0, cumulativeScore: newGameState.score } as EventLogEntry],
+                    lastPowerPlayResult: { message: `${t.tempPointsSource} wore off: your ${t.letter} wasn't in that word, so it's back to ${t.points} ${t.points === 1 ? 'point' : 'points'}.`, scoreChange: 0 } };
+            }
             // Clean up temporary effects from previous round
             let hand = [...state.hand].map(tile => {
                 if (!tile) return null;
@@ -4265,13 +4277,23 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
 
     const allTilesInPlay = [...(hand ?? []), ...(buildRow ?? []).map(item => item?.tile)].filter((t): t is Tile => t != null);
     // One-turn tile boosts (One Tile, Captain Planet, Rescue Drop) go back in the bag on a shuffle.
-    const boosted = allTilesInPlay.find(tile => tile.tempPointsSource && tile.tempPointsSource !== TREEHOUSE_NAME);
+    // v7.100.1: a Captain Planet / Rescue Rangers tile stays in the hand (it used to go back in the bag, losing the boost).
+    const kept = allTilesInPlay.filter(tile => tile.tempPointsSource && KEPT_BOOSTS.has(tile.tempPointsSource));
+    const boosted = allTilesInPlay.find(tile => tile.tempPointsSource && tile.tempPointsSource !== TREEHOUSE_NAME && !KEPT_BOOSTS.has(tile.tempPointsSource));
     if (boosted) {
         showMessage(`${boosted.tempPointsSource}: your ${boosted.tempPoints}-point ${boosted.letter} went back in the bag.`, 2500);
+    } else if (kept.length) {
+        showMessage(`${kept[0].tempPointsSource}: your ${kept[0].tempPoints}-point ${kept[0].letter} stays in your hand.`, 2500);
     }
 
-    const tilesToReturn = [...(hand ?? []), ...(buildRow ?? []).map(item => item?.tile)].filter((t): t is Tile => t != null);
+    const tilesToReturn = [...(hand ?? []), ...(buildRow ?? []).map(item => item?.tile)].filter((t): t is Tile => t != null && !kept.includes(t));
     let { hand: newHandTiles, tileBag: newBagForShuffle } = gameUtils.dealNewHand(tileBag, tilesToReturn, gameState?.roundType === 'golden');
+    if (kept.length) {
+        // Swap dealt tiles back into the bag to make room, so the hand stays the same size.
+        const dropped = newHandTiles.slice(Math.max(0, newHandTiles.length - kept.length));
+        newHandTiles = [...kept, ...newHandTiles.slice(0, Math.max(0, newHandTiles.length - kept.length))];
+        newBagForShuffle = [...newBagForShuffle, ...dropped.map(t => t.letter)];
+    }
     
     newHandTiles = applyMutation(newHandTiles, gameState?.roundType === 'golden');
 

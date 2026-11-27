@@ -916,6 +916,14 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   ⭐ BEST MOMENT (the top word with its level, or a single payout 1.5x bigger). It's the first box in the Game Over
   stats (`RunReviewBox`, `run-review`, `run-review-<kind>`). Numbers come from config (seconds by length). Browser-
   checked at 390x844. Tests in `runReview.test.ts`.
+- **Captain Planet's boost can't vanish silently (v7.100.1, the owner's report: the 20-point A scored 1 in QUA).**
+  Captain Planet itself works (browser-checked: CAT with the boosted A scored 24, also with a letter already on the
+  stage, and after a quit and resume). The boost was lost two silent ways, neither in the event log: a shuffle (or a
+  correct STUCK? call) sent the boosted tile back to the bag with only a 2.5 s message, and a next word without that
+  tile let it wear off when the hand was dealt. Now `KEPT_BOOSTS` (Captain Planet, Rescue Rangers) tiles stay in the hand
+  through a shuffle ("your 20-point A stays in your hand"; dealt tiles go back to the bag to make room), and
+  `START_NEXT_ROUND` logs "Captain Planet wore off" ("Your 20-point A wasn't in your word, so it's back to 1 point.")
+  with a stage message. One Tile to Rule Them All keeps its own shuffle rule. Tests in `captainPlanetWearOff.test.ts`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
