@@ -238,7 +238,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
           <p><Key>Shuffle:</Key> a fresh hand plus <Key>+{timeBank.shuffleTimeBonus}s</Key>, and your streaks keep going. Uses are limited: some charms, PowerPlays and secret bonuses give you more.</p>
           <p>
             <Key>🤔 STUCK?:</Key> tap it when you think your tiles can't make any word. The game checks: if there's no
-            everyday word, you get free new tiles and keep your STUCK?. If there is one, it goes in your word row and you
+            everyday word, you get free new tiles, +{GAMEPLAY.timeBank.stuckWinSeconds} seconds, and you keep your STUCK?. If there is one, it goes in your word row and you
             play it for 0 points (that uses one). The number on the button is how many you have.
           </p>
           <p><Key>Out of STUCK? checks:</Key> the button turns red and costs a strike if your tiles could make a word.</p>
