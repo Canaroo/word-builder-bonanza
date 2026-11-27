@@ -103,10 +103,11 @@ export const pickBone = (
 ): Bone | null => {
   const now = ctx.now ?? Date.now();
   const fresh = bones
-    .filter(b => b.level === level && !sameName(b.name, ctx.player) && !looted.includes(b.id) && !(ctx.met ?? []).includes(b.id))
+    .filter(b => b.level <= level && !sameName(b.name, ctx.player) && !looted.includes(b.id) && !(ctx.met ?? []).includes(b.id))
     .filter(b => now - b.timestamp < BONES.maxAgeDays * 86_400_000)
     .filter(b => b.charms.some(c => !ctx.heldCharmIds.includes(c)))
-    .sort((a, b) => b.timestamp - a.timestamp);
+    // v7.96.6: a ghost from this exact level first, then the newest one that fell at a lower level.
+    .sort((a, b) => Number(b.level === level) - Number(a.level === level) || b.timestamp - a.timestamp);
   return fresh[0] ?? null;
 };
 

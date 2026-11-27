@@ -39,7 +39,11 @@ describe('Bones', () => {
         const older = bone({ id: 'old', timestamp: NOW - 86_400_000 });
         const newer = bone({ id: 'new' });
         expect(pickBone(3, ctx, [older, newer], [])?.id).toBe('new');
-        expect(pickBone(4, ctx, [older, newer], [])).toBeNull();
+        // v7.96.6: a ghost that fell at a lower level can be met higher up; never one from a higher level.
+        expect(pickBone(4, ctx, [older, newer], [])?.id).toBe('new');
+        expect(pickBone(2, ctx, [older, newer], [])).toBeNull();
+        // an exact-level ghost comes first, even if it's older
+        expect(pickBone(4, ctx, [bone({ id: 'exact', level: 4, timestamp: NOW - 2 * 86_400_000 }), newer], [])?.id).toBe('exact');
         expect(pickBone(3, { ...ctx, player: 'nicole ' }, [newer], [])).toBeNull();
         expect(pickBone(3, ctx, [older, newer], ['new'])?.id).toBe('old');
         expect(pickBone(3, { ...ctx, met: ['new', 'old'] }, [older, newer], [])).toBeNull();
