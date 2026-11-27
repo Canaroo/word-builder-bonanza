@@ -4342,6 +4342,28 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
       };
 
+      // v7.97.3 (a player's report): Pop Quiz, Hotshot is graded on the next valid word, Golden or not. A Golden word
+      // used to skip this, so the quiz kept counting through the whole Golden Round and the next normal word was
+      // graded on all of it ("TOO SLOW"). Real seconds since the pick (older saves without startMs use the clock).
+      const gradePopQuiz = (scoreBefore: number): number => {
+          const quiz = newState.activePowerPlays.popQuizHotshot as { startClock: number; startMs?: number } | undefined;
+          if (!quiz) return 0;
+          const V = POWER_PLAY_VALUES;
+          const { popQuizHotshot: _q, ...rest } = newState.activePowerPlays;
+          newState.activePowerPlays = rest;
+          newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'popQuizHotshot');
+          const tookExact = quiz.startMs !== undefined ? Math.max(0, quizMsRef.current - quiz.startMs) / 1000 : Math.max(0, quiz.startClock - time);
+          const fast = tookExact <= V.popQuizSeconds;
+          const took = Math.round(tookExact * 10) / 10;
+          const quizPoints = prizeFor(V.popQuizPoints, prizeLevel);
+          if (fast) newState.ppTimeBonus = (newState.ppTimeBonus || 0) + V.popQuizBonusSeconds;
+          else newState.ludicrousTimeCost = (newState.ludicrousTimeCost ?? 0) + V.popQuizPenaltySeconds;
+          const gained = fast ? quizPoints : 0;
+          eventLogQueue.push({ type: 'event', id: `pp-popQuiz-${Date.now()}`, name: 'Pop Quiz, Hotshot', icon: '🚌', description: fast ? `Answered in ${took < 1 ? 'under a second' : `${took} sec`}: +${quizPoints} points and +${V.popQuizBonusSeconds} sec.` : `Took ${took} sec: -${V.popQuizPenaltySeconds} sec.`, scoreChange: gained, cumulativeScore: scoreBefore + gained });
+          modalQueue.push(outcome(ppById('popQuizHotshot'), fast ? `+${quizPoints} POINTS, +${V.popQuizBonusSeconds}s` : `TOO SLOW: -${V.popQuizPenaltySeconds}s`, fast ? `You answered in ${took < 1 ? 'under a second' : `${took} ${took === 1 ? 'second' : 'seconds'}`}. The bus keeps rolling.` : `That took ${took} seconds (you had ${V.popQuizSeconds}). The clock loses ${V.popQuizPenaltySeconds} seconds next round.`, fast ? 'win' : 'lose'));
+          return gained;
+      };
+
       // --- A: GOLDEN ROUND SUBMISSION ---
         if (newState.roundType === 'golden') {
             // v7.60.0: the Golden word scores in full first (tiles, length, charms; no PowerPlay
@@ -4375,6 +4397,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
                 definition: validationDef, status: 'valid', cumulativeScore: newState.score
             };
             newState.log = [...newState.log, wordLogEntry];
+            // The Golden word is the quiz's "next word" too.
+            const quizGain = gradePopQuiz(newState.score);
+            if (quizGain || eventLogQueue.length) {
+                newState.score += quizGain;
+                newState.log = [...newState.log, ...eventLogQueue.splice(0)];
+            }
             const goldenGateLog: EventLogEntry[] = [];
             openGates(newState, modalQueue, goldenGateLog, Date.now());
             if (goldenGateLog.length) newState.log = [...newState.log, ...goldenGateLog];
@@ -5114,36 +5142,19 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
           }
       }
       const daily = newState.activePowerPlays.dailyDouble as { wager: number } | undefined;
-      const quiz = newState.activePowerPlays.popQuizHotshot as { startClock: number; startMs?: number } | undefined;
-      if (daily || quiz) {
+      if (daily) {
           const V = POWER_PLAY_VALUES;
-          const { dailyDouble: _d, popQuizHotshot: _q, ...rest } = newState.activePowerPlays;
+          const { dailyDouble: _d, ...rest } = newState.activePowerPlays;
           newState.activePowerPlays = rest;
-          newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'dailyDouble' && b.id !== 'popQuizHotshot');
-          if (daily) {
-              const won = word.length >= V.dailyDoubleLetters;
-              // v7.58.0: a win pays the flat prize (grows with the level); a loss costs the bet.
-              const change = won ? prizeFor(V.dailyDoubleWin, prizeLevel) : -Math.min(daily.wager, runningScore);
-              runningScore += change;
-              eventLogQueue.push({ type: 'event', id: `pp-dailyDouble-${now}`, name: 'Daily Double', icon: '❓', description: won ? `${word.toUpperCase()} has ${word.length} letters: won ${change}.` : `${word.toUpperCase()} is under ${V.dailyDoubleLetters} letters: lost the wager.`, scoreChange: change, cumulativeScore: runningScore });
-              modalQueue.push(outcome(ppById('dailyDouble'), won ? `CORRECT! +${change} POINTS` : `WRONG! ${change} POINTS`, won ? `${word.toUpperCase()} has ${word.length} letters. Your ${daily.wager} bet wins ${change}.` : `${word.toUpperCase()} has only ${word.length} letters (you needed ${V.dailyDoubleLetters}+). You lose your ${daily.wager} bet.`, won ? 'win' : 'lose'));
-          }
-          if (quiz) {
-              // Real seconds since the quiz started (older saves without startMs fall back to the clock).
-              const tookExact = quiz.startMs !== undefined ? Math.max(0, quizMsRef.current - quiz.startMs) / 1000 : Math.max(0, quiz.startClock - time);
-              const fast = tookExact <= V.popQuizSeconds;
-              const took = Math.round(tookExact * 10) / 10;
-              const quizPoints = prizeFor(V.popQuizPoints, prizeLevel);
-              if (fast) {
-                  runningScore += quizPoints;
-                  newState.ppTimeBonus = (newState.ppTimeBonus || 0) + V.popQuizBonusSeconds;
-              } else {
-                  newState.ludicrousTimeCost = (newState.ludicrousTimeCost ?? 0) + V.popQuizPenaltySeconds;
-              }
-              eventLogQueue.push({ type: 'event', id: `pp-popQuiz-${now}`, name: 'Pop Quiz, Hotshot', icon: '🚌', description: fast ? `Answered in ${took < 1 ? 'under a second' : `${took} sec`}: +${quizPoints} points and +${V.popQuizBonusSeconds} sec.` : `Took ${took} sec: -${V.popQuizPenaltySeconds} sec.`, scoreChange: fast ? quizPoints : 0, cumulativeScore: runningScore });
-              modalQueue.push(outcome(ppById('popQuizHotshot'), fast ? `+${quizPoints} POINTS, +${V.popQuizBonusSeconds}s` : `TOO SLOW: -${V.popQuizPenaltySeconds}s`, fast ? `You answered in ${took < 1 ? 'under a second' : `${took} ${took === 1 ? 'second' : 'seconds'}`}. The bus keeps rolling.` : `That took ${took} seconds (you had ${V.popQuizSeconds}). The clock loses ${V.popQuizPenaltySeconds} seconds next round.`, fast ? 'win' : 'lose'));
-          }
+          newState.activeBuffs = newState.activeBuffs.filter(b => b.id !== 'dailyDouble');
+          const won = word.length >= V.dailyDoubleLetters;
+          // v7.58.0: a win pays the flat prize (grows with the level); a loss costs the bet.
+          const change = won ? prizeFor(V.dailyDoubleWin, prizeLevel) : -Math.min(daily.wager, runningScore);
+          runningScore += change;
+          eventLogQueue.push({ type: 'event', id: `pp-dailyDouble-${now}`, name: 'Daily Double', icon: '❓', description: won ? `${word.toUpperCase()} has ${word.length} letters: won ${change}.` : `${word.toUpperCase()} is under ${V.dailyDoubleLetters} letters: lost the wager.`, scoreChange: change, cumulativeScore: runningScore });
+          modalQueue.push(outcome(ppById('dailyDouble'), won ? `CORRECT! +${change} POINTS` : `WRONG! ${change} POINTS`, won ? `${word.toUpperCase()} has ${word.length} letters. Your ${daily.wager} bet wins ${change}.` : `${word.toUpperCase()} has only ${word.length} letters (you needed ${V.dailyDoubleLetters}+). You lose your ${daily.wager} bet.`, won ? 'win' : 'lose'));
       }
+      runningScore += gradePopQuiz(runningScore);
 
       const isSuperHand = ((hand ?? []).filter(t => t !== null).length === 0);
       if (isSuperHand && !wordLocked) {
