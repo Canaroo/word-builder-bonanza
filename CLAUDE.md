@@ -904,6 +904,18 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   +N / +N SEC / N WORDS under YOU HAVE (`gear-collector-earned`), the header totals it ("+30 THIS RUN"), and a row tap
   says "This run: +N points from its x2, over 1 word." Golden words don't count toward it. Browser-checked: CAT with a
   Chrome C and a Holo A → EARNED +5 and +25, header +30.
+- **📼 Run Review on Game Over (v7.100.0, the owner's design and picks).** `services/runReview.ts` writes a short
+  video-store critic's review from the run's own numbers (the owner's pick over a real AI model: instant, offline,
+  always accurate): stars (`reviewStars`: a new best is 5, else by level 1/3/5/8/12), a verdict ("Straight to VHS" ...
+  "Staff pick of the week!", original lines) and four one-sentence lines: 📈 WHAT CARRIED YOU (`scoreSources` splits
+  the score into tiles, charms via Gear's `earnedThisRun`, secrets, genres, Collector's Tiles, PowerPlay events by name
+  and other events; the biggest one if it beat 60% of the tiles' share or 30% of the score, else "Pure spelling"),
+  💀 WHAT ENDED IT (clock: the level and where the time came from, from `timeLedger`; strikes: how many were fake
+  words), 💡 TRY NEXT RUN (the first that fits: STUCK? after fake-word strikes, an unused pocket PowerPlay, longer words
+  before level 7 or time items after, unused shuffles, short vs 6+ letter averages, empty charm slots, the Daily) and
+  ⭐ BEST MOMENT (the top word with its level, or a single payout 1.5x bigger). It's the first box in the Game Over
+  stats (`RunReviewBox`, `run-review`, `run-review-<kind>`). Numbers come from config (seconds by length). Browser-
+  checked at 390x844. Tests in `runReview.test.ts`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

@@ -1,6 +1,6 @@
 
 import { Sec } from '../../components/Seconds';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FinalGameState, WordLogEntry, TimeLedger } from '../../types';
 import { soundService } from '../soundService';
 import EventLogDisplay from '../../components/EventLogDisplay';
@@ -14,6 +14,7 @@ import { cosmeticById } from '../../data/cosmetics';
 import { PACKS_LIST } from '../../data/packs';
 import { getProfile, nextMilestone, type StreakUpdate } from '../progression';
 import { dailyShareText, type DailyRun } from '../daily';
+import { runReview } from '../runReview';
 
 
 interface GameOverScreenProps {
@@ -97,6 +98,35 @@ const StatRow: React.FC<{ label: string; value: React.ReactNode; icon: string; i
   );
 };
 
+
+/**
+ * v7.100.0 (the owner's design): 📼 RUN REVIEW, a video-store critic's take on the run: stars, a verdict and four
+ * one-sentence lines (what carried you, what ended it, a tip, the best moment), written from the run's own numbers.
+ */
+const RunReviewBox: React.FC<{ gameState: GameOverScreenProps['gameState']; isNewBest: boolean }> = ({ gameState, isNewBest }) => {
+  const review = useMemo(() => runReview(gameState as any, isNewBest), [gameState, isNewBest]);
+  if (!review.lines.length) return null;
+  return (
+    <div className="text-left pb-2 mb-1 border-b border-dashed border-white/10" data-testid="run-review">
+      <div className="flex items-center justify-between gap-2">
+        <span className="osd-text text-lg leading-none text-neon-yellow">📼 RUN REVIEW</span>
+        <span className="text-lg leading-none text-neon-yellow tracking-wider" aria-label={`${review.stars} of 5 stars`}>{'★'.repeat(review.stars)}<span className="text-slate-600">{'★'.repeat(5 - review.stars)}</span></span>
+      </div>
+      <p className="font-display text-base leading-tight text-white mt-1" data-testid="run-review-verdict">{review.verdict}</p>
+      <ul className="mt-1.5 space-y-1.5">
+        {review.lines.map(l => (
+          <li key={l.kind} className="flex gap-2 items-start" data-testid={`run-review-${l.kind}`}>
+            <span className="text-lg leading-none mt-0.5" aria-hidden="true">{l.icon}</span>
+            <span className="min-w-0">
+              <span className="block osd-text text-sm leading-none text-neon-cyan">{l.label}</span>
+              <span className="block text-[14px] leading-snug text-slate-100">{l.text}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
 
 const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, onPlayAgain, onSubmitScore, onGoToMenu, isNewBest = false, personalBest = 0, recap = null, streak = null, daily = null }) => {
   const [showMilestones, setShowMilestones] = useState(() => (streak?.milestones.length ?? 0) > 0);
@@ -283,6 +313,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
 
       {/* Stats Panel */}
       <div className="my-4 bg-crt-950/70 ring-1 ring-neon-cyan/30 px-4 py-2 rounded-xl flex-grow min-h-0 overflow-y-auto">
+          <RunReviewBox gameState={gameState} isNewBest={isNewBest} />
           {recap && (
             <div className="text-left pb-2 border-b border-dashed border-white/10 space-y-2">
               <div className="flex items-center justify-between">
