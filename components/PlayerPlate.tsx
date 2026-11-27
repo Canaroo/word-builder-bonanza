@@ -36,6 +36,12 @@ export const BossBadgeCount: React.FC<{ count: number; className?: string }> = (
     <span className={`osd-text leading-none text-neon-yellow whitespace-nowrap ${className}`} aria-label={`${count} Boss ${count === 1 ? 'Badge' : 'Badges'}`} title={`Beat ${count} ${count === 1 ? 'boss' : 'bosses'}`}>🏅{count}</span>
   ) : null;
 
+/** v7.99.0: 🏆 and the Daily Champ win count; hidden at zero. */
+export const ChampCount: React.FC<{ count: number; className?: string }> = ({ count, className = '' }) =>
+  count > 0 ? (
+    <span className={`osd-text leading-none text-neon-yellow whitespace-nowrap ${className}`} aria-label={`${count}-time Daily Challenge winner`} title={`Won the Daily Challenge ${count} ${count === 1 ? 'time' : 'times'}`} data-testid="champ-count">🏆{count}</span>
+  ) : null;
+
 /** Name with badge, title and streak: the player's card. */
 const PlayerPlate: React.FC<{
   name: string;

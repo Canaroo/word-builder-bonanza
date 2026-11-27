@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import IdCard from '../../components/IdCard';
+import { useDailyChamps } from '../dailyChamps';
 import ArcadeButton from '../../components/ArcadeButton';
 import ScreenShell from '../../components/ScreenShell';
 import type { TabId } from '../../components/BottomTabs';
@@ -21,6 +22,7 @@ interface ProfileScreenProps {
 
 /** The Me tab: the current player's ID card, then everything about you and the game. */
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack, onTab, onEditBling, onShowHowToPlay, onOpenOnHome, lexCoins }) => {
+  const { winsFor } = useDailyChamps();
   const { player, profile, card, since } = useMemo(() => ({
     player: currentPlayer(),
     profile: getProfile(),
@@ -48,6 +50,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack, onTab, onEditBlin
           title={profile.title}
           streak={currentStreak(profile)}
           bosses={profile.bossBadges.length}
+          dailyWins={winsFor(player.name)}
           card={card}
           stamp={stamp}
         />

@@ -27,7 +27,9 @@ import ScreenShell from '../../components/ScreenShell';
 import { getTodaysMissions } from '../missions';
 import { levelFor } from '../rules';
 import StreakPanel from '../../components/StreakPanel';
-import { BadgeIcon, TitleText } from '../../components/PlayerPlate';
+import { BadgeIcon, TitleText, ChampCount } from '../../components/PlayerPlate';
+import { useDailyChamps, unseenWins, winsSeen, markWinsSeen, dailyLabel } from '../dailyChamps';
+import { DAILY_CHAMP } from '../../config/progression';
 import { getCareer } from '../career';
 import { tourSeenBy, markTourSeen, tourFinishedBy } from '../tour';
 import { getProfile, currentStreak, playedToday, powerWordBonusFor } from '../progression';
@@ -64,6 +66,8 @@ interface StartScreenProps {
   /** Changes whenever badges, titles or freezes change, so the profile is re-read. */
   profileVersion?: number;
   onBuyFreeze: () => void;
+  /** v7.99.0: pays a Daily Champ win (App adds the Credits and shows the toast). */
+  onAwardCredits?: (amount: number, label?: string) => void;
 }
 
 const StartScreen: React.FC<StartScreenProps> = ({ 
@@ -89,6 +93,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onSpin,
   profileVersion = 0,
   onBuyFreeze,
+  onAwardCredits,
 }) => {
   // Bumped when a different local player takes over, so their own profile and saves are read.
   const [playerVersion, setPlayerVersion] = useState(0);
@@ -96,6 +101,27 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const profile = useMemo(() => getProfile(), [profileVersion, playerVersion]);
   // Today's Daily Run for the current player: whether it's been played, and any unfinished save.
   const today = useMemo(() => todaysRun(), [profileVersion, playerVersion]);
+  // v7.99.0 (the owner's design): 🏆 Daily Champ. Wins come from the Daily boards; a win this player hasn't seen yet
+  // opens a card that pays DAILY_CHAMP.credits once per win.
+  const champs = useDailyChamps();
+  const [champCard, setChampCard] = useState<{ days: string[]; armed: boolean } | null>(null);
+  useEffect(() => {
+    const who = (storage.getString(STORAGE_KEYS.playerName) || '').trim();
+    if (!champs.ready || !who || champCard) return;
+    const days = unseenWins(champs.champs, who, winsSeen());
+    if (days.length) {
+      setChampCard({ days, armed: false });
+      soundService.playMilestone();
+      setTimeout(() => setChampCard(c => (c ? { ...c, armed: true } : c)), 900);
+    }
+  }, [champs.ready, champs.champs, playerVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  const collectChamp = () => {
+    if (!champCard?.armed) return;
+    const pay = DAILY_CHAMP.credits * champCard.days.length;
+    markWinsSeen(champCard.days);
+    onAwardCredits?.(pay, `🏆 Daily Champ: +${pay} Credits!`);
+    setChampCard(null);
+  };
   const todayRecord = useMemo(() => dailyRecord(today.key), [today]);
   const dailySave = useMemo(() => {
     const saved = storage.getJSON<any>(STORAGE_KEYS.savedDailyGame, null);
@@ -602,6 +628,25 @@ const StartScreen: React.FC<StartScreenProps> = ({
           />
       )}
       
+      {champCard && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center p-4 bg-crt-950/90 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="You won the Daily Challenge" data-testid="champ-card">
+          <div className="w-full max-w-sm rounded-2xl bg-crt-900 ring-2 ring-neon-yellow shadow-[0_0_28px_rgba(255,210,63,0.45)] p-5 flex flex-col items-center gap-2 text-center bonus-insert">
+            <div className="text-6xl leading-none" aria-hidden="true">🏆</div>
+            <p className="osd-text text-lg leading-none tracking-widest text-neon-yellow">DAILY CHAMP!</p>
+            <h2 className="font-display text-2xl leading-tight text-white text-balance">
+              You won {champCard.days.length === 1 ? dailyLabel(champCard.days[0]) : `${champCard.days.length} Daily Challenges`}!
+            </h2>
+            <p className="text-slate-200 text-[15px] leading-snug">
+              {champCard.days.length === 1 ? 'Nobody beat your score on that day\'s tiles.' : `Nobody beat your score on ${champCard.days.map(dailyLabel).join(', ')}.`}{' '}
+              You're now a <b className="text-neon-yellow">{champs.winsFor(name)}-time Daily Champ</b>. Everyone sees your 🏆 on the Top 50 and your ID.
+            </p>
+            <ArcadeButton color="yellow" className="w-full mt-1" data-testid="champ-collect" disabled={!champCard.armed} onClick={collectChamp}>
+              🪙 Collect +{DAILY_CHAMP.credits * champCard.days.length} Credits
+            </ArcadeButton>
+          </div>
+        </div>
+      )}
+
       {showSwitcher && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-crt-950/85 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="Who's playing?">
           <div className="w-full max-w-sm rounded-2xl bg-crt-900 ring-2 ring-neon-cyan/60 p-4 flex flex-col gap-3">
@@ -670,6 +715,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <span className="cab-tag" aria-hidden="true">1P</span>
             {profile.badge ? <BadgeIcon id={profile.badge} size="sm" /> : <span className="text-lg leading-none" aria-hidden="true">👤</span>}
             <span className="osd-text text-xl leading-none text-neon-cyan uppercase truncate max-w-[7rem]">{showNameEntry ? 'NEW PLAYER' : name.trim()}</span>
+            {!showNameEntry && <ChampCount count={champs.winsFor(name)} className="text-lg hidden min-[375px]:inline" />}
             <span className="text-slate-400 text-xs" aria-hidden="true">▾</span>
           </button>
           <div className="flex items-center gap-1.5 shrink-0">

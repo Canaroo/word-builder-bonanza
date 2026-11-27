@@ -3,7 +3,8 @@ import { LeaderboardEntry } from '../types';
 import { soundService } from '../services/soundService';
 import { leaderboardService, LeaderboardSource } from '../services/leaderboardService';
 import ArcadeButton from './ArcadeButton';
-import { BadgeIcon, TitleText, StreakFlame, BossBadgeCount } from './PlayerPlate';
+import { BadgeIcon, TitleText, StreakFlame, BossBadgeCount, ChampCount } from './PlayerPlate';
+import { useDailyChamps } from '../services/dailyChamps';
 import IdCard from './IdCard';
 import IdCompare from './IdCompare';
 import { idCardStats } from '../services/career';
@@ -37,6 +38,8 @@ export const timeAgo = (iso: string, now = Date.now()): string => {
 };
 
 const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'local', offlineReason, onRetry, recent = false }) => {
+  // v7.99.0: 🏆 Daily Champ wins, worked out from the Daily boards (services/dailyChamps.ts).
+  const { winsFor } = useDailyChamps();
   const [currentPage, setCurrentPage] = useState(0);
   const [viewing, setViewing] = useState<LeaderboardEntry | null>(null);
   const [comparing, setComparing] = useState(false);
@@ -148,8 +151,9 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
                         {entry.name}
                       </span>
                       {/* Streak, Boss Badges and title share the second line, so the name always fits. */}
-                      {(entry.streak || entry.bosses || entry.title) ? (
+                      {(entry.streak || entry.bosses || entry.title || winsFor(entry.name)) ? (
                         <span className="flex items-center gap-1.5 min-w-0 mt-0.5">
+                          <ChampCount count={winsFor(entry.name)} className="text-sm shrink-0" />
                           <StreakFlame count={entry.streak ?? 0} className="text-sm shrink-0" />
                           <BossBadgeCount count={entry.bosses ?? 0} className="text-sm shrink-0" />
                           {entry.daily && <span className="text-sm shrink-0" title="Daily Challenge score" aria-label="Daily Challenge">📅</span>}
@@ -198,6 +202,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, isLoading, source = 'lo
               title={viewing.title}
               streak={viewing.streak ?? 0}
               bosses={viewing.bosses ?? 0}
+              dailyWins={winsFor(viewing.name)}
               card={viewing.card}
               stamp={`THIS SCORE ${viewing.score.toLocaleString()}${viewing.date ? ` · ${formatDate(viewing.date).toUpperCase()}` : ''}`}
             />

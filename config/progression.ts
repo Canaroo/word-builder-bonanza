@@ -51,6 +51,17 @@ export const PHOENIX_DOWN = { id: 'phoenixDown', name: 'Phoenix Down', icon: 'ü
 export const DAILY_RESET_HOUR = 8;
 
 /** The Daily Run (v7.30): one shared deal a day (services/daily.ts). */
+/**
+ * v7.99.0 (the owner's design): üèÜ Daily Champ. The top score on a finished Daily Challenge board wins it (ties all
+ * win). Counted from `firstDay` on (the owner's call: start fresh), worked out by every client from the boards
+ * (services/dailyChamps.ts), so nothing new is stored online. A win pays `credits` once, on the winner's next visit.
+ */
+export const DAILY_CHAMP = {
+  firstDay: '2026-11-27',   // Daily #21: the first board that counts
+  credits: 25,
+  refreshMs: 10 * 60 * 1000,
+};
+
 export const DAILY_RUN = {
   launchDay: '2026-11-07',  // Daily Run #1 (launch day: the game day that was current when it shipped)
   finishCredits: 5,         // for finishing your scored daily run
