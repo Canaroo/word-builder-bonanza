@@ -668,7 +668,10 @@ export const GRUDGE = { multiplier: 2 } as const;
  * a word of `minLetters`+ from those tiles within `seconds` wins one of the charms. Bones older
  * than `maxAgeDays` are ignored; a run loads the newest `fetch` when it starts.
  */
-export const BONES = { minLevel: 2, minLetters: 5, seconds: 30, perRun: 1, maxAgeDays: 30, fetch: 60 } as const;
+// v7.96.6 (the owner: "I haven't seen bones in a while"): it fetched the newest 60, mostly the family's own runs
+// (skipped), and needed the exact level, so a player named Dad had 0 ghosts at levels 2, 4 and 5. Now the newest 200,
+// any ghost that fell at or below the level reached (an exact match first), and `chance` a level-up so it spreads out.
+export const BONES = { minLevel: 2, minLetters: 5, seconds: 30, perRun: 1, maxAgeDays: 30, fetch: 200, chance: 0.5 } as const;
 
 /**
  * Mystery Tape (v7.41): now and then the last card of a PowerPlay offer is a face-down tape. It

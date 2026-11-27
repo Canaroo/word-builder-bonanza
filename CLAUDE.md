@@ -488,6 +488,10 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   offered under 100 points), and a Sliders undo keeps a settled Daily Double or Price Is Right bet. It also
   doesn't re-arm a coin flip the word used (Heisenberg, Double or Nothing, Blue Shell, Space Invader)
   or Scrooge's Money Bin (its Credits are paid outside the run): `settledFlips` in `RESTORE_LAST_TURN`.
+  **v7.96.6 (the owner's report: an endless Sliders loop):** the undo restored the meters and `oncePerRunTaken` from
+  before the word, so replaying it re-earned the same offers and Sliders came back. `RESTORE_LAST_TURN` now keeps
+  Sliders spent, both meters (`powerPlayProgress`, `wordMilestoneProgress`), the cooldowns, offer counts and any charm
+  taken after the word; it still rewinds the word, score, clock and tiles. Tests in `slidersLoop.test.ts`.
   Random-tile PowerPlays (`RANDOM_TILE_POWER_PLAYS`: One Tile to Rule Them All, Ice Ice Maybe,
   Morphin Time, Red Wedding, Rescue Rangers) put the word-building row back in the hand first, so
   parking tiles there can't steer the pick. Add new random-tile ones to that set.
@@ -1141,6 +1145,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   Bones carry names like the leaderboard does; usage stats stay anonymous (`bones` event: `taken`,
   `level`). Needs the `bones` rules block in `docs/LEADERBOARD.md`; until it is published nothing
   posts or loads and the game plays as before. Browser checks seed `wordNerdBonesCache`.
+  **v7.96.6 (the owner: "I haven't seen bones in a while"):** it was firing (66 finds, 48 looted), but it fetched the
+  newest 60, mostly the family's own runs (skipped), and needed the exact level, so a player named Dad had 0 ghosts
+  at levels 2, 4 and 5. Now `BONES.fetch` is 200, `pickBone` takes a ghost that fell at or below the level reached
+  (an exact-level one first), and each level-up has `BONES.chance` (50%) so it spreads over levels: Dad 4-17 ghosts a
+  level, about 87% to meet one by level 4. Still one a run.
 - **Power words** (10 secret words with `effect`, no points): SLOT (slot machine, +1/3/10s), SNOW
   (clock frozen 10s), HEAL (remove a strike, else +100), SLOW (half-speed clock for 3 words), TWIN
   (clone your best word's time + a Word Combo step), RINGS (a strike shield), REWIND (clock one speed

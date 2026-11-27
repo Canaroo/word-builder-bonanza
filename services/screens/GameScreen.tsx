@@ -405,6 +405,7 @@ const bonesModal = (gs: GameState, wordsBefore: number): ModalContent | null => 
     const level = levelFor(wordsBefore + 1);
     if (level <= levelFor(wordsBefore) || (gs.daily && !gs.daily.practice)) return null;
     if ((gs.bonesMet ?? []).length >= BONES.perRun) return null;
+    if (Math.random() >= BONES.chance) return null;
     const bone = pickBone(level, { player: currentPlayer().name, heldCharmIds: gs.activeCharms.map(c => c.id), met: gs.bonesMet });
     if (!bone) return null;
     gs.bonesMet = [...(gs.bonesMet ?? []), bone.id];
@@ -1358,7 +1359,20 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
                     activeBuffs: state.lastTurnState.gameState.activeBuffs.filter(b => !settledBets.includes(b.id) && !settledFlips.includes(b.id)),
                     log: [...state.lastTurnState.gameState.log, ...betEntries, newLogEntry],
                     availablePowerPlays: state.gameState.availablePowerPlays.filter(p => p.id !== 'sliders'),
-                    powerPlayUses: { ...state.gameState.powerPlayUses, sliders: 1 }
+                    powerPlayUses: { ...state.gameState.powerPlayUses, sliders: 1 },
+                    // v7.96.6 (the owner's report: an endless loop): the undo rewinds the word, score, clock and
+                    // tiles, but not what the player picked up after it. Before, it brought back the meters as they
+                    // were, so replaying the word re-earned the same offers, and Sliders (not yet marked as taken)
+                    // could be offered again. Sliders stays spent, the meters stay where they are, and a charm taken
+                    // after the word stays equipped.
+                    oncePerRunTaken: [...new Set([...(state.gameState.oncePerRunTaken ?? []), 'sliders'])],
+                    powerPlayProgress: state.gameState.powerPlayProgress,
+                    wordMilestoneProgress: state.gameState.wordMilestoneProgress,
+                    powerPlayCooldowns: state.gameState.powerPlayCooldowns,
+                    charmCooldowns: state.gameState.charmCooldowns,
+                    activeCharms: state.gameState.activeCharms,
+                    charmUpgrades: state.gameState.charmUpgrades,
+                    sessionOfferCounts: state.gameState.sessionOfferCounts,
                 };
 
                 return {
