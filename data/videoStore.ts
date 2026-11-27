@@ -2,7 +2,7 @@
 // Pure rules here; the store card is components/VideoStore.tsx and the reducer cases live in
 // services/screens/GameScreen.tsx (STORE_RENT, STORE_RESTOCK, STORE_TRADE_IN, STORE_LEAVE).
 // Values in VIDEO_STORE, GENRE_VALUES and COLLECTOR (config/gameplay.ts).
-import { VIDEO_STORE, GENRE_VALUES, COLLECTOR } from '../config/gameplay';
+import { VIDEO_STORE, GENRE_VALUES, COLLECTOR, CHARM_SLOTS } from '../config/gameplay';
 import type { Charm, PowerPlay, GameState } from '../types';
 
 // ---------- Genres ----------
@@ -91,6 +91,23 @@ export const charmPrice = (c: Pick<Charm, 'breaks'>) => (c.breaks ? VIDEO_STORE.
 export const tradeInValue = (c: Pick<Charm, 'breaks'>, upgraded: boolean) => (upgraded ? charmPrice(c) : Math.max(1, Math.round(charmPrice(c) * VIDEO_STORE.tradeBack)));
 /** A purchase never takes the clock under keepAtLeast. */
 export const canAfford = (clock: number, price: number) => clock - price >= VIDEO_STORE.keepAtLeast;
+
+/** A receipt line. A trade-in also carries what taking it back needs (v7.96.10). */
+export interface StoreLine { t: string; d: number; trade?: { id: string; up: boolean; buff: boolean; at: number } }
+
+/**
+ * v7.96.10 (the owner's ask): why a trade-in can't be taken back right now, or null when it can. The seconds
+ * it paid come back off the clock, which never drops under keepAtLeast (or under the clock before the trade,
+ * when that was already lower), and the charm needs a free slot.
+ */
+export const takeBackBlock = (line: StoreLine, clock: number, charms: Pick<Charm, 'id'>[]): string | null => {
+  if (!line.trade) return 'Only a trade-in can be taken back.';
+  if (charms.some(c => c.id === line.trade!.id)) return 'You already have it.';
+  if (charms.length >= CHARM_SLOTS) return 'Your charm slots are full.';
+  if (clock - line.d < Math.min(VIDEO_STORE.keepAtLeast, line.trade.at)) return `You spent those seconds. You need ${line.d} to buy it back.`;
+  return null;
+};
+export const canTakeBack = (line: StoreLine, clock: number, charms: Pick<Charm, 'id'>[]) => takeBackBlock(line, clock, charms) === null;
 
 /**
  * Deals a shelf of three tapes: a charm (New Release), a PowerPlay (Rental) or sometimes a Collector's
