@@ -104,6 +104,10 @@ export const GAMEPLAY = {
 // PowerPlay costs and values.
 export const POWER_PLAY_VALUES = {
   buyAVowelCost: 100,
+  // Fluncle is Proud (v7.96.8, the owner's ask: picked 12 of 73 offers, 16% against a 27% average, while
+  // the +10 sec Detour was picked 84%): a sure prize (grows with the level) plus PowerPlay time (full at any level).
+  fluncleProud: 400,
+  fluncleSeconds: 8,
   rareLetters: 'JKQXZ',    // Hold Onto Your Butts: these tiles score x3 on the next word
   rareLetterMultiplier: 3,
   // Combo Breaker: for the next few words, each word this long scores the multiplier; a shorter
@@ -165,7 +169,7 @@ export const POWER_PLAY_VALUES = {
   gumpLuckChocolates: 6,         // v7.67.1: chocolates in the box (tap one to unwrap it)
   spaceInvaderMultiplier: 3,     // Space Invader: 50% for this...
   spaceInvaderCap: 5,            // ...or the word is capped at this many points
-  // v7.25 gambles. Expected values sit near Fluncle's sure +300 so a gamble is worth the risk.
+  // v7.25 gambles. Expected values sat near Fluncle's old sure +300 so a gamble is worth the risk.
   // Let's Make a Deal: each round, two doors hold these prizes and one hides a Zonk that wipes
   // the pot. Bank after any win, or play the next round (bigger prizes). EV if you play all 3: ~340.
   // v7.68.0 (the owner's design): one row of doors, 4 prizes and 1 Zonk, opened one at a time.
@@ -715,7 +719,7 @@ export const MINI_GAME_VALUES = {
   pitStop: { tires: 4, taps: 4, tiers: [{ under: 3.5, points: 300 }, { under: 5, points: 200 }, { under: 7, points: 100 }], slow: 50 }, // TIRE: 16 taps, beat the clock
   coaster: { rides: 3, clean: 120, wobbly: 60, allClean: 100 },    // RIDE: release in the green to clear the loop
   seal: { seconds: 10, perSecond: 25, fullBonus: 100 },            // SEAL: keep the ball on the nose
-  monte: { rounds: 3, perFind: 100, allBonus: 100 },               // DEAL: find the queen, 3 rounds
+  monte: { rounds: 3, perFind: 100, allBonus: 100, swaps: [3, 4, 6], swapMs: [800, 650, 520], moveShare: 0.6 }, // v7.96.8: was 5/7/9 swaps at 420/300/210 ms               // DEAL: find the queen, 3 rounds
   // v7.56.0: five more words, each a new kind of play (reaction, feel, logic, catching, dodging).
   lure: { casts: 3, whopperMs: 400, keeperMs: 650, minnowMs: 1000, whopper: 120, keeper: 70, minnow: 30, allWhoppers: 100, waitMs: [1300, 3600] }, // LURE: tap when the bobber dips
   dial: { seconds: 20, numbers: 3, size: 40, glow: 3, perNumber: 100, cracked: 150 }, // DIAL: find the combination by feel

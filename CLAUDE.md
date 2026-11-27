@@ -801,6 +801,14 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   back replayed it and paused the clock again (browser-checked: 4 replays and the clock stuck at 58-59 before, 0 after). Reduced motion skips the roll. Browser-checked:
   GRAVITY with Epics ★2 rolled 35 → 56 → 85 and held 1.4 s with the clock at 29. Tests in
   `components/__tests__/scoreTally.test.ts`.
+- **Fluncle and Find the Lady (v7.96.8, the owner's asks).** **Fluncle is Proud** was picked 12 of 73 offers (16%,
+  average 27%) while the +10 sec Detour was picked 84%: it now pays +400 (`POWER_PLAY_VALUES.fluncleProud`, a prize, so
+  +600 at level 6) and +8 sec (`fluncleSeconds`, PowerPlay time, full at any level), and it's a time card
+  (`TIME_CARD_IDS`, at most one per offer). Detour stays the bigger time play (10 sec), Fluncle trades 2 sec for points.
+  **Find the Lady (DEAL)** was too fast to follow: 5/7/9 swaps at 420/300/210 ms with no pause. Now 3/4/6 swaps at
+  800/650/520 ms (`MINI_GAME_VALUES.monte.swaps`/`swapMs`); a card moves for 60% of each swap and rests the rest
+  (`moveShare`), and the two cards trading places arc past each other, one lifted and bigger, one lower and smaller,
+  so they never slide through each other. Shuffles take about 4-4.6 s. Browser-checked: Fluncle 30 → 38 sec, +400.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

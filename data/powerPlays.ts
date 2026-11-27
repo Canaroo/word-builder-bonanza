@@ -62,7 +62,7 @@ const letterBoost = (id: 'letterUpgrade' | 'polish', words: number) => (gameStat
 export const TIME_CARD_IDS = new Set([
   'timeBoost', 'timeTurner', 'saveByTheBell', 'happyPlace', 'deepFreeze', 'groundhogsDay', 'continueScreen',
   'hotTubTimeMachine', 'scroogeSwipe', 'leafOnTheWind', 'lifeFindsAWay', 'rewind', 'neosChoice',
-  'multiverseOfSadness', 'jackass',
+  'multiverseOfSadness', 'jackass', 'fluncleIsProud',
 ]);
 
 /** PowerPlays that fire the moment you pick them, so you also keep the one you're holding. */
@@ -429,7 +429,7 @@ export const POWER_PLAYS_LIST: PowerPlay[] = [
   { 
     id: 'fluncleIsProud', 
     name: 'Fluncle is Proud', 
-    description: `+300 points, right now.`, 
+    description: `Your proud Fluncle slips you +${POWER_PLAY_VALUES.fluncleProud} points and +${POWER_PLAY_VALUES.fluncleSeconds} seconds, right now.`, 
     flavorText: 'Fluncle approves this chaos.',
     icon: '🧓',
     subtheme: 'score',
