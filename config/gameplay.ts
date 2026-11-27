@@ -834,14 +834,16 @@ export const VIDEO_STORE = {
 
 // 🎬 Genre Levels (v7.96.0): words that fit a genre pay +perStar per ★ on every word, up to maxStars.
 // A genre gains ★ from a poster in the Video Store, or by itself every `playsPerStar` words that fit it.
+// v7.96.7 (the owner's call): Shorts is exactly 3 letters (was 3-4), +15 a ★ (was +5), a ★ every 12 (was 20):
+// 3-letter words are 51% of a casual player's words and 13% of a long-word player's (3-4 letters was 89% / 45%).
 // Simulated (8-tile hands, 54 words a run): a casual player's words fit Shorts 89%, Cult Classics 17%,
 // Sequels 9%, Musicals 3%, Remakes 3%, Epics 0%; a player aiming long fits Shorts 45%, Epics 22%,
 // Musicals 20%, Cult Classics 18%, Sequels 12%. Rare genres pay more per star, so a ★ is worth about
 // +2 to +7 points a word on average, and much more to a player who leans into it.
 export const GENRE_VALUES = {
   maxStars: 5,
-  perStar: { shorts: 5, epics: 25, sequels: 30, cult: 25, musicals: 20, remakes: 40 } as Record<string, number>,
-  playsPerStar: { shorts: 20, epics: 10, sequels: 10, cult: 10, musicals: 10, remakes: 10 } as Record<string, number>,
+  perStar: { shorts: 15, epics: 25, sequels: 30, cult: 25, musicals: 20, remakes: 40 } as Record<string, number>,
+  playsPerStar: { shorts: 12, epics: 10, sequels: 10, cult: 10, musicals: 10, remakes: 10 } as Record<string, number>,
 } as const;
 
 // 💿 Collector's Tiles (v7.96.0): bought in the Video Store (or found on a scratch-off), they're yours for
