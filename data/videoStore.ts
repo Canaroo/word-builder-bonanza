@@ -24,7 +24,9 @@ const VOWELS = new Set(['A', 'E', 'I', 'O', 'U']);
 export const letterKey = (word: string) => [...word.toUpperCase()].sort().join('');
 
 export const GENRES: Genre[] = [
-  { id: 'shorts', name: 'Shorts', icon: '🩳', rule: '3 or 4 letters', flavor: 'Under ten minutes, all killer.', fits: w => w.length <= 4 },
+  // v7.96.7 (the owner's call): exactly 3 letters. 4-letter words already have plenty of rewards, and from level 3
+  // a 3-letter word earns no time, so a Shorts bonus makes it a real choice.
+  { id: 'shorts', name: 'Shorts', icon: '🩳', rule: 'exactly 3 letters, like CAT or SUN', flavor: 'Under ten minutes, all killer.', fits: w => w.length === 3 },
   { id: 'epics', name: 'Epics', icon: '🎞️', rule: '6 or more letters', flavor: 'Three hours, one intermission.', fits: w => w.length >= 6 },
   { id: 'sequels', name: 'Sequels', icon: '🎬', rule: 'a double letter, like BALL or MOON', flavor: 'Same story, twice the letters.', fits: w => /(.)\1/i.test(w) },
   { id: 'cult', name: 'Cult Classics', icon: '🦇', rule: 'a J, K, Q, X, Z, V or W', flavor: 'Midnight showings only.', fits: w => /[JKQXZVW]/i.test(w) },

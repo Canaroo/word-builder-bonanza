@@ -768,7 +768,11 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   shows "+50 A WORD" or NOT PAYING YET, a bar with "1/10 TO ★3", and EARNED +N this run from `genreEarned`
   (its score lines in the log); the header totals all genres; a tap explains the math, "★2 × 25", and both
   ways to earn stars); a "GENRE LEVELS!"
-  heads-up card the first time any genre has a ★. v7.96.5 (the owner's ask: a level-up by play was easy to miss): a
+  heads-up card the first time any genre has a ★. **v7.96.7 (the owner's call): Shorts is exactly 3 letters** ("like CAT or
+  SUN"), +15 a ★ (was +5), a ★ every 12 words (was 20): 4-letter words already have many rewards, and from level 3 a
+  3-letter word earns no time, so the bonus makes it a choice. 3-letter words are 51% of a casual player's words (3-4
+  letters was 89%), 13% of a long-word player's; 99.9% of hands can spell one. Average per ★: casual +4.5 → +7.7 a word.
+  v7.96.5 (the owner's ask: a level-up by play was easy to miss): a
   `genre-up` card (the heads-up card's look, in `POST_WORD_MODALS` so closing it deals the next hand) waits for OK:
   "SEQUELS IS NOW ★1!", what the player did ("You played 10 words with a double letter..."), what it pays now and how
   to reach the next ★ (play N more, or its poster in the store). It replaced the "🎬 GENRE UP!" stage message.

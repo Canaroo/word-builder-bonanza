@@ -19,7 +19,8 @@ describe('genres (v7.96.0)', () => {
     const ids = (w: string, earlier = new Set<string>()) => genresFor(w, earlier).map(g => g.id).sort();
     expect(ids('CAT')).toEqual(['shorts']);
     expect(ids('BALLOON')).toEqual(['epics', 'musicals', 'sequels']);
-    expect(ids('JAZZ')).toEqual(['cult', 'sequels', 'shorts']);
+    expect(ids('JAZZ')).toEqual(['cult', 'sequels']); // v7.96.7: Shorts is exactly 3 letters
+    expect(ids('ZAP')).toEqual(['cult', 'shorts']);
     expect(ids('ACT', new Set([letterKey('CAT')]))).toEqual(['remakes', 'shorts']);
   });
   it('pay only with stars, and stars come from plays', () => {
