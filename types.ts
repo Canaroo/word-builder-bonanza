@@ -379,7 +379,8 @@ export interface GameState {
   /** Gem Tiles: the word multiplier of a gem waiting to land in the next hand (0: none). */
   pendingGem?: number;
   /** Power word hint: the level it was given on and the power word (secret bonus id); one hint a level. */
-  powerHint?: { level: number; id: string } | null;
+  /** v7.97.0: `lit` once the player paid to light its tiles (kept with the run, so a resume stays lit). */
+  powerHint?: { level: number; id: string; lit?: boolean } | null;
   /** Mystery Tape: the id of the PowerPlay hidden face down in the current offer (null: none). */
   mysteryTapeId?: string | null;
   /** v7.61.0: the PowerPlay taken from a Mystery Tape, which pays MYSTERY_TAPE.usePoints when used. */

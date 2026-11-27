@@ -1,3 +1,4 @@
+import { POWER_WORD_EFFECTS } from '../config/gameplay';
 import { EASTER_EGGS } from '../data/easterEggs';
 import { canBeMadeFromLetters } from './rackMatch';
 import { powerWordReady } from './rules';
@@ -35,3 +36,7 @@ export const powerWordHintStands = (
   if (!egg || !powerWordReady(firedLevels, egg.id, level) || !canBeMadeFromLetters(egg.word!, letters)) return null;
   return { id: egg.id, effect: egg.reward.effect!, icon: egg.name.split(' ')[0], length: egg.word!.length, first: egg.word![0].toUpperCase(), word: egg.word!.toUpperCase() };
 };
+
+/** v7.97.0 (the owner's design): lighting a hinted power word's tiles costs POWER_WORD_EFFECTS.lightSeconds and
+ * never leaves the clock under 1 second. */
+export const canLightPowerWord = (clock: number) => clock - POWER_WORD_EFFECTS.lightSeconds >= 1;

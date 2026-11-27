@@ -42,7 +42,7 @@ import { dealShelf, storeOpensAt, restockCost, canAfford, tradeInValue, genreByI
 import { introSeen, markIntro } from '../intros';
 import { VIDEO_STORE, GENRE_VALUES, COLLECTOR } from '../../config/gameplay';
 import { gemMultiplierFor, skillShotPoints, freakyFridayMatch, jengaPot, nextSpeedStreak, speedStreakPoints, finalCategoryDeal, FINAL_CATEGORIES, CENTER_SQUARES, centerSquareClaim, centerSquareLines, centerSquarePrize } from '../rules';
-import { findPowerWordHint, powerWordHintStands } from '../powerWordHint';
+import { findPowerWordHint, powerWordHintStands, canLightPowerWord } from '../powerWordHint';
 import { BOSSES, bossById, pickBoss } from '../../data/bosses';
 import { sendStat, statId } from '../stats';
 import { musicService } from '../musicService';
@@ -302,6 +302,7 @@ type GameAction =
     | { type: 'STORE_TRADE_IN', payload: { charmId: string } }
     | { type: 'STORE_LEAVE' }
     | { type: 'STORE_UNDO_TRADE', payload: { line: number } }
+    | { type: 'LIGHT_POWER_WORD' }
     | { type: 'SET_STATIC_LETTER', payload: { tileId: string; letter: string } }
     | { type: 'CROC_RESULT' };
 
@@ -1060,6 +1061,16 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
         case 'ADD_TIME': return {...state, time: clampTime(state.time + action.payload, bankMax(state.gameState)) };
         case 'SET_TIME': return { ...state, time: action.payload };
         case 'UPDATE_GAME_STATE': return { ...state, gameState: { ...state.gameState, ...action.payload } };
+        // v7.97.0 (the owner's design): lighting the hinted power word's tiles costs POWER_WORD_EFFECTS.lightSeconds
+        // off the clock, once. The prize stays whole.
+        case 'LIGHT_POWER_WORD': {
+            const hint = gameState.powerHint;
+            const cost = POWER_WORD_EFFECTS.lightSeconds;
+            if (!hint || hint.lit || !canLightPowerWord(state.time)) return state;
+            const entry: EventLogEntry = { type: 'event', id: `pw-light-${Date.now()}`, name: 'Power word hint', icon: '💡', description: `Lit the power word's tiles for ${cost}s.`, scoreChange: 0, cumulativeScore: gameState.score };
+            return { ...state, time: state.time - cost, timeGain: { seconds: -cost, key: Date.now() },
+                gameState: { ...gameState, powerHint: { ...hint, lit: true }, log: [...gameState.log, entry] } };
+        }
         case 'SET_CHALLENGE_WORD_DATA': return { ...state, challengeWordData: action.payload };
         case 'SELECT_TILE_FOR_SELECTION': return { ...state, tileForSelection: action.payload };
         case 'STORE_LAST_TURN':
@@ -3709,13 +3720,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       const seen = gameState.headsUp ?? {};
       const level = runLevel(gameState);
       if (powerHint && seen.power !== hintLevel) {
-          const prize = powerWordInfo(powerHint.effect).prize.toLowerCase();
+          // v7.97.0 (the owner's design): the card gives the whole clue and the choice in one step: light the
+          // tiles for POWER_WORD_EFFECTS.lightSeconds, or find it yourself. Either answer closes it and play goes on.
+          const info = powerWordInfo(powerHint.effect);
           dispatch({ type: 'UPDATE_GAME_STATE', payload: { headsUp: { ...seen, power: hintLevel } } });
           soundService.playModalOpen();
-          dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'heads-up', title: 'Power word', data: { notice: 'power', icon: '⚡',
+          dispatch({ type: 'SET_MODAL_CONTENT', payload: { type: 'heads-up', title: 'Power word', data: { notice: 'power', icon: `⚡${powerHint.icon}`,
               headline: 'POWER WORD IN THIS HAND!',
-              text: `Your tiles can spell a secret ${powerHint.length}-letter power word. Its prize: ${prize}.`,
-              next: 'Tap the flashing ⚡ card at the top of the board to light up its tiles.' } } });
+              power: { prize: info.prize, length: powerHint.length, first: powerHint.first, cost: POWER_WORD_EFFECTS.lightSeconds },
+              text: info.does } } });
       }
   }, [gameState, isLoading, isPaused, state.modalContent, state.resumeCountdown, powerHint, hintLevel]);
   // Skill Shot (v7.42): on the level's first word, one tile in the hand is lit. If the lit tile

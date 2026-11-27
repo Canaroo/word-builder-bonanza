@@ -43,7 +43,8 @@ import MiniGameCard from '../../components/MiniGames';
 import CharmTimeNote from '../../components/CharmTimeNote';
 import { nextGateFor, previousGateFor, powerWordInfo, prizeFor, speedStreakPoints } from '../rules';
 import ModalTapGuard, { GUARDLESS_MODALS } from '../../components/ModalTapGuard';
-import { POWER_PLAY_VALUES } from '../../config/gameplay';
+import { POWER_PLAY_VALUES, POWER_WORD_EFFECTS } from '../../config/gameplay';
+import { canLightPowerWord } from '../powerWordHint';
 
 export type ModalContent = {
   type: 'milestone' | 'blue-steel' | 'charm-selection' | 'powerplay-selection' | 'word-log' | 'info' | 'powerplay-activation' | 'word-bonus' | 'charm-activation' | 'buff-info' | 'easter-egg' | 'super-hand' | 'save-confirmation' | 'game-over-summary' | 'milestone-info' | 'event-log' | 'slot-machine' | 'level-up' | 'outcome' | 'gamble' | 'minigame' | 'continue-offer' | 'last-words' | 'fork' | 'scratch' | 'bones' | 'skill-intro' | 'gem-intro' | 'croc' | 'greatest-hit' | 'quack' | 'triforce' | 'gear' | 'heads-up' | 'video-store' | 'static-tile' | 'genre-up';
@@ -94,23 +95,31 @@ const LetterPicker: React.FC<{ onConfirm: (letter: string) => void; tone?: 'gree
 };
 
 /**
- * v7.81.0: ⌫ on the stage. A tap sends the last letter back; holding it (450 ms) clears the whole word,
- * like a keyboard's delete key.
+ * v7.97.0 (the owner's ask: players forgot PowerPlays waiting for ▶ USE): the pocket PowerPlay as a card docked right
+ * above the tiles. A soft glow breathes every few seconds; once it has sat unused for POCKET_NUDGE_WORDS words it
+ * gives one bigger pulse after each word and says so. Reduced motion keeps it still (index.css).
  */
-const BackspaceButton: React.FC<{ disabled: boolean; onBack: () => void; onClearAll: () => void }> = ({ disabled, onBack, onClearAll }) => {
-  const hold = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cleared = useRef(false);
-  useEffect(() => () => { if (hold.current) clearTimeout(hold.current); }, []);
+/** Words a pocket PowerPlay can sit unused before it starts reminding the player. */
+const POCKET_NUDGE_WORDS = 3;
+const PocketDock: React.FC<{ pp: PowerPlay; nudge: boolean; copyTarget?: PowerPlay | null; tapeBonus: number; onUse: () => void }> = ({ pp, nudge, copyTarget, tapeBonus, onUse }) => {
+  const multiplicity = pp.id === 'multiplicity';
+  const dead = multiplicity && !copyTarget;
+  const line = multiplicity ? (copyTarget ? `Copies ${copyTarget.icon} ${copyTarget.name}` : 'Use another PowerPlay first, then it can copy it.')
+    : String(pp.description ?? '').split(/(?<=[.!?])\s/)[0];
   return (
-    <button type="button" disabled={disabled} data-testid="backspace"
-      aria-label="Delete the last letter. Hold to clear the word."
-      className="absolute bottom-2 right-2 z-10 w-11 h-11 rounded-xl grid place-items-center text-xl text-slate-200 bg-crt-950/80 ring-1 ring-white/20 hover:ring-neon-cyan/60 active:translate-y-0.5 disabled:opacity-40 select-none touch-none"
-      onPointerDown={e => { if (disabled || e.button !== 0) return; e.preventDefault(); cleared.current = false; hold.current = setTimeout(() => { hold.current = null; cleared.current = true; onClearAll(); }, 450); }}
-      onPointerUp={() => { if (hold.current) { clearTimeout(hold.current); hold.current = null; onBack(); } }}
-      onPointerLeave={() => { if (hold.current) { clearTimeout(hold.current); hold.current = null; } }}
-      onClick={e => { if (e.detail === 0 && !disabled) onBack(); }}
-      onContextMenu={e => e.preventDefault()}
-    >⌫</button>
+    <button type="button" onClick={onUse} data-testid="pocket-dock" data-nudge={nudge ? '1' : undefined}
+      aria-label={multiplicity ? (copyTarget ? `Multiplicity: copy ${copyTarget.name}` : 'Multiplicity: nothing to copy yet') : `Use PowerPlay: ${pp.name}. ${line}`}
+      className={`pocket-dock min-w-0 flex-1 flex items-center gap-2 rounded-xl pl-2 pr-1.5 py-1.5 text-left ring-2 transition ${dead ? 'bg-crt-900 ring-white/20' : `bg-[#0d2a1e] ring-neon-green ${nudge ? 'pocket-nudge' : 'pocket-breathe'}`}`}>
+      <span className="text-2xl leading-none shrink-0" aria-hidden="true">{multiplicity ? '👯' : pp.icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[14px] font-bold leading-tight text-white line-clamp-2">{pp.name}</span>
+        <span className={`block text-[12px] leading-tight truncate [@media(max-height:700px)]:hidden ${nudge && !dead ? 'text-neon-yellow font-semibold' : 'text-slate-300'}`}>
+          {nudge && !dead ? "DON'T FORGET ME! Tap to use it." : line}
+        </span>
+      </span>
+      {tapeBonus > 0 && <span className="shrink-0 rounded-full bg-crt-950 text-neon-yellow osd-text text-sm leading-none px-1.5 py-0.5" aria-label="Mystery Tape bonus when used">📼+{tapeBonus}</span>}
+      <span className={`shrink-0 rounded-lg px-2 py-1.5 osd-text text-lg leading-none whitespace-nowrap ${dead ? 'bg-crt-800 text-slate-400' : 'bg-neon-green text-crt-900'}`}>{multiplicity ? (copyTarget ? '▶ COPY' : 'WAIT') : '▶ USE'}</span>
+    </button>
   );
 };
 
@@ -319,7 +328,7 @@ export interface GameScreenViewProps {
   handleStaticLetter?: (letter: string) => void;
   handleCrocPick?: () => void;
   /** A power word can be spelled from the tiles in play (the hint chip); tapping it explains. */
-  powerHint?: { icon: string; length: number; word?: string; effect?: string } | null;
+  powerHint?: { icon: string; length: number; word?: string; effect?: string; first?: string } | null;
   handlePowerHintInfo?: () => void;
   /** Psychic Friends Network: the next tiles in the bag, in draw order. */
   upcomingTiles?: string[];
@@ -415,6 +424,13 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
     // Resuming a saved run that's already blind doesn't peek either (no quit-and-reload peek).
     // Multiplicity copies the last PowerPlay used that it can copy (lastPowerPlayUsed only ever holds those).
     const copyTarget = gameState?.lastPowerPlayUsed ? POWER_PLAYS_LIST.find(p => p.id === gameState.lastPowerPlayUsed) ?? null : null;
+    // v7.97.0: the pocket PowerPlay docked above the tiles, and how many words it has sat unused (counted from
+    // when this screen first saw it, so a resume starts the count again).
+    const pocketPP = (gameState?.availablePowerPlays ?? [])[0] ?? null;
+    const pocketSince = React.useRef<{ id: string; words: number } | null>(null);
+    if (!pocketPP) pocketSince.current = null;
+    else if (pocketSince.current?.id !== pocketPP.id) pocketSince.current = { id: pocketPP.id, words: totalWords ?? 0 };
+    const pocketNudge = !!pocketPP && (totalWords ?? 0) - (pocketSince.current?.words ?? 0) >= POCKET_NUDGE_WORDS;
     const blind = !!gameState?.activePowerPlays?.birdBox;
     const handIds = (hand ?? []).filter(Boolean).map(t => t!.id);
     const handKey = handIds.join(',');
@@ -458,10 +474,13 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         }
     }, [modalContent]);
     // v7.61.0: power word hint: the prize on the chip, and (after a tap) the tiles that spell it lit.
-    const [powerLitWord, setPowerLitWord] = React.useState('');
+
     // v7.91.0: which notice to flash after a heads-up card's OK.
     const [noticeFlash, setNoticeFlash] = React.useState<{ id: string; key: number } | null>(null);
-    const powerLit = !!powerHint?.word && powerLitWord === powerHint.word;
+    // v7.97.0: lighting costs seconds now, so it's kept with the run (gameState.powerHint.lit), not on screen.
+    const powerLit = !!powerHint?.word && !!gameState?.powerHint?.lit;
+    const canLight = canLightPowerWord(time ?? 0);
+    const lightPowerWord = () => { if (!canLight) return; soundService.playShimmer?.(); dispatch({ type: 'LIGHT_POWER_WORD' }); };
     const powerPrize = powerHint?.effect ? powerWordInfo(powerHint.effect as any).prize : 'A BONUS';
     const powerLitIds = React.useMemo(() => {
       const ids = new Set<string>();
@@ -756,10 +775,31 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                         <div className="w-full max-w-xs rounded-2xl bg-crt-900 ring-2 ring-neon-yellow shadow-[0_0_28px_rgba(255,210,63,0.45)] p-4 text-center flex flex-col items-center gap-2 bonus-insert" data-testid="heads-up">
                             <div className="text-4xl leading-none" aria-hidden="true">{data?.icon}</div>
                             <h2 className="font-display text-xl leading-tight text-neon-yellow text-balance">{data?.headline}</h2>
-                            <p className="text-slate-100 text-[15px] leading-snug">{data?.text}</p>
-                            <p className="text-neon-cyan text-sm leading-snug">{data?.next}</p>
-                            <ArcadeButton color="yellow" className="w-full mt-1" data-testid="heads-up-ok"
-                                onClick={() => { const id = data?.notice; handleCloseModal(); if (id) setNoticeFlash({ id, key: Date.now() }); }}>OK</ArcadeButton>
+                            {data?.power ? (
+                                // v7.97.0 (the owner's design): the whole clue and a real choice in one card. Either button
+                                // closes it and play goes on; lighting costs seconds off the clock.
+                                <>
+                                    <p className="font-display text-lg leading-tight text-white" data-testid="pw-prize">{data.power.prize}</p>
+                                    <p className="osd-text text-2xl leading-none text-neon-cyan" data-testid="pw-clue">{data.power.length} LETTERS · STARTS WITH {data.power.first}</p>
+                                    <p className="text-slate-300 text-[14px] leading-snug">{data?.text}</p>
+                                    <ArcadeButton color="yellow" className="w-full mt-1" data-testid="pw-light" disabled={!canLight}
+                                        onClick={() => { lightPowerWord(); handleCloseModal(); setNoticeFlash({ id: 'power', key: Date.now() }); }}>
+                                        💡 Light up its tiles · −{data.power.cost} sec
+                                    </ArcadeButton>
+                                    {!canLight && <p className="text-neon-red text-[13px] leading-snug">Not enough time on your clock to light it.</p>}
+                                    <ArcadeButton color="slate" variant="outline" className="w-full" data-testid="pw-find"
+                                        onClick={() => { handleCloseModal(); setNoticeFlash({ id: 'power', key: Date.now() }); }}>
+                                        🔍 I'll find it myself
+                                    </ArcadeButton>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-slate-100 text-[15px] leading-snug">{data?.text}</p>
+                                    <p className="text-neon-cyan text-sm leading-snug">{data?.next}</p>
+                                    <ArcadeButton color="yellow" className="w-full mt-1" data-testid="heads-up-ok"
+                                        onClick={() => { const id = data?.notice; handleCloseModal(); if (id) setNoticeFlash({ id, key: Date.now() }); }}>OK</ArcadeButton>
+                                </>
+                            )}
                         </div>
                     </div>
                 );
@@ -1443,28 +1483,6 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
         return (
           <div className="stage-panel relative flex-1 min-h-[9rem] w-full max-w-sm mx-auto rounded-2xl flex flex-col px-2 pt-1.5 pb-2 overflow-y-auto overscroll-contain" data-testid="stage">
             <StageSounds effects={effects.map(e => e.text)} />
-            {(gameState?.availablePowerPlays?.length ?? 0) > 0 && (
-              <div className="relative z-10 flex-shrink-0 h-8 flex items-center justify-center gap-2">
-            {(gameState?.availablePowerPlays ?? []).slice(0, 1).map((pp) => (
-                pp.id === 'multiplicity' ? (
-                    // Multiplicity (v7.36.1) says what it will become, or that there's nothing to copy yet.
-                    <button key={pp.id} onClick={() => handleActivatePowerPlay(pp)} className={`min-w-0 flex items-center gap-1 font-semibold pl-2 pr-3 h-8 rounded-full text-sm transition ${copyTarget ? 'bg-neon-pink text-white ring-2 ring-neon-pink/40 shadow-[0_0_12px_rgba(255,77,196,0.45)] hover:brightness-110' : 'bg-crt-800 text-slate-300 ring-1 ring-white/20'}`}
-                        title={copyTarget ? `Turn Multiplicity into ${copyTarget.name}` : 'Use a PowerPlay first, then Multiplicity can copy it'} aria-label={copyTarget ? `Multiplicity: copy ${copyTarget.name}` : 'Multiplicity: nothing to copy yet'}>
-                        <span className="text-base leading-none">👯</span>
-                        <span className="osd-text text-lg leading-none shrink-0">{copyTarget ? '▶ COPY' : 'NOTHING TO COPY'}</span>
-                        {copyTarget && <span className="truncate">{copyTarget.icon} {copyTarget.name}</span>}
-                    </button>
-                ) : (
-                    <button key={pp.id} onClick={() => handleActivatePowerPlay(pp)} className="min-w-0 flex items-center gap-1 bg-neon-green text-crt-900 font-semibold pl-2 pr-3 h-8 rounded-full text-sm hover:brightness-110 transition ring-2 ring-neon-green/40 shadow-[0_0_12px_rgba(61,255,140,0.45)]" title={`Tap to use ${pp.name}`} aria-label={`Use PowerPlay: ${pp.name}`}>
-                    <span className="text-base leading-none">{pp.icon}</span>
-                    <span className="osd-text text-lg leading-none shrink-0">▶ USE</span>
-                    <span className="truncate">{pp.name}</span>
-                    {gameState?.tapeBonusId === pp.id && <span className="shrink-0 rounded-full bg-crt-900 text-neon-yellow osd-text text-base leading-none px-1.5 py-0.5" aria-label={`Mystery Tape bonus when used`}>📼+{prizeFor(MYSTERY_TAPE.usePoints, levelFor(totalWords ?? 0))}</span>}
-                </button>
-                )
-            ))}
-              </div>
-            )}
             {/* --- THE NOTICE RAIL (v7.82.0): what used to be squeezed between the word and the tiles. The
                 "tap me / read me" notices are cards, one at a time with dots; live counters (Hold, the speed
                 streak, Jenga, Hamm, races, bets, quizzes) stay visible in a strip under them. --- */}
@@ -1473,10 +1491,12 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
               if (powerHint) notices.push({
                 id: 'power', icon: `⚡${powerHint.icon}`, tone: 'yellow', testId: 'power-hint',
                 title: powerLit ? 'SPELL THE LIT TILES' : 'A POWER WORD IS HIDING',
-                text: powerLit ? `Spell ${powerHint.length} letters using the lit tiles, in any order.` : `Your tiles can spell a ${powerHint.length}-letter power word: ${powerPrize.toLowerCase()}.`,
-                action: powerLit ? 'MORE' : 'LIGHT IT',
-                onTap: () => { if (powerLitWord === powerHint.word) handlePowerHintInfo?.(); else setPowerLitWord(powerHint.word ?? ''); },
-                label: `Hint: a ${powerHint.length}-letter power word is hiding in this hand. Prize: ${powerPrize}. ${powerLit ? 'Its tiles are lit. Tap for more.' : 'Tap to light its tiles.'}`,
+                text: powerLit ? `Spell ${powerHint.length} letters using the lit tiles, in any order: ${powerPrize.toLowerCase()}.`
+                  : `${powerHint.length} letters, starts with ${powerHint.first ?? '?'}: ${powerPrize.toLowerCase()}.`,
+                // v7.97.0: lighting costs seconds (POWER_WORD_EFFECTS.lightSeconds), so the rail's button says so.
+                action: powerLit ? 'MORE' : canLight ? `LIGHT IT −${POWER_WORD_EFFECTS.lightSeconds} SEC` : undefined,
+                onTap: powerLit ? () => handlePowerHintInfo?.() : canLight ? lightPowerWord : undefined,
+                label: `Hint: a ${powerHint.length}-letter power word starting with ${powerHint.first ?? '?'} is hiding in this hand. Prize: ${powerPrize}. ${powerLit ? 'Its tiles are lit. Tap for more.' : `Tap to light its tiles for ${POWER_WORD_EFFECTS.lightSeconds} seconds.`}`,
               });
               if (skillShotTileId) notices.push({
                 id: 'skill', icon: '🎯', tone: 'pink', title: `SKILL SHOT +${skillShotPrize}`,
@@ -1565,33 +1585,46 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 </div>
               )}
               {genreLine.length > 0 && (
-                <div className="w-full flex flex-wrap justify-center gap-x-3 gap-y-0.5 pr-11 pl-1" data-testid="stage-genres">
+                <div className="w-full flex flex-wrap justify-center gap-x-3 gap-y-0.5 px-1" data-testid="stage-genres">
                   {genreLine.map(g => (
                     <span key={g.genre.id} className="osd-text text-lg leading-none text-neon-yellow">{g.genre.icon} {g.genre.name.toUpperCase()} ★{g.stars} +{g.points}</span>
                   ))}
                 </div>
               )}
               {effects.length > 0 && (
-                <div className="w-full flex flex-col items-center gap-0.5 pr-11 pl-1" data-testid="stage-effects">
+                <div className="w-full flex flex-col items-center gap-0.5 px-1" data-testid="stage-effects">
                   {effects.map(e => (
                     <span key={e.text} className={`message-pop font-display text-sm leading-tight text-center ${e.tone} animate-pulse`}>{e.text}</span>
                   ))}
                 </div>
               )}
               {message && n > 0 && (
-                <div className="w-full flex justify-center pointer-events-none pr-11" role="status" aria-live="polite" data-testid="stage-message">
+                <div className="w-full flex justify-center pointer-events-none" role="status" aria-live="polite" data-testid="stage-message">
                   <div key={message} className="message-pop max-w-full px-3 py-1 rounded-lg bg-crt-950/95 ring-1 ring-neon-cyan/60 osd-text text-lg leading-tight text-neon-cyan text-center whitespace-pre-line">
                     {withSec(message ?? '')}
                   </div>
                 </div>
               )}
             </div>
-            {n > 0 && (
-              <BackspaceButton
-                disabled={isChallengeLock || isLoading || isPaused}
-                onBack={() => handleReturnToHand(placed[placed.length - 1].index)}
-                onClearAll={handleClear}
-              />
+            {/* v7.97.0 (the owner's asks): a pocket PowerPlay docks at the bottom of the stage, right above the tiles
+                where the eyes are, and CLEAR (back from v7.80) sits to its right. The row is inside the stage, so
+                the tiles never move when it appears. Tapping a word tile still sends back just that letter. */}
+            {(pocketPP || n > 0) && (
+              <div className="relative z-10 flex-shrink-0 flex items-stretch gap-2 mt-1" data-testid="pocket-row">
+                {pocketPP ? (
+                  <PocketDock key={`${pocketPP.id}-${pocketNudge ? totalWords : 'calm'}`} pp={pocketPP} nudge={pocketNudge}
+                    copyTarget={pocketPP.id === 'multiplicity' ? copyTarget : undefined}
+                    tapeBonus={gameState?.tapeBonusId === pocketPP.id ? prizeFor(MYSTERY_TAPE.usePoints, levelFor(totalWords ?? 0)) : 0}
+                    onUse={() => handleActivatePowerPlay(pocketPP)} />
+                ) : <div className="flex-1" />}
+                <button type="button" data-testid="clear-word" onClick={handleClear}
+                  disabled={n === 0 || isChallengeLock || isLoading || isPaused}
+                  aria-label="Clear: send every letter back to your tiles"
+                  className={`shrink-0 w-[4.25rem] rounded-xl flex flex-col items-center justify-center gap-0.5 py-1.5 bg-crt-950/85 ring-2 ring-neon-cyan/70 text-neon-cyan active:translate-y-0.5 select-none disabled:opacity-40 ${n === 0 ? 'invisible' : ''}`}>
+                  <span className="text-lg leading-none" aria-hidden="true">⤓</span>
+                  <span className="osd-text text-lg leading-none tracking-wider">CLEAR</span>
+                </button>
+              </div>
             )}
           </div>
         );
@@ -1624,7 +1657,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
           );
         })()}
         
-        {/* --- ACTION BUTTONS (v7.81.0): one big SUBMIT between SHUFFLE and STUCK?; Clear is the ⌫ on the stage. --- */}
+        {/* --- ACTION BUTTONS (v7.81.0): one big SUBMIT between SHUFFLE and STUCK?; CLEAR sits right above the tiles (v7.97.0). --- */}
         <div className="grid grid-cols-[5.25rem_minmax(0,1fr)_5.25rem] gap-2 pb-1 h-[4.25rem] [@media(max-height:700px)]:h-[3.6rem]">
           <ShuffleButton
             compact

@@ -191,7 +191,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             <Key>PowerPlays</Key> are a button you press once, at the moment you choose. Fill the meter by playing{' '}
             <Key>{GAMEPLAY.powerPlayMeterLetters} letters</Key> (or every {GAMEPLAY.powerPlayEveryWords} words) to pick one of
             three. From level {GAMEPLAY.powerPlayMeterGrowth.fromLevel} the meter gets longer each level, up to{' '}
-            {GAMEPLAY.powerPlayMeterGrowth.max} letters. You can <Key>hold one</Key> in your pocket: tap its green <Key>▶ USE</Key> button above the word row when you want it (it's in your 🎒 Gear menu too). Earn another while holding one and
+            {GAMEPLAY.powerPlayMeterGrowth.max} letters. You can <Key>hold one</Key> in your pocket: tap its green <Key>▶ USE</Key> card right above your tiles when you want it (it's in your 🎒 Gear menu too). Earn another while holding one and
             you choose: <Key>keep</Key> yours or <Key>swap</Key>. Either way you still hold just one: <Key>Instant</Key> ones fire right away and replace
             the one in your pocket too. The biggest lifesavers (like Happy Place) are marked <Key>1× PER RUN</Key>: once you
             take one, it won't be offered again that run. <Key>Point prizes</Key> (gambles, Pop Quiz and the like) grow{' '}
@@ -242,7 +242,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
             play it for 0 points (that uses one). The number on the button is how many you have.
           </p>
           <p><Key>Out of STUCK? checks:</Key> the button turns red and costs a strike if your tiles could make a word.</p>
-          <p><Key>⌫:</Key> on the stage, tap it to send back the last letter, or hold it to clear the word.</p>
+          <p><Key>CLEAR:</Key> right above your tiles, it sends every letter in your word back down. To send back just one letter, tap it in your word.</p>
         </Section>
 
         <Section title="Missions, Streaks & Shop" icon="🔥" tone="text-neon-orange">
