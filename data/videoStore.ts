@@ -110,7 +110,7 @@ export const takeBackBlock = (line: StoreLine, clock: number, charms: Pick<Charm
 export const canTakeBack = (line: StoreLine, clock: number, charms: Pick<Charm, 'id'>[]) => takeBackBlock(line, clock, charms) === null;
 
 /**
- * Deals a shelf of three tapes: a charm (New Release), a PowerPlay (Rental) or sometimes a Collector's
+ * Deals a shelf of three tapes: a charm (New Release), a PowerPlay or sometimes a Collector's
  * Tile, and a genre poster. `rank(tag)` is a seeded number in [0, 1) (dailyRank), so a Daily matches and
  * a quit can't reroll; each restock passes a new `deal` number.
  */
