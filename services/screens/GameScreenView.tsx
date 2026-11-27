@@ -1688,7 +1688,7 @@ export const GameScreenView: React.FC<GameScreenViewProps> = ({
                 data-testid="stuck-button"
                 aria-label={isStrikeChallenge
                   ? `Stuck? Out of free checks: claim your tiles can't make a word, and risk a strike if they can. ${strikesRemaining} strikes left.`
-                  : `Stuck? Claim your tiles can't make a word. If none can be made you get free new tiles. ${gameState?.challengeCount ?? 0} left.`}
+                  : `Stuck? Claim your tiles can't make a word. If none can be made you get free new tiles and ${GAMEPLAY.timeBank.stuckWinSeconds} seconds. ${gameState?.challengeCount ?? 0} left.`}
               >
                 <span className="text-xl leading-none" aria-hidden="true">🤔</span>
                 <span className="text-xs leading-none">STUCK?</span>

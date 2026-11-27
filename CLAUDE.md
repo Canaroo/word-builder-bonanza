@@ -876,6 +876,13 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   on box titles (`Box`'s `info`/`infoOn`, test ids `gear-info-<title>`) for Collector's Tiles, Genres, Charm Sets and
   Greatest Hits: the full explanation shows in the description box at the bottom. Trophies stay, as the last box.
   Browser-checked at 390x844 and 360x640: 4 frames drawn, row and ⓘ text correct.
+- **A correct STUCK? call is worth 10 sec (v7.98.1, the owner's call).** When the tiles truly can't make an everyday
+  3+ letter word, the free shuffle adds `GAMEPLAY.timeBank.stuckWinSeconds` (10) instead of the shuffle's 5
+  (`isFromChallengeWin` in `PERFORM_SHUFFLE`); the player still keeps the STUCK? and gets new tiles. Simulated on 4,000
+  dealt hands: 3 were truly stuck (0.07%, about 1 in 1,400), 71 could make only 1-3 words. A wrong call still costs a
+  STUCK? (play the word for 0) or a strike, so it can't be farmed. The message reads "You called it! No word in your
+  tiles: +10 sec...", and the first-tap explainer, the button's label and How to Play say +10 seconds. Browser-checked
+  with IIEUIANE: clock 25 → 35. Tests in `stuckWin.test.ts`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

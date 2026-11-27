@@ -17,6 +17,7 @@ export const GAMEPLAY = {
     shortWordTimeStopsAtLevel: 3,
     /** Seconds a shuffle adds: shuffles are the player's limited time lifeline. */
     shuffleTimeBonus: 5,
+    stuckWinSeconds: 10,   // v7.98.1 (the owner's call): a correct STUCK? call (no word in the tiles) gives this instead of the shuffle's seconds
     /**
      * Bonus time from charms follows the clock rules too: it is halved above overflowAbove (like
      * word time) and shrinks 5% per level after the first, down to half. PowerPlay time always

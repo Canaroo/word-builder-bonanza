@@ -1671,7 +1671,9 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             let newHand = action.payload.hand;
 
             // Shuffles are a lifeline: fresh tiles plus a few seconds, and streaks carry on.
-            const shuffleTime = clampTime(state.time + GAMEPLAY.timeBank.shuffleTimeBonus, bankMax(gameState));
+            // v7.98.1: a correct STUCK? call (its free shuffle) is worth more than a plain shuffle.
+            const shuffleSecs = action.payload.isFromChallengeWin ? GAMEPLAY.timeBank.stuckWinSeconds : GAMEPLAY.timeBank.shuffleTimeBonus;
+            const shuffleTime = clampTime(state.time + shuffleSecs, bankMax(gameState));
 
             return {
                 ...state,
@@ -6298,8 +6300,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
             type: 'info',
             title: '🤔 Stuck?',
             content: isStrikeChallenge
-                ? `Tap STUCK? when you think your tiles can't make any word.\n\nThe game checks. If there's no word, you get free new tiles. If there is one, it shows you the word and you take a strike.\n\nTap STUCK? again to check.`
-                : `Tap STUCK? when you think your tiles can't make any word.\n\nThe game checks. If there's no word, you get free new tiles and keep your STUCK?. If there is one, it goes in your word row and you play it for 0 points (that uses one).\n\nTap STUCK? again to check.`,
+                ? `Tap STUCK? when you think your tiles can't make any word.\n\nThe game checks. If there's no word, you get free new tiles and +${GAMEPLAY.timeBank.stuckWinSeconds} seconds. If there is one, it shows you the word and you take a strike.\n\nTap STUCK? again to check.`
+                : `Tap STUCK? when you think your tiles can't make any word.\n\nThe game checks. If there's no word, you get free new tiles, +${GAMEPLAY.timeBank.stuckWinSeconds} seconds, and you keep your STUCK?. If there is one, it goes in your word row and you play it for 0 points (that uses one).\n\nTap STUCK? again to check.`,
         } });
         return;
     }
@@ -6380,9 +6382,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ playerName, onGameOver, 
       soundService.playMilestone();
       let messageText;
       if (isStrikeChallenge) {
-        messageText = 'No word in your tiles: free new tiles!';
+        messageText = `You called it! No word in your tiles: +${GAMEPLAY.timeBank.stuckWinSeconds} sec and free new tiles.`;
       } else {
-        messageText = 'No word in your tiles: free new tiles, and you keep your STUCK?';
+        messageText = `You called it! No word in your tiles: +${GAMEPLAY.timeBank.stuckWinSeconds} sec, free new tiles, and you keep your STUCK?`;
       }
       showMessage(messageText, 3000);
       handleShuffle(true, true); // Free shuffle on win, and from challenge
