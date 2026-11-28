@@ -8,7 +8,7 @@ import { BOSSES } from '../data/bosses';
 const LEADERBOARD_PATH = 'leaderboard';
 /** A Daily Run's board for one game day (v7.30), e.g. daily/2026-11-09. */
 export const dailyPath = (key: string): string => `daily/${key}`;
-const TOP_N = 50;
+export const TOP_N = 50;
 const TIMEOUT_MS = 8000;
 
 const env = import.meta.env;
