@@ -27,3 +27,14 @@ describe('Daily Champ', () => {
     expect(unseenWins(champs, 'Nicole', [])).toEqual(['2026-11-28']);
   });
 });
+
+import { dailyArchive } from '../dailyChamps';
+describe('Daily Champ archive (v7.100.3)', () => {
+  it('lists finished days newest first with the winner, top score, players and the board', () => {
+    const a = dailyArchive(boards as any, '2026-11-30', '2026-11-27');
+    expect(a.map(d => d.day)).toEqual(['2026-11-29', '2026-11-28', '2026-11-27']);
+    expect(a[1]).toMatchObject({ winners: ['Dad', 'nicole'], score: 9000, played: 3 });
+    expect(a[2].entries.map(e => [e.name, e.rank])).toEqual([['Julian', 1], ['Nicole', 2]]);
+    expect(a[0].played).toBe(1); // the junk rows are left out
+  });
+});

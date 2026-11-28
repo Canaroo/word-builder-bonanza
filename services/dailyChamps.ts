@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react';
 import { DAILY_CHAMP } from '../config/progression';
 import { dayKey } from './progression';
 import { dailyNumber } from './daily';
-import { onlineLeaderboard, isOnlineLeaderboardEnabled } from './onlineLeaderboard';
+import { onlineLeaderboard, isOnlineLeaderboardEnabled, toEntry } from './onlineLeaderboard';
+import type { LeaderboardEntry } from '../types';
 import { storage, STORAGE_KEYS } from './storage';
 import { playerKey } from './players';
 
@@ -30,6 +31,23 @@ export const championsByDay = (boards: Boards, today: string, firstDay = DAILY_C
     return out;
 };
 
+/** v7.100.3 (the owner's ask): one finished Daily for the 🏆 CHAMPS archive, with its whole board. */
+export interface ArchiveDay { day: string; number: number; winners: string[]; score: number; played: number; entries: LeaderboardEntry[] }
+
+/** The archive of finished Dailies from firstDay on, newest first (the boards are kept online; this only reads them). */
+export const dailyArchive = (boards: Boards, today: string, firstDay = DAILY_CHAMP.firstDay): ArchiveDay[] => {
+    const champs = championsByDay(boards, today, firstDay);
+    return Object.keys(champs).sort().reverse().map(day => {
+        const entries = Object.entries(boards[day] ?? {})
+            .map(([id, row]) => toEntry(id, row))
+            .filter((e): e is LeaderboardEntry => !!e && e.score > 0)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 50)
+            .map((e, i) => ({ ...e, rank: i + 1 }));
+        return { day, number: dailyNumber(day), winners: champs[day], score: entries[0]?.score ?? 0, played: entries.length, entries };
+    });
+};
+
 /** How many days each name has won (keyed by champKey). */
 export const winsByName = (champs: Record<string, string[]>): Record<string, number> => {
     const wins: Record<string, number> = {};
@@ -51,7 +69,7 @@ export const markWinsSeen = (days: readonly string[]) => storage.setJSON(playerK
 export const dailyLabel = (day: string) => `Daily #${dailyNumber(day)}`;
 
 // One fetch per session (refreshed after refreshMs or when the day turns over), shared by every screen.
-type Snapshot = { champs: Record<string, string[]>; wins: Record<string, number>; today: string; at: number };
+type Snapshot = { champs: Record<string, string[]>; wins: Record<string, number>; archive?: ArchiveDay[]; today: string; at: number };
 const CACHE = 'wordNerdDailyChamps';
 let snapshot: Snapshot | null = (() => { try { return JSON.parse(sessionStorage.getItem(CACHE) ?? 'null'); } catch { return null; } })();
 let pending: Promise<Snapshot | null> | null = null;
@@ -59,13 +77,13 @@ const listeners = new Set<(s: Snapshot) => void>();
 
 export const loadDailyChamps = (force = false): Promise<Snapshot | null> => {
     const today = dayKey(new Date());
-    if (!force && snapshot && snapshot.today === today && Date.now() - snapshot.at < DAILY_CHAMP.refreshMs) return Promise.resolve(snapshot);
+    if (!force && snapshot && snapshot.archive && snapshot.today === today && Date.now() - snapshot.at < DAILY_CHAMP.refreshMs) return Promise.resolve(snapshot);
     if (!isOnlineLeaderboardEnabled()) return Promise.resolve(snapshot);
     if (pending) return pending;
     pending = onlineLeaderboard.dailyBoardsFrom(DAILY_CHAMP.firstDay)
         .then(boards => {
             const champs = championsByDay(boards, today);
-            snapshot = { champs, wins: winsByName(champs), today, at: Date.now() };
+            snapshot = { champs, wins: winsByName(champs), archive: dailyArchive(boards, today), today, at: Date.now() };
             try { sessionStorage.setItem(CACHE, JSON.stringify(snapshot)); } catch { /* private mode */ }
             listeners.forEach(l => l(snapshot!));
             return snapshot;
@@ -85,6 +103,7 @@ export const useDailyChamps = () => {
     }, []);
     return {
         champs: snap?.champs ?? {},
+        archive: snap?.archive ?? [],
         winsFor: (name?: string | null) => (name ? snap?.wins[champKey(name)] ?? 0 : 0),
         ready: !!snap,
     };
