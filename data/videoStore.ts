@@ -94,7 +94,27 @@ export const tradeInValue = (c: Pick<Charm, 'breaks'>, upgraded: boolean) => (up
 export const canAfford = (clock: number, price: number) => clock - price >= VIDEO_STORE.keepAtLeast;
 
 /** A receipt line. A trade-in also carries what taking it back needs (v7.96.10). */
-export interface StoreLine { t: string; d: number; trade?: { id: string; up: boolean; buff: boolean; at: number } }
+export interface StoreLine {
+  t: string; d: number;
+  trade?: { id: string; up: boolean; buff: boolean; at: number };
+  /** v7.100.4: a checkout, with what returning it needs (until Done): the tape, its shelf spot and what it replaced. */
+  rent?: { kind: Tape['kind']; id: string; idx: number; deal: number; prevPocket?: string | null; prevTape?: string | null; prevOnce?: string[]; prevCd?: number | null; prevStars?: number; colId?: string };
+}
+
+/**
+ * v7.100.4 (the owner's ask: anything picked in the store can go back until Done): why a checkout can't be returned
+ * right now, or null when it can. Only when the item was used up in the same visit (traded in, swapped out of the
+ * pocket by a later checkout).
+ */
+export const returnBlock = (line: StoreLine, gs: Pick<GameState, 'activeCharms' | 'availablePowerPlays' | 'genreStars' | 'collectorTiles'>): string | null => {
+  const r = line.rent;
+  if (!r) return 'Only a checkout can be returned.';
+  if (r.kind === 'charm' && !gs.activeCharms.some(c => c.id === r.id)) return 'You traded it in, so it can\'t go back.';
+  if (r.kind === 'powerPlay' && gs.availablePowerPlays[0]?.id !== r.id) return 'It left your pocket when you checked out another PowerPlay.';
+  if (r.kind === 'poster' && (gs.genreStars?.[r.id as GenreId] ?? 0) <= (r.prevStars ?? 0)) return 'That star is already gone.';
+  if (r.kind === 'tile' && !(gs.collectorTiles ?? []).some(t => t.id === r.colId)) return 'That tile is already gone.';
+  return null;
+};
 
 /**
  * v7.96.10 (the owner's ask): why a trade-in can't be taken back right now, or null when it can. The seconds

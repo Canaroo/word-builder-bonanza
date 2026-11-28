@@ -149,6 +149,50 @@ describe('the Video Store (v7.96.0)', () => {
     const full = { ...traded, gameState: { ...traded.gameState, activeCharms: others } };
     expect(gameReducer(full, { type: 'STORE_UNDO_TRADE', payload: { line: 0 } })).toBe(full);
   });
+  it('every checkout can be returned until Done: item gone, seconds back, tape back on the shelf (v7.100.4)', () => {
+    const undo = (st: GameScreenState, line = 0) => gameReducer(st, { type: 'STORE_UNDO_TRADE', payload: { line } });
+    // Poster: the star comes off.
+    const s = store();
+    const poster = s.modalContent!.data.shelf[2];
+    const p = gameReducer(s, { type: 'STORE_RENT', payload: { index: 2 } });
+    const pb = undo(p);
+    expect(pb.time).toBe(40);
+    expect(pb.gameState.genreStars?.[poster.id]).toBe(0);
+    expect(pb.modalContent?.data.sold).toEqual([]);
+    expect(pb.modalContent?.data.lines).toHaveLength(0);
+    // ...and with nothing left on the receipt, walking out pays again.
+    expect(gameReducer(pb, { type: 'STORE_LEAVE' }).gameState.score).toBe(s.gameState.score + VIDEO_STORE.walkOut);
+    // Charm: unequipped.
+    const c = undo(gameReducer(s, { type: 'STORE_RENT', payload: { index: 0 } }));
+    expect(c.gameState.activeCharms).toHaveLength(0);
+    expect(c.time).toBe(40);
+    // A charm traded in after checkout can't be returned too (no double refund).
+    const ck = gameReducer(s, { type: 'STORE_RENT', payload: { index: 0 } });
+    const tr = gameReducer(ck, { type: 'STORE_TRADE_IN', payload: { charmId: s.modalContent!.data.shelf[0].id } });
+    expect(undo(tr)).toBe(tr);
+    // Not after Done.
+    const left = { ...p, modalContent: { ...p.modalContent!, data: { ...p.modalContent!.data, left: true } } };
+    expect(undo(left)).toBe(left);
+  });
+  it('returning a PowerPlay puts back the one it replaced; a Collector Tile comes off (v7.100.4)', () => {
+    for (let seed = 0; seed < 400; seed++) {
+      const held = POWER_PLAYS_LIST.find(pp => pp.id === 'fluncleIsProud')!;
+      const s = store({ runSeed: seed, availablePowerPlays: [held] });
+      const t = s.modalContent!.data.shelf[1];
+      const r = gameReducer(s, { type: 'STORE_RENT', payload: { index: 1 } });
+      if (r === s) continue;
+      const back = gameReducer(r, { type: 'STORE_UNDO_TRADE', payload: { line: 0 } });
+      expect(back.time).toBe(40);
+      if (t.kind === 'powerPlay') {
+        expect(r.gameState.availablePowerPlays[0].id).toBe(t.id);
+        expect(back.gameState.availablePowerPlays.map(pp => pp.id)).toEqual(['fluncleIsProud']);
+        expect(back.gameState.powerPlayCooldowns?.[t.id]).toBe(s.gameState.powerPlayCooldowns?.[t.id]);
+      } else {
+        expect(r.gameState.collectorTiles).toHaveLength(1);
+        expect(back.gameState.collectorTiles).toHaveLength(0);
+      }
+    }
+  });
   it('walking out with nothing pays points; after a rental it pays nothing', () => {
     const s = store();
     const walked = gameReducer(s, { type: 'STORE_LEAVE' });
