@@ -22,6 +22,8 @@ interface GameOverScreenProps {
   gameState: FinalGameState;
   onPlayAgain: () => void;
   onSubmitScore: (name: string) => Promise<void> | void;
+  /** v7.100.2: whether this run posted itself to the Top 50 (a qualifying run or a new personal best). */
+  autoPost?: { status: 'checking' | 'posted' | 'none'; rank?: number };
   onGoToMenu: () => void;
   /** This run beat the device's previous best score. */
   isNewBest?: boolean;
@@ -128,7 +130,7 @@ const RunReviewBox: React.FC<{ gameState: GameOverScreenProps['gameState']; isNe
   );
 };
 
-const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, onPlayAgain, onSubmitScore, onGoToMenu, isNewBest = false, personalBest = 0, recap = null, streak = null, daily = null }) => {
+const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, onPlayAgain, onSubmitScore, onGoToMenu, isNewBest = false, personalBest = 0, recap = null, streak = null, daily = null, autoPost = { status: 'none' } }) => {
   const [showMilestones, setShowMilestones] = useState(() => (streak?.milestones.length ?? 0) > 0);
   const next = streak ? nextMilestone(streak.count) : undefined;
   const [showWordLog, setShowWordLog] = useState(false);
@@ -165,7 +167,8 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
   };
 
   const handlePlayAgainClick = () => handleAction(onPlayAgain);
-  const handleSubmitScoreClick = () => handleAction(() => setShowSubmitModal(true));
+  // v7.100.2 (the owner's call): the name is the player's own, so the button posts straight away (no name box).
+  const handleSubmitScoreClick = () => handleAction(() => { doSubmit(); });
   const handleShowWordLogClick = () => handleAction(() => setShowWordLog(true));
   const handleMenuClick = () => handleAction(onGoToMenu);
 
@@ -194,11 +197,11 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
   const bestGap = recap && !isNewBest && recap.previousBest > gameState.score ? recap.previousBest - gameState.score : 0;
   
   const doSubmit = async () => {
-    if (!submissionName.trim() || isSaving) return;
+    if (isSaving) return;
     soundService.playUIClick();
     setIsSaving(true);
     try {
-      await onSubmitScore(submissionName.trim());
+      await onSubmitScore(playerName);
     } finally {
       setIsSaving(false);
     }
@@ -358,9 +361,13 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ playerName, gameState, 
       <div className="w-full max-w-sm mx-auto flex flex-col gap-3 flex-shrink-0 pb-1">
         {daily?.run.practice ? (
           <p className="osd-text text-base text-slate-400 leading-tight">PRACTICE RUNS DON'T POST TO THE TOP 50</p>
+        ) : autoPost.status === 'posted' ? (
+          <p className="osd-text text-xl leading-tight text-neon-green" data-testid="auto-posted">
+            {autoPost.rank && autoPost.rank <= 50 ? `✓ POSTED TO THE TOP 50 · #${autoPost.rank}` : `✓ POSTED · YOUR NEW BEST`}{daily ? ' · 📅' : ''}
+          </p>
         ) : (
-          <ArcadeButton color="cyan" variant="outline" className="w-full" onClick={handleSubmitScoreClick} disabled={isActionLocked}>
-            🏆 Submit Score
+          <ArcadeButton color="cyan" variant="outline" className="w-full" onClick={handleSubmitScoreClick} disabled={isActionLocked || isSaving || autoPost.status === 'checking'} data-testid="submit-score">
+            {autoPost.status === 'checking' ? <span className="blink">Checking the Top 50…</span> : isSaving ? <span className="blink">Saving…</span> : <>🏆 Post as {(playerName || 'Player').toUpperCase()}</>}
           </ArcadeButton>
         )}
         <ArcadeButton color="yellow" size="lg" className="w-full" onClick={handlePlayAgainClick} disabled={isActionLocked}>

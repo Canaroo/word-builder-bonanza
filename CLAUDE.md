@@ -924,6 +924,17 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   through a shuffle ("your 20-point A stays in your hand"; dealt tiles go back to the bag to make room), and
   `START_NEXT_ROUND` logs "Captain Planet wore off" ("Your 20-point A wasn't in your word, so it's back to 1 point.")
   with a stage message. One Tile to Rule Them All keeps its own shuffle rule. Tests in `captainPlanetWearOff.test.ts`.
+- **Top 50 posting (v7.100.2, the owner's report: "J and K" had a 49,109 best but wasn't on the Top 50; their picks).**
+  Nothing was lost: the 49,109 was #32, posted as JULIAN; the same player later typed "J and k" in the Game Over name box
+  for an 18,463, and the ID card snapshot always carries the device player's stats. Scores only posted on SUBMIT SCORE,
+  under any typed name. Now: a finished run **posts itself** when `qualifiesForTop50` (`services/autoPost.ts`) says so
+  (a new personal best, a board with room, or beating its lowest score; `TOP_N` 50), checked against the live board in
+  `handleGameOver` (App.tsx; offline or a failed check leaves it manual); a **scored Daily run cross-posts the same way**
+  with its 📅 (the Daily board post is unchanged); practice runs never post. Scores always post under **the player's own
+  name** (`currentPlayer().name`): the Game Over name box is gone, SUBMIT reads "🏆 Post as NAME" (`submit-score`), and a
+  posted run shows "✓ POSTED TO THE TOP 50 · #N" or "✓ POSTED · YOUR NEW BEST" (`auto-posted`). Browser-checked with a
+  faked Firebase (never the real board): empty board → posted as PLAYTEST, #1; a full board and a higher best → not
+  posted, the button posted it under PLAYTEST. Tests in `autoPost.test.ts`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

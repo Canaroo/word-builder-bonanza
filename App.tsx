@@ -36,6 +36,7 @@ import { recordRunForHeadStart } from './services/headStart';
 import { recordBossResult } from './services/grudges';
 import { postBones, worthLeaving } from './services/bones';
 import { sendStat, runEndExtras } from './services/stats';
+import { qualifiesForTop50 } from './services/autoPost';
 import { levelFor } from './services/rules';
 import { switchToPlayer, currentPlayer } from './services/players';
 import type { TabId } from './components/BottomTabs';
@@ -93,6 +94,7 @@ const App: React.FC = () => {
   const [playerName, setPlayerName] = useState<string>(() => storage.getString(STORAGE_KEYS.playerName) || '');
   const [lastGameResult, setLastGameResult] = useState<FinalGameState | null>(null);
   const [lastRunIsNewBest, setLastRunIsNewBest] = useState(false);
+  const [autoPost, setAutoPost] = useState<{ status: 'checking' | 'posted' | 'none'; rank?: number }>({ status: 'none' });
   // Streak change from the run that just ended (shown on the game-over screen).
   const [lastStreakUpdate, setLastStreakUpdate] = useState<StreakUpdate | null>(null);
   // Bumped whenever badges, titles or freezes change, so screens re-read the profile.
@@ -396,7 +398,24 @@ const App: React.FC = () => {
     setLastStreakUpdate(streak);
     setProfileVersion(v => v + 1);
     const previousBest = getPersonalBest();
-    setLastRunIsNewBest(recordRunScore(finalState.score));
+    const isNewBest = recordRunScore(finalState.score);
+    setLastRunIsNewBest(isNewBest);
+    // v7.100.2 (the owner's picks): a run that would make the Top 50, or is a new personal best, posts itself under the
+    // player's own name; a scored Daily run cross-posts the same way with its 📅. Practice runs never post.
+    const scoredDaily = !!daily && !daily.practice;
+    if (daily?.practice || finalState.score <= 0) setAutoPost({ status: 'none' });
+    else {
+      setAutoPost({ status: 'checking' });
+      leaderboardService.getLeaderboard()
+        .then(async ({ entries, source }) => {
+          if (source !== 'online' || !qualifiesForTop50(finalState.score, isNewBest, entries)) { setAutoPost({ status: 'none' }); return; }
+          const { rank, source: posted } = await leaderboardService.submitScore(currentPlayer().name, finalState.score, { ...publicFlair(), ...(scoredDaily ? { daily: true } : {}) });
+          if (posted !== 'online') { setAutoPost({ status: 'none' }); return; }
+          setAutoPost({ status: 'posted', rank });
+          showToast(rank > 0 && rank <= 50 ? `🏆 Posted to the Top 50: #${rank}!` : '🏆 New best posted!', 3000);
+        })
+        .catch(() => setAutoPost({ status: 'none' }));
+    }
 
     // Secrets are saved to the collection as they're found; this catches any that weren't.
     finalState.foundEasterEggs.forEach(egg => { if (!getCollection()[egg.id]) recordFound(egg.id); });
@@ -426,7 +445,9 @@ const App: React.FC = () => {
     musicService.play();
   }, [lastDaily]);
   
-  const handleSubmitScore = useCallback(async (name: string) => {
+  const handleSubmitScore = useCallback(async (_typed?: string) => {
+    // v7.100.2 (the owner's call): scores always post under the player who played (their ID card's name).
+    const name = currentPlayer().name || playerName || 'Player';
     if (lastGameResult) {
       const score = lastGameResult.score;
       // A scored Daily Run is marked 📅 on the Top 50 (practice runs can't be submitted).
@@ -607,7 +628,7 @@ const App: React.FC = () => {
       case Screen.GameOver:
         return lastGameResult && (
           <GameOverScreen
-            playerName={playerName}
+            playerName={currentPlayer().name || playerName}
             gameState={lastGameResult} 
             isNewBest={lastRunIsNewBest}
             personalBest={getPersonalBest()}
@@ -617,6 +638,7 @@ const App: React.FC = () => {
             onSubmitScore={handleSubmitScore}
             onGoToMenu={handleGoToMenu}
             daily={lastDaily}
+            autoPost={autoPost}
           />
         );
       case Screen.HowToPlay:
