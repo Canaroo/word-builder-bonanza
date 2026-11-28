@@ -4,7 +4,7 @@ import { Sec } from './Seconds';
 import { CHARMS_LIST } from '../data/charms';
 import { POWER_PLAYS_LIST } from '../data/powerPlays';
 import { CHARM_SLOTS, VIDEO_STORE, GENRE_VALUES, COLLECTOR } from '../config/gameplay';
-import { genreById, collectorInfo, restockCost, canAfford, tradeInValue, perStar, playsPerStar, starsOf, takeBackBlock, COLLECTOR_RULE, type Tape, type GenreId, type StoreLine } from '../data/videoStore';
+import { genreById, collectorInfo, restockCost, canAfford, tradeInValue, perStar, playsPerStar, starsOf, takeBackBlock, returnBlock, COLLECTOR_RULE, type Tape, type GenreId, type StoreLine } from '../data/videoStore';
 import { introSeen, markIntro } from '../services/intros';
 import { prizeFor } from '../services/rules';
 import type { Charm, GameState } from '../types';
@@ -149,7 +149,8 @@ const VideoStore: React.FC<{
               {info.flavor && <p className="text-slate-400 text-[12px] italic leading-snug">“{info.flavor}”</p>}
               {tape.kind === 'powerPlay' && pocket && !isSold && <p className="text-neon-yellow text-[12px] leading-snug">This swaps out {pocket.icon} {pocket.name} from your pocket.</p>}
               {blockedBy && <p className="text-neon-red text-[13px] leading-snug" data-testid="store-blocked">{blockedBy}</p>}
-              {isSold ? <p className="osd-text text-lg text-neon-green">✓ CHECKED OUT · IT'S YOURS</p> : (
+              {isSold ? (<div><p className="osd-text text-lg text-neon-green">✓ CHECKED OUT · IT'S YOURS</p>
+                <p className="text-[12px] text-slate-400 leading-snug">Changed your mind? Tap ↩ RETURN on the receipt before you tap Done.</p></div>) : (
                 <ArcadeButton color="green" className="w-full" data-testid="store-rent" disabled={!!blockedBy} onClick={() => onRent(pick!)}>
                   ▶ Check out · −{tape.price}<Sec />
                 </ArcadeButton>
@@ -206,6 +207,17 @@ const VideoStore: React.FC<{
             return (
               <div key={i} className="py-0.5">
                 <p className="flex justify-between gap-2"><span className="truncate">{l.t}</span><span className="shrink-0">{l.d > 0 ? '+' : '−'}{Math.abs(l.d)} sec</span></p>
+                {l.rent && (() => {
+                  // v7.100.4 (the owner's ask): anything checked out can go back until Done.
+                  const why = returnBlock(l, gs);
+                  return (
+                    <div className="flex items-center justify-between gap-2 mt-0.5 mb-1">
+                      <span className="text-[11px] text-[#666] leading-tight">{why ?? `Changed your mind? Return it and get your ${-l.d} sec back.`}</span>
+                      <button type="button" data-testid="store-return" disabled={!!why} onClick={() => onUndoTrade(i)}
+                        className="shrink-0 rounded border-2 border-[#222] bg-white px-2 py-0.5 font-bold text-[12px] active:scale-95 disabled:opacity-40">↩ RETURN</button>
+                    </div>
+                  );
+                })()}
                 {l.trade && (
                   <div className="flex items-center justify-between gap-2 mt-0.5 mb-1">
                     <span className="text-[11px] text-[#666] leading-tight">{block ?? `Changed your mind? It goes back in a slot for −${l.d} sec.`}</span>

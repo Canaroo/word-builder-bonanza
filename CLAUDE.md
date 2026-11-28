@@ -944,6 +944,16 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   The Top 50 screen has a 4th tab, **👑 CHAMPS** (`lb-tab-champs`, `components/ChampsArchive.tsx`): newest first, "#21 ·
   NOV 27 · 🏆 JULIAN · 3 PLAYED · 27,051" (`champs-row`), a tap opens that day's full board (`champs-day`, ◀ All
   champs). The Daily tab's label is now "📅 #22" so four tabs fit at 360 px. Tests in `dailyChamps.test.ts`.
+- **Every store checkout can be returned (v7.100.4, the owner's ask: a poster on the receipt had no way back).** Each
+  checkout line on the receipt has "↩ RETURN" (`store-return`) until Done: the charm leaves its slot, the PowerPlay
+  leaves the pocket and the one it replaced comes back (with its once-per-run mark, cooldown and Mystery Tape bonus),
+  the poster's ★ comes off, the Collector's Tile is removed, every second comes back, and the tape is back on the shelf
+  (unless restocked). The line keeps what that needs (`rent` on `StoreLine`); `returnBlock` (`data/videoStore.ts`)
+  refuses when the item is already gone in the same visit (a charm traded in, a PowerPlay swapped out by another
+  checkout). Same action as a trade take-back (`STORE_UNDO_TRADE`, branching on `line.rent`). With every line returned,
+  Done is Walk out (+points) again. Also fixed: a pocket PowerPlay swapped out by a store checkout was logged as used
+  (`usedPowerPlay` skips `STORE_RENT` and `STORE_UNDO_TRADE`). Restocks stay spent. Browser-checked at 390x844: three
+  checkouts 49 → 28 sec, three returns back to 49. Tests in `videoStore.test.ts`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss

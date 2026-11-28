@@ -38,7 +38,7 @@ import { currentPlayer } from '../players';
 import { BONES } from '../../config/gameplay';
 import { SCRATCH, HOLD_SLOT, GRUDGE, SKILL_SHOT } from '../../config/gameplay';
 import { dealScratch, type ScratchPrize } from '../scratch';
-import { dealShelf, storeOpensAt, restockCost, canAfford, tradeInValue, genreById, collectorInfo, earlierKeys, genrePay, countGenrePlays, playsPerStar, GENRES, COLLECTOR_RULE, canTakeBack, type Tape, type StoreLine } from '../../data/videoStore';
+import { dealShelf, storeOpensAt, restockCost, canAfford, tradeInValue, genreById, collectorInfo, earlierKeys, genrePay, countGenrePlays, playsPerStar, GENRES, COLLECTOR_RULE, canTakeBack, returnBlock, type Tape, type StoreLine } from '../../data/videoStore';
 import { introSeen, markIntro } from '../intros';
 import { VIDEO_STORE, GENRE_VALUES, COLLECTOR } from '../../config/gameplay';
 import { gemMultiplierFor, skillShotPoints, freakyFridayMatch, jengaPot, nextSpeedStreak, speedStreakPoints, finalCategoryDeal, FINAL_CATEGORIES, CENTER_SQUARES, centerSquareClaim, centerSquareLines, centerSquarePrize } from '../rules';
@@ -858,7 +858,8 @@ function payTapeUse(state: GameScreenState, next: GameScreenState, action: GameA
  */
 function usedPowerPlay(state: GameScreenState, next: GameScreenState, action: GameAction): PowerPlay | null {
     const gs = next.gameState;
-    if (!gs || action.type === 'KEEP_POWER_PLAY') return null;
+    // Store checkouts and returns swap the pocket; nothing in it was played (v7.100.4).
+    if (!gs || action.type === 'KEEP_POWER_PLAY' || action.type === 'STORE_RENT' || action.type === 'STORE_UNDO_TRADE') return null;
     if (action.type === 'CHOOSE_POWER_PLAY') return INSTANT_POWER_PLAY_IDS.has(action.payload.powerPlay.id) ? action.payload.powerPlay : null;
     return (state.gameState?.availablePowerPlays ?? []).find(p => !gs.availablePowerPlays.some(n => n.id === p.id)) ?? null;
 }
@@ -930,33 +931,44 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             if (!tape || sold.includes(action.payload.index) || !canAfford(state.time, tape.price)) return state;
             let next: GameScreenState = state;
             let name = '';
+            // v7.100.4: what a return needs (until Done).
+            const rent: NonNullable<StoreLine['rent']> = { kind: tape.kind, id: tape.id, idx: action.payload.index, deal: Number(m.data?.deal ?? 0) };
             if (tape.kind === 'charm') {
                 const charm = CHARMS_LIST.find(c => c.id === tape.id);
                 if (!charm || gameState.activeCharms.length >= CHARM_SLOTS || gameState.activeCharms.some(c => c.id === charm.id)) return state;
+                rent.prevCd = gameState.charmCooldowns?.[charm.id] ?? null;
                 next = baseGameReducer(state, { type: 'CHOOSE_CHARM', payload: { charm, hand: state.hand, allOffered: [charm] } });
                 name = `${charm.icon} ${charm.name}`;
             } else if (tape.kind === 'powerPlay') {
                 const pp = POWER_PLAYS_LIST.find(p => p.id === tape.id);
                 if (!pp) return state;
+                rent.prevPocket = gameState.availablePowerPlays[0]?.id ?? null;
+                rent.prevTape = gameState.tapeBonusId ?? null;
+                rent.prevOnce = [...(gameState.oncePerRunTaken ?? [])];
+                rent.prevCd = gameState.powerPlayCooldowns?.[pp.id] ?? null;
                 next = baseGameReducer(state, { type: 'CHOOSE_POWER_PLAY', payload: { powerPlay: pp, allOffered: [pp] } });
                 name = `${pp.icon} ${pp.name}`;
             } else if (tape.kind === 'poster') {
                 const g = genreById(tape.id);
                 if (!g) return state;
-                const stars = Math.min(GENRE_VALUES.maxStars, (gameState.genreStars?.[g.id] ?? 0) + 1);
+                rent.prevStars = gameState.genreStars?.[g.id] ?? 0;
+                const stars = Math.min(GENRE_VALUES.maxStars, rent.prevStars + 1);
                 next = { ...state, gameState: { ...gameState, genreStars: { ...(gameState.genreStars ?? {}), [g.id]: stars },
                     lastPowerPlayResult: { message: `${g.icon} ${g.name} is now ★${stars}: words with ${g.rule} earn +${stars * (GENRE_VALUES.perStar[g.id] ?? 0)}.`, scoreChange: 0 } } };
                 name = `${g.icon} ${g.name} poster (★${stars})`;
             } else {
                 const info = collectorInfo(tape.id);
                 if (!info || (gameState.collectorTiles ?? []).length >= COLLECTOR.max) return state;
-                next = { ...state, gameState: { ...gameState, collectorTiles: [...(gameState.collectorTiles ?? []), { id: `col-${Date.now()}-${(gameState.collectorTiles ?? []).length}`, kind: info.kind, fresh: true }] } };
+                rent.colId = `col-${Date.now()}-${(gameState.collectorTiles ?? []).length}`;
+                next = { ...state, gameState: { ...gameState, collectorTiles: [...(gameState.collectorTiles ?? []), { id: rent.colId, kind: info.kind, fresh: true }] } };
                 name = `${info.icon} ${info.name}`;
             }
             const gs2 = next.gameState;
             const entry: EventLogEntry = { type: 'event', id: `store-rent-${Date.now()}`, name: 'Video Store', icon: '📼', description: `Checked out ${name} for ${tape.price}s.`, scoreChange: 0, cumulativeScore: gs2.score };
-            return { ...next, isPaused: true, time: next.time - tape.price,
-                modalContent: { ...m, data: { ...m.data, sold: [...sold, action.payload.index], lines: [...(m.data?.lines ?? []), { t: name, d: -tape.price }] } },
+            const time = next.time - tape.price;
+            return { ...next, isPaused: true, time,
+                // d is the clock's real change (a Power Glove adds its seconds on equip), so a return undoes exactly that.
+                modalContent: { ...m, data: { ...m.data, sold: [...sold, action.payload.index], lines: [...(m.data?.lines ?? []), { t: name, d: time - state.time, rent }] } },
                 gameState: { ...gs2, log: [...gs2.log, entry] } };
         }
         case 'STORE_RESTOCK': {
@@ -1005,6 +1017,46 @@ function baseGameReducer(state: GameScreenState, action: GameAction): GameScreen
             if (m?.type !== 'video-store' || m.data?.left) return state;
             const lines = (m.data?.lines ?? []) as StoreLine[];
             const line = lines[action.payload.line];
+            // v7.100.4 (the owner's ask): any checkout can be returned until Done, for every second it cost.
+            if (line?.rent) {
+                const r = line.rent;
+                if (returnBlock(line, gameState)) return state;
+                let gs: GameState = { ...gameState };
+                let hand = state.hand;
+                let tileBag = state.tileBag;
+                let name = line.t;
+                if (r.kind === 'charm') {
+                    gs.activeCharms = gs.activeCharms.filter(c => c.id !== r.id);
+                    gs.activeBuffs = gs.activeBuffs.filter(b => b.id !== r.id);
+                    gs.charmUpgrades = (gs.charmUpgrades ?? []).filter(id => id !== r.id);
+                    const cd = { ...(gs.charmCooldowns ?? {}) };
+                    if (r.prevCd == null) delete cd[r.id]; else cd[r.id] = r.prevCd;
+                    gs.charmCooldowns = cd;
+                    if (r.id === HOLD_SLOT.charmId && gs.holdTile) {
+                        const slot = hand.indexOf(null);
+                        if (slot !== -1) { hand = [...hand]; hand[slot] = gs.holdTile; } else tileBag = [...tileBag, gs.holdTile.letter];
+                        gs.holdTile = null;
+                    }
+                } else if (r.kind === 'powerPlay') {
+                    const prev = r.prevPocket ? POWER_PLAYS_LIST.find(p => p.id === r.prevPocket) : undefined;
+                    gs.availablePowerPlays = prev ? [prev] : [];
+                    if (r.prevTape) gs.tapeBonusId = r.prevTape;
+                    if (r.prevOnce) gs.oncePerRunTaken = r.prevOnce;
+                    const cd = { ...(gs.powerPlayCooldowns ?? {}) };
+                    if (r.prevCd == null) delete cd[r.id]; else cd[r.id] = r.prevCd;
+                    gs.powerPlayCooldowns = cd;
+                } else if (r.kind === 'poster') {
+                    gs.genreStars = { ...(gs.genreStars ?? {}), [r.id]: r.prevStars ?? 0 };
+                    name = name.replace(/ \(★\d\)$/, '');
+                } else {
+                    gs.collectorTiles = (gs.collectorTiles ?? []).filter(t => t.id !== r.colId);
+                }
+                const time = Math.max(state.time, clampTime(state.time - line.d, bankMax(gs)));
+                const entry: EventLogEntry = { type: 'event', id: `store-return-${Date.now()}`, name: 'Video Store', icon: '📼', description: `Returned ${name} (+${time - state.time}s).`, scoreChange: 0, cumulativeScore: gs.score };
+                const sold = ((m.data?.sold ?? []) as number[]).filter(i => !(r.deal === Number(m.data?.deal ?? 0) && i === r.idx));
+                return { ...state, hand, tileBag, time, gameState: { ...gs, log: [...gs.log, entry] },
+                    modalContent: { ...m, data: { ...m.data, sold, lines: lines.filter((_, i) => i !== action.payload.line) } } };
+            }
             const charm = line?.trade ? CHARMS_LIST.find(c => c.id === line.trade!.id) : undefined;
             if (!line?.trade || !charm || !canTakeBack(line, state.time, gameState.activeCharms)) return state;
             const time = state.time - line.d;
