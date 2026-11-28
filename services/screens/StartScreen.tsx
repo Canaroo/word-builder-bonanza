@@ -5,6 +5,7 @@ import { SHOP_NEWS } from '../../config/progression';
 import { soundService } from '../soundService';
 import { musicService } from '../musicService';
 import Leaderboard from '../../components/Leaderboard';
+import ChampsArchive from '../../components/ChampsArchive';
 import { leaderboardService, LeaderboardSource } from '../leaderboardService';
 import { LeaderboardEntry, FinalGameState, MissedWord, PowerWordData } from '../../types';
 import { logService } from '../logService';
@@ -166,7 +167,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [leaderboardSource, setLeaderboardSource] = useState<LeaderboardSource>('local');
   const [leaderboardOfflineReason, setLeaderboardOfflineReason] = useState<string | undefined>();
   // The Top 50 has two boards: all-time, and today's Daily Run.
-  const [leaderboardTab, setLeaderboardTab] = useState<'all' | 'recent' | 'daily'>('all');
+  const [leaderboardTab, setLeaderboardTab] = useState<'all' | 'recent' | 'daily' | 'champs'>('all');
 
   const [showEventLogsModal, setShowEventLogsModal] = useState(false);
   const [eventLogs, setEventLogs] = useState<FinalGameState[]>([]);
@@ -225,6 +226,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   }, [name]);
   
   const fetchLeaderboard = useCallback(async (retry = false) => {
+    if (leaderboardTab === 'champs') return; // 🏆 CHAMPS reads the Daily archive (useDailyChamps)
     setIsLoadingLeaderboard(true);
     const { entries, source, offlineReason } = leaderboardTab === 'daily'
       ? await leaderboardService.getDailyLeaderboard(today.key, { retry })
@@ -466,18 +468,20 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const renderPanel = () => {
     if (panel === 'top50') return (
       <ScreenShell title="TOP 50" tone="pink" onBack={panelBack} credits={lexCoins} tab="top50" onTab={panelTab} subheader={
-        <div className="grid grid-cols-3 gap-1" role="tablist" aria-label="Leaderboards">
-          {(['all', 'recent', 'daily'] as const).map(tab => (
-            <button key={tab} type="button" role="tab" aria-selected={leaderboardTab === tab}
+        <div className="grid grid-cols-4 gap-1" role="tablist" aria-label="Leaderboards">
+          {(['all', 'recent', 'daily', 'champs'] as const).map(tab => (
+            <button key={tab} type="button" role="tab" aria-selected={leaderboardTab === tab} data-testid={`lb-tab-${tab}`}
               onClick={() => { soundService.playUIClick(); setLeaderboardTab(tab); }}
-              className={`osd-text text-base min-[375px]:text-lg leading-none rounded-lg py-2 ring-1 whitespace-nowrap ${leaderboardTab === tab ? 'bg-neon-pink/25 ring-neon-pink text-white' : 'ring-white/15 text-slate-400'}`}>
-              {tab === 'all' ? '🏆 TOP 50' : tab === 'recent' ? '🕒 RECENT' : `📅 TODAY #${today.number}`}
+              className={`osd-text text-sm min-[375px]:text-base leading-none rounded-lg py-2 px-0.5 ring-1 whitespace-nowrap overflow-hidden ${leaderboardTab === tab ? 'bg-neon-pink/25 ring-neon-pink text-white' : 'ring-white/15 text-slate-400'}`}>
+              {tab === 'all' ? '🏆 TOP 50' : tab === 'recent' ? '🕒 RECENT' : tab === 'daily' ? `📅 #${today.number}` : '👑 CHAMPS'}
             </button>
           ))}
         </div>
       }>
         <div className="h-full flex flex-col">
+          {leaderboardTab === 'champs' ? <ChampsArchive /> : (
           <Leaderboard key={leaderboardTab} recent={leaderboardTab === 'recent'} data={leaderboardData} isLoading={isLoadingLeaderboard} source={leaderboardSource} offlineReason={leaderboardOfflineReason} onRetry={() => fetchLeaderboard(true)} />
+          )}
         </div>
       </ScreenShell>
     );

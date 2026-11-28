@@ -54,7 +54,7 @@ export const toCard = (c: any): IdCardStats | undefined => {
     };
 };
 
-const toEntry = (id: string, row: any): LeaderboardEntry | null => {
+export const toEntry = (id: string, row: any): LeaderboardEntry | null => {
     const ms = typeof row?.timestamp === 'number' ? row.timestamp
         : typeof row?.date === 'number' ? row.date
         : Date.parse(String(row?.date ?? ''));

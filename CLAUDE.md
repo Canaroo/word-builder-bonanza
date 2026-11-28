@@ -935,6 +935,15 @@ guardrails, wiring guide, and helper scripts (`content-check.mjs`, `word-check.m
   posted run shows "✓ POSTED TO THE TOP 50 · #N" or "✓ POSTED · YOUR NEW BEST" (`auto-posted`). Browser-checked with a
   faked Firebase (never the real board): empty board → posted as PLAYTEST, #1; a full board and a higher best → not
   posted, the button posted it under PLAYTEST. Tests in `autoPost.test.ts`.
+- **Daily Champ checked live, and the 👑 CHAMPS archive (v7.100.3, the owner's asks and picks).** Checked against the
+  real boards (read-only, writes blocked): a fresh device as Julian (Daily #21's winner, 27,051 over Nicole 19,042 and
+  Dad 13,459) got the "You won Daily #21!" card with +25 Credits, 🏆1 on the chip and the "1-TIME DAILY CHAMP" ID pill.
+  The Daily boards are never cleared (each day stays at `daily/<day>`; the TODAY tab only reads today's), so the archive
+  only reads them: `dailyArchive` (`services/dailyChamps.ts`) builds each finished day from `firstDay` on (the owner's
+  pick, so it matches the 🏆 counts) with its winners, top score, players and whole board, kept in the shared snapshot.
+  The Top 50 screen has a 4th tab, **👑 CHAMPS** (`lb-tab-champs`, `components/ChampsArchive.tsx`): newest first, "#21 ·
+  NOV 27 · 🏆 JULIAN · 3 PLAYED · 27,051" (`champs-row`), a tap opens that day's full board (`champs-day`, ◀ All
+  champs). The Daily tab's label is now "📅 #22" so four tabs fit at 360 px. Tests in `dailyChamps.test.ts`.
 - **Level-ups** have their own look (`components/LevelUpCard.tsx`, data from `levelUpInfo()` in
   `services/rules.ts`): a tier-colored stage card with old → new rows, a full-screen takeover on a
   new tier (4, 7, 11) and a red "WARNING · BOSS LEVEL" takeover on boss levels (3, 6, 9...), a boss
